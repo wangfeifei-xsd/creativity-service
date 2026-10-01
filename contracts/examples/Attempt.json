@@ -1,0 +1,38 @@
+{
+  "contract_version": "1.2.0",
+  "failure": {
+    "error": {
+      "code": "FORBIDDEN",
+      "fields": [],
+      "message": "无权执行此操作"
+    },
+    "request_id": "request_demo"
+  },
+  "missing": {
+    "error": {
+      "code": "DEPENDENCY_UNAVAILABLE",
+      "fields": [],
+      "message": "必要对象或服务不可用"
+    },
+    "request_id": "request_demo"
+  },
+  "success": {
+    "attempt_id": "attempt_demo",
+    "error": null,
+    "finished_at": "2026-10-01T00:00:00Z",
+    "kind": "model",
+    "run_id": "run_demo",
+    "scope": {
+      "channel_id": "channel_demo",
+      "data_scope_id": "scope_demo",
+      "environment": "test",
+      "subject_id": "subject_demo",
+      "subject_type": "member"
+    },
+    "source_request_id": "provider_request",
+    "started_at": "2026-10-01T00:00:00Z",
+    "state": "SUCCEEDED",
+    "step_id": "step_demo",
+    "target_version_id": "version_demo"
+  }
+}

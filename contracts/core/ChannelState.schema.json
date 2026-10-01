@@ -1,0 +1,105 @@
+{
+  "$id": "urn:creativity:core:1.2.0:ChannelState",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "channel_active": {
+      "title": "Channel Active",
+      "type": "boolean"
+    },
+    "channel_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Channel Id",
+      "type": "string"
+    },
+    "channel_status": {
+      "anyOf": [
+        {
+          "enum": [
+            "ACTIVE",
+            "SUSPENDED",
+            "ARCHIVED"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Channel Status"
+    },
+    "client_active": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Client Active"
+    },
+    "data_scope_active": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Data Scope Active"
+    },
+    "environment": {
+      "enum": [
+        "dev",
+        "test",
+        "fat",
+        "prod"
+      ],
+      "title": "Environment",
+      "type": "string"
+    },
+    "environment_active": {
+      "title": "Environment Active",
+      "type": "boolean"
+    },
+    "key_active": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Key Active"
+    },
+    "membership_active": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Membership Active"
+    }
+  },
+  "required": [
+    "channel_id",
+    "environment",
+    "channel_active",
+    "environment_active",
+    "membership_active",
+    "client_active",
+    "key_active",
+    "data_scope_active"
+  ],
+  "title": "ChannelState",
+  "type": "object"
+}

@@ -1,0 +1,24 @@
+{
+  "contract_version": "1.2.0",
+  "failure": {
+    "error": {
+      "code": "FORBIDDEN",
+      "fields": [],
+      "message": "无权执行此操作"
+    },
+    "request_id": "request_demo"
+  },
+  "missing": {
+    "error": {
+      "code": "DEPENDENCY_UNAVAILABLE",
+      "fields": [],
+      "message": "必要对象或服务不可用"
+    },
+    "request_id": "request_demo"
+  },
+  "success": {
+    "actor_id": "auth_service",
+    "channel_id": "system",
+    "purpose": "identity_lookup"
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "contract_version": "1.2.0",
+  "failure": {
+    "error": {
+      "code": "FORBIDDEN",
+      "fields": [],
+      "message": "无权执行此操作"
+    },
+    "request_id": "request_demo"
+  },
+  "missing": {
+    "error": {
+      "code": "DEPENDENCY_UNAVAILABLE",
+      "fields": [],
+      "message": "必要对象或服务不可用"
+    },
+    "request_id": "request_demo"
+  },
+  "success": {
+    "coverage": {
+      "exhaustive": true,
+      "items": 1
+    },
+    "cursor": null,
+    "data": {
+      "currency": "CNY",
+      "price": "25.00"
+    },
+    "evidence_refs": [
+      {
+        "authorized_actions": [
+          "evidence:read"
+        ],
+        "evidence_id": "evidence_demo",
+        "location": {
+          "field_path": [
+            "price"
+          ],
+          "text_end": null,
+          "text_start": null
+        },
+        "observed_at": "2026-10-01T00:00:00Z",
+        "scope": {
+          "channel_id": "channel_demo",
+          "data_scope_id": "scope_demo",
+          "environment": "test",
+          "subject_id": "subject_demo",
+          "subject_type": "member"
+        },
+        "source_id": "source_demo",
+        "source_type": "tool",
+        "source_version": "1",
+        "title": "业务报价"
+      }
+    ],
+    "has_more": false,
+    "observed_at": "2026-10-01T00:00:00Z",
+    "scope": {
+      "channel_id": "channel_demo",
+      "data_scope_id": "scope_demo",
+      "environment": "test",
+      "subject_id": "subject_demo",
+      "subject_type": "member"
+    },
+    "source_request_id": "source_request",
+    "source_version": "1",
+    "tool_version_id": "tool_version_demo",
+    "truncated": false,
+    "warnings": []
+  }
+}

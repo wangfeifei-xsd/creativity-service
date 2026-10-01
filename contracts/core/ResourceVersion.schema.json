@@ -1,0 +1,113 @@
+{
+  "$defs": {
+    "JsonValue": {}
+  },
+  "$id": "urn:creativity:core:1.2.0:ResourceVersion",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "channel_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Channel Id",
+      "type": "string"
+    },
+    "content": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Content",
+      "type": "object"
+    },
+    "content_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Content Digest",
+      "type": "string"
+    },
+    "dependencies_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Dependencies Digest",
+      "type": "string"
+    },
+    "dependency_version_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "type": "string"
+      },
+      "title": "Dependency Version Ids",
+      "type": "array"
+    },
+    "draft_revision": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Draft Revision"
+    },
+    "output_schema": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Output Schema",
+      "type": "object"
+    },
+    "resource_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Resource Id",
+      "type": "string"
+    },
+    "resource_type": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Resource Type",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "DRAFT",
+        "PUBLISHED",
+        "RETIRED"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "version_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Version Id",
+      "type": "string"
+    },
+    "version_label": {
+      "title": "Version Label",
+      "type": "string"
+    }
+  },
+  "required": [
+    "channel_id",
+    "resource_type",
+    "resource_id",
+    "version_id",
+    "version_label",
+    "state",
+    "draft_revision",
+    "content",
+    "content_digest",
+    "dependency_version_ids",
+    "dependencies_digest",
+    "output_schema"
+  ],
+  "title": "ResourceVersion",
+  "type": "object"
+}

@@ -1,0 +1,40 @@
+{
+  "$id": "urn:creativity:core:1.2.0:ControlScope",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "actor_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Actor Id",
+      "type": "string"
+    },
+    "channel_id": {
+      "const": "system",
+      "default": "system",
+      "title": "Channel Id",
+      "type": "string"
+    },
+    "purpose": {
+      "enum": [
+        "identity_lookup",
+        "channel_directory",
+        "platform_limits",
+        "accounts",
+        "roles",
+        "catalog",
+        "templates",
+        "audit"
+      ],
+      "title": "Purpose",
+      "type": "string"
+    }
+  },
+  "required": [
+    "purpose",
+    "actor_id"
+  ],
+  "title": "ControlScope",
+  "type": "object"
+}

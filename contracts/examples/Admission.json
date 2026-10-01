@@ -1,0 +1,35 @@
+{
+  "contract_version": "1.2.0",
+  "failure": {
+    "error": {
+      "code": "FORBIDDEN",
+      "fields": [],
+      "message": "无权执行此操作"
+    },
+    "request_id": "request_demo"
+  },
+  "missing": {
+    "error": {
+      "code": "DEPENDENCY_UNAVAILABLE",
+      "fields": [],
+      "message": "必要对象或服务不可用"
+    },
+    "request_id": "request_demo"
+  },
+  "success": {
+    "admission_id": "admission_demo",
+    "expires_at": "2026-10-02T00:00:00Z",
+    "policy_ids": [
+      "policy_demo"
+    ],
+    "run_id": "run_demo",
+    "scope": {
+      "channel_id": "channel_demo",
+      "data_scope_id": "scope_demo",
+      "environment": "test",
+      "subject_id": "subject_demo",
+      "subject_type": "member"
+    },
+    "state": "HELD"
+  }
+}

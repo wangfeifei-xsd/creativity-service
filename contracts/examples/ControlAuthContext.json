@@ -1,0 +1,32 @@
+{
+  "contract_version": "1.2.0",
+  "failure": {
+    "error": {
+      "code": "FORBIDDEN",
+      "fields": [],
+      "message": "无权执行此操作"
+    },
+    "request_id": "request_demo"
+  },
+  "missing": {
+    "error": {
+      "code": "DEPENDENCY_UNAVAILABLE",
+      "fields": [],
+      "message": "必要对象或服务不可用"
+    },
+    "request_id": "request_demo"
+  },
+  "success": {
+    "granted_actions": [],
+    "principal_id": "admin_demo",
+    "principal_type": "management",
+    "request_id": "request_demo",
+    "scope": {
+      "actor_id": "admin_demo",
+      "channel_id": "system",
+      "purpose": "channel_directory"
+    },
+    "session_id": "session_demo",
+    "token_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

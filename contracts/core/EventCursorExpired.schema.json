@@ -1,0 +1,35 @@
+{
+  "$id": "urn:creativity:core:1.2.0:EventCursorExpired",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "code": {
+      "const": "EVENTS_EXPIRED",
+      "default": "EVENTS_EXPIRED",
+      "title": "Code",
+      "type": "string"
+    },
+    "message": {
+      "default": "事件已过期，请查询运行结果",
+      "title": "Message",
+      "type": "string"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "snapshot_path": {
+      "title": "Snapshot Path",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "snapshot_path"
+  ],
+  "title": "EventCursorExpired",
+  "type": "object"
+}

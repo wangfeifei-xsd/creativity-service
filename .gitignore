@@ -1,0 +1,29 @@
+# Python 运行缓存与虚拟环境
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 检查、测试与覆盖率产物
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# 构建与打包产物
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# 本地配置与日志
+.logs/
+*.log
+.idea/
+.DS_Store

@@ -1,0 +1,27 @@
+# 公共契约 1.2.0
+
+Python 类型为唯一来源：`core/context`、`core/auth/types`、`core/contracts` 和 `core/primitives`。运行 `make contracts` 生成各 JSON Schema、成功/缺失/失败样例和 OpenAPI，再在前端执行 `pnpm api:generate`。`make check` 与 `pnpm api:check` 拒绝过期输出。
+
+| 交接 | 提供 → 使用 | 类型与关键语义 |
+| --- | --- | --- |
+| 身份与范围 | 04/05/18 → 全模块 | AuthContext / Scope；HTTP 正文使用 RunInput，不能声明受信渠道；ControlAuthContext / ControlScope 单独表示控制面身份，仅适用于登记用途，不能传给业务仓储 |
+| 渠道当前状态 | 05 → 04 | ChannelStateReader / ChannelState；缺少读取器、对象或适用状态即拒绝，不从历史 Token 推断有效性 |
+| 版本及执行快照 | 09/15/16 → 11/17/24 | ResourceVersion / ReleaseSnapshot；具体内容、摘要、草稿 revision、依赖闭包及输出结构一起固定 |
+| 受理与预算 | 08 → 11/17 | Admission / BudgetReservation / BudgetService；先声明锁清单，admit/reserve 接收调用方 UoW，失败整体回滚 |
+| 实际尝试及用量 | 07/10/17 → 08 | Attempt / UsageEvent；每次实际尝试独立标识、源请求 id、事件版本、原始口径、子集关系与完整性；累计事件替换，迟到事实可修正 |
+| 工具及证据 | 10/18 → 17/场景 | ToolResult / EvidenceRef；来源版本、观测时间、授权范围、字段/文本位置及分页/截断范围 |
+| 运行交付 | 11/17 → 前端/业务 | ResultEnvelope / RunEvent；技术状态独立于业务状态；非成功运行无正式 result；部分输出单列；sequence 单调，EVENTS_EXPIRED 后查询快照 |
+| 受控文件与删除 | 03 → 全模块 | Artifact / DeletionGuardResult；文件地址为服务端路径；检查结果仅说明本次检查，不得缓存为永久授权；DeletionGuard 每个读写事务重新核对 |
+| 界面组装 | 04/06/各模块 → 前端 | NavigationItem / VisibleAction / VersionOption / DisplayStatus；名称、中文标签及允许展示的动作均来自服务端 |
+
+`core/*.schema.json` 使用 JSON Schema 2020-12。`examples/<类型>.json` 的 success 可直接按同名 schema 校验；missing/failure 是统一 ErrorResponse，表示关键对象缺失或当前授权拒绝。业务数据允许缺失时使用明确 nullable 字段及完整性状态，不把缺失变成零；JSON Schema 验证结构，Pydantic 及服务层额外检查跨字段关系、摘要与隔离。
+
+认证和任务上下文是服务内部交接类型，不是可直接提交的认证凭证；公开 schema 不改变信任边界。04 已装配真实账号认证与授权；05 已提供真实渠道/Key 状态和工作区目录，未接入的资源或主体委托仍拒绝访问；没有内置允许全部的生产替身。业务运行、SSE 及具体版本管理 HTTP 接口由各所属方案实现。
+
+兼容策略：1.x 可增加不影响执行语义的可选展示字段；新增必填字段、改变状态语义、金额精度、摘要算法或事件顺序需提升主版本。消费者对未知错误码使用服务端 message，对未知导航键不渲染；未知业务状态不能映射为成功。写请求 extra 字段拒绝，不把认证字段、权限或任意参数透传到模型。公开读取契约若需要容忍新增字段，在消费者解析层显式实现，服务内部模型维持严格检查。
+
+Money 以十进制字符串传输，numeric(24,8) 保存，禁止客户端浮点数充当计价输入；时间使用带时区 ISO 8601。分页游标由服务签名并绑定 Scope 和查询摘要；查询变化、跨范围或签名错误拒绝。事件游标的时间窗口与补发服务由 17 实现，失效响应保留运行结果查询路径。
+
+1.1.0 新增 IdentitySource，用于 11/17 保存并恢复原始运行身份；不包含 Token、session_id 或权限快照。04 的 TokenResponse、SessionView、账号/成员/授权/审计响应进入 OpenAPI 和前端生成类型。具体行为见 [IAM 交接](../docs/iam.md)。
+
+1.2.0 为 ChannelState 增加可选 channel_status，使暂停/归档的业务拒绝具有明确状态；治理入口的当前授权不变。渠道生命周期和用量查询契约另见 [channels](channels/)，由 `modules/channels/export.py` 生成，接口和语义见 [05 交接](../docs/channels.md)。

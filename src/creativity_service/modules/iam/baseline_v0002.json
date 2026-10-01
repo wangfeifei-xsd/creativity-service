@@ -1,0 +1,554 @@
+[
+  {
+    "module": "iam",
+    "name": "platform_accounts",
+    "comment": "平台账号",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "login_name",
+        "type": "varchar(128)",
+        "comment": "规范化登录名",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "display_name",
+        "type": "varchar(128)",
+        "comment": "显示名称",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "password_hash",
+        "type": "varchar(512)",
+        "comment": "密码安全摘要",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "platform_roles",
+        "type": "jsonb",
+        "comment": "平台角色清单",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "status",
+        "type": "varchar(32)",
+        "comment": "账号状态",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "must_change_password",
+        "type": "boolean",
+        "comment": "首次修改密码标记",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "credential_updated_at",
+        "type": "timestamptz",
+        "comment": "凭据更新时间",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "credential_version",
+        "type": "bigint",
+        "comment": "凭据撤销代次",
+        "required": true,
+        "source": "受信服务上下文与服务层校验",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "login_name"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0002_iam",
+    "scope": "渠道",
+    "control_purpose": "accounts",
+    "content": false
+  },
+  {
+    "module": "iam",
+    "name": "builtin_roles",
+    "comment": "内置角色",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "role_code",
+        "type": "varchar(64)",
+        "comment": "角色编码",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "name",
+        "type": "varchar(128)",
+        "comment": "角色名称",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "allowed_actions",
+        "type": "jsonb",
+        "comment": "允许动作",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "grant_scope",
+        "type": "varchar(32)",
+        "comment": "授权类别",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "role_code"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0002_iam",
+    "scope": "渠道",
+    "control_purpose": "roles",
+    "content": false
+  },
+  {
+    "module": "iam",
+    "name": "channel_memberships",
+    "comment": "渠道成员关系",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "user_id",
+        "type": "varchar(64)",
+        "comment": "平台账号标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "roles",
+        "type": "jsonb",
+        "comment": "角色清单",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "environments",
+        "type": "jsonb",
+        "comment": "授权环境",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "data_scopes",
+        "type": "jsonb",
+        "comment": "授权数据域",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "status",
+        "type": "varchar(32)",
+        "comment": "成员状态",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "granted_by",
+        "type": "varchar(128)",
+        "comment": "授权人标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "user_id"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0002_iam",
+    "scope": "渠道",
+    "control_purpose": null,
+    "content": false
+  },
+  {
+    "module": "iam",
+    "name": "resource_grants",
+    "comment": "资源授权",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "grantee_type",
+        "type": "varchar(64)",
+        "comment": "受权主体类型",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "grantee_id",
+        "type": "varchar(128)",
+        "comment": "受权主体标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "resource_type",
+        "type": "varchar(64)",
+        "comment": "资源类型",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "resource_id",
+        "type": "varchar(64)",
+        "comment": "资源标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "allowed_actions",
+        "type": "jsonb",
+        "comment": "允许动作",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "environments",
+        "type": "jsonb",
+        "comment": "授权环境",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "data_scopes",
+        "type": "jsonb",
+        "comment": "授权数据域",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "grantee_type",
+        "grantee_id"
+      ],
+      [
+        "channel_id",
+        "resource_type",
+        "resource_id"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0002_iam",
+    "scope": "渠道",
+    "control_purpose": null,
+    "content": false
+  },
+  {
+    "module": "iam",
+    "name": "iam_revocations",
+    "comment": "认证撤销补偿记录",
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "kind",
+        "target_id"
+      ],
+      [
+        "completed_at"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0002_iam",
+    "scope": "渠道",
+    "control_purpose": null,
+    "content": false,
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "kind",
+        "type": "varchar(32)",
+        "comment": "撤销索引类别",
+        "required": true,
+        "source": "受信服务上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "target_id",
+        "type": "varchar(128)",
+        "comment": "撤销对象标识或令牌摘要",
+        "required": true,
+        "source": "受信服务上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "cutoff_at",
+        "type": "timestamptz",
+        "comment": "撤销签发时间上界",
+        "required": true,
+        "source": "受信服务上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "completed_at",
+        "type": "timestamptz",
+        "comment": "缓存补偿完成时间",
+        "required": false,
+        "source": "受信服务上下文与服务层校验",
+        "sensitivity": "内部"
+      }
+    ]
+  }
+]

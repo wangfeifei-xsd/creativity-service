@@ -1,0 +1,85 @@
+{
+  "contract_version": "1.2.0",
+  "failure": {
+    "error": {
+      "code": "FORBIDDEN",
+      "fields": [],
+      "message": "无权执行此操作"
+    },
+    "request_id": "request_demo"
+  },
+  "missing": {
+    "error": {
+      "code": "DEPENDENCY_UNAVAILABLE",
+      "fields": [],
+      "message": "必要对象或服务不可用"
+    },
+    "request_id": "request_demo"
+  },
+  "success": {
+    "artifacts": [
+      {
+        "artifact_id": "artifact_demo",
+        "content_type": "text/csv",
+        "download_path": "/api/v1/artifacts/artifact_demo/content",
+        "expires_at": "2026-10-02T00:00:00Z",
+        "name": "分析报告.csv",
+        "scope": {
+          "channel_id": "channel_demo",
+          "data_scope_id": "scope_demo",
+          "environment": "test",
+          "subject_id": "subject_demo",
+          "subject_type": "member"
+        },
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size_bytes": 128,
+        "state": "AVAILABLE"
+      }
+    ],
+    "channel_id": "channel_demo",
+    "error": null,
+    "partial_output": null,
+    "release_snapshot_id": "snapshot_demo",
+    "result": {
+      "business_status": "COMPLETED",
+      "data": {
+        "summary": "分析完成"
+      },
+      "evidence_refs": [
+        {
+          "authorized_actions": [
+            "evidence:read"
+          ],
+          "evidence_id": "evidence_demo",
+          "location": {
+            "field_path": [
+              "price"
+            ],
+            "text_end": null,
+            "text_start": null
+          },
+          "observed_at": "2026-10-01T00:00:00Z",
+          "scope": {
+            "channel_id": "channel_demo",
+            "data_scope_id": "scope_demo",
+            "environment": "test",
+            "subject_id": "subject_demo",
+            "subject_type": "member"
+          },
+          "source_id": "source_demo",
+          "source_type": "tool",
+          "source_version": "1",
+          "title": "业务报价"
+        }
+      ],
+      "schema_version": "1.0",
+      "warnings": []
+    },
+    "run_id": "run_demo",
+    "state": "SUCCEEDED",
+    "state_label": "已完成",
+    "usage_summary": {
+      "status": "REPORTED"
+    }
+  }
+}
