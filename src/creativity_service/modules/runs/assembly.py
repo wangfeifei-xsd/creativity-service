@@ -25,7 +25,7 @@ class RunResourceReader:
     async def read_current(
         self, context: AuthContext, resource_type: str, resource_id: str
     ) -> ResourceState | None:
-        if resource_type != "run":
+        if resource_type not in {"run", "content"}:
             return (
                 await self.fallback.read_current(context, resource_type, resource_id)
                 if self.fallback
@@ -33,11 +33,17 @@ class RunResourceReader:
             )
         async with self.engine.connect() as connection:
             row = await one(connection, "runs", context.scope.channel_id, id=resource_id)
+        if row is None and resource_type == "content":
+            return (
+                await self.fallback.read_current(context, resource_type, resource_id)
+                if self.fallback
+                else None
+            )
         if row is None or (context.client_id and row["client_id"] != context.client_id):
             return None
         return ResourceState(
             scope=Scope.model_validate({k: row[k] for k in Scope.model_fields}),
-            resource_type="run",
+            resource_type=resource_type,
             resource_id=resource_id,
             name=row["agent_name"],
             active=True,

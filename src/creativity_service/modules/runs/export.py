@@ -1,4 +1,4 @@
-"""独立导出方案 11 的待装配路由与内部交接契约。"""
+"""导出运行与流式路由、管理详情及内部交接契约。"""
 
 import argparse
 import json
@@ -13,6 +13,8 @@ from creativity_service.modules.runs.schemas import (
     Lease,
     RerunInput,
     ResolvedDefinition,
+    RunDetail,
+    RunFilterOptions,
     RunRequest,
     RunSummary,
     TracePage,
@@ -37,7 +39,8 @@ def main() -> None:
                 Lease,
                 ResolvedDefinition,
                 RerunInput,
-                RunRequest,
+                RunDetail,
+                RunFilterOptions,
                 RunSummary,
                 TracePage,
             )

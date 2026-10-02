@@ -36,6 +36,23 @@ WARNING = "长期记忆暂不可用，本次未使用记忆；必要事实请通
 
 class MemoryRuntime(MemoryWrites, MemoryQueries):
     @staticmethod
+    def intersect_policy(current: MemoryPolicy, frozen: MemoryPolicy | None) -> MemoryPolicy:
+        """冻结上限与当前策略取交集，后续放宽策略不扩张已受理运行。"""
+        if frozen is None:
+            return current
+        return current.model_copy(
+            update={
+                "read_enabled": current.read_enabled and frozen.read_enabled,
+                "allowed_types": [t for t in current.allowed_types if t in frozen.allowed_types],
+                "retrieval_limit": min(current.retrieval_limit, frozen.retrieval_limit),
+                "ttl_seconds": min(current.ttl_seconds, frozen.ttl_seconds),
+                "failure_mode": "FAIL"
+                if "FAIL" in {current.failure_mode, frozen.failure_mode}
+                else "OMIT",
+            }
+        )
+
+    @staticmethod
     def reference_cache_key(context: AuthContext, agent_id: str, keys: list[str]) -> str:
         return scoped_key(context.scope, "memory", [agent_id, *sorted(set(keys))])
 
@@ -225,7 +242,13 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
         )
 
     async def select(
-        self, context: AuthContext, run_id: str, keys: list[str], current_keys: list[str]
+        self,
+        context: AuthContext,
+        run_id: str,
+        keys: list[str],
+        current_keys: list[str],
+        *,
+        frozen_policy: MemoryPolicy | None = None,
     ) -> MemorySelection:
         self.validate_keys(keys)
         self.validate_keys(current_keys)
@@ -236,7 +259,9 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
         try:
             async with transaction(self.engine, context.scope, repo.keys(context.scope)) as uow:
                 run = await self.runtime_run(uow, context, run_id)
-                policy = await self.policy(uow, context, run["agent_id"])
+                policy = self.intersect_policy(
+                    await self.policy(uow, context, run["agent_id"]), frozen_policy
+                )
                 refs: list[MemoryRef] = []
                 if policy.read_enabled and (await self.preference(uow, context, [])).enabled:
                     for key in dict.fromkeys(keys):
@@ -303,6 +328,8 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
         selection: MemorySelection,
         current_keys: list[str],
         required_fact_keys: list[str],
+        *,
+        frozen_policy: MemoryPolicy | None = None,
     ) -> MemoryLoad:
         self.validate_keys(current_keys)
         self.validate_keys(required_fact_keys)
@@ -312,7 +339,9 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
         try:
             async with transaction(self.engine, context.scope, repo.keys(context.scope)) as uow:
                 run = await self.runtime_run(uow, context, run_id)
-                policy = await self.policy(uow, context, run["agent_id"])
+                policy = self.intersect_policy(
+                    await self.policy(uow, context, run["agent_id"]), frozen_policy
+                )
                 stored = await repo.one(
                     uow.connection, "memory_retrievals", context.scope, id=selection.retrieval_id
                 )

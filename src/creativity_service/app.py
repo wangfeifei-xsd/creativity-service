@@ -24,6 +24,7 @@ from creativity_service.modules.agents.assembly import build_agent_service
 from creativity_service.modules.channels.assembly import build_channel_services
 from creativity_service.modules.conversations.assembly import build_conversation_service
 from creativity_service.modules.integrations.assembly import build_integration_services
+from creativity_service.modules.integrations.delegation import CurrentSubjectReader
 from creativity_service.modules.mcp.assembly import build_mcp_service
 from creativity_service.modules.memory.assembly import build_memory_service
 from creativity_service.modules.models.assembly import build_model_services
@@ -33,6 +34,8 @@ from creativity_service.modules.prompts.assembly import (
     register_prompt_cleanup,
 )
 from creativity_service.modules.runs.assembly import build_run_service
+from creativity_service.modules.runtime.assembly import install_runtime
+from creativity_service.modules.runtime.registry import StepRegistry
 from creativity_service.modules.skills.assembly import build_skill_service, register_skill_cleanup
 from creativity_service.modules.tools.assembly import build_tool_services, register_tool_cleanup
 from creativity_service.modules.usage.assembly import build_usage_services
@@ -87,7 +90,12 @@ def create_schema_app() -> FastAPI:
     return app
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    runtime_registry: StepRegistry | None = None,
+    current_subjects: CurrentSubjectReader | None = None,
+) -> FastAPI:
     settings = settings or Settings()
     configure_logging(settings.log_level)
     provider = create_tracer_provider(settings, "api")
@@ -129,7 +137,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             infrastructure.engine, app.state.iam.authorization, app.state.tools
         )
         app.state.integrations = build_integration_services(
-            infrastructure.engine, app.state.iam.authorization
+            infrastructure.engine, app.state.iam.authorization, current_subjects=current_subjects
         )
         app.state.delegation = app.state.integrations.delegation
         app.state.authentication = app.state.iam.authentication
@@ -178,6 +186,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.usage.budgets,
             cleanup=app.state.core.cleanup,
         )
+        app.state.runtime = install_runtime(
+            app.state.runs,
+            app.state.agents,
+            app.state.models,
+            app.state.prompts,
+            app.state.skills,
+            app.state.tools.management,
+            app.state.conversations,
+            app.state.memory,
+            app.state.iam.authorization,
+            registry=runtime_registry,
+        )
         try:
             yield
         finally:
@@ -193,7 +213,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Idempotency-Key",
+            "Last-Event-ID",
+            "X-Business-Delegation",
+        ],
         expose_headers=["X-Request-ID", "Content-Disposition"],
     )
     FastAPIInstrumentor.instrument_app(app, tracer_provider=provider)

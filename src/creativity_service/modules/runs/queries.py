@@ -5,16 +5,72 @@ from decimal import Decimal
 from typing import Any
 
 from creativity_service.core.context import AuthContext
-from creativity_service.core.contracts import BusinessResult, ResultEnvelope, RunEvent
-from creativity_service.core.database import transaction
+from creativity_service.core.contracts import Artifact, BusinessResult, ResultEnvelope, RunEvent
+from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.tables import metadata as core_metadata
+from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.modules.runs.base import RunKernel
 from creativity_service.modules.runs.repositories import required, rows, verify_scope
-from creativity_service.modules.runs.schemas import LABELS, RunSummary, TracePage
+from creativity_service.modules.runs.schemas import (
+    LABELS,
+    TERMINAL,
+    ExecutionPolicy,
+    RunSummary,
+    TracePage,
+)
+from creativity_service.modules.tools.tables import metadata as tool_metadata
+from creativity_service.modules.tools.validation import artifact_references
 from creativity_service.modules.usage import repositories as usage_repo
 
 
 class QueryService(RunKernel):
+    async def filter_options(self, context: AuthContext) -> dict[str, Any]:
+        from creativity_service.modules.channels.tables import metadata as channels
+
+        await self.authorization.require(context, "run:read", "scope")
+        filters = context.scope.model_dump(exclude={"channel_id"})
+        if context.principal_type == "management" and context.scope.subject_id is None:
+            filters.pop("subject_type", None)
+            filters.pop("subject_id", None)
+        async with self.engine.connect() as connection:
+            found = await rows(connection, "runs", context.scope.channel_id, **filters)
+        visible = []
+        for row in found:
+            try:
+                effective = await self.access_context(context, row["id"])
+                await self.authorization.require(effective, "run:read", row["id"])
+            except ServiceError as exc:
+                if exc.status in {403, 404}:
+                    continue
+                raise
+            visible.append(row)
+        async with self.engine.connect() as connection:
+            keys = []
+            for identifier in sorted({r["key_id"] for r in visible if r["key_id"]}):
+                key = await Repository(channels.tables["channel_keys"], context.scope).get(
+                    connection, identifier
+                )
+                if key:
+                    keys.append({"value": identifier, "label": key["name"]})
+        return {
+            "agents": [
+                {"value": key, "label": name}
+                for key, name in sorted(
+                    {r["agent_id"]: r["agent_name"] for r in visible}.items(), key=lambda v: v[1]
+                )
+            ],
+            "keys": keys,
+            "errors": [
+                {"value": code, "label": message}
+                for code, message in sorted(
+                    {
+                        r["error"]["code"]: r["error"]["message"] for r in visible if r["error"]
+                    }.items()
+                )
+            ],
+        }
+
     @staticmethod
     def owner(context: AuthContext, row: dict[str, Any]) -> None:
         verify_scope(row, context.scope)
@@ -30,6 +86,17 @@ class QueryService(RunKernel):
             self.owner(context, row)
             await self.guard(uow, row)
             result = None
+            partial = None
+            if row["partial_output_ref"]:
+                partial = (
+                    await required(
+                        uow.connection,
+                        "run_contents",
+                        context.scope.channel_id,
+                        id=row["partial_output_ref"],
+                        run_id=run_id,
+                    )
+                )["payload"]
             if row["result_ref"]:
                 content = await required(
                     uow.connection,
@@ -42,19 +109,28 @@ class QueryService(RunKernel):
             usages = await usage_repo.rows(
                 uow.connection, "usage_records", context.scope.channel_id, run_id=run_id
             )
-            return ResultEnvelope(
+            envelope = ResultEnvelope(
                 channel_id=context.scope.channel_id,
                 run_id=run_id,
                 state=row["state"],
                 state_label=LABELS[row["state"]],
                 release_snapshot_id=row["release_snapshot_id"],
                 result=result,
-                partial_output=None,
+                partial_output=partial if row["state"] != "SUCCEEDED" else None,
                 error=row["error"],
                 artifacts=(),
                 usage_summary={
                     "attempt_count": len(usages),
                     "pending_count": sum(u["state"] == "PENDING" for u in usages),
+                    "missing_count": sum(u["usage_status"] == "MISSING" for u in usages),
+                    "unpriced_count": sum(u["pricing_status"] == "UNPRICED" for u in usages),
+                    "complete": all(u["state"] == "SETTLED" for u in usages),
+                    "input_tokens": sum(u["input_tokens"] for u in usages)
+                    if usages and all(u["input_tokens"] is not None for u in usages)
+                    else None,
+                    "output_tokens": sum(u["output_tokens"] for u in usages)
+                    if usages and all(u["output_tokens"] is not None for u in usages)
+                    else None,
                     "currencies": sorted({u["currency"] for u in usages if u["currency"]}),
                     "amounts": {
                         currency: {
@@ -83,6 +159,160 @@ class QueryService(RunKernel):
                     },
                 },
             )
+            identifiers = artifact_references(result.data) if result else set()
+            links = await Repository(core_metadata.tables["source_links"], context.scope).find(
+                uow.connection, source_type="run", source_id=run_id, derived_type="artifact"
+            )
+            identifiers.update(link["derived_id"] for link in links)
+        artifacts = []
+        for identifier in sorted(identifiers):
+            try:
+                await self.authorization.require(context, "artifact:download", identifier)
+            except ServiceError as exc:
+                if exc.status in {403, 404}:
+                    continue
+                raise
+            async with transaction(self.engine, context.scope, self.keys(context, run_id)) as uow:
+                await self.guard(uow, await self.locked_run(uow, run_id))
+                await DeletionGuard(context.scope).check(uow, [ContentRef("artifact", identifier)])
+                artifact = await Repository(core_metadata.tables["artifacts"], context.scope).get(
+                    uow.connection, identifier
+                )
+                if (
+                    not artifact
+                    or artifact["state"] != "AVAILABLE"
+                    or artifact["expires_at"] <= utcnow()
+                ):
+                    continue
+                prefix = "admin" if context.principal_type == "management" else "api"
+                artifacts.append(
+                    Artifact(
+                        artifact_id=identifier,
+                        scope=context.scope,
+                        name=artifact["name"],
+                        content_type=artifact["content_type"],
+                        size_bytes=artifact["size_bytes"],
+                        sha256=artifact["sha256"],
+                        state=artifact["state"],
+                        expires_at=artifact["expires_at"],
+                        download_path=f"/{prefix}/v1/artifacts/{identifier}/content",
+                    )
+                )
+        return envelope.model_copy(update={"artifacts": tuple(artifacts)})
+
+    async def detail(self, context: AuthContext, run_id: str) -> dict[str, Any]:
+        context = await self.access_context(context, run_id)
+        await self.authorization.require(context, "run:read", run_id)
+        content_allowed = True
+        try:
+            await self.authorization.require(context, "run:content", run_id)
+        except ServiceError as exc:
+            if exc.status not in {403, 404}:
+                raise
+            content_allowed = False
+        actions = []
+        try:
+            await self.authorization.require(context, "run:create", run_id)
+            actions = [
+                {"action_key": "cancel", "label": "取消"},
+                {"action_key": "rerun", "label": "重新执行"},
+            ]
+        except ServiceError as exc:
+            if exc.status not in {403, 404}:
+                raise
+        async with transaction(self.engine, context.scope, self.keys(context, run_id)) as uow:
+            row = await self.locked_run(uow, run_id)
+            self.owner(context, row)
+            input_value = None
+            snapshot = None
+            actual_inputs = []
+            evidence = []
+            if content_allowed:
+                snapshot = await self.snapshot(uow, row)
+                input_value = (
+                    await required(
+                        uow.connection,
+                        "run_contents",
+                        context.scope.channel_id,
+                        id=row["input_ref"],
+                        run_id=run_id,
+                    )
+                )["payload"]
+                actual_inputs = [
+                    {
+                        "name": next(
+                            (
+                                s.name
+                                for s in ExecutionPolicy.model_validate(
+                                    row["execution_policy"]
+                                ).steps
+                                if s.node_key
+                                == c["kind"].removeprefix("inputs:").split(".attempt")[0]
+                            ),
+                            None,
+                        )
+                        or "结果来源",
+                        "value": c["payload"],
+                    }
+                    for c in await rows(
+                        uow.connection, "run_contents", context.scope.channel_id, run_id=run_id
+                    )
+                    if c["kind"].startswith("inputs:")
+                ]
+                calls = await Repository(tool_metadata.tables["tool_calls"], context.scope).find(
+                    uow.connection, run_id=run_id
+                )
+                for call in calls:
+                    for identifier in call["evidence_ids"]:
+                        await DeletionGuard(context.scope).check(
+                            uow, [ContentRef("evidence", identifier)]
+                        )
+                        ref = await Repository(
+                            tool_metadata.tables["evidence_refs"], context.scope
+                        ).get(uow.connection, identifier)
+                        if ref:
+                            evidence.append(
+                                {
+                                    "title": ref["title"],
+                                    "source_version": ref["source_version"],
+                                    "observed_at": ref["observed_at"].isoformat(),
+                                    "location": ref["location"],
+                                }
+                            )
+            return_value = {
+                **self.receipt(row).model_dump(mode="json"),
+                "name": row["agent_name"],
+                "purpose": row["purpose"],
+                "purpose_label": {"production": "正式调用", "debug": "调试", "evaluation": "评测"}[
+                    row["purpose"]
+                ],
+                "completed_at": row["completed_at"].isoformat() if row["completed_at"] else None,
+                "conversation_id": row["conversation_id"],
+                "parent_run_id": row["parent_run_id"],
+                "content_allowed": content_allowed,
+                "input": input_value,
+                "actual_inputs": actual_inputs,
+                "evidence": evidence,
+                "error": row["error"],
+                "versions": [
+                    {"name": v.version_label, "type": v.resource_type, "version_id": v.version_id}
+                    for v in snapshot.versions
+                ]
+                if snapshot
+                else [],
+                "actions": [
+                    a
+                    for a in actions
+                    if (a["action_key"] == "cancel" and row["state"] not in TERMINAL)
+                    or (a["action_key"] == "rerun" and row["state"] in TERMINAL and content_allowed)
+                ],
+            }
+        return {
+            **return_value,
+            "result": (await self.get_run(context, run_id)).model_dump(mode="json")
+            if content_allowed
+            else None,
+        }
 
     async def list_runs(
         self,
@@ -254,6 +484,17 @@ class QueryService(RunKernel):
                     {
                         "step_id": step["id"],
                         "node_key": step["node_key"],
+                        "name": next(
+                            (
+                                p.name
+                                for p in ExecutionPolicy.model_validate(
+                                    row["execution_policy"]
+                                ).steps
+                                if p.node_key == step["node_key"]
+                            ),
+                            None,
+                        )
+                        or "执行步骤",
                         "sequence": step["sequence"],
                         "state": step["state"],
                         "state_label": "结果待核实"
@@ -262,12 +503,18 @@ class QueryService(RunKernel):
                         "attempts": [
                             {
                                 "attempt_id": a["id"],
+                                "kind": a["kind"],
                                 "state": a["state"],
                                 "started_at": a["started_at"].isoformat(),
                                 "finished_at": a["finished_at"].isoformat()
                                 if a["finished_at"]
                                 else None,
                                 "usage_ref": a["usage_id"],
+                                "error": a["error"],
+                                "kind_label": "模型调用" if a["kind"] == "model" else "工具调用",
+                                "state_label": {"STARTED": "调用中", "UNKNOWN": "结果待核实"}.get(
+                                    a["state"], LABELS.get(a["state"], "状态不可用")
+                                ),
                             }
                             for a in attempts
                         ],

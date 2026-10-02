@@ -368,7 +368,6 @@ class ToolExecutor:
                         ),
                     }
                 )
-                await self.runs.finish_attempt(context, attempt)
                 await self.service.repository.record(
                     context,
                     call,
@@ -381,6 +380,11 @@ class ToolExecutor:
                     int((monotonic() - started) * 1000),
                     auth_scope,
                 )
+                finish_result = getattr(self.runs, "finish_result", None)
+                if finish_result:
+                    await finish_result(context, attempt, None if failure else result)
+                else:
+                    await self.runs.finish_attempt(context, attempt)
             if failure:
                 if retryable and number + 1 < definition.retry_policy.max_attempts:
                     continue

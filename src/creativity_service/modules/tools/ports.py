@@ -12,7 +12,15 @@ from creativity_service.modules.tools.schemas import (
 )
 
 
-class ToolRunPort(Protocol):
+class ToolDebugPort(Protocol):
+    async def create_debug_run(
+        self, context: AuthContext, version_id: str, body: ToolTestInput
+    ) -> ToolTestResult:
+        """创建固定草稿修订的 debug run，再通过统一工具执行入口执行。"""
+        ...
+
+
+class ToolRunPort(ToolDebugPort, Protocol):
     async def authorize_call(self, context: AuthContext, call: ToolExecution) -> RunToolGrant:
         """重复复核持久化运行、步骤和限额；此入口不重复扣减调用次数。"""
         ...
@@ -22,12 +30,6 @@ class ToolRunPort(Protocol):
         ...
 
     async def finish_attempt(self, context: AuthContext, attempt: Attempt) -> None: ...
-
-    async def create_debug_run(
-        self, context: AuthContext, version_id: str, body: ToolTestInput
-    ) -> ToolTestResult:
-        """创建固定草稿修订的 debug run，再通过统一工具执行入口执行。"""
-        ...
 
 
 class ToolCache(Protocol):

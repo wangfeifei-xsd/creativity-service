@@ -183,6 +183,30 @@
           "minimum": 0,
           "title": "Max Recoveries",
           "type": "integer"
+        },
+        "token_limit": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Token Limit"
+        },
+        "cost_limit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -284,6 +308,26 @@
       "title": "FrozenExecutionSpec",
       "type": "object"
     },
+    "Money": {
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "title": "Amount",
+          "type": "string"
+        },
+        "currency": {
+          "pattern": "^[A-Z]{3}$",
+          "title": "Currency",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "currency"
+      ],
+      "title": "Money",
+      "type": "object"
+    },
     "Scope": {
       "additionalProperties": false,
       "properties": {
@@ -366,6 +410,18 @@
           "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
           "title": "Node Key",
           "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
         },
         "kind": {
           "enum": [
@@ -476,6 +532,24 @@
         }
       ],
       "default": null
+    },
+    "source_refs": {
+      "default": [],
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "type": "array"
+      },
+      "title": "Source Refs",
+      "type": "array"
     }
   },
   "required": [

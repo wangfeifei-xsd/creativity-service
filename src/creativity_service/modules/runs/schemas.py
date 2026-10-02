@@ -6,8 +6,8 @@ from typing import Annotated, Any, Literal
 from pydantic import Field, JsonValue, model_validator
 
 from creativity_service.core.context import Scope
-from creativity_service.core.contracts import RunError, RunState
-from creativity_service.core.primitives import Contract, Identifier, RunInput
+from creativity_service.core.contracts import ResultEnvelope, RunError, RunState, VisibleAction
+from creativity_service.core.primitives import Contract, Identifier, Money, RunInput
 from creativity_service.modules.agents.schemas import FrozenExecutionSpec
 from creativity_service.modules.usage.schemas import AttemptPlan
 
@@ -43,6 +43,7 @@ class RunRequest(RunInput):
 
 class StepPolicy(Contract):
     node_key: Identifier
+    name: str | None = None
     kind: Literal["model", "tool", "compute"]
     target_version_id: Identifier
     read_only: bool = True
@@ -58,6 +59,8 @@ class ExecutionPolicy(Contract):
     max_model_calls: int = Field(default=6, ge=1, le=100)
     max_tool_calls: int = Field(default=10, ge=0, le=100)
     max_recoveries: int = Field(default=2, ge=0, le=10)
+    token_limit: int | None = Field(default=None, ge=1)
+    cost_limit: Money | None = None
 
     @model_validator(mode="after")
     def distinct_nodes(self) -> "ExecutionPolicy":
@@ -82,6 +85,7 @@ class ResolvedDefinition(Contract):
     purpose: Literal["production", "debug", "evaluation"] = "production"
     admission_plan: AttemptPlan | None = None
     frozen_spec: FrozenExecutionSpec | None = None
+    source_refs: tuple[tuple[str, str], ...] = ()
 
 
 class AdmissionReceipt(Contract):
@@ -92,6 +96,52 @@ class AdmissionReceipt(Contract):
     deadline: datetime
     status_url: str
     events_url: str
+
+
+class RunVersionView(Contract):
+    name: str
+    type: str
+    version_id: str
+
+
+class RunInputRecord(Contract):
+    name: str
+    value: dict[str, Any]
+
+
+class RunEvidenceView(Contract):
+    title: str | None
+    source_version: str
+    observed_at: datetime
+    location: dict[str, Any]
+
+
+class RunDetail(AdmissionReceipt):
+    name: str
+    purpose: Literal["production", "debug", "evaluation"]
+    purpose_label: str
+    completed_at: datetime | None
+    conversation_id: str | None
+    parent_run_id: str | None
+    content_allowed: bool
+    input: dict[str, Any] | None
+    actual_inputs: list[RunInputRecord]
+    evidence: list[RunEvidenceView]
+    error: RunError | None
+    versions: list[RunVersionView]
+    actions: list[VisibleAction]
+    result: ResultEnvelope | None
+
+
+class RunFilterOption(Contract):
+    value: str
+    label: str
+
+
+class RunFilterOptions(Contract):
+    agents: list[RunFilterOption]
+    keys: list[RunFilterOption]
+    errors: list[RunFilterOption]
 
 
 class Lease(Contract):
@@ -107,6 +157,11 @@ class RunSummary(AdmissionReceipt):
     parent_run_id: str | None
     release_snapshot_id: str
     error: RunError | None
+
+
+class RunList(Contract):
+    items: list[RunSummary]
+    next_cursor: str | None
 
 
 class TracePage(Contract):

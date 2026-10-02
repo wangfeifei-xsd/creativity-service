@@ -11,19 +11,19 @@ from creativity_service.core.config import Settings
 from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.database import assert_external_io_allowed
 from creativity_service.core.infrastructure import Infrastructure
-from creativity_service.core.versioning import VersionService
-from creativity_service.modules.budgets.services import BudgetService
 from creativity_service.modules.channels.assembly import build_channel_services
-from creativity_service.modules.conversations.hooks import ConversationHooks
-from creativity_service.modules.runs.assembly import build_run_service
+from creativity_service.modules.integrations.delegation import CurrentSubjectReader
 from creativity_service.modules.runs.ports import Executor
 from creativity_service.modules.runs.services import RunService
-from creativity_service.modules.usage.services import UsageService
+from creativity_service.modules.runtime.bootstrap import worker_services
+from creativity_service.modules.runtime.registry import StepRegistry
 from creativity_service.workers.dispatcher import Dispatcher
 from creativity_service.workers.executor import execute_message
 from creativity_service.workers.recovery import Recovery
 
 executor: Executor | None = None
+step_registry = StepRegistry()
+current_subject_reader: CurrentSubjectReader | None = None
 
 
 class CeleryPublisher:
@@ -48,14 +48,8 @@ async def runtime() -> AsyncIterator[tuple[RunService, list[str]]]:
             infrastructure.redis_clients["redis_auth"],
             settings.redis_key_prefix,
         )
-        budgets = BudgetService(infrastructure.engine)
-        runs = build_run_service(
-            infrastructure.engine,
-            iam,
-            VersionService(infrastructure.engine, iam.authorization),
-            budgets,
-            UsageService(infrastructure.engine, budgets),
-            turns=ConversationHooks(),
+        runs = worker_services(
+            infrastructure, iam, registry=step_registry, current_subjects=current_subject_reader
         )
         async with infrastructure.engine.connect() as connection:
             channel_ids = await channels.channels.repository.directory(connection)
@@ -74,7 +68,9 @@ async def sweep() -> None:
 async def execute(message: dict[str, str]) -> None:
     envelope = TaskEnvelope.model_validate(message)
     async with runtime() as (runs, _):
-        await execute_message(runs, envelope, f"worker_{uuid4().hex}", executor)
+        await execute_message(
+            runs, envelope, f"worker_{uuid4().hex}", executor or runs.runtime_executor
+        )
 
 
 def execute_run(message: dict[str, str]) -> None:

@@ -116,6 +116,14 @@ class AdmissionService(RunKernel):
         if resolver_keys:
             keys.extend(resolver_keys(context, definition))
         source_link = digest(["run", run_id, request.conversation_id])
+        input_links = [
+            (digest([run_id, kind, identifier]), ContentRef(kind, identifier))
+            for kind, identifier in definition.source_refs
+        ]
+        keys.extend(
+            record_key(context.scope.channel_id, "source_links", identifier)
+            for identifier, _ in input_links
+        )
         if request.conversation_id:
             keys.append(record_key(context.scope.channel_id, "source_links", source_link))
         duplicate = None
@@ -203,12 +211,20 @@ class AdmissionService(RunKernel):
                     },
                 )
                 await self.guard(uow, row)
+                for identifier, source in input_links:
+                    await DeletionGuard(context.scope).link(
+                        uow, identifier, source, ContentRef("run", run_id)
+                    )
                 await save(
                     uow,
                     "run_contents",
                     row["input_ref"],
                     {"run_id": run_id, "kind": "input", "payload": request.input},
                 )
+                if definition.frozen_spec:
+                    await self.content(
+                        uow, row, "execution_spec", definition.frozen_spec.model_dump(mode="json")
+                    )
                 if request.conversation_id:
                     assert self.turns is not None
                     await self.turns.admit(uow, context, row, request)
@@ -310,4 +326,6 @@ class AdmissionService(RunKernel):
             rerun_request = getattr(self.turns, "rerun_request", None)
             if row["conversation_id"] and rerun_request:
                 request = await rerun_request(uow, context, row, request, key)
+        if row["purpose"] != "production" and self.rerun_handler:
+            return await self.rerun_handler(context, row, request, key)
         return await self.admit_run(context, request, key, parent_run_id=run_id)

@@ -36,7 +36,7 @@ def vectors() -> list[dict[str, Any]]:
                 '{"agent_code":"match","input":{"request_text":"今晚推荐"},"delivery":"async"}',
                 "order-20261002-1",
             ),
-            ("GET", "/api/v1/runs/run-vector/events?after=2", "", None),
+            ("GET", "/api/v1/runs/run-vector/events?after_sequence=2", "", None),
         ]
     ):
         claims = DelegationClaims(
@@ -73,10 +73,8 @@ def vectors() -> list[dict[str, Any]]:
 
 def artifacts() -> dict[str, object]:
     from creativity_service.app import create_schema_app
-    from creativity_service.modules.runs.api import router as run_router
 
     app = create_schema_app()
-    app.include_router(run_router, prefix="/api/v1")
     schema = app.openapi()
     schema["info"] = {"title": "业务接入与身份委托", "version": "1.0.0"}
     schema["paths"] = {

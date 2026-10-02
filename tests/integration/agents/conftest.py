@@ -44,11 +44,17 @@ from tests.integration.models.test_models import Executor, Keys
 @pytest.fixture
 async def agent_env(channel_env, request):
     env = channel_env
-    environment = getattr(request, "param", "test")
+    parameters = getattr(request, "param", "test")
+    environment = parameters["environment"] if isinstance(parameters, dict) else parameters
+    independent = (
+        parameters.get("independent_actions", ["release:publish"])
+        if isinstance(parameters, dict)
+        else ["release:publish"]
+    )
     channel = await env.services.channels.create(
         env.admin,
         channel_body(env).model_copy(
-            update={"environment": environment, "independent_actions": ["release:publish"]}
+            update={"environment": environment, "independent_actions": independent}
         ),
     )
     domains = await env.services.channels.data_scopes(env.admin, channel.channel_id)
@@ -106,7 +112,7 @@ async def agent_env(channel_env, request):
     )
     models.configuration.executor = Executor()
     test = await models.testing.create(
-        tenant.manager, model.id, Cases(cases=["text", "schema", "tools", "usage"])
+        tenant.manager, model.id, Cases(cases=["text", "schema", "tools", "stream_cancel", "usage"])
     )
     await models.testing.complete(
         tenant.manager.context,
@@ -116,7 +122,7 @@ async def agent_env(channel_env, request):
             config_digest=test.config_digest,
             results=[
                 CaseResult(case=c, passed=True, attempt_ids=["fixture_" + c])
-                for c in ["text", "schema", "tools", "usage"]
+                for c in ["text", "schema", "tools", "stream_cancel", "usage"]
             ],
             latency_ms=1,
             evidence="live",

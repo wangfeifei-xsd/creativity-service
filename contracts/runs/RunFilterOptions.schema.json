@@ -1,0 +1,54 @@
+{
+  "$defs": {
+    "RunFilterOption": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "title": "Value",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "label"
+      ],
+      "title": "RunFilterOption",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "agents": {
+      "items": {
+        "$ref": "#/$defs/RunFilterOption"
+      },
+      "title": "Agents",
+      "type": "array"
+    },
+    "keys": {
+      "items": {
+        "$ref": "#/$defs/RunFilterOption"
+      },
+      "title": "Keys",
+      "type": "array"
+    },
+    "errors": {
+      "items": {
+        "$ref": "#/$defs/RunFilterOption"
+      },
+      "title": "Errors",
+      "type": "array"
+    }
+  },
+  "required": [
+    "agents",
+    "keys",
+    "errors"
+  ],
+  "title": "RunFilterOptions",
+  "type": "object"
+}

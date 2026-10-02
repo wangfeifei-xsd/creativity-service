@@ -14,6 +14,8 @@ from creativity_service.modules.memory.api import admin_router as memory_admin_r
 from creativity_service.modules.memory.api import router as memory_router
 from creativity_service.modules.models.api import router as models_router
 from creativity_service.modules.prompts.api import router as prompts_router
+from creativity_service.modules.runs.api import admin_router as runs_admin_router
+from creativity_service.modules.runs.api import router as runs_router
 from creativity_service.modules.skills.api import router as skills_router
 from creativity_service.modules.tools.api import router as tools_router
 from creativity_service.modules.usage.api import router as usage_router
@@ -51,3 +53,5 @@ admin_router.include_router(memory_admin_router)
 api_router.include_router(memory_router)
 
 admin_router.include_router(agents_router)
+api_router.include_router(runs_router)
+admin_router.include_router(runs_admin_router)

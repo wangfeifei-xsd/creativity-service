@@ -1,7 +1,7 @@
 """技能包草稿、不可变发布、受控存储与加载测试服务。"""
 
 import asyncio
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -150,6 +150,14 @@ class SkillVersionValidator:
         )
 
 
+class SkillRuntimeRunner(Protocol):
+    async def submit(
+        self, context: AuthContext, test_id: str, version_id: str, request: SkillLoadRequest
+    ) -> str:
+        """将已经固定的加载测试提交为独立运行。"""
+        ...
+
+
 class SkillService:
     def __init__(
         self,
@@ -167,6 +175,7 @@ class SkillService:
         self.access = SkillAuthorization(engine, authorization)
         self.versions = VersionService(engine, self.access, SkillVersionValidator(self))
         self.loader = SkillLoader(self)
+        self.runtime_runner: SkillRuntimeRunner | None = None
         self.deletion = DeletionService(engine, self.access)
 
     async def require(self, context: AuthContext, action: str, skill_id: str) -> None:
@@ -926,12 +935,32 @@ class SkillService:
                     "result": result.model_dump(mode="json"),
                 },
             )
+        run_id = None
+        if self.runtime_runner is not None:
+            run_id = await self.runtime_runner.submit(context, test_id, version_id, request)
+            async with transaction(
+                self.engine,
+                context.scope,
+                [
+                    content_key(context.scope),
+                    record_key(context.scope.channel_id, "skill_tests", test_id),
+                ],
+            ) as uow:
+                await DeletionGuard(context.scope).check(uow, [ContentRef("skill_test", test_id)])
+                current_test = await repository("skill_tests", context.scope).get(
+                    uow.connection, test_id
+                )
+                assert current_test is not None
+                await repository("skill_tests", context.scope).change(
+                    uow, test_id, current_test["revision"], {"run_id": run_id}
+                )
         return SkillTestView(
             test_id=test_id,
             version_id=version_id,
             version_label=version["version_label"],
             created_at=row["created_at"].isoformat(),
             result=result,
+            run_id=run_id,
         )
 
     async def tests(self, context: AuthContext, version_id: str) -> list[SkillTestView]:

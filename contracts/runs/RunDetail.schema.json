@@ -1,0 +1,734 @@
+{
+  "$defs": {
+    "Artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "content_type": {
+          "title": "Content Type",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "STAGED",
+            "AVAILABLE",
+            "DELETING",
+            "DELETED"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "download_path": {
+          "title": "Download Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_id",
+        "scope",
+        "name",
+        "content_type",
+        "size_bytes",
+        "sha256",
+        "state",
+        "expires_at",
+        "download_path"
+      ],
+      "title": "Artifact",
+      "type": "object"
+    },
+    "BusinessResult": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "business_status": {
+          "enum": [
+            "COMPLETED",
+            "NEEDS_INPUT",
+            "NO_MATCH",
+            "INSUFFICIENT_DATA",
+            "PARTIAL"
+          ],
+          "title": "Business Status",
+          "type": "string"
+        },
+        "data": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Data",
+          "type": "object"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/EvidenceRef"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema_version",
+        "business_status",
+        "data",
+        "warnings",
+        "evidence_refs"
+      ],
+      "title": "BusinessResult",
+      "type": "object"
+    },
+    "EvidenceLocation": {
+      "additionalProperties": false,
+      "properties": {
+        "field_path": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Field Path"
+        },
+        "text_start": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Text Start"
+        },
+        "text_end": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Text End"
+        }
+      },
+      "required": [
+        "field_path",
+        "text_start",
+        "text_end"
+      ],
+      "title": "EvidenceLocation",
+      "type": "object"
+    },
+    "EvidenceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_version": {
+          "title": "Source Version",
+          "type": "string"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/EvidenceLocation"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        },
+        "authorized_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Authorized Actions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "scope",
+        "source_type",
+        "source_id",
+        "source_version",
+        "observed_at",
+        "location",
+        "title",
+        "authorized_actions"
+      ],
+      "title": "EvidenceRef",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "ResultEnvelope": {
+      "additionalProperties": false,
+      "properties": {
+        "channel_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Channel Id",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "QUEUED",
+            "RUNNING",
+            "CANCEL_REQUESTED",
+            "SUCCEEDED",
+            "FAILED",
+            "CANCELLED",
+            "TIMED_OUT"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "state_label": {
+          "title": "State Label",
+          "type": "string"
+        },
+        "release_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Release Snapshot Id",
+          "type": "string"
+        },
+        "result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BusinessResult"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "partial_output": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "usage_summary": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Usage Summary",
+          "type": "object"
+        },
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/Artifact"
+          },
+          "title": "Artifacts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "channel_id",
+        "run_id",
+        "state",
+        "state_label",
+        "release_snapshot_id",
+        "result",
+        "partial_output",
+        "error",
+        "usage_summary",
+        "artifacts"
+      ],
+      "title": "ResultEnvelope",
+      "type": "object"
+    },
+    "RunError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        },
+        "retryable": {
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "stage",
+        "retryable",
+        "request_id"
+      ],
+      "title": "RunError",
+      "type": "object"
+    },
+    "RunEvidenceView": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        },
+        "source_version": {
+          "title": "Source Version",
+          "type": "string"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "location": {
+          "additionalProperties": true,
+          "title": "Location",
+          "type": "object"
+        }
+      },
+      "required": [
+        "title",
+        "source_version",
+        "observed_at",
+        "location"
+      ],
+      "title": "RunEvidenceView",
+      "type": "object"
+    },
+    "RunInputRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "additionalProperties": true,
+          "title": "Value",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "title": "RunInputRecord",
+      "type": "object"
+    },
+    "RunVersionView": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "version_id": {
+          "title": "Version Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "version_id"
+      ],
+      "title": "RunVersionView",
+      "type": "object"
+    },
+    "Scope": {
+      "additionalProperties": false,
+      "properties": {
+        "channel_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Channel Id",
+          "type": "string"
+        },
+        "environment": {
+          "enum": [
+            "dev",
+            "test",
+            "fat",
+            "prod"
+          ],
+          "title": "Environment",
+          "type": "string"
+        },
+        "data_scope_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Scope Id"
+        },
+        "subject_type": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject Type"
+        },
+        "subject_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject Id"
+        }
+      },
+      "required": [
+        "channel_id",
+        "environment"
+      ],
+      "title": "Scope",
+      "type": "object"
+    },
+    "VisibleAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_key": {
+          "title": "Action Key",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_key",
+        "label"
+      ],
+      "title": "VisibleAction",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "QUEUED",
+        "RUNNING",
+        "CANCEL_REQUESTED",
+        "SUCCEEDED",
+        "FAILED",
+        "CANCELLED",
+        "TIMED_OUT"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "state_label": {
+      "title": "State Label",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "deadline": {
+      "format": "date-time",
+      "title": "Deadline",
+      "type": "string"
+    },
+    "status_url": {
+      "title": "Status Url",
+      "type": "string"
+    },
+    "events_url": {
+      "title": "Events Url",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "purpose": {
+      "enum": [
+        "production",
+        "debug",
+        "evaluation"
+      ],
+      "title": "Purpose",
+      "type": "string"
+    },
+    "purpose_label": {
+      "title": "Purpose Label",
+      "type": "string"
+    },
+    "completed_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Completed At"
+    },
+    "conversation_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Conversation Id"
+    },
+    "parent_run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Parent Run Id"
+    },
+    "content_allowed": {
+      "title": "Content Allowed",
+      "type": "boolean"
+    },
+    "input": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Input"
+    },
+    "actual_inputs": {
+      "items": {
+        "$ref": "#/$defs/RunInputRecord"
+      },
+      "title": "Actual Inputs",
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/RunEvidenceView"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RunError"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "versions": {
+      "items": {
+        "$ref": "#/$defs/RunVersionView"
+      },
+      "title": "Versions",
+      "type": "array"
+    },
+    "actions": {
+      "items": {
+        "$ref": "#/$defs/VisibleAction"
+      },
+      "title": "Actions",
+      "type": "array"
+    },
+    "result": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResultEnvelope"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "run_id",
+    "state",
+    "state_label",
+    "created_at",
+    "deadline",
+    "status_url",
+    "events_url",
+    "name",
+    "purpose",
+    "purpose_label",
+    "completed_at",
+    "conversation_id",
+    "parent_run_id",
+    "content_allowed",
+    "input",
+    "actual_inputs",
+    "evidence",
+    "error",
+    "versions",
+    "actions",
+    "result"
+  ],
+  "title": "RunDetail",
+  "type": "object"
+}

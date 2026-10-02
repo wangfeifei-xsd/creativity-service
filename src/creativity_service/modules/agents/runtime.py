@@ -1,5 +1,7 @@
 """16 到 11/17 的受理适配：映射切换不改变已解析的执行内容。"""
 
+import json
+
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork
 from creativity_service.core.deletion import ContentRef, DeletionGuard
@@ -19,6 +21,31 @@ class AgentRunResolver:
     @staticmethod
     def definition(spec: FrozenExecutionSpec) -> ResolvedDefinition:
         config = spec.definition
+        steps = []
+        for step in config.steps:
+            for iteration in range(config.limits.max_iterations):
+                steps.append(
+                    StepPolicy(
+                        node_key=step.key if iteration == 0 else f"{step.key}.i{iteration}",
+                        name=step.name,
+                        kind=step.kind,
+                        target_version_id=(step.dependency or config.bindings.model_route_version)
+                        if step.kind == "model"
+                        else step.dependency or spec.source_version_id,
+                        max_retries=step.max_retries,
+                    )
+                )
+        for index, version_id in enumerate(config.bindings.tool_versions):
+            for call in range(config.limits.max_tool_calls):
+                steps.append(
+                    StepPolicy(
+                        node_key=f"runtime_tool_{index}_{call}",
+                        name="调用授权工具",
+                        kind="tool",
+                        target_version_id=version_id,
+                        max_retries=2,
+                    )
+                )
         return ResolvedDefinition(
             agent_id=spec.agent_id,
             agent_name=spec.agent_name,
@@ -27,23 +54,18 @@ class AgentRunResolver:
             output_schema=config.output_schema,
             purpose=spec.purpose,
             frozen_spec=spec,
+            source_refs=tuple(
+                tuple(v) for v in json.loads(spec.payload_json).get("source_refs", [])
+            ),
             policy=ExecutionPolicy(
                 frozen_spec_id=spec.snapshot_id,
-                steps=tuple(
-                    StepPolicy(
-                        node_key=s.key,
-                        kind=s.kind,
-                        target_version_id=(s.dependency or config.bindings.model_route_version)
-                        if s.kind == "model"
-                        else s.dependency or spec.source_version_id,
-                        max_retries=s.max_retries,
-                    )
-                    for s in config.steps
-                ),
+                steps=tuple(steps),
                 timeout_seconds=config.limits.deadline_seconds,
                 timeout_source="agent-version",
                 max_model_calls=config.limits.max_model_rounds,
                 max_tool_calls=config.limits.max_tool_calls,
+                token_limit=config.limits.token_limit,
+                cost_limit=config.limits.cost_limit,
             ),
         )
 

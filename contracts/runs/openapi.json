@@ -46,10 +46,85 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdmissionReceipt"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AdmissionReceipt"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ResultEnvelope"
+                    }
+                  ],
+                  "title": "Response Admit Api V1 Runs Post"
                 }
               }
             }
+          },
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultEnvelope"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/events": {
+      "get": {
+        "tags": [
+          "任务运行"
+        ],
+        "summary": "Events",
+        "operationId": "events_api_v1_runs__run_id__events_get",
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "after_sequence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "After Sequence"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "410": {
+            "description": "事件已过期"
           },
           "422": {
             "description": "Validation Error",
@@ -144,6 +219,63 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/runs/{run_id}/events": {
+      "get": {
+        "tags": [
+          "运行管理"
+        ],
+        "summary": "Events",
+        "operationId": "events_admin_v1_runs__run_id__events_get",
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "after_sequence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "After Sequence"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "410": {
+            "description": "事件已过期"
           },
           "422": {
             "description": "Validation Error",
@@ -352,9 +484,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response List Runs Admin V1 Runs Get"
+                  "$ref": "#/components/schemas/RunList"
                 }
               }
             }
@@ -370,6 +500,32 @@
             }
           }
         }
+      }
+    },
+    "/admin/v1/runs/options": {
+      "get": {
+        "tags": [
+          "运行管理"
+        ],
+        "summary": "Options",
+        "operationId": "options_admin_v1_runs_options_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunFilterOptions"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ]
       }
     },
     "/admin/v1/runs/{run_id}/rerun": {
@@ -540,6 +696,53 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResultEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/runs/{run_id}/detail": {
+      "get": {
+        "tags": [
+          "运行管理"
+        ],
+        "summary": "Detail",
+        "operationId": "detail_admin_v1_runs__run_id__detail_get",
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
                 }
               }
             }
@@ -1036,6 +1239,190 @@
         ],
         "title": "ResultEnvelope"
       },
+      "RunDetail": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "CANCEL_REQUESTED",
+              "SUCCEEDED",
+              "FAILED",
+              "CANCELLED",
+              "TIMED_OUT"
+            ],
+            "title": "State"
+          },
+          "state_label": {
+            "type": "string",
+            "title": "State Label"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deadline"
+          },
+          "status_url": {
+            "type": "string",
+            "title": "Status Url"
+          },
+          "events_url": {
+            "type": "string",
+            "title": "Events Url"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "production",
+              "debug",
+              "evaluation"
+            ],
+            "title": "Purpose"
+          },
+          "purpose_label": {
+            "type": "string",
+            "title": "Purpose Label"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "parent_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Run Id"
+          },
+          "content_allowed": {
+            "type": "boolean",
+            "title": "Content Allowed"
+          },
+          "input": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "actual_inputs": {
+            "items": {
+              "$ref": "#/components/schemas/RunInputRecord"
+            },
+            "type": "array",
+            "title": "Actual Inputs"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/RunEvidenceView"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/RunVersionView"
+            },
+            "type": "array",
+            "title": "Versions"
+          },
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/VisibleAction"
+            },
+            "type": "array",
+            "title": "Actions"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResultEnvelope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "state",
+          "state_label",
+          "created_at",
+          "deadline",
+          "status_url",
+          "events_url",
+          "name",
+          "purpose",
+          "purpose_label",
+          "completed_at",
+          "conversation_id",
+          "parent_run_id",
+          "content_allowed",
+          "input",
+          "actual_inputs",
+          "evidence",
+          "error",
+          "versions",
+          "actions",
+          "result"
+        ],
+        "title": "RunDetail"
+      },
       "RunError": {
         "properties": {
           "code": {
@@ -1069,6 +1456,145 @@
           "request_id"
         ],
         "title": "RunError"
+      },
+      "RunEvidenceView": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "source_version": {
+            "type": "string",
+            "title": "Source Version"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "location": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Location"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "source_version",
+          "observed_at",
+          "location"
+        ],
+        "title": "RunEvidenceView"
+      },
+      "RunFilterOption": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "RunFilterOption"
+      },
+      "RunFilterOptions": {
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/RunFilterOption"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "keys": {
+            "items": {
+              "$ref": "#/components/schemas/RunFilterOption"
+            },
+            "type": "array",
+            "title": "Keys"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/RunFilterOption"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "agents",
+          "keys",
+          "errors"
+        ],
+        "title": "RunFilterOptions"
+      },
+      "RunInputRecord": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "value": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "title": "RunInputRecord"
+      },
+      "RunList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RunSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "RunList"
       },
       "RunRequest": {
         "properties": {
@@ -1129,6 +1655,118 @@
         ],
         "title": "RunRequest",
         "description": "会话调用保留客户端消息标识，由 12 的事务钩子校验和关联。"
+      },
+      "RunSummary": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "CANCEL_REQUESTED",
+              "SUCCEEDED",
+              "FAILED",
+              "CANCELLED",
+              "TIMED_OUT"
+            ],
+            "title": "State"
+          },
+          "state_label": {
+            "type": "string",
+            "title": "State Label"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deadline"
+          },
+          "status_url": {
+            "type": "string",
+            "title": "Status Url"
+          },
+          "events_url": {
+            "type": "string",
+            "title": "Events Url"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "parent_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Run Id"
+          },
+          "release_snapshot_id": {
+            "type": "string",
+            "title": "Release Snapshot Id"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "state",
+          "state_label",
+          "created_at",
+          "deadline",
+          "status_url",
+          "events_url",
+          "name",
+          "parent_run_id",
+          "release_snapshot_id",
+          "error"
+        ],
+        "title": "RunSummary"
+      },
+      "RunVersionView": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "version_id"
+        ],
+        "title": "RunVersionView"
       },
       "Scope": {
         "properties": {
@@ -1271,6 +1909,25 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VisibleAction": {
+        "properties": {
+          "action_key": {
+            "type": "string",
+            "title": "Action Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action_key",
+          "label"
+        ],
+        "title": "VisibleAction"
       }
     },
     "securitySchemes": {

@@ -1,6 +1,6 @@
 """状态、租约、内容与事件的事务内共同协议。"""
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from typing import Any
 
@@ -12,10 +12,17 @@ from creativity_service.core.database import Repository, UnitOfWork, transaction
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import ResourceKey
-from creativity_service.core.primitives import ServiceError, digest, new_id, unavailable, utcnow
+from creativity_service.core.primitives import (
+    RunInput,
+    ServiceError,
+    digest,
+    new_id,
+    unavailable,
+    utcnow,
+)
 from creativity_service.core.versioning import VersionService
 from creativity_service.modules.budgets.services import BudgetService
-from creativity_service.modules.runs.ports import DefinitionResolver, TurnHooks
+from creativity_service.modules.runs.ports import DefinitionResolver, Executor, TurnHooks
 from creativity_service.modules.runs.repositories import (
     conversation_key,
     one,
@@ -54,6 +61,12 @@ class RunKernel:
         self.engine, self.authorization, self.versions = engine, authorization, versions
         self.budgets, self.ledger, self.resolver, self.turns = budgets, ledger, resolver, turns
         self.lease_seconds, self.fault = lease_seconds, fault or (lambda _point: None)
+        self.boundary: Callable[[AuthContext, dict[str, Any]], Awaitable[None]] | None = None
+        self.runtime_executor: Executor | None = None
+        self.rerun_handler: (
+            Callable[[AuthContext, dict[str, Any], RunInput, str], Awaitable[AdmissionReceipt]]
+            | None
+        ) = None
 
     @staticmethod
     def context(row: dict[str, Any]) -> AuthContext:

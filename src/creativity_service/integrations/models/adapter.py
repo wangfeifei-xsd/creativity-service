@@ -301,6 +301,7 @@ class LiteLLMAdapter:
         result: Any = await cancellable(litellm.acompletion(**options), cancellation)
         parts: list[str] = []
         finished = False
+        has_tool_calls = False
         if request.stream:
             iterator = result.__aiter__()
             try:
@@ -316,6 +317,7 @@ class LiteLLMAdapter:
                             parts.append(delta.content)
                             yield ModelEvent(kind="text", attempt_id=attempt_id, text=delta.content)
                         for tool in delta.tool_calls or []:
+                            has_tool_calls = True
                             yield ModelEvent(
                                 kind="tool",
                                 attempt_id=attempt_id,
@@ -336,6 +338,7 @@ class LiteLLMAdapter:
                 parts.append(message.content)
                 yield ModelEvent(kind="text", attempt_id=attempt_id, text=message.content)
             for index, tool in enumerate(message.tool_calls or []):
+                has_tool_calls = True
                 yield ModelEvent(
                     kind="tool",
                     attempt_id=attempt_id,
@@ -344,7 +347,7 @@ class LiteLLMAdapter:
                     tool_name=tool.function.name,
                     arguments_delta=tool.function.arguments,
                 )
-        if request.output_schema is not None:
+        if request.output_schema is not None and not has_tool_calls:
             try:
                 structured = json.loads("".join(parts))
                 Draft202012Validator(request.output_schema).validate(structured)

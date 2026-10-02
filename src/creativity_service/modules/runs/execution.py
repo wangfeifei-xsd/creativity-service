@@ -1,7 +1,7 @@
 """带代次的执行租约、有限尝试及恢复判断；外部调用始终在事务外执行。"""
 
 from datetime import timedelta
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from jsonschema import Draft202012Validator
 
@@ -9,6 +9,7 @@ from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.contracts import BusinessResult
 from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
+from creativity_service.modules.budgets.services import record_cost
 from creativity_service.modules.runs.base import RunKernel
 from creativity_service.modules.runs.repositories import one, required, rows, save
 from creativity_service.modules.runs.schemas import TERMINAL, ExecutionPolicy, Lease, StepPolicy
@@ -20,6 +21,8 @@ class ExecutionService(RunKernel):
     async def authorization_error(self, row: dict[str, Any]) -> ServiceError | None:
         try:
             await self.authorization.require(self.context(row), "run:create", row["id"])
+            if self.boundary:
+                await self.boundary(self.context(row), row)
         except ServiceError as exc:
             if exc.status not in {401, 403, 404, 410}:
                 raise
@@ -312,7 +315,14 @@ class ExecutionService(RunKernel):
         return step
 
     async def start_attempt(
-        self, lease: Lease, node_key: str, plan: AttemptPlan | None = None
+        self,
+        lease: Lease,
+        node_key: str,
+        plan: AttemptPlan | None = None,
+        *,
+        target_version_id: str | None = None,
+        attempt_id: str | None = None,
+        provider_credential_id: str | None = None,
     ) -> dict[str, Any] | None:
         original = await self.before_progress(lease)
         context = self.context(original)
@@ -357,7 +367,21 @@ class ExecutionService(RunKernel):
                     }[policy.kind]
                 ):
                     raise ServiceError("CALL_LIMIT", "运行调用次数已达上限", 429)
-                attempt_id = new_id("attempt")
+                attempt_id = attempt_id or new_id("attempt")
+                if await one(uow.connection, "attempts", lease.scope.channel_id, id=attempt_id):
+                    raise ServiceError("ATTEMPT_CONFLICT", "尝试标识已经使用", 409)
+                target_id = target_version_id or policy.target_version_id
+                target = next(
+                    v for v in snapshot.versions if v.version_id == policy.target_version_id
+                )
+                allowed_targets = {policy.target_version_id}
+                if target.resource_type == "model_route" and policy.kind == "model":
+                    allowed_targets = {
+                        m["model_version_id"]
+                        for m in cast(list[dict[str, Any]], target.content["models"])
+                    }
+                if target_id not in allowed_targets:
+                    raise ServiceError("ATTEMPT_TARGET_INVALID", "调用目标不在冻结路由中", 422)
                 usage_id = None
                 if policy.kind == "model":
                     if (
@@ -369,13 +393,55 @@ class ExecutionService(RunKernel):
                         raise ServiceError(
                             "BUDGET_ESTIMATE_REQUIRED", "模型调用必须提交本运行的预算候选", 422
                         )
-                    target = next(
-                        v for v in snapshot.versions if v.version_id == policy.target_version_id
-                    )
+                    target = next(v for v in snapshot.versions if v.version_id == target_id)
                     if plan.model_id != target.resource_id:
                         raise ServiceError(
                             "ATTEMPT_TARGET_INVALID", "预算模型与冻结步骤不一致", 422
                         )
+                    usages = await usage_repo.rows(
+                        uow.connection, "usage_records", lease.scope.channel_id, run_id=row["id"]
+                    )
+                    tokens, price, upper = await self.budgets.estimate(uow, plan)
+                    token_upper = (
+                        plan.input_tokens
+                        + plan.max_output_tokens
+                        + sum(plan.additional_upper_tokens.values())
+                    )
+                    if (
+                        limits.token_limit is not None
+                        and token_upper
+                        + sum(
+                            record_cost(u, "tokens", exposure=True) or 0
+                            for u in usages
+                            if u["state"] != "RELEASED"
+                        )
+                        > limits.token_limit
+                    ):
+                        raise ServiceError("RUN_TOKEN_LIMIT", "运行 Token 额度已达上限", 429)
+                    if limits.cost_limit:
+                        if (
+                            price is None
+                            or upper is None
+                            or price["currency"] != limits.cost_limit.currency
+                        ):
+                            raise ServiceError(
+                                "BUDGET_PRICE_REQUIRED", "运行金额限制需要有效价格", 429
+                            )
+                        if (
+                            any(
+                                u["currency"] != limits.cost_limit.currency
+                                for u in usages
+                                if u["state"] != "RELEASED"
+                            )
+                            or upper
+                            + sum(
+                                record_cost(u, "amount", exposure=True) or 0
+                                for u in usages
+                                if u["state"] != "RELEASED"
+                            )
+                            > limits.cost_limit.amount
+                        ):
+                            raise ServiceError("RUN_COST_LIMIT", "运行费用额度已达上限", 429)
                     await self.budgets.reserve_attempt(
                         context, plan.model_copy(update={"attempt_id": attempt_id}), uow=uow
                     )
@@ -394,7 +460,8 @@ class ExecutionService(RunKernel):
                         "run_id": row["id"],
                         "step_id": step["id"],
                         "kind": policy.kind,
-                        "target_version_id": policy.target_version_id,
+                        "target_version_id": target_id,
+                        "provider_credential_id": provider_credential_id,
                         "state": "STARTED",
                         "started_at": utcnow(),
                         "lease_version": lease.lease_version,
@@ -469,6 +536,7 @@ class ExecutionService(RunKernel):
         source_request_id: str | None = None,
         retryable: bool = False,
         output: dict[str, Any] | None = None,
+        error: dict[str, Any] | None = None,
     ) -> bool:
         original = await self.load(
             TaskEnvelope(channel_id=lease.scope.channel_id, run_id=lease.run_id)
@@ -529,6 +597,7 @@ class ExecutionService(RunKernel):
                         "finished_at": utcnow(),
                         "source_request_id": source_request_id,
                         "retryable": retryable,
+                        "error": error,
                     },
                 )
                 if state != "SUCCEEDED":
@@ -669,6 +738,39 @@ class ExecutionService(RunKernel):
             row = await self.locked_run(uow, lease.run_id)
             await self.valid_lease(uow, row, lease)
             if not await self.expire(uow, row):
+                await self.guard(uow, row)
+                if event_type == "text_delta":
+                    previous = (
+                        await one(
+                            uow.connection,
+                            "run_contents",
+                            lease.scope.channel_id,
+                            id=row["partial_output_ref"],
+                        )
+                        if row["partial_output_ref"]
+                        else None
+                    )
+                    text = (previous["payload"].get("text", "") if previous else "") + str(
+                        payload.get("text", "")
+                    )
+                    if len(text.encode()) > 1048576:
+                        raise ServiceError("OUTPUT_TOO_LARGE", "流式输出超过保存上限", 422)
+                    partial = {"text": text, "label": "部分内容", "validated": False}
+                    if previous:
+                        await save(uow, "run_contents", previous["id"], {"payload": partial})
+                    else:
+                        row.update(
+                            await save(
+                                uow,
+                                "runs",
+                                row["id"],
+                                {
+                                    "partial_output_ref": await self.content(
+                                        uow, row, "partial", partial
+                                    )
+                                },
+                            )
+                        )
                 await self.event(uow, row, event_type, payload)
                 project = getattr(self.turns, "project", None)
                 if row["conversation_id"] and project:
@@ -682,6 +784,8 @@ class ExecutionService(RunKernel):
         lease: Lease,
         state: Literal["SUCCEEDED", "FAILED", "CANCELLED"],
         result: BusinessResult | None = None,
+        *,
+        failure: ServiceError | None = None,
     ) -> str:
         original = await self.before_progress(lease)
         context = self.context(original)
@@ -693,8 +797,11 @@ class ExecutionService(RunKernel):
                 result_ref = None
                 error = None
                 if state == "SUCCEEDED":
+                    full = "business_status" in cast(
+                        dict[str, Any], snapshot.output_schema.get("properties", {})
+                    )
                     if result is None or not Draft202012Validator(snapshot.output_schema).is_valid(
-                        result.data
+                        result.model_dump(mode="json") if full else result.data
                     ):
                         raise ServiceError("OUTPUT_SCHEMA_INVALID", "结果不符合冻结输出结构", 422)
                     if any(e.scope != lease.scope for e in result.evidence_refs):
@@ -712,7 +819,11 @@ class ExecutionService(RunKernel):
                     await self.event(uow, row, "result", result.model_dump(mode="json"))
                 elif state == "FAILED":
                     await self.interrupt_attempts(uow, row)
-                    error = self.error(row, "EXECUTION_FAILED", "运行执行失败")
+                    error = self.error(
+                        row,
+                        failure.code if failure else "EXECUTION_FAILED",
+                        failure.message if failure else "运行执行失败",
+                    )
                 await self.transition(uow, row, state, error=error, result_ref=result_ref)
         await self.after_commit(row)
         return str(row["state"])

@@ -17,7 +17,7 @@ from creativity_service.core.primitives import ServiceError, digest, new_id, una
 from creativity_service.core.versioning import VersionService, version_view
 from creativity_service.integrations.tools import EFFECT_LABELS, SOURCE_LABELS, AdapterRegistry
 from creativity_service.modules.iam.authorization import IamAuthorization
-from creativity_service.modules.tools.ports import ToolRunPort
+from creativity_service.modules.tools.ports import ToolDebugPort
 from creativity_service.modules.tools.repositories import ToolRepository
 from creativity_service.modules.tools.schemas import (
     BindingOption,
@@ -112,7 +112,7 @@ class ToolService:
         engine: AsyncEngine,
         authorization: IamAuthorization,
         registry: AdapterRegistry,
-        runs: ToolRunPort | None = None,
+        runs: ToolDebugPort | None = None,
     ) -> None:
         self.engine, self.authorization, self.registry, self.runs = (
             engine,
