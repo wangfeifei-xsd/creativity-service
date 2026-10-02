@@ -64,3 +64,9 @@
 `checkpoints.namespace` 使用 `langgraph:<namespace>` 和 `langgraph:<namespace>:writes` 保存恢复点及 pending writes。内容仍在 `run_contents`，携带父恢复点、原快照和租约代次；服务锁处理幂等，不创建框架表或 upsert。删除处理器同时清理两表的运行内容，保留脱敏状态、Attempt 及账本。
 
 无 Agent 的模块调试使用 `resource_versions.resource_type=runtime`；版本只保存执行结构和测试描述摘要，个人样例及完整测试描述保存在带完整 Scope 的 `run_contents`。测试/样例、提示词、技能、记忆、工具证据和产物通过 `source_links` 登记关联，删除屏障覆盖恢复和迟到响应。交接见 [运行编排](../runtime.md)。
+
+## 1.3.0 / 2026-10-02：Creativity 业务无关边界修订
+
+需求基线更新为 v0.7，技术基线为 v1.6。匹配、风险与分析转为业务方可选配置示例；从 catalog.json 撤销原三个场景模块的 12 张未实现设计表及其领域版本载荷，模型清单由 110 张调整为 98 张。三份原字段文档改为撤销记录，不再用于生成迁移。模型检查只要求需求 00–14 的平台持久化归属，15–17 不再要求独立表。
+
+本次未改动任何已实现表的字段、冻结基线或迁移，也未执行数据库变更。已实现的渠道 business_type、固定数据域限制、旧 HTTP 业务 operation 与 Agent 场景入口仍是现状，方案 19/20 负责兼容整改；历史交付记录不代表已满足新边界。通用结果、证据、产物和评测复用原表；业务权威领域数据由源系统和 MCP 维护。

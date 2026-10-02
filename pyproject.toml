@@ -1,7 +1,7 @@
 [project]
 name = "creativity-service"
 version = "0.1.0"
-description = "一玄智能平台服务"
+description = "Creativity AI 能力平台服务"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi>=0.135,<0.143",

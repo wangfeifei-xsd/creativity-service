@@ -74,7 +74,7 @@ class PlatformAPI(FastAPI):
 def create_schema_app() -> FastAPI:
     """离线契约导出共用同一路由装配，不加载环境或外部连接。"""
     app = PlatformAPI(
-        title="一玄智能平台",
+        title="Creativity",
         version=__version__,
         responses={
             status: {"model": ErrorResponse}

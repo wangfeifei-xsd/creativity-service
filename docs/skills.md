@@ -45,6 +45,6 @@
 
 管理接口由 OpenAPI 生成；给 16/17 的 JSON Schema 在 `contracts/skills/`，使用 `python -m creativity_service.modules.skills.export` 更新。资源发布继续使用独立的 `release:publish` 权限；导出要求技能访问、`data:export` 和敏感内容权限，拒绝可识别的凭据文件或凭据正文，不包含测试输入、运行快照或授权配置。
 
-四个可直接导入的 [格式样例](../examples/skills/README.md) 对应租赁诉求、服务比较、话术证据与经营指标。样例只约定资料结构，不包含正式业务政策、风险阈值或指标口径；正文仍由 22/23 经业务确认后加入。
+四个可直接导入的 [格式样例](../examples/skills/README.md) 对应租赁诉求、服务比较、话术证据与经营指标。样例只约定资料结构，不包含正式业务政策、风险阈值或指标口径；正式正文由业务方确认后加入自己的技能版本，不作为 Creativity 平台必做内容。
 
 验证记录见 [skills-validation.md](skills-validation.md)。

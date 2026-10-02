@@ -22,9 +22,9 @@ API 的 `create_app` 和 Celery 的 `worker_services` 均调用 `install_runtime
 
 ## 执行与计量
 
-`RuntimeExecutor` 用普通服务循环执行结构化、固定模板和工具循环；stateful 流程用 LangGraph。计算节点通过 `StepRegistry.register(entrypoint, node_key, handler)` 加载，未注册明确报错，不执行用户上传代码。21—23 需同时声明 16 的固定模板拓扑和登记对应处理器，不在运行核心加入业务项目判断。
+`RuntimeExecutor` 用普通服务循环执行结构化、固定模板和工具循环；stateful 流程用 LangGraph。计算节点通过 `StepRegistry.register(entrypoint, node_key, handler)` 加载，未注册明确报错，不执行用户上传代码。现有固定场景入口是旧基线遗留，方案 19 处理兼容。新增任务通过 Skills/Agent 配置表达，领域计算通过业务 MCP；不再要求 21–23 为每种场景注册代码处理器。通用算子扩展仍需独立实现与验证。
 
-API 可传入 `create_app(runtime_registry=..., current_subjects=...)`；Worker 在启动模块配置 `workers.runs.step_registry` 和 `workers.runs.current_subject_reader`。受信工厂也可直接传入 `worker_services(..., registry=..., current_subjects=...)`。业务主体权限读取器遵循 18 的 `CurrentSubjectReader`，必须向源系统复核当前权限；未装配时服务身份的后台执行拒绝继续，不能拿原 Token 或委托历史声明替代当前授权。19/20 的源系统适配仍是联调前置。
+API 可传入 `create_app(runtime_registry=..., current_subjects=...)`；Worker 在启动模块配置 `workers.runs.step_registry` 和 `workers.runs.current_subject_reader`。受信工厂也可直接传入 `worker_services(..., registry=..., current_subjects=...)`。业务主体权限读取器遵循 18 的 `CurrentSubjectReader`，必须向源系统复核当前权限；未装配时服务身份的后台执行拒绝继续，不能拿原 Token 或委托历史声明替代当前授权。20 的配置式主体复核仍是服务身份联调前置，不按业务仓库实现专用读取器。
 
 每次调用前复核运行身份、冻结白名单、当前资源授权、取消、删除、deadline、次数和预算。模型按冻结路由顺序选择候选，单步骤默认最多重试 2 次，总模型交互默认 6 次、工具默认 10 次；冻结路由和工具策略可以收紧重试次数。结构修复占用同一重试及运行限额，崩溃恢复从已有 Attempt 计算已用次数。
 

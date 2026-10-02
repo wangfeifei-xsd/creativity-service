@@ -1,6 +1,6 @@
 # 对象关系与生命周期
 
-模型版本 1.2.0；完整表及字段见 [索引](README.md)。下文为逻辑关联，实施服务对关联对象的范围、存在及状态负责。
+模型版本 1.3.0；完整表及字段见 [索引](README.md)。下文为逻辑关联，实施服务对关联对象的范围、存在及状态负责。
 
 | 来源 → 目标 | 逻辑关联键与归属 | 版本、状态与删除关系 |
 | --- | --- | --- |
@@ -11,7 +11,7 @@
 | channel_keys → key_identity_index / key_rotations | 身份索引归 system，通过 target_channel_id + key_id 定位真实渠道 | Key、索引同事务创建；轮换新增 Key；不覆盖历史调用归属 |
 | platform_accounts / builtin_roles → channel_memberships → resource_grants | 系统身份；成员/资源授权在真实渠道按 user_id 或 grantee_id 关联 | 账号/成员 ACTIVE ↔ DISABLED；撤销即影响下一次授权边界 |
 | provider_catalog → model_connections → models → model_routes | 字典仅描述供应商；连接和模型属于同一真实渠道，连接凭据按环境绑定 | 实际版本固定供应商名称、能力及参数；价格仅引用 price_versions |
-| prompts / agents / tools / skills / model_routes / models / risk_policies / metrics → resource_versions | resource_type + resource_id；版本 id 用于依赖，输出结构单独固定 | DRAFT 按 revision 修改；冻结为 PUBLISHED；退役为 RETIRED，禁止新绑定 |
+| prompts / agents / tools / skills / model_routes / models → resource_versions | resource_type + resource_id；版本 id 用于依赖，输出结构单独固定 | DRAFT 按 revision 修改；冻结为 PUBLISHED；退役为 RETIRED，禁止新绑定 |
 | resource_versions → resource_references → resource_versions | source_version_id → target_version_id，均同渠道 | 发布时依赖必须已发布；被引用版本保留追溯；退休前检查引用 |
 | resource_versions → release_mappings | 渠道 + 环境 + 资源类型 + 资源 id → version_id | 映射切换与内容冻结分别操作；回滚重新校验当前授权，不改历史内容 |
 | release_mappings → release_snapshots → runs | 受理冻结整份依赖闭包；run_id 与 snapshot_id 双向关联 | 草稿调试固定 revision、内容摘要与正文；正式运行只绑定发布版本 |
@@ -26,10 +26,7 @@
 | skill_files / tool_calls / evidence_refs → artifacts | 具体版本或调用 id；文件路径不作为授权 | 文件属于上传上下文；证据带来源版本、观测时间与位置；访问重新授权 |
 | evaluation_datasets → evaluation_dataset_versions → evaluation_cases / evaluation_fixtures | 样本修订产生新行，新版本固定 case_ids 与 fixture_ids | 人工标注不改旧基线；来源删除使原文不可见，报告注明不可复现 |
 | evaluations → evaluation_results → runs / evaluation_reports | 同渠道快照、样本和子 run；purpose=evaluation | 未完成/无效不当通过；发布门禁绑定依赖摘要 |
-| integrations → data_scopes / delegation_keys / integration_tests | 域映射引用渠道模块；适配器不复制映射真值 | 委托受众、来源、有效期和环境均须匹配；两业务系统差异留在适配器 |
-| matching_configs / match_feedback → runs / evidence_refs | 配置通过 Agent 快照固定；反馈归原运行和实体 | 反馈进入待审核样本；不自动成为训练真值 |
-| risk_policies → resource_versions → risk_assessments / risk_batches / risk_feedback | 评估固定政策、目标内容版本与输入摘要 | 信息不足允许严重度为空；反馈新增修订，不改原模型结论 |
-| metrics → resource_versions → analysis_plans / analysis_datasets / calculation_steps / analysis_reports / analysis_feedback | 固定定义、单位、精度与来源；源关系按 run_id | 数值来自确定计算；缺失不补零；导出为 artifacts，保留来源链 |
+| integrations → data_scopes / delegation_keys / integration_tests | 域映射引用渠道模块；适配器不复制映射真值 | 委托受众、来源、有效期和环境均须匹配；领域差异由业务 MCP 负责，旧 HTTP 协议按 19/20 兼容处理 |
 | 任意内容 → source_links → 派生内容 | 同一完整范围，source_type/id/version → derived_type/id；中间节点继续回溯 | 消息→摘要/记忆→上下文→运行/恢复点→文件/样本/报告；删除任一祖先阻断后代读写 |
 | deletion_markers → deletion_jobs → deletion_work_items | 标记同渠道原范围、目标类型和 id，不含原文 | 先写永久标记再清理；重试幂等；未登记处理器阻止完成；来源有独立依据的记忆由 13/25 重算 |
 | recovery_barriers → 所有恢复内容入口 | 完整内容范围 + recovery_id + 外部删除账本摘要 | 缺失/BLOCKED 拒绝；仅新空范围可初始化；已有内容导入标记并核对后 READY |
@@ -39,7 +36,7 @@
 
 04 关系增量：platform_accounts.credential_version 与管理 Token 的签发代次比较；channel_memberships.revision 与管理工作区 Token 的成员修订比较。资源授权从数据库实时读取，不保存在 Token 中。resource_grants 通过目标渠道关联有效成员或系统内置角色，撤销保留原对象与 revision 并清空 allowed_actions。iam_revocations 保存账号/成员/Key 索引或单 Token 摘要撤销意图，完成缓存补偿后保留元数据供后续保留策略处理。
 
-05 增量：`channels.business_type` 创建后不可更改；租号仅接受 default/default 映射，陪玩使用 club/原业务俱乐部编号。`service_clients.data_scopes` 显式列举同渠道、同环境的数据域，服务身份每次取其中仍启用的范围。`key_identity_index` 与渠道 Key 主记录同事务提交，身份索引归 system，主记录归真实渠道。`key_rotations` 保留新旧 Key 标识与重叠截止时间，不更改 client_id。
+05 当前实现记录：`channels.business_type` 创建后不可更改，现有映射限定 default/default 与 club。这是待方案 19 解除的历史业务耦合，不是新业务接入约束；修改时另建兼容迁移并保留原标识。`service_clients.data_scopes` 显式列举同渠道、同环境的数据域，服务身份每次取其中仍启用的范围。`key_identity_index` 与渠道 Key 主记录同事务提交，身份索引归 system，主记录归真实渠道。`key_rotations` 保留新旧 Key 标识与重叠截止时间，不更改 client_id。
 
 `channel_lifecycle_events` 与治理变更、审计共用事务，载荷只包含状态及修订等元数据；原始 channel_id、environment、target_id 不因消费或清理改写。runs 与 retention 消费进度分别记录；消费按至少一次交付，接收方按 event_id 幂等。归档不删除 Key、轮换、用量和审计记录。
 

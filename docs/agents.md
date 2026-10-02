@@ -24,7 +24,7 @@
 
 ## 定义与校验
 
-`registry.py` 注册 `structured.v1`、`tool_loop.v1`、`stateful.v1` 及固定场景 `matching.v1`、`risk.v1`、`analysis.v1`。这些入口提供定义和模板；实际执行器分别由 17、21—23 提供。固定场景允许绑定资源及参数，禁止改变固定拓扑或上传代码节点。
+`registry.py` 注册 `structured.v1`、`tool_loop.v1`、`stateful.v1` 及固定场景 `matching.v1`、`risk.v1`、`analysis.v1`。这些入口是当前实现记录，通用执行器由 17 提供。固定场景入口按方案 19 兼容整改；21 改为 Skills/Agent 配置交付，不再增加领域处理器。现有固定模板拓扑限制在整改前仍有效，文档修订不代表运行代码已变更。
 
 `AgentDefinition` 固定输入输出 schema、步骤和边、直接绑定、运行限制及上下文策略。步骤声明字段来源、输出结构、超时和失败方式；检查来源字段类型、必填输入、前序步骤是否覆盖所有到达路径、分支兜底、不可达节点、终止出口及循环上限。schema 使用内联定义，不解析本地或外部 `$ref`。结果必须具备 `business_status`、`schema_version`、`data`、`warnings`、`evidence_refs`，业务状态与运行技术状态分离。
 

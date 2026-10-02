@@ -44,7 +44,7 @@ Redis 缓存键包括渠道、环境、数据域、主体、成员/服务及 Key
 | 14 | 先登记同渠道 MCP 适配器，再调用 `ToolService.import_draft`；真实 MCP 连接状态、发现和调用由该单元实现 |
 | 16 | `ToolService.check_dependency` 返回可执行的本地固定版本；正式 Agent 显式保存白名单与版本 |
 | 17 | 实现并注入 `ToolRunPort`，将执行器与管理调试服务装配到同一个运行实例；覆盖 debug、evaluation 与 production 的统一限额 |
-| 18 | 用 `AdapterRegistry.register` 登记业务适配器；实现当前主体委托和来源连接/凭据授权 |
-| 19/20、26 | 真实租号/陪玩查询、价格库存最终复核、运行预算及外部接口联调 |
+| 18 | 保留主体委托与旧 HTTP 连接交付；新增业务工具通过 MCP 接入 |
+| 19/20、22/26 | 接入边界兼容、通用主体复核、MCP 调用与运行预算联调；领域复核由业务 MCP 提供 |
 
 内部交接 schema 在 `contracts/tools/`，运行 `python -m creativity_service.modules.tools.export --check` 验证；`make check` 已纳入此项。真实 MCP、业务接口、生产运行预算及 P1 写操作的未知结果处置不计为本次已完成能力。

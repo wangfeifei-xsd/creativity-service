@@ -25,16 +25,21 @@ def render():
     catalog = json.loads((ARCHIVE / "catalog.json").read_text())
     outputs = {}
     index = [
-        "# P0 数据模型索引",
+        "# Creativity P0 数据模型索引",
         "",
-        f"模型版本 **{catalog['model_version']}**；需求基线 **v0.6**；技术基线 **v1.5**。",
+        f"模型版本 **{catalog['model_version']}**；需求基线 **{catalog['requirements_version']}**；"
+        f"技术基线 **{catalog['technical_version']}**。",
         "",
         "本档案覆盖全部 P0 持久化对象。机器清单为 [catalog.json](catalog.json)，"
         "字段文档由 `scripts/render_data_model.py` 生成。"
         "共享基础的代码定义位于 `core/database/baseline_v0001.json`；"
         "公共表对应 `0001_core`，账号模块对应 `0002_iam`，渠道模块对应 `0003_channels`；"
-        "其他业务表按所属方案建库。"
+        "其余通用平台表按所属方案建库。"
         "开发规范引用 [rule.md](../../../rule.md)。",
+        "",
+        "需求 15–17 为可选配置示例，原 12 张领域表设计已撤销，不属于待建库清单。"
+        "已实现的固定渠道类型、旧 HTTP 接入协议和场景入口由方案 19–20 兼容整改；"
+        "本目录保留实际实现字段，未将待整改标为已完成。",
         "",
         "对象逻辑标识（如 run_id、conversation_id、version_id）在所属表统一物理存为 `id`；"
         "关联字段保留业务名称。渠道主档的 `id` 与 `channel_id` 相等。"
@@ -110,7 +115,7 @@ def render():
         "复用映射：渠道审计与账号审计共用 `audit_events`；"
         "模型价格归用量模块 `price_versions`；"
         "资源内容、依赖、发布映射和运行快照共用公共表；会话删除任务复用方案 25；"
-        "匹配结果使用运行结果，不再复制任务表；风险及分析详情为运行的受控派生对象。"
+        "任意 Agent 的结果使用通用运行与产物模型，业务领域对象由源系统维护。"
         "前端工作区没有独立权限或导航真值表。",
         "",
         "后续方案开始编码前检查对应对象已在本索引中。"

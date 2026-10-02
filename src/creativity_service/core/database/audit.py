@@ -163,7 +163,8 @@ def audit_catalog(root: Path) -> list[str]:
             c["name"] for c in table["columns"]
         ]:
             failures.append(f"{table['name']} 缺少归属或渠道")
-    for number in range(18):
+    # 需求 15–17 为可选配置示例，不再要求独立平台数据模型。
+    for number in range(15):
         if not any(
             info["requirements"].startswith(f"{number:02d}-")
             for info in catalog["modules"].values()
