@@ -1,0 +1,9 @@
+{
+  "scope": {"channel_id": "channel_example", "environment": "test", "data_scope_id": "scope_example", "subject_type": "member", "subject_id": "reader-a"},
+  "permissions": {
+    "reader-a": {
+      "actions": ["run:create", "run:read", "run:content", "data:read_sensitive"],
+      "resources": {"agent": ["*"], "model": ["*"], "model_route": ["*"], "prompt": ["*"], "tool": ["*"], "run": ["*"], "skill": ["*"]}
+    }
+  }
+}

@@ -65,3 +65,7 @@
 ## 16 Agent 实现关系
 
 `agents → resource_versions(agent)` 共用渠道内配置身份；草稿可修订，发布生成独立不可变版本。`release_mappings` 是当前环境版本的唯一真值，`agent_release_records` 保存来源修订、前后版本与检查证据，`agent_environment_states` 保存各环境启停状态。`agent_candidates` 按完整 Scope 固定 Agent 定义、完整依赖及策略；运行策略引用候选标识，公共运行快照复制同一冻结内容。Agent 和每个具体版本通过来源图指向候选，来源删除后禁止读取；清理候选原文保留摘要及历史关联。
+
+## 20 当前主体复核关系
+
+`subject_review_bindings` 按渠道、环境、数据域和 client 固定 MCP connection/discovery/schema。该绑定只授权受控身份查询，不生成本地模型工具。MCP 工具导入继续复用 `mcp_imports → resource_versions(tool)`；来源、观测时间和证据复用 ToolResult、tool_calls 与 evidence_refs，不增加领域表。旧连接修订与新凭据之间不存在自动重绑定。

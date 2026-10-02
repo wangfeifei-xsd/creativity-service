@@ -132,6 +132,13 @@ class AgentKernel:
                 connection_id = row["content"].get("binding", {}).get("connection_id")
                 if connection_id:
                     keys.append(
+                        record_key(
+                            context.scope.channel_id,
+                            "mcp_imports",
+                            row["content"]["binding"]["adapter_key"],
+                        )
+                    )
+                    keys.append(
                         record_key(context.scope.channel_id, "mcp_connections", connection_id)
                     )
             if row["resource_type"] == "model_route":

@@ -57,3 +57,5 @@ Worker 当前需要注入 `CurrentSubjectReader`，后续由 20 提供可配置�
 业务后端示例 [business_backend.py](examples/business_backend.py) 展示 Token 缓存、换取、签名、提交、查询、订阅及取消；业务前端只请求自己的后端。正常断网重试沿用原委托、正文及幂等键，401 最多换 Token 重试一次。SSE 使用 Authorization 请求头，恢复时携带游标并重签实际请求路径；完整流协议由 17 实现、26 联调。
 
 版本化接口为 [openapi-v1.json](../contracts/integrations/openapi-v1.json)；独立实体/事实/指标 schema 位于同目录。运行路由在离线契约中复用 11 的待装配 router（实际挂载仍归 17），后续 17 补充 SSE 后重新生成，不复制一份项目专用实现。执行 `python -m creativity_service.modules.integrations.export --check` 校验交付物。
+
+20 已提供独立于旧 HTTP 能力目录的 [MCP 主体复核配置](mcp-business.md)，API 与 Worker 使用同一装配。

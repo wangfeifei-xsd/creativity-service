@@ -1,5 +1,5 @@
 {
-  "model_version": "1.4.0",
+  "model_version": "1.5.0",
   "requirements_version": "v0.7",
   "date": "2026-10-02",
   "modules": {
@@ -13947,6 +13947,158 @@
       "revision": "0016_agents",
       "scope": "环境",
       "control_purpose": null,
+      "content": false
+    },
+    {
+      "name": "subject_review_bindings",
+      "module": "integrations",
+      "comment": "当前主体复核的固定 MCP 绑定",
+      "status": "已实现",
+      "scope": "数据域",
+      "revision": "0021_mcp_subject_review",
+      "control_purpose": null,
+      "columns": [
+        {
+          "name": "id",
+          "type": "varchar(64)",
+          "comment": "记录标识",
+          "required": true,
+          "source": "渠道、环境、数据域与接入服务的确定性摘要",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "channel_id",
+          "type": "varchar(64)",
+          "comment": "所属渠道标识",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "comment": "创建时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "comment": "更新时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "comment": "并发修订号",
+          "required": true,
+          "source": "服务层递增",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "environment",
+          "type": "varchar(16)",
+          "comment": "所属环境",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "data_scope_id",
+          "type": "varchar(64)",
+          "comment": "所属业务数据域",
+          "required": true,
+          "source": "服务层校验与受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "client_id",
+          "type": "varchar(64)",
+          "comment": "受限接入服务标识",
+          "required": true,
+          "source": "服务层校验后的受信配置",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "connection_id",
+          "type": "varchar(64)",
+          "comment": "固定身份复核连接",
+          "required": true,
+          "source": "服务层校验后的受信配置",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "discovery_id",
+          "type": "varchar(64)",
+          "comment": "授权时发现快照",
+          "required": true,
+          "source": "服务层校验后的受信配置",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "remote_tool_name",
+          "type": "varchar(256)",
+          "comment": "专用身份复核工具名",
+          "required": true,
+          "source": "服务层校验后的受信配置",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "tool_name",
+          "type": "varchar(128)",
+          "comment": "身份工具显示名称",
+          "required": true,
+          "source": "服务层校验后的受信配置",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "connection_revision",
+          "type": "bigint",
+          "comment": "授权时连接配置修订",
+          "required": true,
+          "source": "服务层校验后的受信配置",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "schema_hash",
+          "type": "varchar(128)",
+          "comment": "授权时身份工具契约摘要",
+          "required": true,
+          "source": "服务层校验后的受信配置",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "timeout_seconds",
+          "type": "integer",
+          "comment": "身份复核超时秒数",
+          "required": true,
+          "source": "服务层校验后的受信配置",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "comment": "是否允许身份复核",
+          "required": true,
+          "source": "服务层校验后的受信配置",
+          "sensitivity": "内部"
+        }
+      ],
+      "indexes": [
+        [
+          "channel_id",
+          "id"
+        ],
+        [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "client_id"
+        ]
+      ],
       "content": false
     }
   ],

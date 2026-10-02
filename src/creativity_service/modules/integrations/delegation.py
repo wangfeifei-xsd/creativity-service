@@ -29,6 +29,7 @@ from creativity_service.modules.integrations.repositories import (
     repository,
     source_mapping,
 )
+from creativity_service.modules.integrations.subject_content import initialize_subject_content
 
 ANONYMOUS_ACTIONS = frozenset({"run:create", "run:read"})
 
@@ -182,13 +183,16 @@ class DelegationService:
                         "retain_until": max(expires, utcnow() + timedelta(days=1)),
                     },
                 )
-        return context.model_copy(
+        verified = context.model_copy(
             update={
                 "scope": resolved,
                 "delegation_id": nonce_id,
                 "granted_actions": frozenset(claims.actions),
             }
         )
+        if self.current_subjects is not None:
+            await self.read_current(verified)
+        return verified
 
     async def verify_request(self, context: AuthContext, request: Request) -> AuthContext:
         values = request.headers.getlist(HEADER)
@@ -239,11 +243,19 @@ class DelegationService:
             agent_actions=frozenset(claims.actions),
             resources={k: frozenset(v) for k, v in claims.resources.items()},
         )
-        if context.principal_type == "worker":
-            # 后台任务不能续用已过期的浏览器/服务声明；源业务适配器必须复核当前权限。
+        if context.principal_type == "worker" or self.current_subjects is not None:
+            # API 与 Worker 共用当前权限；后台受理来源不以请求声明的自然到期续权。
             if self.current_subjects is None:
                 raise unavailable("业务主体当前权限复核")
             current = await self.current_subjects.read_current(context, claims)
+            # 外部复核可能等待；交付权限前再次检查密钥和域，避免等待期间撤销被遗漏。
+            async with self.engine.connect() as connection:
+                await self.key_record(connection, context, row["kid"])
+                checked_domain = await source_mapping(
+                    connection, scope, claims.data_scope.type, claims.data_scope.id
+                )
+                if checked_domain["id"] != context.scope.data_scope_id:
+                    raise ServiceError("DELEGATION_SCOPE_INVALID", "业务主体数据域已变化", 403)
             if (
                 current.scope != context.scope
                 or current.expires_at <= utcnow()
@@ -256,6 +268,8 @@ class DelegationService:
                 )
             ):
                 raise ServiceError("DELEGATION_FORBIDDEN", "主体当前权限与原委托不符", 403)
+            if current.actions:
+                await initialize_subject_content(self.engine, context)
             return current
         if authority.expires_at <= utcnow():
             raise ServiceError("DELEGATION_EXPIRED", "业务主体委托已过期", 401)

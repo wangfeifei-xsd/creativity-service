@@ -137,7 +137,10 @@ def create_app(
             infrastructure.engine, app.state.iam.authorization, app.state.tools
         )
         app.state.integrations = build_integration_services(
-            infrastructure.engine, app.state.iam.authorization, current_subjects=current_subjects
+            infrastructure.engine,
+            app.state.iam.authorization,
+            current_subjects=current_subjects,
+            mcp=app.state.mcp,
         )
         app.state.delegation = app.state.integrations.delegation
         app.state.authentication = app.state.iam.authentication

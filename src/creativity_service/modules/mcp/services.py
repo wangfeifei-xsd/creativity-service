@@ -19,6 +19,7 @@ from creativity_service.core.security.credentials import CredentialService
 from creativity_service.core.security.outbound import OutboundPolicy
 from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.iam.roles import ACTION_NAMES
+from creativity_service.modules.mcp.bindings import require_current_binding
 from creativity_service.modules.mcp.differences import differences
 from creativity_service.modules.mcp.repositories import repository
 from creativity_service.modules.mcp.schemas import (
@@ -624,6 +625,8 @@ class McpService:
         )
         if remote is None:
             raise ServiceError("NOT_FOUND", "远端工具不存在", 404)
+        if remote.purpose == "subject_review":
+            raise ServiceError("MCP_IMPORT_INVALID", "身份复核工具仅能用于受控主体复核配置", 422)
         if any(s not in ACTION_NAMES for s in body.required_scopes):
             raise ServiceError("MCP_IMPORT_INVALID", "业务权限不在平台授权目录中", 422)
         scope = context.scope
@@ -652,7 +655,10 @@ class McpService:
             ):
                 raise ServiceError("MCP_IMPORT_INVALID", "目标工具必须来自同一连接和远端工具", 422)
         schema = {**remote.input_schema, "additionalProperties": False}
-        if body.effect_type == "READ_ONLY" and remote.annotations.get("readOnlyHint") is not True:
+        if body.effect_type == "READ_ONLY" and (
+            remote.annotations.get("readOnlyHint") is not True
+            or remote.annotations.get("destructiveHint") is True
+        ):
             raise ServiceError(
                 "MCP_EFFECT_UNCONFIRMED", "远端未声明只读，请按真实影响登记草稿", 422
             )
@@ -748,27 +754,13 @@ class McpService:
         self, context: AuthContext, binding: ToolBinding
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         imported = await self.get(context, "mcp_imports", binding.adapter_key)
-        if imported["contract_status"] != "CURRENT":
-            raise ServiceError("MCP_TOOL_CHANGED", "远端契约已变更，请导入新版本并重新验证", 409)
         row = await self.get(context, "mcp_connections", imported["connection_id"])
-        if (
-            binding.connection_id != row["id"]
-            or binding.implementation_version != imported["schema_hash"]
-        ):
-            raise ServiceError("MCP_TOOL_CHANGED", "本地绑定不符合已导入契约", 409)
-        if row["status"] != "ENABLED":
-            raise ServiceError("MCP_UNAVAILABLE", "连接未启用", 409)
-        if row["auth_failed"]:
-            raise ServiceError("MCP_AUTH_FAILED", "连接凭据已失效", 403)
-        await self.key(context, row)
+        original = await self.get(context, "mcp_discoveries", imported["discovery_id"])
         discoveries = await self.rows(context, "mcp_discoveries", connection_id=row["id"])
-        if (
-            not discoveries
-            or discoveries[0]["connection_revision"] != row["configuration_revision"]
-            or discoveries[0]["schema_hashes"].get(imported["remote_tool_name"])
-            != imported["schema_hash"]
-        ):
-            raise ServiceError("MCP_TOOL_CHANGED", "远端契约已变更，请导入新版本并重新验证", 409)
+        require_current_binding(
+            binding, row, imported, original, discoveries[0] if discoveries else None
+        )
+        await self.key(context, row)
         return row, imported
 
     async def check_binding(self, context: AuthContext, definition: ToolDefinition) -> None:

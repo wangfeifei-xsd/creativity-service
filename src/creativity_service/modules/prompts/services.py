@@ -362,7 +362,7 @@ class PromptService:
         self, context: AuthContext, version: ResourceVersion, inputs: PromptRuntimeInput
     ) -> PromptRenderView:
         """16/17 传入已读取的具体版本或冻结快照；绝不从环境映射重新解析已有依赖。"""
-        await self.authorization.require(context, "version:read", version.resource_id)
+        await self.authorization.require(context, "run:create", version.resource_id)
         if version.channel_id != context.scope.channel_id or version.resource_type != "prompt":
             raise ServiceError("NOT_FOUND", "提示词版本不存在", 404)
         expected = digest({"content": version.content, "output_schema": version.output_schema})

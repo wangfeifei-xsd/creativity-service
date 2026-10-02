@@ -36,8 +36,10 @@ def worker_services(
     runs = build_run_service(engine, iam, core.versions, budgets, UsageService(engine, budgets))
     tools = build_tool_services(engine, iam.authorization)
     skills = build_skill_service(engine, iam.authorization, store, tools.management)
-    build_mcp_service(engine, iam.authorization, tools)
-    build_integration_services(engine, iam.authorization, current_subjects=current_subjects)
+    mcp = build_mcp_service(engine, iam.authorization, tools)
+    build_integration_services(
+        engine, iam.authorization, current_subjects=current_subjects, mcp=mcp
+    )
     prompts = build_prompt_service(engine, iam.authorization, store)
     models = build_model_services(engine, iam)
     conversations = build_conversation_service(engine, iam.authorization, runs, store)

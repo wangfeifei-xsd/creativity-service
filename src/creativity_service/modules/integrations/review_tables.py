@@ -1,4 +1,4 @@
-"""业务接入模块冻结模型，迁移与运行共用本次字段定义。"""
+"""主体复核新增模型单独冻结，不改变旧迁移使用的建表入口。"""
 
 import json
 from pathlib import Path
@@ -6,9 +6,8 @@ from pathlib import Path
 from sqlalchemy import Column, Index, MetaData, Table
 
 from creativity_service.core.database.tables import column_type
-from creativity_service.modules.integrations.review_tables import build_metadata as review_metadata
 
-BASELINE = json.loads(Path(__file__).with_name("baseline_v0018.json").read_text(encoding="utf-8"))
+BASELINE = json.loads(Path(__file__).with_name("baseline_v0021_review.json").read_text())
 
 
 def build_metadata() -> MetaData:
@@ -29,8 +28,3 @@ def build_metadata() -> MetaData:
         for number, columns in enumerate(definition["indexes"]):
             Index(f"ix_{table.name}_{number}", *(table.c[name] for name in columns))
     return result
-
-
-metadata = build_metadata()
-for review_table in review_metadata().tables.values():
-    review_table.to_metadata(metadata)

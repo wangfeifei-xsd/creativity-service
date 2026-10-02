@@ -76,3 +76,7 @@
 先修订模型归档，再以 `0020_access_decoupling` 接在 `0016_agents` 后更新三列中文注释。`channels.business_type` 改为可选展示文本，保留历史分类；外部数据域类型/编号保留原长度与显式配置值，不推导默认映射。原列已经允许空值，不需回填、重建或改写数据；所有渠道、Key、client、数据域、运行来源和版本快照保持原值。旧 `0003_channels` 继续使用冻结基线，新运行元数据使用 `baseline_v0020.json`。
 
 Agent 增加通用 `workflow.v1` 配置入口，历史 `matching.v1/risk.v1/analysis.v1` 仍按原规则解析，不改写版本内容、摘要或运行快照。旧 HTTP 表和委托凭据无存储变更，工具目录归 MCP；兼容清单见 [19 交接](../access-decoupling.md)。
+
+## 1.5.0 / 2026-10-02：20 MCP 业务工具配置接入
+
+新增 `0021_mcp_subject_review` 迁移与独立冻结定义 `baseline_v0021_review.json`，只创建 `subject_review_bindings` 及普通索引。旧迁移建表函数保留原输出，已保存连接、工具、版本和运行不改写。当前主体协议、MCP 身份和结果元数据通过公开 JSON Schema 交付；来源证据复用已有调用和证据模型。

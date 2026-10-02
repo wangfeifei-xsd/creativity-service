@@ -178,6 +178,9 @@ class ToolExecutor:
                     raise ServiceError("TOOL_RESULT_INVALID", "结果分页与外层范围不一致", 502)
         if any(e.scope != context.scope for e in raw.evidence_refs):
             raise ServiceError("TOOL_RESULT_INVALID", "工具证据超出当前授权范围", 502)
+        for evidence in raw.source_evidence:
+            if evidence.scope != context.scope or evidence.observed_at > utcnow():
+                raise ServiceError("TOOL_RESULT_INVALID", "源证据范围或观测时间不正确", 502)
         await self.service.repository.check_sources(context, raw)
         files = artifact_references(raw.data)
         if set(raw.artifact_ids) - files:
@@ -195,20 +198,45 @@ class ToolExecutor:
             title="工具调用结果",
             authorized_actions=("run:read",),
         )
-        return ToolResult(
+        coverage = dict(raw.coverage)
+        sources = []
+        if raw.source_evidence:
+            coverage["source_evidence"] = [e.model_dump(mode="json") for e in raw.source_evidence]
+            sources = [
+                EvidenceRef(
+                    evidence_id=new_id("evidence"),
+                    scope=context.scope,
+                    source_type="tool_call",
+                    source_id=call_id,
+                    source_version=e.source_version,
+                    observed_at=e.observed_at,
+                    location=EvidenceLocation(
+                        field_path=("coverage", "source_evidence", index),
+                        text_start=None,
+                        text_end=None,
+                    ),
+                    title=e.title,
+                    authorized_actions=("run:read",),
+                )
+                for index, e in enumerate(raw.source_evidence)
+            ]
+        result = ToolResult(
             scope=context.scope,
             tool_version_id=call.tool_version_id,
             source_request_id=raw.source_request_id,
             source_version=raw.source_version,
             observed_at=raw.observed_at,
             data=raw.data,
-            evidence_refs=(*raw.evidence_refs, generated),
+            evidence_refs=(*raw.evidence_refs, *sources, generated),
             warnings=raw.warnings,
             cursor=raw.cursor,
             has_more=raw.has_more,
             truncated=raw.truncated,
-            coverage=raw.coverage,
+            coverage=coverage,
         )
+        if len(canonical_json(result.model_dump(mode="json"))) > definition.max_result_size:
+            raise ServiceError("TOOL_RESULT_INVALID", "包含证据的工具结果超过体积上限", 502)
+        return result
 
     async def execute(self, context: AuthContext, call: ToolExecution) -> ToolResult:
         # 深拷贝隔离调用者与适配器，阻止等待授权期间修改已校验参数。

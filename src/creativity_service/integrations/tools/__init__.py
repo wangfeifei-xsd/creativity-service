@@ -7,7 +7,7 @@ from typing import Any, Protocol
 from pydantic import AwareDatetime, Field
 
 from creativity_service.core.context import AuthContext, Scope
-from creativity_service.core.contracts import EvidenceRef
+from creativity_service.core.contracts import EvidenceLocation, EvidenceRef
 from creativity_service.core.primitives import Contract, ServiceError
 from creativity_service.modules.tools.schemas import (
     BindingOption,
@@ -21,12 +21,24 @@ EFFECT_LABELS = {"READ_ONLY": "只读", "IDEMPOTENT_WRITE": "幂等写入", "EXT
 SOURCE_LABELS = {"http": "HTTP 接口", "mcp": "MCP 工具", "builtin": "预置函数"}
 
 
+class SourceEvidence(Contract):
+    """源端引用先校验范围，再由执行器生成本平台调用证据；不能伪造平台证据标识。"""
+
+    scope: Scope
+    source_id: str = Field(min_length=1, max_length=512)
+    source_version: str = Field(min_length=1, max_length=128)
+    observed_at: AwareDatetime
+    title: str = Field(min_length=1, max_length=256)
+    location: EvidenceLocation
+
+
 class AdapterResult(Contract):
     data: Any
     source_request_id: str = Field(min_length=1, max_length=256)
     source_version: str = Field(min_length=1, max_length=128)
     observed_at: AwareDatetime
     evidence_refs: tuple[EvidenceRef, ...] = ()
+    source_evidence: tuple[SourceEvidence, ...] = ()
     artifact_ids: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
     cursor: str | None = None

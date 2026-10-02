@@ -54,6 +54,15 @@
         "schema_hash": {
           "title": "Schema Hash",
           "type": "string"
+        },
+        "purpose": {
+          "default": "business",
+          "enum": [
+            "business",
+            "subject_review"
+          ],
+          "title": "Purpose",
+          "type": "string"
         }
       },
       "required": [

@@ -7,7 +7,7 @@ import pytest
 
 from creativity_service.core.auth.types import AuthorizationDecision
 from creativity_service.core.context import AuthContext, Scope
-from creativity_service.core.primitives import ServiceError, utcnow
+from creativity_service.core.primitives import ServiceError, canonical_json, utcnow
 from creativity_service.integrations.tools import (
     AdapterRegistration,
     AdapterRegistry,
@@ -234,6 +234,15 @@ async def test_result_freshness_pagination_size_and_file_reference(setup, change
     with pytest.raises(ServiceError) as error:
         await setup.executor.execute(context(), setup.call)
     assert error.value.code == "TOOL_RESULT_INVALID"
+    assert all(row["result"] is None for row in setup.repository.records.values())
+
+
+async def test_result_limit_includes_generated_platform_evidence(setup):
+    setup.repository.definition = definition(max_result_size=1024)
+    setup.adapter.result = setup.adapter.result.model_copy(update={"warnings": ("x" * 400,)})
+    assert len(canonical_json(setup.adapter.result.model_dump(mode="json"))) < 1024
+    with pytest.raises(ServiceError, match="包含证据"):
+        await setup.executor.execute(context(), setup.call)
     assert all(row["result"] is None for row in setup.repository.records.values())
 
 

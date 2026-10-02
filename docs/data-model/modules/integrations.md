@@ -1,6 +1,6 @@
 # 业务接入与身份委托模型
 
-模型版本 1.4.0；负责方案 18/19/20；需求 [14-业务接入与适配.md](../../../../需求文档/14-业务接入与适配.md)。总索引见 [README](../README.md)。
+模型版本 1.5.0；负责方案 18/19/20；需求 [14-业务接入与适配.md](../../../../需求文档/14-业务接入与适配.md)。总索引见 [README](../README.md)。
 
 ## integrations
 
@@ -101,3 +101,28 @@
 | `retain_until` | `timestamptz` | 防重放记录最早清理时间 | 是 | 服务层校验与受信上下文 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, client_id, nonce_digest)`；`(channel_id, environment, retain_until)`。
+
+## subject_review_bindings
+
+当前主体复核的固定 MCP 绑定。状态：已实现；归属：数据域；迁移：0021_mcp_subject_review。
+
+| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
+| --- | --- | --- | --- | --- | --- |
+| `id` | `varchar(64)` | 记录标识 | 是 | 渠道、环境、数据域与接入服务的确定性摘要 | 内部 |
+| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
+| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
+| `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
+| `data_scope_id` | `varchar(64)` | 所属业务数据域 | 是 | 服务层校验与受信上下文 | 内部 |
+| `client_id` | `varchar(64)` | 受限接入服务标识 | 是 | 服务层校验后的受信配置 | 内部 |
+| `connection_id` | `varchar(64)` | 固定身份复核连接 | 是 | 服务层校验后的受信配置 | 内部 |
+| `discovery_id` | `varchar(64)` | 授权时发现快照 | 是 | 服务层校验后的受信配置 | 内部 |
+| `remote_tool_name` | `varchar(256)` | 专用身份复核工具名 | 是 | 服务层校验后的受信配置 | 内部 |
+| `tool_name` | `varchar(128)` | 身份工具显示名称 | 是 | 服务层校验后的受信配置 | 内部 |
+| `connection_revision` | `bigint` | 授权时连接配置修订 | 是 | 服务层校验后的受信配置 | 内部 |
+| `schema_hash` | `varchar(128)` | 授权时身份工具契约摘要 | 是 | 服务层校验后的受信配置 | 内部 |
+| `timeout_seconds` | `integer` | 身份复核超时秒数 | 是 | 服务层校验后的受信配置 | 内部 |
+| `enabled` | `boolean` | 是否允许身份复核 | 是 | 服务层校验后的受信配置 | 内部 |
+
+普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, client_id)`。

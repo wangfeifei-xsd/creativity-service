@@ -57,72 +57,6 @@
       "title": "EvidenceLocation",
       "type": "object"
     },
-    "EvidenceRef": {
-      "additionalProperties": false,
-      "properties": {
-        "evidence_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-          "title": "Evidence Id",
-          "type": "string"
-        },
-        "scope": {
-          "$ref": "#/$defs/Scope"
-        },
-        "source_type": {
-          "title": "Source Type",
-          "type": "string"
-        },
-        "source_id": {
-          "title": "Source Id",
-          "type": "string"
-        },
-        "source_version": {
-          "title": "Source Version",
-          "type": "string"
-        },
-        "observed_at": {
-          "format": "date-time",
-          "title": "Observed At",
-          "type": "string"
-        },
-        "location": {
-          "$ref": "#/$defs/EvidenceLocation"
-        },
-        "title": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Title"
-        },
-        "authorized_actions": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Authorized Actions",
-          "type": "array"
-        }
-      },
-      "required": [
-        "evidence_id",
-        "scope",
-        "source_type",
-        "source_id",
-        "source_version",
-        "observed_at",
-        "location",
-        "title",
-        "authorized_actions"
-      ],
-      "title": "EvidenceRef",
-      "type": "object"
-    },
     "Scope": {
       "additionalProperties": false,
       "properties": {
@@ -244,8 +178,13 @@
   },
   "additionalProperties": false,
   "properties": {
-    "data": {
-      "title": "Data"
+    "protocol": {
+      "const": "creativity.tool-result.v1",
+      "title": "Protocol",
+      "type": "string"
+    },
+    "scope": {
+      "$ref": "#/$defs/Scope"
     },
     "source_request_id": {
       "maxLength": 256,
@@ -264,28 +203,32 @@
       "title": "Observed At",
       "type": "string"
     },
-    "evidence_refs": {
-      "default": [],
-      "items": {
-        "$ref": "#/$defs/EvidenceRef"
-      },
-      "title": "Evidence Refs",
-      "type": "array"
+    "actual_effect": {
+      "enum": [
+        "READ_ONLY",
+        "IDEMPOTENT_WRITE",
+        "EXTERNAL_WRITE"
+      ],
+      "title": "Actual Effect",
+      "type": "string"
     },
-    "source_evidence": {
+    "result_status": {
+      "enum": [
+        "complete",
+        "empty",
+        "missing",
+        "partial"
+      ],
+      "title": "Result Status",
+      "type": "string"
+    },
+    "evidence": {
       "default": [],
       "items": {
         "$ref": "#/$defs/SourceEvidence"
       },
-      "title": "Source Evidence",
-      "type": "array"
-    },
-    "artifact_ids": {
-      "default": [],
-      "items": {
-        "type": "string"
-      },
-      "title": "Artifact Ids",
+      "maxItems": 100,
+      "title": "Evidence",
       "type": "array"
     },
     "warnings": {
@@ -322,14 +265,36 @@
       "additionalProperties": true,
       "title": "Coverage",
       "type": "object"
+    },
+    "error_category": {
+      "anyOf": [
+        {
+          "enum": [
+            "forbidden",
+            "timeout",
+            "unavailable",
+            "invalid",
+            "remote"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error Category"
     }
   },
   "required": [
-    "data",
+    "protocol",
+    "scope",
     "source_request_id",
     "source_version",
-    "observed_at"
+    "observed_at",
+    "actual_effect",
+    "result_status"
   ],
-  "title": "AdapterResult",
+  "title": "McpResultMetadata",
   "type": "object"
 }

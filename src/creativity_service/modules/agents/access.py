@@ -82,7 +82,8 @@ async def locked_require(
             not delegation
             or delegation["client_id"] != context.client_id
             or delegation["resolved_scope"] != scope.model_dump()
-            or delegation["expires_at"] <= utcnow()
+            # Worker 在事务外已复核源端当前权限，原请求声明自然到期不撤销已受理任务。
+            or (context.principal_type != "worker" and delegation["expires_at"] <= utcnow())
         ):
             raise ServiceError("FORBIDDEN", "业务主体委托已失效", 403)
         key = await integration_repository(environment_scope(scope), "delegation_keys").get(

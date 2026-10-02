@@ -1,10 +1,10 @@
 # Creativity P0 数据模型索引
 
-模型版本 **1.4.0**；需求基线 **v0.7**；技术基线 **v1.6**。
+模型版本 **1.5.0**；需求基线 **v0.7**；技术基线 **v1.6**。
 
 本档案覆盖全部 P0 持久化对象。机器清单为 [catalog.json](catalog.json)，字段文档由 `scripts/render_data_model.py` 生成。共享基础的代码定义位于 `core/database/baseline_v0001.json`；公共表对应 `0001_core`，账号模块对应 `0002_iam`，渠道模块对应 `0003_channels`；其余通用平台表按所属方案建库。开发规范引用 [rule.md](../../../rule.md)。
 
-需求 15–17 为可选配置示例，原 12 张领域表设计已撤销，不属于待建库清单。方案 19 已解除固定渠道分类与数据域限制，通用流程和旧入口分开；旧 HTTP 协议保留兼容，方案 20 继续接通 MCP 主体复核。
+需求 15–17 为可选配置示例，原 12 张领域表设计已撤销，不属于待建库清单。方案 19 已解除固定渠道分类与数据域限制，通用流程和旧入口分开；旧 HTTP 协议保留兼容，方案 20 已接通配置化 MCP 主体复核。
 
 对象逻辑标识（如 run_id、conversation_id、version_id）在所属表统一物理存为 `id`；关联字段保留业务名称。渠道主档的 `id` 与 `channel_id` 相等。业务必填由服务入口验证，所有普通列均显式赋值。JSONB 中的类型化内容由所属模块 schema 校验；敏感级别按来源可向上提升。
 
@@ -109,6 +109,7 @@
 | `delegation_keys` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
 | `integration_tests` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
 | `delegation_nonces` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
+| `subject_review_bindings` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
 | `deletion_jobs` | [删除传播与保留](modules/deletion.md) | 00-需求总纲.md | 已实现 | 25 |
 | `deletion_work_items` | [删除传播与保留](modules/deletion.md) | 00-需求总纲.md | 设计基线 | 25 |
 

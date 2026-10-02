@@ -85,6 +85,7 @@ class RemoteTool(Contract):
     output_schema: dict[str, Any] | None = None
     annotations: dict[str, Any] = Field(default_factory=dict)
     schema_hash: str
+    purpose: Literal["business", "subject_review"] = "business"
 
 
 class McpDiscovery(Contract):

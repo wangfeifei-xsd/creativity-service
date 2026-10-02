@@ -36,6 +36,8 @@ from creativity_service.modules.integrations.delegation import (
 from creativity_service.modules.integrations.keys import DelegationKeys
 from creativity_service.modules.integrations.repositories import configuration_key, repository
 from creativity_service.modules.integrations.services import IntegrationService
+from creativity_service.modules.integrations.subject_review import ConfiguredSubjectReader
+from creativity_service.modules.mcp.services import McpService
 
 
 class IntegrationSettings(BaseSettings):
@@ -221,6 +223,7 @@ class IntegrationServices:
     keys: DelegationKeys
     credentials: CredentialService
     registry: BusinessRegistry
+    subject_review: ConfiguredSubjectReader | None = None
 
 
 def build_integration_services(
@@ -232,13 +235,15 @@ def build_integration_services(
     outbound: OutboundPolicy | None = None,
     registry: BusinessRegistry | None = None,
     current_subjects: CurrentSubjectReader | None = None,
+    mcp: McpService | None = None,
 ) -> IntegrationServices:
     settings = settings or IntegrationSettings()
     if provider is None and settings.key_version:
         provider = ConfiguredKeys(settings.key_version, settings.encryption_keys)
     outbound = outbound or OutboundPolicy(tuple(Destination(**v) for v in settings.destinations))
     keys = DelegationKeys(engine, authorization, provider)
-    delegation = DelegationService(keys, current_subjects)
+    subject_review = ConfiguredSubjectReader(engine, authorization, mcp) if mcp else None
+    delegation = DelegationService(keys, current_subjects or subject_review)
     registry = registry or BusinessRegistry()
     transport = StandardHttpAdapter(
         outbound, ConnectionCredentials(engine, provider, authorization, delegation).headers
@@ -267,4 +272,5 @@ def build_integration_services(
         keys,
         IntegrationCredentialService(engine, provider, CredentialAuthorization(authorization)),
         registry,
+        subject_review,
     )

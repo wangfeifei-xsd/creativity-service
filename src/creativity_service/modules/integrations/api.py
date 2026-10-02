@@ -22,7 +22,12 @@ from creativity_service.modules.integrations.schemas import (
     IntegrationList,
     IntegrationOptions,
     IntegrationView,
+    NamedOption,
     RevisionInput,
+)
+from creativity_service.modules.integrations.subject_contracts import (
+    SubjectReviewSave,
+    SubjectReviewView,
 )
 
 router = APIRouter(tags=["业务接入"])
@@ -45,6 +50,29 @@ class CredentialInput(Contract):
 
 class CredentialReference(Contract):
     credential_ref: str
+
+
+@router.get("/subject-review-bindings", response_model=list[SubjectReviewView])
+async def subject_reviews(context: Context, service: Services) -> list[SubjectReviewView]:
+    if service.subject_review is None:
+        raise unavailable("主体复核配置服务")
+    return await service.subject_review.list_bindings(context)
+
+
+@router.post("/subject-review-bindings", response_model=SubjectReviewView)
+async def save_subject_review(
+    context: Context, service: Services, body: SubjectReviewSave
+) -> SubjectReviewView:
+    if service.subject_review is None:
+        raise unavailable("主体复核配置服务")
+    return await service.subject_review.save(context, body)
+
+
+@router.get("/subject-review-bindings/options", response_model=list[NamedOption])
+async def subject_review_options(context: Context, service: Services) -> list[NamedOption]:
+    if service.subject_review is None:
+        raise unavailable("主体复核配置服务")
+    return await service.subject_review.clients(context)
 
 
 @router.post(

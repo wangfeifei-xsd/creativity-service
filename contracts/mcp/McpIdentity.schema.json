@@ -1,0 +1,136 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "protocol": {
+      "const": "creativity.mcp-identity.v1",
+      "default": "creativity.mcp-identity.v1",
+      "title": "Protocol",
+      "type": "string"
+    },
+    "channel_id": {
+      "title": "Channel Id",
+      "type": "string"
+    },
+    "environment": {
+      "title": "Environment",
+      "type": "string"
+    },
+    "data_scope_id": {
+      "title": "Data Scope Id",
+      "type": "string"
+    },
+    "subject_type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Subject Type"
+    },
+    "subject_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Subject Id"
+    },
+    "principal_id": {
+      "title": "Principal Id",
+      "type": "string"
+    },
+    "client_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Client Id"
+    },
+    "key_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Key Id"
+    },
+    "actions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Actions",
+      "type": "array"
+    },
+    "resources": {
+      "additionalProperties": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "title": "Resources",
+      "type": "object"
+    },
+    "request_id": {
+      "title": "Request Id",
+      "type": "string"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Run Id"
+    },
+    "attempt_id": {
+      "title": "Attempt Id",
+      "type": "string"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "title": "Observed At",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "channel_id",
+    "environment",
+    "data_scope_id",
+    "subject_type",
+    "subject_id",
+    "principal_id",
+    "client_id",
+    "key_id",
+    "actions",
+    "resources",
+    "request_id",
+    "run_id",
+    "attempt_id",
+    "observed_at",
+    "expires_at"
+  ],
+  "title": "McpIdentity",
+  "type": "object"
+}

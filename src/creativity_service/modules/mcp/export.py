@@ -4,6 +4,11 @@ import argparse
 import json
 from pathlib import Path
 
+from creativity_service.modules.integrations.subject_contracts import (
+    SubjectReviewRequest,
+    SubjectReviewResponse,
+)
+from creativity_service.modules.mcp.contracts import McpIdentity, McpResultMetadata
 from creativity_service.modules.mcp.schemas import McpDiff, McpDiscovery, McpImport, McpImportInput
 
 
@@ -14,7 +19,16 @@ def main() -> None:
     root = Path("contracts/mcp")
     if not args.check:
         root.mkdir(exist_ok=True)
-    for model in (McpDiscovery, McpImportInput, McpImport, McpDiff):
+    for model in (
+        McpDiscovery,
+        McpImportInput,
+        McpImport,
+        McpDiff,
+        McpIdentity,
+        McpResultMetadata,
+        SubjectReviewRequest,
+        SubjectReviewResponse,
+    ):
         path = root / f"{model.__name__}.schema.json"
         value = (
             json.dumps(model.model_json_schema(mode="serialization"), ensure_ascii=False, indent=2)

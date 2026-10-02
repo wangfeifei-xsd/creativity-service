@@ -40,6 +40,10 @@ TRUSTED_FIELDS = frozenset(
         "subjectid",
         "subjecttype",
         "datascopeid",
+        "datascope",
+        "subject",
+        "creativityidentity",
+        "meta",
         "datadomain",
         "datadomainid",
         "environment",
@@ -74,36 +78,49 @@ class ToolValidationError(ServiceError):
         self.fields = fields
 
 
+def validate_schema(schema: dict[str, Any]) -> None:
+    """支持本地定义引用；拒绝外部解析，避免 schema 触发额外网络访问。"""
+    if len(canonical_json(schema)) > 65536:
+        raise ServiceError("TOOL_INPUT_INVALID", "结构定义不能超过 64 KiB", 422)
+    try:
+        Draft202012Validator.check_schema(schema)
+    except SchemaError:
+        raise ServiceError("TOOL_INPUT_INVALID", "结构定义不符合 JSON Schema 规范", 422) from None
+
+    def walk(value: Any, depth: int = 0) -> None:
+        if depth > 32:
+            raise ServiceError("TOOL_INPUT_INVALID", "结构嵌套过深", 422)
+        if isinstance(value, dict):
+            if "$id" in value or "$dynamicRef" in value:
+                raise ServiceError(
+                    "TOOL_INPUT_INVALID", "结构不能重定义引用地址或使用动态引用", 422
+                )
+            if "$ref" in value:
+                ref = value["$ref"]
+                if not isinstance(ref, str) or not ref.startswith("#/"):
+                    raise ServiceError("TOOL_INPUT_INVALID", "结构引用仅支持本地 JSON Pointer", 422)
+                target: Any = schema
+                try:
+                    for part in ref[2:].split("/"):
+                        target = target[part.replace("~1", "/").replace("~0", "~")]
+                except (KeyError, TypeError):
+                    raise ServiceError(
+                        "TOOL_INPUT_INVALID", "结构引用的本地定义不存在", 422
+                    ) from None
+            for child in value.values():
+                walk(child, depth + 1)
+        elif isinstance(value, list):
+            for child in value:
+                walk(child, depth + 1)
+
+    walk(schema)
+
+
 def validate_definition(definition: ToolDefinition) -> None:
     if len(canonical_json(definition.model_dump(mode="json"))) > 65536:
         raise ServiceError("TOOL_INPUT_INVALID", "工具契约不能超过 64 KiB", 422)
-    for name, schema in (
-        ("input_schema", definition.input_schema),
-        ("output_schema", definition.output_schema),
-    ):
-        try:
-            Draft202012Validator.check_schema(schema)
-        except SchemaError as exc:
-            raise ToolValidationError(
-                "TOOL_INPUT_INVALID",
-                "请检查工具结构定义",
-                [{"path": ["definition", name, *exc.path], "message": "结构定义不符合规范"}],
-            ) from None
-
-        def walk(value: Any, depth: int = 0) -> None:
-            if depth > 24:
-                raise ServiceError("TOOL_INPUT_INVALID", "结构嵌套过深", 422)
-            if isinstance(value, dict):
-                # 首版采用内联契约，避免递归引用与远端解析消耗运行资源。
-                if any(key in value for key in ("$ref", "$dynamicRef", "$id")):
-                    raise ServiceError("TOOL_INPUT_INVALID", "工具结构请使用内联定义", 422)
-                for nested in value.values():
-                    walk(nested, depth + 1)
-            elif isinstance(value, list):
-                for nested in value:
-                    walk(nested, depth + 1)
-
-        walk(schema)
+    for schema in (definition.input_schema, definition.output_schema):
+        validate_schema(schema)
     schema = definition.input_schema
     allowed = definition.model_fields_allowed
     if (

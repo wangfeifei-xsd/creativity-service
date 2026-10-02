@@ -16,6 +16,7 @@ from creativity_service.modules.agents.tables import BASELINE as AGENT_BASELINE
 from creativity_service.modules.channels.tables import CURRENT as CHANNEL_BASELINE
 from creativity_service.modules.conversations.tables import BASELINE as CONVERSATION_BASELINE
 from creativity_service.modules.iam.tables import BASELINE as IAM_BASELINE
+from creativity_service.modules.integrations.review_tables import BASELINE as REVIEW_BASELINE
 from creativity_service.modules.integrations.tables import BASELINE as INTEGRATION_BASELINE
 from creativity_service.modules.mcp.tables import BASELINE as MCP_BASELINE
 from creativity_service.modules.memory.tables import BASELINE as MEMORY_BASELINE
@@ -144,6 +145,10 @@ def audit_catalog(root: Path) -> list[str]:
         failures.append("用量模块归档与冻结实现不一致")
     if [t for t in catalog["tables"] if t["revision"] == "0014_mcp"] != MCP_BASELINE:
         failures.append("MCP 模块归档与冻结实现不一致")
+    if [
+        t for t in catalog["tables"] if t["revision"] == "0021_mcp_subject_review"
+    ] != REVIEW_BASELINE:
+        failures.append("主体复核归档与冻结实现不一致")
     if [t for t in catalog["tables"] if t["revision"] == "0015_skills"] != SKILL_BASELINE:
         failures.append("技能模块归档与冻结实现不一致")
     if [t for t in catalog["tables"] if t["revision"] == "0011_runs"] != RUN_BASELINE:

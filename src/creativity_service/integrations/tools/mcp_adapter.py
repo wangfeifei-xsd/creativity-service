@@ -1,11 +1,11 @@
 """MCP 仅作为统一工具执行器的来源适配器，远端文本不参与授权。"""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic import SecretBytes
 
 from creativity_service.core.context import AuthContext, Scope
-from creativity_service.core.primitives import ServiceError, canonical_json, utcnow
+from creativity_service.core.primitives import ServiceError
 from creativity_service.core.security.credentials import CredentialService
 from creativity_service.integrations.tools import (
     AdapterRegistration,
@@ -13,6 +13,7 @@ from creativity_service.integrations.tools import (
     AdapterResult,
     ToolAdapterError,
 )
+from creativity_service.modules.mcp.contracts import trusted_identity, wrap_result
 from creativity_service.modules.mcp.schemas import McpTimeouts
 from creativity_service.modules.tools.schemas import EffectType, ToolBinding
 
@@ -28,6 +29,8 @@ class McpAdapter:
         service, context = self.service, request.context
         await service.check_binding(context, request.definition)
         row, imported = await service.binding_state(context, request.definition.binding)
+        if request.definition.subject_requirements.required and not row["credential_ref"]:
+            raise ToolAdapterError("MCP_AUTH_FAILED", "业务主体传递需要受控服务凭据")
         if imported["effect_type"] != "READ_ONLY":
             raise ToolAdapterError("TOOL_WRITE_DISABLED", "写入工具尚未启用执行")
         key = await service.key(context, row)
@@ -49,9 +52,17 @@ class McpAdapter:
             service.engine, service.credentials.keys, BoundCredentialAuthorization()
         )
 
+        identity: dict[str, Any] = {}
+
         async def before_send() -> None:
             await service.authorization.boundary(
                 context, "run:create", "tool", imported["local_tool_id"]
+            )
+            identity.clear()
+            identity.update(
+                await trusted_identity(
+                    service.authorization, context, request, imported["local_tool_id"]
+                )
             )
             current, _ = await service.binding_state(context, request.definition.binding)
             if current["configuration_revision"] != row["configuration_revision"]:
@@ -75,35 +86,9 @@ class McpAdapter:
                 request.arguments,
                 request.definition.max_result_size,
                 before_send,
-                {
-                    **context.scope.model_dump(),
-                    "principal_id": context.principal_id,
-                    "client_id": context.client_id,
-                    "key_id": context.key_id,
-                },
+                identity,
             )
-            if result.isError:
-                raise ToolAdapterError("MCP_REMOTE_ERROR", "远端工具执行失败")
-            # 远端资源 URI 不能冒充本平台文件；结构化 artifact_id 继续交由 10 授权。
-            if any(item.type != "text" for item in result.content):
-                raise ToolAdapterError("TOOL_RESULT_INVALID", "远端文件或媒体引用未经平台授权")
-            data = (
-                result.structuredContent
-                if result.structuredContent is not None
-                else {
-                    "content": [
-                        item.model_dump(mode="json", exclude_none=True) for item in result.content
-                    ]
-                }
-            )
-            if len(canonical_json(data)) > request.definition.max_result_size:
-                raise ToolAdapterError("TOOL_RESULT_INVALID", "远端结果超过体积上限")
-            return AdapterResult(
-                data=data,
-                source_request_id=request.attempt_id,
-                source_version=imported["schema_hash"],
-                observed_at=utcnow(),
-            )
+            return wrap_result(result, request, imported["schema_hash"])
 
         try:
             return (
@@ -120,7 +105,7 @@ class McpAdapter:
                 exc.code,
                 exc.message,
                 retryable=exc.code == "MCP_UNAVAILABLE",
-                source_request_id=request.attempt_id,
+                source_request_id=getattr(exc, "source_request_id", None) or request.attempt_id,
             ) from None
 
 

@@ -1,0 +1,141 @@
+{
+  "$defs": {
+    "Scope": {
+      "additionalProperties": false,
+      "properties": {
+        "channel_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Channel Id",
+          "type": "string"
+        },
+        "environment": {
+          "enum": [
+            "dev",
+            "test",
+            "fat",
+            "prod"
+          ],
+          "title": "Environment",
+          "type": "string"
+        },
+        "data_scope_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Scope Id"
+        },
+        "subject_type": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject Type"
+        },
+        "subject_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject Id"
+        }
+      },
+      "required": [
+        "channel_id",
+        "environment"
+      ],
+      "title": "Scope",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "protocol": {
+      "const": "creativity.subject-review.v1",
+      "title": "Protocol",
+      "type": "string"
+    },
+    "scope": {
+      "$ref": "#/$defs/Scope"
+    },
+    "active": {
+      "title": "Active",
+      "type": "boolean"
+    },
+    "actions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Actions",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "agent_actions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Agent Actions",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "resources": {
+      "additionalProperties": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "uniqueItems": true
+      },
+      "title": "Resources",
+      "type": "object"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "title": "Observed At",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "protocol",
+    "scope",
+    "active",
+    "actions",
+    "agent_actions",
+    "resources",
+    "observed_at",
+    "expires_at"
+  ],
+  "title": "SubjectReviewResponse",
+  "type": "object"
+}

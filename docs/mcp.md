@@ -43,3 +43,5 @@ SDK 精确锁定为 `mcp==1.30.0`，只开放远程 Streamable HTTP。stdio、OA
 `0014_mcp` 新建四张 MCP 表，接在 `0010_tools` 后；当前同期链为 `0014_mcp → 0015_skills → 0018_integrations`，再由 `0019_parallel_runs` 汇合 `0011_runs`，保持单一 head。模型冻结文件 `baseline_v0014.json` 与统一归档及实际数据库中文注释同步；没有数据库业务约束。
 
 17 装配 MCP 时与 API 使用同一个 `ToolServices` 及 `build_mcp_service`；只通过 `ToolExecutor.execute` 调用。真实公共服务握手和发现已完成，证据见 [mcp-remote-validation.json](mcp-remote-validation.json)。真实外部工具调用、正式 Agent 和运行预算按 17/26 的组合验收完成，当前受控夹具不冒充正式业务调用证据。
+
+20 的业务主体传递、当前权限复核、结果元数据及固定连接修订见 [通用业务接入](mcp-business.md)。

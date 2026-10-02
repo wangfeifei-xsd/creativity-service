@@ -18,6 +18,7 @@ from creativity_service.core.primitives import ServiceError, canonical_json, dig
 from creativity_service.core.security.outbound import OutboundPolicy, ValidatedTarget
 from creativity_service.integrations.tools.http import PinnedBackend
 from creativity_service.modules.mcp.schemas import McpTimeouts, RemoteTool
+from creativity_service.modules.tools.validation import validate_schema
 
 
 @dataclass(frozen=True)
@@ -121,6 +122,9 @@ class DiscoveryResult:
 
 
 def remote_tool(value: Any) -> RemoteTool:
+    validate_schema(value.inputSchema)
+    if value.outputSchema is not None:
+        validate_schema(value.outputSchema)
     annotations = (
         value.annotations.model_dump(mode="json", exclude_none=True) if value.annotations else {}
     )
@@ -129,6 +133,9 @@ def remote_tool(value: Any) -> RemoteTool:
         "output": value.outputSchema,
         "annotations": {k: v for k, v in annotations.items() if k != "title"},
     }
+    purpose = (value.meta or {}).get("creativity/purpose", "business")
+    if purpose == "subject_review":
+        contract["purpose"] = purpose
     return RemoteTool(
         name=value.name,
         title=value.title or annotations.get("title"),
@@ -137,6 +144,7 @@ def remote_tool(value: Any) -> RemoteTool:
         output_schema=value.outputSchema,
         annotations=annotations,
         schema_hash=digest(contract),
+        purpose="subject_review" if purpose == "subject_review" else "business",
     )
 
 

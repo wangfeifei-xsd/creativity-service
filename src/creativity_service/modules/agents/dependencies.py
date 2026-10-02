@@ -17,6 +17,7 @@ from creativity_service.modules.agents.repositories import (
 )
 from creativity_service.modules.agents.schemas import AgentDefinition, Purpose
 from creativity_service.modules.agents.validation import compatible, schema_field
+from creativity_service.modules.mcp.bindings import require_current_binding
 from creativity_service.modules.memory.base import MemoryKernel
 from creativity_service.modules.memory.validation import validate_policy
 from creativity_service.modules.models.policy import (
@@ -228,12 +229,27 @@ class DependencyResolver:
             uow.connection, context.scope, "mcp_connections", tool.binding.connection_id or ""
         )
         if (
-            connection["status"] != "ACTIVE"
+            connection["status"] != "ENABLED"
             or connection["auth_failed"]
             or connection["health_status"] != "HEALTHY"
             or connection["tested_revision"] != connection["configuration_revision"]
         ):
             raise ServiceError("DEPENDENCY_INVALID", "MCP 连接未通过当前配置验证或已停用", 422)
+        imported = await required(
+            uow.connection, context.scope, "mcp_imports", tool.binding.adapter_key
+        )
+        original = await required(
+            uow.connection, context.scope, "mcp_discoveries", imported["discovery_id"]
+        )
+        discoveries = await repository("mcp_discoveries", context.scope).find(
+            uow.connection, connection_id=connection["id"]
+        )
+        latest = (
+            max(discoveries, key=lambda row: (row["created_at"], row["id"]))
+            if discoveries
+            else None
+        )
+        require_current_binding(tool.binding, connection, imported, original, latest)
         if connection["credential_ref"]:
             if (
                 record_key(context.scope.channel_id, "credentials", connection["credential_ref"])

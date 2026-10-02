@@ -85,6 +85,7 @@ def artifacts() -> dict[str, object]:
                 "/admin/v1/integrations",
                 "/admin/v1/delegation-keys",
                 "/admin/v1/integration-credentials",
+                "/admin/v1/subject-review-bindings",
                 "/api/v1/auth/token",
                 "/api/v1/runs",
             )
