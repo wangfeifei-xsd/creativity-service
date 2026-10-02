@@ -45,6 +45,7 @@ CONFIG_CONTENT_TYPES = {
     "tool",
     "skill",
     "model",
+    "model_connection",
     "model_route",
     "budget_policy",
     "risk_policy",
@@ -212,28 +213,35 @@ class RecoveryService:
         assert_external_io_allowed()
         await self.authorization.require(context, "recovery:initialize", "scope")
         scope = context.scope
-        repo = Repository(metadata.tables["recovery_barriers"], scope)
         async with transaction(self.engine, scope, self.keys(scope)) as uow:
-            if await repo.get(uow.connection, barrier_id(scope)) is not None:
-                raise ServiceError("RECOVERY_EXISTS", "恢复范围已经初始化")
-            for table_name in (
-                "artifacts",
-                "source_links",
-                "deletion_markers",
-                "release_snapshots",
-            ):
-                if await Repository(metadata.tables[table_name], scope).find(uow.connection):
-                    raise ServiceError("RECOVERY_PROOF_REQUIRED", "已有数据须核对外部删除账本", 503)
-            await repo.add(
-                uow,
-                barrier_id(scope),
-                {
-                    "state": "READY",
-                    "recovery_id": new_id("fresh"),
-                    "marker_digest": digest([]),
-                    "verified_at": utcnow(),
-                },
-            )
+            await self.initialize_fresh_in(uow, scope)
+
+    @staticmethod
+    async def initialize_fresh_in(uow: UnitOfWork, scope: Scope) -> None:
+        """仅供已核准的新数据域创建事务复用；已有屏障或历史内容始终拒绝。"""
+        uow.require_scope(scope)
+        uow.require_lock(content_key(scope))
+        repo = Repository(metadata.tables["recovery_barriers"], scope)
+        if await repo.get(uow.connection, barrier_id(scope)) is not None:
+            raise ServiceError("RECOVERY_EXISTS", "恢复范围已经初始化")
+        for table_name in (
+            "artifacts",
+            "source_links",
+            "deletion_markers",
+            "release_snapshots",
+        ):
+            if await Repository(metadata.tables[table_name], scope).find(uow.connection):
+                raise ServiceError("RECOVERY_PROOF_REQUIRED", "已有数据须核对外部删除账本", 503)
+        await repo.add(
+            uow,
+            barrier_id(scope),
+            {
+                "state": "READY",
+                "recovery_id": new_id("fresh"),
+                "marker_digest": digest([]),
+                "verified_at": utcnow(),
+            },
+        )
 
     async def block(self, context: AuthContext) -> str:
         assert_external_io_allowed()

@@ -51,7 +51,12 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(ServiceError)
     async def service_error(_request: Request, exc: ServiceError) -> JSONResponse:
-        return error_response(exc.status, exc.code, exc.message)
+        return error_response(
+            exc.status,
+            exc.code,
+            exc.message,
+            [FieldError.model_validate(field) for field in getattr(exc, "fields", [])],
+        )
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:

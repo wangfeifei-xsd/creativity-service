@@ -244,6 +244,12 @@ class UsageView(Contract):
     start_at: datetime
     end_at: datetime
     calls: int = Field(ge=0)
-    input_tokens: int = Field(ge=0)
-    output_tokens: int = Field(ge=0)
+    input_tokens: int | None = Field(ge=0)
+    output_tokens: int | None = Field(ge=0)
     costs: list[Money]
+    provisional_costs: list[Money] = Field(default_factory=list)
+    requests: int | None = None
+    missing_usage: int = 0
+    unpriced: int = 0
+    price_complete: bool = False
+    aggregate_updated_at: datetime | None = None

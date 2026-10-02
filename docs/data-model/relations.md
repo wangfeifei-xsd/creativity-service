@@ -42,3 +42,5 @@
 05 增量：`channels.business_type` 创建后不可更改；租号仅接受 default/default 映射，陪玩使用 club/原业务俱乐部编号。`service_clients.data_scopes` 显式列举同渠道、同环境的数据域，服务身份每次取其中仍启用的范围。`key_identity_index` 与渠道 Key 主记录同事务提交，身份索引归 system，主记录归真实渠道。`key_rotations` 保留新旧 Key 标识与重叠截止时间，不更改 client_id。
 
 `channel_lifecycle_events` 与治理变更、审计共用事务，载荷只包含状态及修订等元数据；原始 channel_id、environment、target_id 不因消费或清理改写。runs 与 retention 消费进度分别记录；消费按至少一次交付，接收方按 event_id 幂等。归档不删除 Key、轮换、用量和审计记录。
+
+08 实现：`usage_records` 按原始 run/attempt 固定渠道与来源，`usage_events` 的连接/供应商请求/版本去重键归同一渠道；`usage_adjustments` 关联账本和可空来源事件（价格重算没有新供应商事件）。`budget_reservations.policy_version_id` 指向公共预算版本，`platform_quota_occupancies` 的系统记录只引用实际渠道/run 元数据。普通导出包含授权业务范围；平台汇总导出归系统渠道并保留实际渠道集合。汇率只用于展示折算，不跨币种共享硬预算。

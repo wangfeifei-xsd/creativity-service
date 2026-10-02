@@ -1,0 +1,173 @@
+{
+  "$defs": {
+    "InstructionBlocks": {
+      "additionalProperties": false,
+      "properties": {
+        "system": {
+          "default": "",
+          "maxLength": 100000,
+          "title": "System",
+          "type": "string"
+        },
+        "output_requirements": {
+          "default": "",
+          "maxLength": 100000,
+          "title": "Output Requirements",
+          "type": "string"
+        }
+      },
+      "title": "InstructionBlocks",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "MessageTemplate": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "enum": [
+            "input",
+            "tool",
+            "memory",
+            "platform"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "template": {
+          "maxLength": 100000,
+          "title": "Template",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "template"
+      ],
+      "title": "MessageTemplate",
+      "type": "object"
+    },
+    "PromptContent": {
+      "additionalProperties": false,
+      "properties": {
+        "instruction_blocks": {
+          "$ref": "#/$defs/InstructionBlocks"
+        },
+        "message_templates": {
+          "items": {
+            "$ref": "#/$defs/MessageTemplate"
+          },
+          "maxItems": 100,
+          "title": "Message Templates",
+          "type": "array"
+        },
+        "variables": {
+          "items": {
+            "$ref": "#/$defs/PromptVariable"
+          },
+          "maxItems": 100,
+          "title": "Variables",
+          "type": "array"
+        },
+        "change_note": {
+          "default": "",
+          "maxLength": 2000,
+          "title": "Change Note",
+          "type": "string"
+        }
+      },
+      "title": "PromptContent",
+      "type": "object"
+    },
+    "PromptVariable": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "display_name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "string",
+            "integer",
+            "number",
+            "boolean",
+            "object",
+            "array"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "default": {
+          "$ref": "#/$defs/JsonValue",
+          "default": null
+        },
+        "max_length": {
+          "default": 4096,
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Max Length",
+          "type": "integer"
+        },
+        "source": {
+          "default": "input",
+          "enum": [
+            "input",
+            "tool",
+            "memory",
+            "platform"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "sensitivity": {
+          "default": "internal",
+          "enum": [
+            "public",
+            "internal",
+            "sensitive",
+            "secret"
+          ],
+          "title": "Sensitivity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "display_name",
+        "type"
+      ],
+      "title": "PromptVariable",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Format Version",
+      "type": "integer"
+    },
+    "content": {
+      "$ref": "#/$defs/PromptContent"
+    }
+  },
+  "required": [
+    "content"
+  ],
+  "title": "PromptPortable",
+  "type": "object"
+}

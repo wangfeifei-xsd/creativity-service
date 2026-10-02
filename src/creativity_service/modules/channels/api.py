@@ -10,6 +10,12 @@ from creativity_service.core.auth.types import TokenResponse
 from creativity_service.core.context import bearer_scheme
 from creativity_service.core.primitives import ServiceError, new_id, unavailable
 from creativity_service.modules.channels.assembly import ChannelServices
+from creativity_service.modules.channels.presentation import (
+    ChannelCreateOptions,
+    ChannelPage,
+    create_options,
+    page_view,
+)
 from creativity_service.modules.channels.schemas import (
     ChannelCreate,
     ChannelUpdate,
@@ -75,6 +81,16 @@ async def channels(
     session: Session, service: Services, limit: Annotated[int, Query(ge=1, le=200)] = 100
 ) -> list[ChannelView]:
     return await service.channels.list_items(session, limit)
+
+
+@router.get("/channel-create-options", response_model=ChannelCreateOptions)
+async def channel_create_options(session: Session, service: Services) -> ChannelCreateOptions:
+    return await create_options(service.channels, session)
+
+
+@router.get("/channels/{channel_id}/page", response_model=ChannelPage)
+async def channel_page(channel_id: str, session: Session, service: Services) -> ChannelPage:
+    return await page_view(service.channels, session, channel_id)
 
 
 @router.post("/channels", response_model=ChannelView, status_code=201)

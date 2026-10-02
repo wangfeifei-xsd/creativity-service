@@ -11,6 +11,7 @@ from creativity_service.core.auth.types import GrantState, MembershipState
 from creativity_service.core.context import AuthContext, ControlScope, Scope
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.deletion import RecoveryService
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import Contract, ServiceError, new_id, unavailable, utcnow
 from creativity_service.modules.channels.ports import ResourceReferenceReader, UsageReader
@@ -381,6 +382,7 @@ class ChannelService:
         keys = (
             self.keys(channel_id, "channels", channel_id, event_id)
             + self.iam.access.provisioning_keys(channel_id, body.first_admin_user_id)
+            + RecoveryService.keys(scope)
             + [
                 record_key(channel_id, "channel_environments", env_id),
                 record_key(channel_id, "data_scopes", domain_id),
@@ -443,6 +445,7 @@ class ChannelService:
                     "status": "ACTIVE",
                 },
             )
+            await RecoveryService.initialize_fresh_in(uow, scope)
             await self.iam.access.provision_first_member(
                 uow,
                 session,
@@ -520,6 +523,8 @@ class ChannelService:
 
     async def list_items(self, session: AdminSession, limit: int = 100) -> list[ChannelView]:
         await self.iam.authentication.revalidate_admin(session, governance=True)
+        if isinstance(session.context, AuthContext):
+            return [await self.detail(session, session.context.scope.channel_id)]
         require_platform(session.account, "channel:govern")
         if not 1 <= limit <= 200:
             raise ServiceError("VALIDATION_ERROR", "查询数量须在 1 至 200 之间", 422)
@@ -671,20 +676,25 @@ class ChannelService:
     ) -> DataScopeView:
         await self.authorize(session, channel_id, "data_scope:manage")
         domain_id, event_id = new_id("scope"), new_id("audit")
-        keys = self.keys(channel_id, "data_scopes", domain_id, event_id) + [
-            mapping_key(
-                channel_id, body.environment, body.external_scope_type, body.external_scope_id
-            )
-        ]
+        fresh_scope = Scope(
+            channel_id=channel_id, environment=body.environment, data_scope_id=domain_id
+        )
+        keys = (
+            RecoveryService.keys(fresh_scope)
+            + self.keys(channel_id, "data_scopes", domain_id, event_id)
+            + [
+                mapping_key(
+                    channel_id, body.environment, body.external_scope_type, body.external_scope_id
+                )
+            ]
+        )
         if body.administrator_id:
             if isinstance(session.context, AuthContext):
                 raise ServiceError("FORBIDDEN", "新工作区管理员须由平台治理入口明确授权", 403)
             keys += self.iam.access.workspace_provisioning_keys(
                 channel_id, body.administrator_id, domain_id
             )
-        async with transaction(
-            self.repository.engine, self.scope(session, channel_id, body.environment), keys
-        ) as uow:
+        async with transaction(self.repository.engine, fresh_scope, keys) as uow:
             channel = await self.locked(uow, session, "data_scope:manage")
             env = await required(
                 uow.connection, "channel_environments", channel_id, environment=body.environment
@@ -713,6 +723,7 @@ class ChannelService:
                     "status": "ACTIVE",
                 },
             )
+            await RecoveryService.initialize_fresh_in(uow, fresh_scope)
             if body.administrator_id:
                 await self.iam.access.provision_workspace(
                     uow, session, body.administrator_id, body.environment, domain_id

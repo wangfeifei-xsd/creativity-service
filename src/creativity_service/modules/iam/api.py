@@ -9,6 +9,7 @@ from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.auth.types import TokenResponse, WorkspaceOption
 from creativity_service.core.context import bearer_scheme
 from creativity_service.core.primitives import ServiceError, new_id, unavailable
+from creativity_service.modules.iam.presentation import AccessOptions, access_options
 from creativity_service.modules.iam.schemas import (
     AccountCreate,
     AccountUpdate,
@@ -56,6 +57,7 @@ async def admin_session(
             "/admin/v1/auth/session",
             "/admin/v1/auth/channels",
             "/admin/v1/auth/channel-context",
+            "/admin/v1/auth/platform-context",
             "/admin/v1/auth/logout",
         },
     )
@@ -102,6 +104,16 @@ async def channel_context(
     body: ChannelContextInput, session: Session, iam: Services
 ) -> TokenResponse:
     return await iam.sessions.enter(session, body)
+
+
+@router.post("/auth/platform-context", response_model=TokenResponse)
+async def platform_context(session: Session, iam: Services) -> TokenResponse:
+    return await iam.sessions.enter_platform(session)
+
+
+@router.get("/channels/{channel_id}/access-options", response_model=AccessOptions)
+async def channel_access_options(channel_id: str, session: Session, iam: Services) -> AccessOptions:
+    return await access_options(iam, session, channel_id)
 
 
 @router.get("/accounts", response_model=list[AccountView])

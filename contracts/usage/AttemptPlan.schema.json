@@ -1,0 +1,107 @@
+{
+  "additionalProperties": false,
+  "description": "候选路由与实际序列化输入估算；不能直接绑定 HTTP 请求正文。",
+  "properties": {
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "attempt_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Attempt Id",
+      "type": "string"
+    },
+    "agent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "model_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Model Id",
+      "type": "string"
+    },
+    "connection_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Connection Id",
+      "type": "string"
+    },
+    "purpose": {
+      "enum": [
+        "production",
+        "debug",
+        "evaluation"
+      ],
+      "title": "Purpose",
+      "type": "string"
+    },
+    "input_tokens": {
+      "minimum": 0,
+      "title": "Input Tokens",
+      "type": "integer"
+    },
+    "max_output_tokens": {
+      "minimum": 0,
+      "title": "Max Output Tokens",
+      "type": "integer"
+    },
+    "additional_upper_tokens": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Additional Upper Tokens",
+      "type": "object"
+    },
+    "subset_relations": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Subset Relations",
+      "type": "object"
+    },
+    "source_type": {
+      "default": "run",
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Source Type",
+      "type": "string"
+    },
+    "names": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Names",
+      "type": "object"
+    }
+  },
+  "required": [
+    "run_id",
+    "attempt_id",
+    "agent_id",
+    "model_id",
+    "connection_id",
+    "purpose",
+    "input_tokens",
+    "max_output_tokens"
+  ],
+  "title": "AttemptPlan",
+  "type": "object"
+}

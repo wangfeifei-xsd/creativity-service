@@ -4,7 +4,7 @@
 
 ## prompts
 
-提示词资源。状态：设计基线；归属：渠道；迁移：由所属方案新增。
+提示词资源。状态：已实现；归属：渠道；迁移：0009_prompts。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -16,14 +16,14 @@
 | `prompt_code` | `varchar(64)` | 提示词编码 | 是 | 服务层校验后的业务输入 | 内部 |
 | `name` | `varchar(128)` | 提示词名称 | 是 | 服务层校验后的业务输入 | 内部 |
 | `purpose` | `varchar(512)` | 使用用途 | 是 | 服务层校验后的业务输入 | 内部 |
-| `owner` | `varchar(128)` | 负责人标识 | 是 | 服务层校验后的业务输入 | 内部 |
+| `owner` | `varchar(128)` | 负责人标识 | 是 | 服务端当前操作人 | 内部 |
 | `status` | `varchar(32)` | 资源状态 | 是 | 服务层校验后的业务输入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, prompt_code)`。
 
 ## prompt_samples
 
-提示词调试样例。状态：设计基线；归属：主体；迁移：由所属方案新增。
+提示词调试样例。状态：已实现；归属：主体；迁移：0009_prompts。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -45,7 +45,7 @@
 
 ## prompt_tests
 
-提示词调试记录。状态：设计基线；归属：主体；迁移：由所属方案新增。
+提示词调试记录。状态：已实现；归属：主体；迁移：0009_prompts。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -60,12 +60,19 @@
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `version_id` | `varchar(64)` | 版本标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `draft_revision` | `bigint` | 草稿修订 | 否 | 服务层校验后的业务输入 | 内部 |
-| `release_snapshot_id` | `varchar(64)` | 冻结快照标识 | 是 | 服务层校验后的业务输入 | 内部 |
+| `release_snapshot_id` | `varchar(64)` | 冻结快照标识 | 否 | 服务层校验后的业务输入 | 内部 |
 | `model_route_version` | `varchar(64)` | 模型路由版本 | 是 | 服务层校验后的业务输入 | 内部 |
-| `rendered_input_ref` | `varchar(64)` | 渲染内容引用 | 是 | 服务层校验后的业务输入 | 内部 |
-| `run_id` | `varchar(64)` | 调试运行标识 | 是 | 服务层校验后的业务输入 | 内部 |
+| `rendered_input_ref` | `varchar(64)` | 渲染内容引用 | 否 | 服务层校验后的业务输入 | 内部 |
+| `run_id` | `varchar(64)` | 调试运行标识 | 否 | 服务层校验后的业务输入 | 内部 |
+| `frozen_version` | `jsonb` | 调试时固定的提示词版本 | 是 | 受信范围内读取的版本快照 | 敏感内容 |
+| `sample_snapshot` | `jsonb` | 调试时固定的样例与预期断言 | 是 | 本范围固定样例 | 敏感内容 |
+| `rendered_input` | `jsonb` | 保持来源分区的完整渲染快照 | 是 | 受控变量绑定与有限渲染 | 敏感内容 |
+| `descriptor_digest` | `varchar(64)` | 调试执行描述摘要 | 是 | 服务端规范 JSON 摘要 | 内部 |
+| `sample_id` | `varchar(64)` | 调试样例标识 | 是 | 服务层验证的样例引用 | 内部 |
+| `model_route_name` | `varchar(128)` | 调试时的模型路由名称 | 否 | 受信模型路由资源 | 内部 |
+| `status` | `varchar(32)` | 调试受理状态 | 是 | 服务层状态机 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, version_id)`。
+普通索引：`(channel_id, id)`；`(channel_id, version_id)`；`(channel_id, environment, version_id, descriptor_digest)`。
 
 ## 版本内容结构：prompt
 

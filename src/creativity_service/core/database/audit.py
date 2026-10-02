@@ -14,6 +14,8 @@ from sqlalchemy.schema import CreateIndex, CreateTable
 from creativity_service.core.database.tables import BASELINE
 from creativity_service.modules.channels.tables import BASELINE as CHANNEL_BASELINE
 from creativity_service.modules.iam.tables import BASELINE as IAM_BASELINE
+from creativity_service.modules.tools.tables import BASELINE as TOOL_BASELINE
+from creativity_service.modules.usage.tables import BASELINE as USAGE_BASELINE
 from creativity_service.storage import metadata
 
 POSTGRESQL_DIALECT: Any = postgresql.dialect
@@ -127,6 +129,10 @@ def audit_catalog(root: Path) -> list[str]:
         failures.append("账号模块归档与冻结实现不一致")
     if [t for t in catalog["tables"] if t["revision"] == "0003_channels"] != CHANNEL_BASELINE:
         failures.append("渠道模块归档与冻结实现不一致")
+    if [t for t in catalog["tables"] if t["revision"] == "0010_tools"] != TOOL_BASELINE:
+        failures.append("工具模块归档与冻结实现不一致")
+    if [t for t in catalog["tables"] if t["revision"] == "0004_usage"] != USAGE_BASELINE:
+        failures.append("用量模块归档与冻结实现不一致")
     for table in catalog["tables"]:
         if table["module"] not in catalog["modules"] or "channel_id" not in [
             c["name"] for c in table["columns"]

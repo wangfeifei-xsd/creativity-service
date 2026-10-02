@@ -25,3 +25,7 @@ Money 以十进制字符串传输，numeric(24,8) 保存，禁止客户端浮点
 1.1.0 新增 IdentitySource，用于 11/17 保存并恢复原始运行身份；不包含 Token、session_id 或权限快照。04 的 TokenResponse、SessionView、账号/成员/授权/审计响应进入 OpenAPI 和前端生成类型。具体行为见 [IAM 交接](../docs/iam.md)。
 
 1.2.0 为 ChannelState 增加可选 channel_status，使暂停/归档的业务拒绝具有明确状态；治理入口的当前授权不变。渠道生命周期和用量查询契约另见 [channels](channels/)，由 `modules/channels/export.py` 生成，接口和语义见 [05 交接](../docs/channels.md)。
+
+08 的 AttemptPlan、ReservationReceipt 和管理查询结构由 `modules/usage/export.py` 导出至 `contracts/usage/`，供 11/17 内部受信调用使用。03 UsageEvent 继续复用原样例。渠道 UsageView 的 Token 字段现在允许 null，新增暂估费用和完整性字段；消费者需使用缺失展示，见 [08 交接](../docs/usage.md)。
+
+07 的 FrozenModel、DebugExecution、TestCompletion、ModelRequest 和 ModelEvent 由 `modules/models/export.py` 导出至 `contracts/models/`，供 16/17 内部受信调用使用。ModelEvent 保留供应商请求标识和发送边界；原始 usage 及缓存子集样例见 [models/usage-examples.json](models/usage-examples.json)，执行、取消和版本复核约定见 [07 交接](../docs/models.md)。

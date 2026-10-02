@@ -1,0 +1,153 @@
+{
+  "$defs": {
+    "Scope": {
+      "additionalProperties": false,
+      "properties": {
+        "channel_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Channel Id",
+          "type": "string"
+        },
+        "environment": {
+          "enum": [
+            "dev",
+            "test",
+            "fat",
+            "prod"
+          ],
+          "title": "Environment",
+          "type": "string"
+        },
+        "data_scope_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Scope Id"
+        },
+        "subject_type": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject Type"
+        },
+        "subject_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject Id"
+        }
+      },
+      "required": [
+        "channel_id",
+        "environment"
+      ],
+      "title": "Scope",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "由 17 读取持久化运行、Agent 白名单和当前授权后提供。",
+  "properties": {
+    "scope": {
+      "$ref": "#/$defs/Scope"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "step_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Step Id",
+      "type": "string"
+    },
+    "agent_version_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Agent Version Id",
+      "type": "string"
+    },
+    "tool_version_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tool Version Ids",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "allowed_actions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Allowed Actions",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "authorization_revision": {
+      "title": "Authorization Revision",
+      "type": "string"
+    },
+    "purpose": {
+      "enum": [
+        "production",
+        "debug",
+        "evaluation"
+      ],
+      "title": "Purpose",
+      "type": "string"
+    },
+    "draft_revisions": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Draft Revisions",
+      "type": "object"
+    }
+  },
+  "required": [
+    "scope",
+    "run_id",
+    "step_id",
+    "agent_version_id",
+    "tool_version_ids",
+    "allowed_actions",
+    "authorization_revision",
+    "purpose"
+  ],
+  "title": "RunToolGrant",
+  "type": "object"
+}

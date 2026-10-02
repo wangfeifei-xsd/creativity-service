@@ -5,8 +5,20 @@ from sqlalchemy import MetaData
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.modules.channels.tables import metadata as channel_metadata
 from creativity_service.modules.iam.tables import metadata as iam_metadata
+from creativity_service.modules.models.tables import metadata as model_metadata
+from creativity_service.modules.prompts.tables import metadata as prompt_metadata
+from creativity_service.modules.tools.tables import metadata as tool_metadata
+from creativity_service.modules.usage.tables import metadata as usage_metadata
 
 metadata = MetaData()
-for source in (core_metadata, iam_metadata, channel_metadata):
+for source in (
+    model_metadata,
+    core_metadata,
+    iam_metadata,
+    channel_metadata,
+    prompt_metadata,
+    tool_metadata,
+    usage_metadata,
+):
     for table in source.tables.values():
         table.to_metadata(metadata)

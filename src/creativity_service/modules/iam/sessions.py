@@ -26,12 +26,17 @@ from creativity_service.modules.iam.schemas import (
 )
 
 NAVIGATION = (
+    ("model-providers", "模型供应商", "channel:govern"),
+    ("models", "模型配置", "model:manage"),
+    ("model-routes", "模型路由", "model:manage"),
     ("accounts", "账号管理", "account:manage"),
     ("channels", "渠道管理", "channel:govern"),
     ("members", "成员与权限", "membership:read"),
     ("resource-grants", "资源授权", "grant:read"),
     ("audit-events", "操作审计", "audit:read"),
     ("agents", "智能体", "agent:manage"),
+    ("prompts", "提示词", "prompt:manage"),
+    ("tools", "工具", "tool:manage"),
     ("runs", "运行记录", "run:read"),
     ("usage", "用量", "usage:read"),
 )
@@ -241,6 +246,35 @@ class SessionService:
             )
         return response
 
+    async def enter_platform(self, session: AdminSession) -> TokenResponse:
+        """返回系统登录范围并撤销旧工作区；平台操作仍逐接口验证授权。"""
+        await self.authentication.revalidate_admin(session, governance=True)
+        account = await self.authentication.active_account(session.account.id)
+        response, record = await self.authentication.tokens.issue(
+            purpose="login",
+            principal_id=account.id,
+            channel_id="system",
+            credential_version=account.credential_version,
+            replace=session.token,
+        )
+        await self.authentication.validate_record(record, governance=True)
+        event_id = new_id("audit")
+        async with transaction(
+            self.repository.engine,
+            ControlScope(purpose="identity_lookup", actor_id=account.id),
+            [record_key("system", "audit_events", event_id)],
+        ) as uow:
+            await append_event(
+                uow,
+                event_id,
+                account.id,
+                session.context.request_id,
+                "auth:platform-context",
+                "account",
+                account.id,
+            )
+        return response
+
     async def issue_service(self, context: AuthContext) -> TokenResponse:
         """05 验证 Key 后调用，不能直接暴露给客户端构造上下文。"""
         if context.principal_type != "service" or context.scope.subject_id is not None:
@@ -315,7 +349,9 @@ class SessionService:
             navigation=[
                 NavigationItem(navigation_key=key, label=label)
                 for key, label, action in NAVIGATION
-                if action in actions or (key == "channels" and "channel:manage" in actions)
+                if action in actions
+                or (key == "channels" and "channel:manage" in actions)
+                or (key == "prompts" and "version:read" in actions)
             ],
             actions=[
                 VisibleAction(action_key=action, label=ACTION_NAMES[action])

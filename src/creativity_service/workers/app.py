@@ -68,3 +68,10 @@ signals.worker_init.connect(init_worker)
 signals.worker_process_init.connect(init_worker_process)
 signals.worker_shutdown.connect(stop_worker_tracing)
 signals.worker_process_shutdown.connect(stop_worker_tracing)
+
+# 用量任务以持久化请求为真值；重复定时唤醒由服务层事务去重。
+app.conf.imports = tuple(app.conf.imports or ()) + ("creativity_service.modules.usage.tasks",)
+app.conf.beat_schedule = {
+    **(app.conf.beat_schedule or {}),
+    "usage-sweep": {"task": "usage.sweep", "schedule": 60.0},
+}

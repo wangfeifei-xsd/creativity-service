@@ -17,6 +17,10 @@ check:
 	uv run creativity-openapi --check
 	uv run python -m creativity_service.core.contracts.export --check
 	uv run python -m creativity_service.modules.channels.export --check
+	uv run python -m creativity_service.modules.usage.export --check
+	uv run python -m creativity_service.modules.tools.export --check
+	uv run python -m creativity_service.modules.prompts.export --check
+	uv run python -m creativity_service.modules.models.export --check
 	uv run python scripts/render_data_model.py --check
 	uv run python -m creativity_service.core.database.audit
 
@@ -46,6 +50,10 @@ infra-down:
 contracts:
 	uv run python -m creativity_service.core.contracts.export
 	uv run python -m creativity_service.modules.channels.export
+	uv run python -m creativity_service.modules.usage.export
+	uv run python -m creativity_service.modules.tools.export
+	uv run python -m creativity_service.modules.prompts.export
+	uv run python -m creativity_service.modules.models.export
 	uv run creativity-openapi
 
 model-check:
@@ -64,3 +72,7 @@ iam-reconcile:
 .PHONY: channels-init
 channels-init:
 	uv run creativity-channels init-system
+
+.PHONY: scheduler
+scheduler:
+	uv run celery -A creativity_service.workers.app:app beat --loglevel=INFO

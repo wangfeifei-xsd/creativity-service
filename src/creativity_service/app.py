@@ -21,6 +21,14 @@ from creativity_service.core.infrastructure import Infrastructure
 from creativity_service.core.observability import configure_logging, create_tracer_provider
 from creativity_service.core.services import build_core_services
 from creativity_service.modules.channels.assembly import build_channel_services
+from creativity_service.modules.models.assembly import build_model_services
+from creativity_service.modules.prompts.api import register_prompt_errors
+from creativity_service.modules.prompts.assembly import (
+    build_prompt_service,
+    register_prompt_cleanup,
+)
+from creativity_service.modules.tools.assembly import build_tool_services, register_tool_cleanup
+from creativity_service.modules.usage.assembly import build_usage_services
 
 
 class PlatformAPI(FastAPI):
@@ -52,6 +60,7 @@ def create_schema_app() -> FastAPI:
         },
     )
     register_error_handlers(app)
+    register_prompt_errors(app)
     app.include_router(health_router)
     app.include_router(admin_router)
     app.include_router(api_router)
@@ -75,11 +84,40 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             management_ttl=settings.management_token_ttl,
             service_ttl=settings.service_token_ttl,
         )
+        app.state.prompts = build_prompt_service(
+            infrastructure.engine,
+            app.state.iam.authorization,
+            S3ObjectStore(infrastructure.s3, infrastructure.bucket),
+        )
+        app.state.tools = build_tool_services(
+            infrastructure.engine,
+            app.state.iam.authorization,
+            redis=infrastructure.redis_clients["redis_cache"],
+            prefix=settings.redis_key_prefix,
+        )
+        app.state.usage = build_usage_services(
+            infrastructure.engine,
+            app.state.channels.channels,
+            S3ObjectStore(infrastructure.s3, infrastructure.bucket),
+        )
         app.state.authentication = app.state.iam.authentication
         app.state.core = build_core_services(
             infrastructure.engine,
             S3ObjectStore(infrastructure.s3, infrastructure.bucket),
             authorization=app.state.iam.authorization,
+            configure_cleanup=lambda registry: register_prompt_cleanup(
+                registry, infrastructure.engine, app.state.iam.authorization
+            ),
+        )
+        register_tool_cleanup(
+            app.state.core.cleanup, infrastructure.engine, app.state.iam.authorization
+        )
+        app.state.usage.exports.register_cleanup(app.state.core.cleanup)
+        app.state.models = build_model_services(
+            infrastructure.engine,
+            app.state.iam,
+            cleanup=app.state.core.cleanup,
+            prices=app.state.usage.prices,
         )
         try:
             yield

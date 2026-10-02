@@ -63,3 +63,5 @@ Key 和 system 中受限身份索引同事务提交。未认证的 Token 交换�
 | 26 验收 | `tests/integration/channels/conftest.py` 的真实渠道、管理会话与服务 Token 夹具 | 运行、缓存、用量、恢复及页面全链路组合 |
 
 [channels 契约目录](../contracts/channels/) 单独导出 LifecycleEvent、UsageQuery 和 UsageView，`make check` 核验其一致性。服务不会因尚未接入运行、用量或委托模块而允许未经授权的业务执行。
+
+06 已完成上述页面交接及真实浏览器开通至归档流程，见 [06 交接与验证](workspace.md)。

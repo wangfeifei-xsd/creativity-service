@@ -47,14 +47,28 @@
       "type": "integer"
     },
     "input_tokens": {
-      "minimum": 0,
-      "title": "Input Tokens",
-      "type": "integer"
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Input Tokens"
     },
     "output_tokens": {
-      "minimum": 0,
-      "title": "Output Tokens",
-      "type": "integer"
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Output Tokens"
     },
     "costs": {
       "items": {
@@ -62,6 +76,53 @@
       },
       "title": "Costs",
       "type": "array"
+    },
+    "provisional_costs": {
+      "items": {
+        "$ref": "#/$defs/Money"
+      },
+      "title": "Provisional Costs",
+      "type": "array"
+    },
+    "requests": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Requests"
+    },
+    "missing_usage": {
+      "default": 0,
+      "title": "Missing Usage",
+      "type": "integer"
+    },
+    "unpriced": {
+      "default": 0,
+      "title": "Unpriced",
+      "type": "integer"
+    },
+    "price_complete": {
+      "default": false,
+      "title": "Price Complete",
+      "type": "boolean"
+    },
+    "aggregate_updated_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Aggregate Updated At"
     }
   },
   "required": [

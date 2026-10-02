@@ -1,0 +1,675 @@
+[
+  {
+    "module": "models",
+    "name": "provider_catalog",
+    "comment": "供应商字典",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "code",
+        "type": "varchar(64)",
+        "comment": "供应商编码",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "name",
+        "type": "varchar(128)",
+        "comment": "供应商名称",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "protocols",
+        "type": "jsonb",
+        "comment": "支持协议族",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "template_content",
+        "type": "jsonb",
+        "comment": "无凭据连接模板",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "code"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0004_models",
+    "scope": "渠道",
+    "control_purpose": "catalog",
+    "content": false
+  },
+  {
+    "module": "models",
+    "name": "model_connections",
+    "comment": "模型供应商连接",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "name",
+        "type": "varchar(128)",
+        "comment": "连接名称",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "protocol",
+        "type": "varchar(64)",
+        "comment": "协议类型",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "endpoint",
+        "type": "varchar(2048)",
+        "comment": "服务地址",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "credential_ref",
+        "type": "varchar(64)",
+        "comment": "凭据标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "timeout_seconds",
+        "type": "integer",
+        "comment": "调用超时秒数",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "status",
+        "type": "varchar(32)",
+        "comment": "连接启用状态",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "health_status",
+        "type": "varchar(32)",
+        "comment": "最近健康状态",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "provider_id",
+        "type": "varchar(64)",
+        "comment": "供应商字典引用",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "current_version_id",
+        "type": "varchar(64)",
+        "comment": "当前连接版本标识",
+        "required": true,
+        "source": "模型服务显式赋值",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "health_reason",
+        "type": "varchar(512)",
+        "comment": "最近健康异常原因",
+        "required": false,
+        "source": "模型服务显式赋值",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "health_checked_at",
+        "type": "timestamptz",
+        "comment": "最近健康检查时间",
+        "required": false,
+        "source": "模型服务显式赋值",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "validation_revision",
+        "type": "bigint",
+        "comment": "能力验证语义修订号",
+        "required": true,
+        "source": "关键配置改变时由模型服务递增",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "status"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0004_models",
+    "scope": "环境",
+    "control_purpose": null,
+    "content": false
+  },
+  {
+    "module": "models",
+    "name": "models",
+    "comment": "模型映射",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "model_code",
+        "type": "varchar(64)",
+        "comment": "稳定模型编码",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "name",
+        "type": "varchar(128)",
+        "comment": "模型名称",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "connection_id",
+        "type": "varchar(64)",
+        "comment": "连接标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "provider_model_name",
+        "type": "varchar(256)",
+        "comment": "供应商模型名",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "context_limit",
+        "type": "integer",
+        "comment": "上下文上限",
+        "required": false,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "status",
+        "type": "varchar(32)",
+        "comment": "启用状态",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "capabilities",
+        "type": "jsonb",
+        "comment": "按能力记录支持及验证状态",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "verified_at",
+        "type": "timestamptz",
+        "comment": "验证时间",
+        "required": false,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "current_version_id",
+        "type": "varchar(64)",
+        "comment": "当前模型映射版本标识",
+        "required": true,
+        "source": "模型服务显式赋值",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "parameters",
+        "type": "jsonb",
+        "comment": "模型默认参数",
+        "required": true,
+        "source": "模型服务显式赋值",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "parameter_allowlist",
+        "type": "jsonb",
+        "comment": "模型允许的参数清单",
+        "required": true,
+        "source": "模型服务显式赋值",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "validation_revision",
+        "type": "bigint",
+        "comment": "能力验证语义修订号",
+        "required": true,
+        "source": "关键配置改变时由模型服务递增",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "model_code"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0004_models",
+    "scope": "渠道",
+    "control_purpose": null,
+    "content": false
+  },
+  {
+    "module": "models",
+    "name": "model_routes",
+    "comment": "模型路由资源",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "code",
+        "type": "varchar(64)",
+        "comment": "路由编码",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "name",
+        "type": "varchar(128)",
+        "comment": "路由名称",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "status",
+        "type": "varchar(32)",
+        "comment": "启用状态",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "code"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0004_models",
+    "scope": "渠道",
+    "control_purpose": null,
+    "content": false
+  },
+  {
+    "module": "models",
+    "name": "model_tests",
+    "comment": "模型验证记录",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "model_id",
+        "type": "varchar(64)",
+        "comment": "模型标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "config_revision",
+        "type": "bigint",
+        "comment": "配置修订号",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "cases",
+        "type": "jsonb",
+        "comment": "验证用例",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "results",
+        "type": "jsonb",
+        "comment": "验证结果",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "latency_ms",
+        "type": "integer",
+        "comment": "耗时毫秒",
+        "required": false,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "attempt_ids",
+        "type": "jsonb",
+        "comment": "实际尝试引用",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "config_digest",
+        "type": "varchar(64)",
+        "comment": "冻结配置摘要",
+        "required": true,
+        "source": "模型服务显式赋值",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "execution",
+        "type": "jsonb",
+        "comment": "冻结调试执行描述",
+        "required": true,
+        "source": "模型服务显式赋值",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "state",
+        "type": "varchar(32)",
+        "comment": "验证执行状态",
+        "required": true,
+        "source": "模型服务显式赋值",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "run_id",
+        "type": "varchar(64)",
+        "comment": "统一调试运行标识",
+        "required": false,
+        "source": "模型服务显式赋值",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "error_code",
+        "type": "varchar(64)",
+        "comment": "验证失败类别",
+        "required": false,
+        "source": "模型服务显式赋值",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "reason",
+        "type": "varchar(512)",
+        "comment": "验证失败原因",
+        "required": false,
+        "source": "模型服务显式赋值",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "model_id",
+        "created_at"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0004_models",
+    "scope": "环境",
+    "control_purpose": null,
+    "content": true,
+    "cleanup_type": "model_test"
+  }
+]

@@ -2,6 +2,8 @@
 
 Python 3.12 + FastAPI，API 与 Celery Worker 分进程运行。使用 uv 0.10.12；完整启动顺序见 [项目 README](../README.md)，开发规范见 [rule.md](../rule.md)。
 
+08 用量与预算已接入，服务边界及运行调用顺序见 [用量交接](docs/usage.md)。异步导出由持久化任务驱动，需同时启动 Worker 与调度器。
+
 ## 命令
 
 | 命令 | 用途 |
@@ -9,6 +11,7 @@ Python 3.12 + FastAPI，API 与 Celery Worker 分进程运行。使用 uv 0.10.1
 | `uv sync --locked` | 按锁文件创建虚拟环境并安装依赖 |
 | `make infra-up` | 启动 PostgreSQL、Redis、MinIO，显式创建开发桶 |
 | `make dev` | 启动可热重载的 API，监听 127.0.0.1:8000 |
+| `make scheduler` | 启动 Celery Beat，定期唤醒用量导出及预占补偿 |
 | `uv run creativity-api` | 启动不热重载的 API |
 | `make worker` | 独立启动单进程开发 Worker |
 | `make format` | 格式化并修复可自动修复的 lint 问题 |

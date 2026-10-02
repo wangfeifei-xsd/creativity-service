@@ -28,6 +28,7 @@ AUDIT_NAMES = {
     "grant:put": "设置资源授权",
     "grant:revoke": "撤销资源授权",
     "auth:channel-context": "切换渠道工作区",
+    "auth:platform-context": "返回平台工作区",
     "auth:token": "换取服务令牌",
     "channel:create": "开通渠道",
     "channel:update": "修改渠道",
