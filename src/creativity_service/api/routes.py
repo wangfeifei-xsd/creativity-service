@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from creativity_service.api.artifacts import router as artifact_router
+from creativity_service.modules.agents.api import router as agents_router
 from creativity_service.modules.channels.api import auth_router
 from creativity_service.modules.channels.api import router as channels_router
 from creativity_service.modules.conversations.api import router as conversations_router
@@ -48,3 +49,5 @@ api_router.include_router(conversations_router)
 admin_router.include_router(memory_router)
 admin_router.include_router(memory_admin_router)
 api_router.include_router(memory_router)
+
+admin_router.include_router(agents_router)

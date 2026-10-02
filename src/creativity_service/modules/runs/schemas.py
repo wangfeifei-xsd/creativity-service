@@ -8,6 +8,7 @@ from pydantic import Field, JsonValue, model_validator
 from creativity_service.core.context import Scope
 from creativity_service.core.contracts import RunError, RunState
 from creativity_service.core.primitives import Contract, Identifier, RunInput
+from creativity_service.modules.agents.schemas import FrozenExecutionSpec
 from creativity_service.modules.usage.schemas import AttemptPlan
 
 TERMINAL = frozenset({"SUCCEEDED", "FAILED", "CANCELLED", "TIMED_OUT"})
@@ -79,6 +80,7 @@ class ResolvedDefinition(Contract):
     policy: ExecutionPolicy
     purpose: Literal["production", "debug", "evaluation"] = "production"
     admission_plan: AttemptPlan | None = None
+    frozen_spec: FrozenExecutionSpec | None = None
 
 
 class AdmissionReceipt(Contract):

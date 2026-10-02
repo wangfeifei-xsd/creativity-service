@@ -57,8 +57,11 @@
 | `prompts` | [提示词](modules/prompts.md) | 05-提示词管理.md | 已实现 | 09 |
 | `prompt_samples` | [提示词](modules/prompts.md) | 05-提示词管理.md | 已实现 | 09 |
 | `prompt_tests` | [提示词](modules/prompts.md) | 05-提示词管理.md | 已实现 | 09 |
-| `agents` | [智能体定义](modules/agents.md) | 06-Agent与流程管理.md | 设计基线 | 16 |
+| `agents` | [智能体定义](modules/agents.md) | 06-Agent与流程管理.md | 已实现 | 16 |
 | `platform_templates` | [智能体定义](modules/agents.md) | 06-Agent与流程管理.md | 设计基线 | 16 |
+| `agent_candidates` | [智能体定义](modules/agents.md) | 06-Agent与流程管理.md | 已实现 | 16 |
+| `agent_release_records` | [智能体定义](modules/agents.md) | 06-Agent与流程管理.md | 已实现 | 16 |
+| `agent_environment_states` | [智能体定义](modules/agents.md) | 06-Agent与流程管理.md | 已实现 | 16 |
 | `conversations` | [会话](modules/conversations.md) | 07-会话管理.md | 已实现 | 12 |
 | `messages` | [会话](modules/conversations.md) | 07-会话管理.md | 已实现 | 12 |
 | `conversation_turns` | [会话](modules/conversations.md) | 07-会话管理.md | 已实现 | 12 |

@@ -20,6 +20,7 @@ from creativity_service.core.contracts.export import schemas
 from creativity_service.core.infrastructure import Infrastructure
 from creativity_service.core.observability import configure_logging, create_tracer_provider
 from creativity_service.core.services import build_core_services
+from creativity_service.modules.agents.assembly import build_agent_service
 from creativity_service.modules.channels.assembly import build_channel_services
 from creativity_service.modules.conversations.assembly import build_conversation_service
 from creativity_service.modules.integrations.assembly import build_integration_services
@@ -168,6 +169,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         app.state.memory = build_memory_service(
             infrastructure.engine, app.state.iam.authorization, app.state.core.cleanup
+        )
+        app.state.agents = build_agent_service(
+            infrastructure.engine,
+            app.state.iam.authorization,
+            app.state.tools.management,
+            app.state.skills,
+            app.state.usage.budgets,
         )
         try:
             yield

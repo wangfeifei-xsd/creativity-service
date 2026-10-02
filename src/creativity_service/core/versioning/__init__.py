@@ -344,6 +344,8 @@ class VersionService:
         version_ids: list[str],
         purpose: Literal["production", "debug", "evaluation"],
         output_schema: dict[str, Any],
+        *,
+        frozen_versions: tuple[ResourceVersion, ...] | None = None,
     ) -> ReleaseSnapshot:
         """受理服务完成实时授权后，传入同一事务；预算或调度写入失败会连同快照回滚。"""
         scope = context.scope
@@ -357,11 +359,19 @@ class VersionService:
             raise ServiceError("SNAPSHOT_DUPLICATE", "快照版本不能重复", 422)
         versions = []
         repo = Repository(metadata.tables["resource_versions"], scope)
-        for version_id in version_ids:
-            row = await repo.get(uow.connection, version_id)
-            if row is None or row["state"] == "RETIRED":
-                raise ServiceError("VERSION_UNAVAILABLE", "快照版本不可用")
-            versions.append(version_view(row))
+        if frozen_versions is not None:
+            # 受信解析器已持久化且在受理事务核验候选，禁止重读正在变化的草稿内容。
+            if [v.version_id for v in frozen_versions] != version_ids or any(
+                v.channel_id != scope.channel_id for v in frozen_versions
+            ):
+                raise ServiceError("SNAPSHOT_INVALID", "冻结版本与受理范围不符", 422)
+            versions = list(frozen_versions)
+        else:
+            for version_id in version_ids:
+                row = await repo.get(uow.connection, version_id)
+                if row is None or row["state"] == "RETIRED":
+                    raise ServiceError("VERSION_UNAVAILABLE", "快照版本不可用")
+                versions.append(version_view(row))
         if any(set(v.dependency_version_ids) - set(version_ids) for v in versions):
             raise ServiceError("SNAPSHOT_INCOMPLETE", "快照缺少传递依赖")
         if not versions or versions[0].output_schema != output_schema:

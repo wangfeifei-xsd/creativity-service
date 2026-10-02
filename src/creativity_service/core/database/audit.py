@@ -12,6 +12,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex, CreateTable
 
 from creativity_service.core.database.tables import BASELINE
+from creativity_service.modules.agents.tables import BASELINE as AGENT_BASELINE
 from creativity_service.modules.channels.tables import BASELINE as CHANNEL_BASELINE
 from creativity_service.modules.conversations.tables import BASELINE as CONVERSATION_BASELINE
 from creativity_service.modules.iam.tables import BASELINE as IAM_BASELINE
@@ -128,6 +129,8 @@ def audit_catalog(root: Path) -> list[str]:
     }
     if implemented != set(metadata.tables):
         failures.append("已实现模型清单与登记元数据不一致")
+    if [t for t in catalog["tables"] if t["revision"] == "0016_agents"] != AGENT_BASELINE:
+        failures.append("智能体模块归档与冻结实现不一致")
     archived = [t for t in catalog["tables"] if t["revision"] == "0001_core"]
     if archived != BASELINE:
         failures.append("公共表归档与冻结实现不一致")

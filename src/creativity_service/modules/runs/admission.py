@@ -112,6 +112,9 @@ class AdmissionService(RunKernel):
             idempotency_key(context.scope, scope_digest, key),
             *self.versions.snapshot_keys(context.scope, run_id, list(definition.version_ids)),
         ]
+        resolver_keys = getattr(self.resolver, "keys", None)
+        if resolver_keys:
+            keys.extend(resolver_keys(context, definition))
         source_link = digest(["run", run_id, request.conversation_id])
         if request.conversation_id:
             keys.append(record_key(context.scope.channel_id, "source_links", source_link))
@@ -128,6 +131,9 @@ class AdmissionService(RunKernel):
                 key=key,
             )
             if not duplicate and not existing_run:
+                validate_definition = getattr(self.resolver, "validate_in", None)
+                if validate_definition:
+                    await validate_definition(uow, context, definition)
                 prepare = getattr(self.turns, "prepare", None)
                 if request.conversation_id and prepare:
                     await prepare(uow, context, definition, request)
@@ -151,6 +157,9 @@ class AdmissionService(RunKernel):
                     list(definition.version_ids),
                     definition.purpose,
                     definition.output_schema,
+                    frozen_versions=definition.frozen_spec.versions
+                    if definition.frozen_spec
+                    else None,
                 )
                 if snapshot.versions[0].resource_id != definition.agent_id:
                     raise ServiceError("SNAPSHOT_INVALID", "入口版本与智能体不一致", 422)
