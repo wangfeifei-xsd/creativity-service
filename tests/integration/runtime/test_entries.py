@@ -303,6 +303,7 @@ async def test_result_artifact_is_scoped_and_download_reauthorizes(runtime_env):
 
 
 async def test_memory_omission_is_reported_in_business_result(runtime_env, monkeypatch):
+    from creativity_service.core.deletion import RecoveryService
     from creativity_service.modules.memory.schemas import MemoryLoad, MemoryPolicy, MemorySelection
 
     env = runtime_env
@@ -313,6 +314,7 @@ async def test_memory_omission_is_reported_in_business_result(runtime_env, monke
             )
         }
     )
+    await RecoveryService(env.engine, env.iam.authorization).initialize_fresh(env.context)
     warning = "长期记忆暂不可用，本次未使用记忆"
 
     async def select(*args, **kwargs):

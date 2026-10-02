@@ -394,7 +394,7 @@ class QueryService(RunKernel):
             "items": [
                 RunSummary(
                     **self.receipt(r).model_dump(),
-                    name=f"{r['agent_name']} {r['created_at'].isoformat()}",
+                    name=r["agent_name"],
                     parent_run_id=r["parent_run_id"],
                     release_snapshot_id=r["release_snapshot_id"],
                     error=r["error"],

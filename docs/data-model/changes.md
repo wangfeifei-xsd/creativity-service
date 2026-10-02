@@ -56,3 +56,11 @@
 ## 16 Agent 定义与发布实现增量 / 2026-10-02
 
 `0016_agents` 接在 `0013_memory` 后，新增 `agents`、`agent_candidates`、`agent_release_records`、`agent_environment_states`；冻结字段见 `modules/agents/baseline_v0016.json`。版本、依赖引用及环境映射继续复用公共表，不回填历史数据。候选按完整 Scope 保存不可变定义与摘要，环境状态和发布记录按渠道/环境保存；发布草稿生成独立版本并保留原草稿。运行既有 `execution_policy` JSON 新增可空 `frozen_spec_id`，旧运行读取兼容。配置和候选均登记公共删除来源图；候选清理后保留摘要，清空正文。实现见 [Agent 交接](../agents.md)。
+
+## 17 运行编排实现增量 / 2026-10-02
+
+复用运行、版本、产物和来源表，无 DDL 迁移，不修改已冻结的基线文件。`runs.execution_policy` JSON 增加步骤可读名称、`token_limit` 与 `cost_limit`，旧记录字段缺失时使用兼容模型。`run_contents.kind` 增加 `execution_spec`、`inputs:<步骤或尝试>` 和 `partial`，保存冻结描述、实际输入、加载文件和未校验片段；持续文本在同一受控内容记录中累积。
+
+`checkpoints.namespace` 使用 `langgraph:<namespace>` 和 `langgraph:<namespace>:writes` 保存恢复点及 pending writes。内容仍在 `run_contents`，携带父恢复点、原快照和租约代次；服务锁处理幂等，不创建框架表或 upsert。删除处理器同时清理两表的运行内容，保留脱敏状态、Attempt 及账本。
+
+无 Agent 的模块调试使用 `resource_versions.resource_type=runtime`；版本只保存执行结构和测试描述摘要，个人样例及完整测试描述保存在带完整 Scope 的 `run_contents`。测试/样例、提示词、技能、记忆、工具证据和产物通过 `source_links` 登记关联，删除屏障覆盖恢复和迟到响应。交接见 [运行编排](../runtime.md)。
