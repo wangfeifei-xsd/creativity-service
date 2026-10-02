@@ -142,7 +142,7 @@ async def trusted_identity(
         subject = await authorization.subjects.read_current(context)
         if (
             subject.scope != context.scope
-            or not set(request.definition.required_scopes)
+            or not (set(request.definition.required_scopes) | {"run:create"})
             <= subject.actions & subject.agent_actions
             or not {tool_id, "*"} & subject.resources.get("tool", frozenset())
         ):

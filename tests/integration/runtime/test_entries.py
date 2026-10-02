@@ -372,6 +372,7 @@ async def test_legacy_and_generic_entrypoints_execute_frozen_configuration(runti
 
 async def test_decoupling_migration_preserves_saved_identity_versions_and_runs(runtime_env):
     from alembic.config import Config
+    from alembic.script import ScriptDirectory
     from sqlalchemy import select
 
     from alembic import command
@@ -390,9 +391,22 @@ async def test_decoupling_migration_preserves_saved_identity_versions_and_runs(r
     def migrate(connection):
         import json
 
+        config = Config("alembic.ini")
+        config.set_main_option("version_table_schema", env.schema)
+        config.attributes["connection"] = connection
+        revisions = {
+            revision.revision
+            for revision in ScriptDirectory.from_config(config).walk_revisions(
+                base="base", head="0016_agents"
+            )
+        }
+
         def contents():
             result = {}
             for table in metadata.tables.values():
+                # 兼容盘点只比较降级目标已有表；后续新增表由完整迁移往返用例核验。
+                if table.info["revision"] not in revisions:
+                    continue
                 rows = (
                     connection.execute(
                         select(table).where(
@@ -407,9 +421,6 @@ async def test_decoupling_migration_preserves_saved_identity_versions_and_runs(r
                 )
             return digest(result)
 
-        config = Config("alembic.ini")
-        config.set_main_option("version_table_schema", env.schema)
-        config.attributes["connection"] = connection
         before = contents()
         command.downgrade(config, "0016_agents")
         assert contents() == before

@@ -9,7 +9,7 @@
 | 范围 | 已验证行为 |
 | --- | --- |
 | INT-F01/F06/F11，发现与发布 | `archive.find-notes` 使用文档参数并返回摘录数组；`matrix.total` 使用带本地 `$defs/$ref` 的二维数组并返回合计与单位。两者仅通过 MCP 连接、凭据、发现、导入、授权、发布和 Agent 绑定接入，无业务专用适配器 |
-| INT-F05，当前主体权限 | 专用 `access.review-current` 通过服务凭据独立复核。停用主体、扩大权限、过期、错域、协议错误、超时和缺配置均在业务工具提交前拒绝；源端权限收窄即时生效；身份工具不能导入模型工具目录 |
+| INT-F05，当前主体权限 | 专用 `access.review-current` 通过服务凭据独立复核。停用主体、扩大权限、过期、错域、协议错误、超时和缺配置均在业务工具提交前拒绝；源端权限收窄即时生效，最终复核撤销 run:create 后不能在出站身份中重新加入；身份工具不能导入模型工具目录 |
 | TOL-A01、INT-F02 | 模型传入 subject、subject_id、data_scope、environment 或 `_meta` 均被拒绝；管理配置正文不能覆盖 channel_id；跨数据域不能读取复核绑定 |
 | INT-F04/F07/F09/F10 | 保留结构化结果、源请求编号、数据版本、观测时间、来源证据和分页。empty、missing、partial 与远端无权限、超时可区分；错域结果、无授权实体、非法输出 schema、实际副作用与只读契约冲突均拒绝 |
 | INT-F08，固定版本 | 源 schema 变化阻断旧工具；重新发现或恢复原 schema 不自动恢复已失效的旧绑定。凭据轮换后即使远端 schema 相同，旧发布绑定仍被拒绝 |
@@ -23,7 +23,7 @@
 
 ## 检查命令与结果
 
-服务端 `make check` 通过：Ruff、268 个源文件的 mypy strict、**153 项非集成测试**、OpenAPI/全部模块契约一致性、模型归档及存储源码审查。日志：`.logs/20/check-final.log`。
+服务端 `make check` 通过：Ruff、268 个源文件的 mypy strict、**154 项非集成测试**、OpenAPI/全部模块契约一致性、模型归档及存储源码审查。日志：`.logs/20/check-final.log`。
 
 相关集成矩阵使用独立 PostgreSQL schema 与隔离 Redis 范围，结束后清理：
 
@@ -35,9 +35,9 @@ uv run pytest tests/integration/mcp tests/integration/integrations \
   tests/integration/core -q
 ```
 
-新增 MCP 业务闭环 **16 项通过**，新增首次主体恢复屏障 **4 项通过**。相关模块完整回归结果与迁移记录在最终运行结束后归档；日志为 `.logs/20/regression-final.log`。
+相关矩阵首轮 **128 项通过、1 项旧迁移盘点用例失败**：该用例降级到 0016 后仍遍历最新模型全部表，访问了本次降级已删除的新表。盘点改为按 Alembic 祖先版本选择降级目标已有的表，继续逐行摘要核对历史身份、版本和运行；完整升级、降级、重复升级及实际存储审查另有用例覆盖新增表。修正用例最终 **1 项通过**，合计 **129 项相关集成用例完成验证**，其中包括新增 MCP 业务闭环 16 项和首次主体恢复屏障 4 项。日志：`.logs/20/regression-final.log`、`.logs/20/migration-recheck.log`。
 
-前端 `pnpm check` 验证 OpenAPI 类型、TypeScript、ESLint、**19 项 Vitest** 和生产构建。`PLAYWRIGHT_CHANNEL=chrome pnpm exec playwright test tests/mcp.spec.ts tests/integrations.spec.ts tests/tools.spec.ts` **12 项通过**。移动端宽度 390 像素，主体复核对话框截图已人工检查；截图为 `.logs/20/subject-review-mobile.png`。JSON 参数补充验证及最终前端工程检查日志为 `.logs/20-tools-final.log`、`.logs/20-check-final.log`。
+前端 `pnpm check` 通过 OpenAPI 类型、TypeScript、ESLint、**19 项 Vitest** 和生产构建。`PLAYWRIGHT_CHANNEL=chrome pnpm exec playwright test tests/mcp.spec.ts tests/integrations.spec.ts tests/tools.spec.ts` **12 项通过**；补充 JSON 参数校验后，工具页面 **3 项重测通过**。移动端宽度 390 像素，主体复核对话框截图已人工检查；截图为 `.logs/20/subject-review-mobile.png`。最终工程检查及 JSON 参数重测日志为 `.logs/20-check-final.log`、`.logs/20-tools-final.log`。
 
 ## 联调修正与迁移
 
@@ -45,6 +45,6 @@ uv run pytest tests/integration/mcp tests/integration/integrations \
 
 浏览器初轮发现测试拦截范围过宽和选择下拉关闭动画期间立即截图的问题；调整为精确 API 拦截并等待下拉关闭后检查手机布局，最终用例通过。
 
-新增 `0021_mcp_subject_review` 迁移仅创建主体复核绑定表及普通索引，不改变旧迁移建表入口。模型归档版本为 1.5.0。开发库迁移前只有系统渠道、没有历史运行，开发库升级与实际存储审查结果随最终记录归档。
+新增 `0021_mcp_subject_review` 迁移仅创建主体复核绑定表及普通索引，不改变旧迁移建表入口。模型归档版本为 1.5.0。离线增量 SQL 审查、独立 schema 的完整迁移往返及实际存储审查通过。开发库已从 `0020_access_decoupling` 升级，87 张原表的迁移前后记录摘要完全一致，`audit --database` 通过；见 [迁移核对记录](mcp-business-migration.json)。当前开发库只有系统渠道，没有业务配置或历史运行，不把空库核对当成唯一兼容证据。
 
 已知非阻断提示为既有重复 ZIP 文件名测试警告与前端大包体积提示。真实业务 MCP 开发、部署、权限语义与真实模型供应商验证没有被本次受控测试替代；21/22 使用本单元协议与样例继续配置和 API 交付，23 另行证明固定平台构建物可复用。
