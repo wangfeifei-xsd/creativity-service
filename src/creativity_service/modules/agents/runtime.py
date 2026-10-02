@@ -28,6 +28,7 @@ class AgentRunResolver:
             purpose=spec.purpose,
             frozen_spec=spec,
             policy=ExecutionPolicy(
+                frozen_spec_id=spec.snapshot_id,
                 steps=tuple(
                     StepPolicy(
                         node_key=s.key,
@@ -42,7 +43,7 @@ class AgentRunResolver:
                 timeout_seconds=config.limits.deadline_seconds,
                 timeout_source="agent-version",
                 max_model_calls=config.limits.max_model_rounds,
-                max_tool_calls=max(1, config.limits.max_tool_calls),
+                max_tool_calls=config.limits.max_tool_calls,
             ),
         )
 
@@ -61,6 +62,20 @@ class AgentRunResolver:
         spec = definition.frozen_spec
         if spec is None or spec.scope != context.scope:
             raise ServiceError("SNAPSHOT_INVALID", "受理缺少同范围的冻结执行定义", 422)
+        expected = self.definition(spec)
+        if definition.model_dump(exclude={"admission_plan"}) != expected.model_dump(
+            exclude={"admission_plan"}
+        ):
+            raise ServiceError("SNAPSHOT_INVALID", "受理策略或结构不能覆盖冻结执行定义", 422)
+        plan = definition.admission_plan
+        if (
+            plan
+            and plan.input_tokens
+            + plan.max_output_tokens
+            + sum(plan.additional_upper_tokens.values())
+            > spec.definition.limits.token_limit
+        ):
+            raise ServiceError("BUDGET_NOT_EXECUTABLE", "受理估算超过智能体 Token 上限", 422)
         await locked_require(uow, context, "run:create", "agent", spec.agent_id)
         row = await required(uow.connection, context.scope, "agent_candidates", spec.snapshot_id)
         if row["spec"] != spec.model_dump(mode="json"):
@@ -74,6 +89,7 @@ class AgentRunResolver:
         await DeletionGuard(context.scope).check(
             uow,
             [
+                ContentRef("agent_candidate", spec.snapshot_id),
                 ContentRef("agent", spec.agent_id),
                 *[ContentRef("version", v.version_id) for v in spec.versions],
             ],

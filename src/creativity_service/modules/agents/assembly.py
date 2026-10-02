@@ -4,6 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.auth.types import ResourceState, ResourceStateReader
 from creativity_service.core.context import AuthContext
+from creativity_service.core.database import transaction
+from creativity_service.core.deletion import CleanupRegistry, ContentRef, DeletionGuard
+from creativity_service.core.primitives import ServiceError
+from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.agents.repositories import repository
 from creativity_service.modules.agents.services import AgentService
 from creativity_service.modules.budgets.services import BudgetService
@@ -49,6 +53,40 @@ def build_agent_service(
     *,
     evaluation: EvaluationGate | None = None,
     runner: AgentDebugRunner | None = None,
+    cleanup: CleanupRegistry | None = None,
 ) -> AgentService:
     authorization.resources = AgentResourceReader(engine, authorization.resources)
-    return AgentService(engine, authorization, tools, skills, budgets, evaluation, runner)
+    service = AgentService(engine, authorization, tools, skills, budgets, evaluation, runner)
+    if cleanup is not None:
+
+        async def clear(context: AuthContext, ref: ContentRef) -> None:
+            async with engine.connect() as connection:
+                row = await repository("agent_candidates", context.scope).get(
+                    connection, ref.resource_id
+                )
+            if row is None:
+                raise ServiceError("NOT_FOUND", "候选快照不存在", 404)
+            await service.require(context, "content:cleanup", row["agent_id"])
+            async with transaction(
+                engine,
+                context.scope,
+                service.keys(context, row["agent_id"], ("agent_candidates", ref.resource_id)),
+            ) as uow:
+                await locked_require(uow, context, "content:cleanup", "agent", row["agent_id"])
+                try:
+                    await DeletionGuard(context.scope).check(uow, [ref])
+                except ServiceError as exc:
+                    if exc.code != "CONTENT_DELETED":
+                        raise
+                else:
+                    raise ServiceError("DELETION_MARKER_REQUIRED", "清理前必须登记删除标记")
+                current = await repository("agent_candidates", context.scope).get(
+                    uow.connection, ref.resource_id
+                )
+                if current:
+                    await repository("agent_candidates", context.scope).change(
+                        uow, ref.resource_id, current["revision"], {"spec": {}}
+                    )
+
+        cleanup.register("agent_candidate", clear)
+    return service

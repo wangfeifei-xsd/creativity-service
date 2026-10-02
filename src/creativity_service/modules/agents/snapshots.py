@@ -6,6 +6,8 @@ from jsonschema import Draft202012Validator
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.deletion import ContentRef, DeletionGuard
+from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import (
     ServiceError,
     canonical_json,
@@ -15,6 +17,7 @@ from creativity_service.core.primitives import (
     utcnow,
 )
 from creativity_service.core.versioning import version_view
+from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.agents.base import AgentKernel
 from creativity_service.modules.agents.dependencies import dependency_manifest
 from creativity_service.modules.agents.repositories import repository, required
@@ -42,6 +45,8 @@ class AgentSnapshots(AgentKernel):
         version: dict[str, Any],
         purpose: Purpose,
         refs: tuple[str, ...] = (),
+        *,
+        require_evaluation: bool = True,
     ) -> tuple[AgentValidation, list[dict[str, Any]], dict[str, Any]]:
         definition = AgentDefinition.model_validate(version["content"])
         issues = static_issues(definition)
@@ -49,6 +54,20 @@ class AgentSnapshots(AgentKernel):
             AgentCheck(key="authorization", label="当前授权与环境", passed=True),
             AgentCheck(key="flow", label="结构与流程终止", passed=not issues, issues=issues),
         ]
+        if issues:
+            return (
+                AgentValidation(
+                    valid=False,
+                    revision=version["revision"],
+                    content_digest=version["content_digest"],
+                    dependencies_digest=None,
+                    candidate_digest=None,
+                    checks=checks,
+                    dependencies=[],
+                ),
+                [],
+                {},
+            )
         rows: list[dict[str, Any]] = []
         manifest: dict[str, Any] = {}
         dependencies_digest = candidate_digest = None
@@ -79,9 +98,15 @@ class AgentSnapshots(AgentKernel):
             candidate_digest = digest(
                 {"content": version["content_digest"], "dependencies": dependencies_digest}
             )
-            if purpose == "production" and context.scope.environment == "prod":
+            if (
+                require_evaluation
+                and purpose == "production"
+                and context.scope.environment == "prod"
+            ):
                 evidence = (
-                    await self.evaluation.read(uow, context, refs) if self.evaluation else None
+                    await self.evaluation.read(uow, context, refs)
+                    if self.evaluation and refs
+                    else None
                 )
                 check_evidence(
                     evidence,
@@ -150,7 +175,7 @@ class AgentSnapshots(AgentKernel):
         agent, version = await self.raw(context, version_id)
         await self.require(context, "agent:manage", agent["id"])
         keys = self.keys(context, agent["id"], ("resource_versions", version_id))
-        if self.evaluation:
+        if self.evaluation and body.evaluation_refs:
             keys += self.evaluation.keys(context, body.evaluation_refs)
         # 缺依赖也要返回可阅读的校验结果，不在枚举锁时提前丢失检查清单。
         try:
@@ -183,13 +208,18 @@ class AgentSnapshots(AgentKernel):
             ("resource_versions", version_id),
             ("agent_candidates", identifier),
         )
-        keys += await self.dependency_keys(
+        dependency_keys = await self.dependency_keys(
             context, AgentDefinition.model_validate(version["content"])
+        )
+        keys += dependency_keys
+        keys += self.candidate_keys(
+            context, identifier, agent["id"], version["id"], dependency_keys
         )
         async with transaction(self.engine, context.scope, keys) as uow:
             agent, version = await self.locked_version(
                 uow, context, agent["id"], version_id, revision, "agent:manage"
             )
+            await locked_require(uow, context, "run:create", "agent", agent["id"])
             validation, dependencies, manifest = await self.inspect_in(
                 uow, context, agent, version, purpose
             )
@@ -256,6 +286,16 @@ class AgentSnapshots(AgentKernel):
                 "spec": spec.model_dump(mode="json"),
             },
         )
+        for kind, source in [
+            ("agent", agent["id"]),
+            *[("version", row["id"]) for row in [version, *dependencies]],
+        ]:
+            link_id = digest([identifier, kind, source])
+            if record_key(context.scope.channel_id, "source_links", link_id) not in uow.keys:
+                raise ServiceError("REVISION_CONFLICT", "候选依赖已变化，请重新冻结", 409)
+            await DeletionGuard(context.scope).link(
+                uow, link_id, ContentRef(kind, source), ContentRef("agent_candidate", identifier)
+            )
         return spec
 
     async def resolve_published(self, context: AuthContext, agent_code: str) -> FrozenExecutionSpec:
@@ -285,8 +325,12 @@ class AgentSnapshots(AgentKernel):
             ("release_mappings", mapping_id),
             ("agent_candidates", identifier),
         )
-        keys += await self.dependency_keys(
+        dependency_keys = await self.dependency_keys(
             context, AgentDefinition.model_validate(version["content"])
+        )
+        keys += dependency_keys
+        keys += self.candidate_keys(
+            context, identifier, agent["id"], version["id"], dependency_keys
         )
         async with transaction(self.engine, context.scope, keys) as uow:
             current = await repository("release_mappings", context.scope).get(
@@ -301,12 +345,11 @@ class AgentSnapshots(AgentKernel):
                 raise ServiceError("AGENT_NOT_RELEASED", "正式运行只能使用已发布版本", 409)
             # 受理复查授权和依赖；评测证据在发布时留存，运行不重复要求报告提交。
             validation, dependencies, manifest = await self.inspect_in(
-                uow, context, agent, version, "production"
-            )
-            validation = validation.model_copy(
-                update={"checks": [c for c in validation.checks if c.key != "evaluation"]}
+                uow, context, agent, version, "production", require_evaluation=False
             )
             self.require_valid(validation)
+            if version["dependencies_digest"] != validation.dependencies_digest:
+                raise ServiceError("DEPENDENCY_INVALID", "发布依赖或策略已变化，需要重新发布", 409)
             return await self.store_candidate(
                 uow,
                 context,
@@ -322,10 +365,27 @@ class AgentSnapshots(AgentKernel):
     async def load_candidate(self, context: AuthContext, identifier: str) -> FrozenExecutionSpec:
         async with self.engine.connect() as connection:
             row = await required(connection, context.scope, "agent_candidates", identifier)
-        spec = FrozenExecutionSpec.model_validate(row["spec"])
-        await self.require(context, "run:create", spec.agent_id)
-        if spec.scope != context.scope:
-            raise ServiceError("SCOPE_MISMATCH", "候选快照范围不符", 403)
+        await self.require(context, "run:create", row["agent_id"])
+        async with transaction(
+            self.engine,
+            context.scope,
+            self.keys(context, row["agent_id"], ("agent_candidates", identifier)),
+        ) as uow:
+            await locked_require(uow, context, "run:create", "agent", row["agent_id"])
+            await DeletionGuard(context.scope).check(
+                uow, [ContentRef("agent_candidate", identifier)]
+            )
+            row = await required(uow.connection, context.scope, "agent_candidates", identifier)
+            spec = FrozenExecutionSpec.model_validate(row["spec"])
+            if spec.scope != context.scope:
+                raise ServiceError("SCOPE_MISMATCH", "候选快照范围不符", 403)
+            await DeletionGuard(context.scope).check(
+                uow,
+                [
+                    ContentRef("agent", spec.agent_id),
+                    *[ContentRef("version", v.version_id) for v in spec.versions],
+                ],
+            )
         return spec
 
     async def check_external_boundary(

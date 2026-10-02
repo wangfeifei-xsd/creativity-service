@@ -6,7 +6,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
 from creativity_service.core.primitives import canonical_json
-from creativity_service.modules.agents.registry import ENTRYPOINTS
+from creativity_service.modules.agents.registry import ENTRYPOINTS, templates
 from creativity_service.modules.agents.schemas import AgentDefinition, AgentIssue
 
 
@@ -19,35 +19,26 @@ def schema_field(schema: dict[str, Any], path: str) -> dict[str, Any] | None:
     return current
 
 
-def compatible(source: dict[str, Any], target: dict[str, Any]) -> bool:
+def compatible(source: dict[str, Any] | bool, target: dict[str, Any] | bool) -> bool:
     """首版只证明内联结构可赋值；无法证明的复杂组合要求保持相同契约。"""
-    if source == target or not target:
+    if source == target or target is True or source is False or target == {}:
         return True
+    if not isinstance(source, dict) or not isinstance(target, dict):
+        return False
     if source.get("type") != target.get("type"):
         return source.get("type") == "integer" and target == {"type": "number"}
-    if any(
-        k in target and target[k] != source.get(k)
-        for k in (
-            "enum",
-            "const",
-            "oneOf",
-            "anyOf",
-            "allOf",
-            "not",
-            "pattern",
-            "format",
-            "minimum",
-            "maximum",
-            "minLength",
-            "maxLength",
-            "minItems",
-            "maxItems",
-            "exclusiveMinimum",
-            "exclusiveMaximum",
-            "multipleOf",
-            "uniqueItems",
-        )
-    ):
+    structural = {"type", "properties", "required", "additionalProperties", "items"}
+    annotations = {
+        "title",
+        "description",
+        "default",
+        "examples",
+        "$comment",
+        "deprecated",
+        "readOnly",
+        "writeOnly",
+    }
+    if any(target[k] != source.get(k) for k in target.keys() - structural - annotations):
         return False
     if target.get("type") == "object":
         if not set(target.get("required", [])) <= set(source.get("required", [])):
@@ -57,7 +48,14 @@ def compatible(source: dict[str, Any], target: dict[str, Any]) -> bool:
             source.get("additionalProperties") is not False or not left.keys() <= right.keys()
         ):
             return False
-        return all(k not in left or compatible(left[k], v) for k, v in right.items())
+        if not compatible(
+            source.get("additionalProperties", True), target.get("additionalProperties", True)
+        ):
+            return False
+        return all(
+            compatible(left.get(k, source.get("additionalProperties", True)), v)
+            for k, v in right.items()
+        )
     if target.get("type") == "array" and "items" in target:
         return compatible(source.get("items", {}), target["items"])
     return True
@@ -104,6 +102,39 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
     required_output = {"business_status", "schema_version", "data", "warnings", "evidence_refs"}
     if not required_output <= set(definition.output_schema.get("required", [])):
         fail("业务输出须声明业务状态、结构版本、数据、警告和证据引用", "output_schema")
+    expected_types = {
+        "business_status": "string",
+        "schema_version": "string",
+        "data": "object",
+        "warnings": "array",
+        "evidence_refs": "array",
+    }
+    properties = definition.output_schema.get("properties", {})
+    for key, kind in expected_types.items():
+        field = properties.get(key, {})
+        if not isinstance(field, dict) or field.get("type") != kind:
+            fail("业务输出字段类型不符合统一结果契约", f"output_schema.{key}")
+    business_status = properties.get("business_status", {})
+    states = business_status.get("enum", []) if isinstance(business_status, dict) else []
+    allowed_states = {
+        "COMPLETED",
+        "NEEDS_INPUT",
+        "NO_MATCH",
+        "INSUFFICIENT_DATA",
+        "PARTIAL",
+    }
+    if not states or any(
+        not isinstance(state, str) or state not in allowed_states for state in states
+    ):
+        fail("业务状态须使用平台结果契约中定义的状态", "output_schema.business_status")
+    if definition.workflow_type == "template":
+        template = next((t.definition for t in templates() if t.key == definition.entrypoint), None)
+        if template and (
+            [(s.key, s.kind) for s in definition.steps] != [(s.key, s.kind) for s in template.steps]
+            or definition.edges != template.edges
+            or definition.start_step != template.start_step
+        ):
+            fail("固定场景流程只允许替换资源绑定、结构和参数", "steps")
     if ENTRYPOINTS.get(definition.entrypoint, (None,))[0] != definition.workflow_type:
         fail("流程类型与已登记入口不符", "entrypoint")
     nodes = {s.key: s for s in definition.steps}
@@ -121,9 +152,9 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
             condition_schema = schema_field(nodes[edge.source].output_schema, edge.condition.path)
             if condition_schema is None:
                 fail("分支条件引用不存在的输出字段", f"edges.{edge.source}")
-            elif edge.condition.operator != "exists" and not Draft202012Validator(schema).is_valid(
-                edge.condition.value
-            ):
+            elif edge.condition.operator != "exists" and not Draft202012Validator(
+                condition_schema
+            ).is_valid(edge.condition.value):
                 fail("分支条件值与输出字段类型不符", f"edges.{edge.source}")
         if edge.otherwise and edge.condition:
             fail("兜底分支不能同时设置条件", "edges")

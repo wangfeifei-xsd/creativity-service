@@ -1,12 +1,13 @@
 """评测和调试由后续执行单元装配，未装配时保持拒绝。"""
 
-from datetime import datetime
 from typing import Protocol
+
+from pydantic import AwareDatetime
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork
 from creativity_service.core.locking import ResourceKey
-from creativity_service.core.primitives import Contract
+from creativity_service.core.primitives import Contract, Digest
 from creativity_service.modules.agents.schemas import (
     AgentTestInput,
     AgentTestView,
@@ -18,11 +19,11 @@ class EvaluationEvidence(Contract):
     channel_id: str
     agent_id: str
     environment: str
-    content_digest: str
-    dependencies_digest: str
-    report_digest: str
+    content_digest: Digest
+    dependencies_digest: Digest
+    report_digest: Digest
     passed: bool
-    expires_at: datetime
+    expires_at: AwareDatetime
     report_ids: tuple[str, ...]
 
 

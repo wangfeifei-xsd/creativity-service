@@ -49,11 +49,21 @@ async def check_budget(
         for policy in policies:
             if not matches(policy, service.snapshot(context, plan)):
                 continue
-            relevant[policy["id"]] = {
-                k: policy[k]
-                for k in ("id", "version_id", "scope_type", "scope_id", "unit", "mode", "currency")
-            }
-            relevant[policy["id"]]["limit_value"] = str(policy["limit_value"])
+            # Key 预算属于当前调用身份，仍实时检查，但不能改变发布者冻结的配置摘要。
+            if policy["scope_type"] != "key":
+                relevant[policy["id"]] = {
+                    k: policy[k]
+                    for k in (
+                        "id",
+                        "version_id",
+                        "scope_type",
+                        "scope_id",
+                        "unit",
+                        "mode",
+                        "currency",
+                    )
+                }
+                relevant[policy["id"]]["limit_value"] = str(policy["limit_value"])
             if policy["mode"] != "HARD":
                 continue
             if policy["unit"] == "amount":

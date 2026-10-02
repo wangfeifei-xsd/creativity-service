@@ -33,7 +33,13 @@ def templates() -> list[AgentTemplate]:
             "properties": {
                 "business_status": {
                     "type": "string",
-                    "enum": ["SUCCESS", "NEEDS_INPUT", "PARTIAL"],
+                    "enum": [
+                        "COMPLETED",
+                        "NEEDS_INPUT",
+                        "NO_MATCH",
+                        "INSUFFICIENT_DATA",
+                        "PARTIAL",
+                    ],
                 },
                 "schema_version": {"type": "string", "const": "1.0"},
                 "data": {"type": "object"},

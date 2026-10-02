@@ -213,6 +213,18 @@ class AgentService(AgentSnapshots):
             versions = await repository("resource_versions", context.scope).find(
                 uow.connection, resource_type="agent", resource_id=agent_id
             )
+            visible_versions = []
+            for version in versions:
+                try:
+                    await DeletionGuard(context.scope).check(
+                        uow, [ContentRef("version", version["id"])]
+                    )
+                except ServiceError as exc:
+                    if exc.code != "CONTENT_DELETED":
+                        raise
+                else:
+                    visible_versions.append(version)
+            versions = visible_versions
             mapping = await repository("release_mappings", context.scope).get(
                 uow.connection, self.mapping_id(context, agent_id)
             )

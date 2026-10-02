@@ -4,9 +4,19 @@ from creativity_service.core.auth.types import GrantState, MembershipState
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork
 from creativity_service.core.primitives import ServiceError, utcnow
+from creativity_service.integrations.business.delegation import DelegationClaims
 from creativity_service.modules.agents.repositories import repository
+from creativity_service.modules.channels.state import current_service
 from creativity_service.modules.iam.authorization import action_allowed, effective_actions
 from creativity_service.modules.iam.repositories import one, policy_key, rows, to_state
+from creativity_service.modules.integrations.repositories import (
+    configuration_key,
+    environment_scope,
+    source_mapping,
+)
+from creativity_service.modules.integrations.repositories import (
+    repository as integration_repository,
+)
 
 
 async def locked_require(
@@ -24,6 +34,10 @@ async def locked_require(
         or environments[0]["status"] != "ACTIVE"
     ):
         raise ServiceError("FORBIDDEN", "渠道或目标环境不可用", 403)
+    if scope.data_scope_id:
+        domain = await repository("data_scopes", scope).get(uow.connection, scope.data_scope_id)
+        if not domain or domain["status"] != "ACTIVE":
+            raise ServiceError("FORBIDDEN", "当前业务数据域不可用", 403)
     if context.token_digest and await rows(
         uow.connection,
         "iam_revocations",
@@ -58,21 +72,40 @@ async def locked_require(
         )
         if not action_allowed(actions, action):
             raise ServiceError("FORBIDDEN", "当前资源或目标环境授权不足", 403)
-    elif action == "run:create" and context.client_id and context.key_id:
-        client = await repository("service_clients", scope).get(uow.connection, context.client_id)
-        key = await repository("channel_keys", scope).get(uow.connection, context.key_id)
+    elif context.client_id and context.key_id:
+        uow.require_lock(configuration_key(scope))
+        identity = await current_service(uow.connection, context)
+        delegation = await integration_repository(
+            environment_scope(scope), "delegation_nonces"
+        ).get(uow.connection, context.delegation_id or "")
         if (
-            not client
-            or not key
-            or client["status"] != "ACTIVE"
+            not delegation
+            or delegation["client_id"] != context.client_id
+            or delegation["resolved_scope"] != scope.model_dump()
+            or delegation["expires_at"] <= utcnow()
+        ):
+            raise ServiceError("FORBIDDEN", "业务主体委托已失效", 403)
+        key = await integration_repository(environment_scope(scope), "delegation_keys").get(
+            uow.connection, delegation["kid"]
+        )
+        if (
+            not key
             or key["status"] != "ACTIVE"
             or key["expires_at"] <= utcnow()
+            or key["not_before"] > utcnow()
         ):
-            raise ServiceError("FORBIDDEN", "调用服务或凭据已停用", 403)
+            raise ServiceError("FORBIDDEN", "业务主体委托凭据已撤销", 403)
+        claims = DelegationClaims.model_validate(delegation["claims"])
+        domain = await source_mapping(
+            uow.connection, environment_scope(scope), claims.data_scope.type, claims.data_scope.id
+        )
+        resources = claims.resources.get(kind, [])
+        actions = identity.client_actions & identity.key_actions & set(claims.actions)
         if (
-            action not in set(client["scopes"]) & set(key["scopes"])
-            or scope.data_scope_id not in client["data_scopes"]
+            domain["id"] != scope.data_scope_id
+            or action not in actions
+            or not ({identifier, "*"} & set(resources))
         ):
-            raise ServiceError("FORBIDDEN", "调用服务授权不足", 403)
+            raise ServiceError("FORBIDDEN", "当前业务主体未获此资源授权", 403)
     else:
         raise ServiceError("FORBIDDEN", "此操作需要管理身份", 403)

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import DisplayStatus, VisibleAction
-from creativity_service.core.database import UnitOfWork
+from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import ServiceError, digest
@@ -27,6 +27,7 @@ from creativity_service.modules.agents.schemas import (
 from creativity_service.modules.budgets.services import BudgetService
 from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.iam.repositories import policy_key
+from creativity_service.modules.integrations.repositories import configuration_key
 from creativity_service.modules.memory.repositories import policy_key as memory_key
 from creativity_service.modules.models.repositories import model_key
 from creativity_service.modules.releases.ports import AgentDebugRunner, EvaluationGate
@@ -88,6 +89,7 @@ class AgentKernel:
             policy_key(scope.channel_id),
             policy_key("system"),
             model_key(scope.channel_id),
+            configuration_key(scope),
             memory_key(scope),
             ledger_key(scope.channel_id),
             record_key(scope.channel_id, "agents", agent_id),
@@ -101,6 +103,21 @@ class AgentKernel:
         keys = []
         async with self.engine.connect() as connection:
             rows = await dependency_rows(connection, context.scope, definition.bindings.ids())
+            for row in rows:
+                if row["resource_type"] == "tool":
+                    connection_id = row["content"].get("binding", {}).get("connection_id")
+                    if connection_id:
+                        mcp = await required(
+                            connection, context.scope, "mcp_connections", connection_id
+                        )
+                        if mcp["credential_ref"]:
+                            keys.append(
+                                record_key(
+                                    context.scope.channel_id,
+                                    "credentials",
+                                    mcp["credential_ref"],
+                                )
+                            )
         for row in rows:
             keys.append(record_key(context.scope.channel_id, "resource_versions", row["id"]))
             if row["resource_type"] in RESOURCE_TABLES:
@@ -126,14 +143,36 @@ class AgentKernel:
                     )
         return keys
 
+    @staticmethod
+    def candidate_keys(
+        context: AuthContext,
+        identifier: str,
+        agent_id: str,
+        version_id: str,
+        dependencies: list[ResourceKey],
+    ) -> list[ResourceKey]:
+        sources = [("agent", agent_id), ("version", version_id)]
+        sources += [
+            ("version", key.business_key[0])
+            for key in dependencies
+            if key.resource_type == "record:resource_versions"
+        ]
+        return [
+            record_key(context.scope.channel_id, "source_links", digest([identifier, kind, source]))
+            for kind, source in sources
+        ]
+
     async def raw(
         self, context: AuthContext, version_id: str
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        async with self.engine.connect() as connection:
-            version = await required(connection, context.scope, "resource_versions", version_id)
+        async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
+            version = await required(uow.connection, context.scope, "resource_versions", version_id)
             if version["resource_type"] != "agent":
                 raise ServiceError("NOT_FOUND", "智能体版本不存在", 404)
-            agent = await required(connection, context.scope, "agents", version["resource_id"])
+            agent = await required(uow.connection, context.scope, "agents", version["resource_id"])
+            await DeletionGuard(context.scope).check(
+                uow, [ContentRef("agent", agent["id"]), ContentRef("version", version_id)]
+            )
         return agent, version
 
     async def locked_version(

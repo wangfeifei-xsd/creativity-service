@@ -14,14 +14,17 @@
       "type": "string"
     },
     "content_digest": {
+      "pattern": "^[0-9a-f]{64}$",
       "title": "Content Digest",
       "type": "string"
     },
     "dependencies_digest": {
+      "pattern": "^[0-9a-f]{64}$",
       "title": "Dependencies Digest",
       "type": "string"
     },
     "report_digest": {
+      "pattern": "^[0-9a-f]{64}$",
       "title": "Report Digest",
       "type": "string"
     },

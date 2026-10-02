@@ -19,7 +19,7 @@ Python 3.12 + FastAPI，API 与 Celery Worker 分进程运行。使用 uv 0.10.1
 | `make integration` | 真实基础设施与 Worker 冒烟验证 |
 | `uv run creativity-openapi` | 不连接基础设施，导出 contracts/openapi.json |
 | `uv run creativity-openapi --check` | 校验当前契约内容 |
-| `make migrate` | 显式升级至 0003_channels（公共、账号授权及渠道表） |
+| `make migrate` | 显式升级至当前迁移 head |
 | `make contracts` | 生成公共及渠道 JSON Schema、样例与 OpenAPI |
 | `make channels-init` | 幂等初始化系统渠道，不创建业务凭据 |
 | `make model-check` | 校验全量模型档案、迁移源码及公共定义 |
@@ -50,3 +50,5 @@ Python 3.12 + FastAPI，API 与 Celery Worker 分进程运行。使用 uv 0.10.1
 会话生命周期、消息与运行事务、上下文来源、删除意图及页面见 [12 会话交接](docs/conversations.md)。迁移为 `0012_conversations`，正式模型与 SSE 仍由 17 装配。
 
 结构化记忆、完整 Scope 属性检索、来源重算与管理页面见 [13 记忆交接](docs/memory.md)；专项验收见 [验证记录](docs/memory-validation.md)。新增迁移 `0013_memory`；真实运行调用由 17 装配，全图删除与恢复由 25 组合验收。
+
+16 已交付 Agent 定义、配置向导、静态校验、冻结快照与环境发布，见 [Agent 交接](docs/agents.md) 和 [验证记录](docs/agents-validation.md)。迁移为 `0016_agents`；17 接通真实运行，24 提供评测证据，未接入有效证据时 prod 发布保持阻断。

@@ -50,12 +50,13 @@ class StepPolicy(Contract):
 
 
 class ExecutionPolicy(Contract):
+    frozen_spec_id: Identifier | None = None
     steps: tuple[StepPolicy, ...] = Field(min_length=1)
     workload: Literal["online", "analysis"] = "online"
     timeout_seconds: int | None = Field(default=None, ge=1, le=3600)
     timeout_source: str = Field(default="platform-default", min_length=1, max_length=128)
     max_model_calls: int = Field(default=6, ge=1, le=100)
-    max_tool_calls: int = Field(default=10, ge=1, le=100)
+    max_tool_calls: int = Field(default=10, ge=0, le=100)
     max_recoveries: int = Field(default=2, ge=0, le=10)
 
     @model_validator(mode="after")

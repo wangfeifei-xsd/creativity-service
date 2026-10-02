@@ -5,6 +5,7 @@ from typing import Any
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork
 from creativity_service.core.deletion import ContentRef, DeletionGuard
+from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError, digest
 from creativity_service.core.versioning import version_view
 from creativity_service.modules.agents.access import locked_require
@@ -191,7 +192,10 @@ class DependencyResolver:
             )
             if credential["state"] != "ACTIVE":
                 raise ServiceError("DEPENDENCY_INVALID", "模型连接凭据已撤销", 422)
-            if model["context_limit"] is None or definition.context.context_limit > model["context_limit"]:
+            if (
+                model["context_limit"] is None
+                or definition.context.context_limit > model["context_limit"]
+            ):
                 raise ServiceError("CAPABILITY_MISMATCH", "上下文上限超过模型容量", 422)
             try:
                 if purpose == "production":
@@ -231,11 +235,21 @@ class DependencyResolver:
         ):
             raise ServiceError("DEPENDENCY_INVALID", "MCP 连接未通过当前配置验证或已停用", 422)
         if connection["credential_ref"]:
+            if (
+                record_key(context.scope.channel_id, "credentials", connection["credential_ref"])
+                not in uow.keys
+            ):
+                raise ServiceError("REVISION_CONFLICT", "MCP 凭据配置已变化，请重新检查", 409)
             credential = await required(
                 uow.connection, context.scope, "credentials", connection["credential_ref"]
             )
-            if credential["state"] != "ACTIVE":
-                raise ServiceError("DEPENDENCY_INVALID", "MCP 凭据已撤销", 422)
+            if (
+                credential["state"] != "ACTIVE"
+                or credential["revision"] != connection["credential_revision"]
+            ):
+                raise ServiceError(
+                    "DEPENDENCY_INVALID", "MCP 凭据已撤销或变更，请重新验证连接", 422
+                )
 
 
 def dependency_manifest(rows: list[dict[str, Any]], policies: dict[str, Any]) -> dict[str, Any]:

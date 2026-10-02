@@ -176,6 +176,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.tools.management,
             app.state.skills,
             app.state.usage.budgets,
+            cleanup=app.state.core.cleanup,
         )
         try:
             yield

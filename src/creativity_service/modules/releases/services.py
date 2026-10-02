@@ -56,7 +56,7 @@ class ReleaseService:
             for d in dependency_ids
         ]
         keys += await s.dependency_keys(context, definition)
-        if s.evaluation:
+        if s.evaluation and body.evaluation_refs:
             keys += s.evaluation.keys(context, body.evaluation_refs)
         async with transaction(s.engine, scope, keys) as uow:
             agent, version = await s.locked_version(

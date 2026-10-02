@@ -52,3 +52,7 @@
 ## 2026-10-02：13 结构化记忆管理
 
 `0013_memory` 接在 `0012_conversations` 后，落地六张记忆表及主体级 `memory_deletion_jobs`。新增确认依据、来源等级、观测时间、使用次数、版本状态与序号、读取/建议开关、降级策略和检索 warnings；清理意图记录单项/清空范围，用于阻断旧运行回写。所有主体记录要求完整 Scope。历史 `value` 只保留显式空槽位，不保存可恢复的已改/已删原文。工具调用的既有 `result_summary` JSON 增加 `data_digest`，用于校验事实确实来自已登记结果，不存工具原文。冻结模型见 `modules/memory/baseline_v0013.json`，无需历史数据回填。交接见 [结构化记忆管理](../memory.md)。
+
+## 16 Agent 定义与发布实现增量 / 2026-10-02
+
+`0016_agents` 接在 `0013_memory` 后，新增 `agents`、`agent_candidates`、`agent_release_records`、`agent_environment_states`；冻结字段见 `modules/agents/baseline_v0016.json`。版本、依赖引用及环境映射继续复用公共表，不回填历史数据。候选按完整 Scope 保存不可变定义与摘要，环境状态和发布记录按渠道/环境保存；发布草稿生成独立版本并保留原草稿。运行既有 `execution_policy` JSON 新增可空 `frozen_spec_id`，旧运行读取兼容。配置和候选均登记公共删除来源图；候选清理后保留摘要，清空正文。实现见 [Agent 交接](../agents.md)。

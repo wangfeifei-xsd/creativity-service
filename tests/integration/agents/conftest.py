@@ -1,12 +1,26 @@
 """真实 PostgreSQL 和 IAM，供应商能力仅使用受信完成回调夹具。"""
 
+from types import SimpleNamespace
+
 import pytest
 
+from creativity_service.core.deletion import CleanupRegistry
+from creativity_service.core.security.outbound import Destination, OutboundPolicy
 from creativity_service.modules.agents.assembly import build_agent_service
 from creativity_service.modules.agents.registry import templates
 from creativity_service.modules.agents.schemas import AgentBindings, AgentCreate
 from creativity_service.modules.budgets.services import BudgetService
-from creativity_service.modules.models.schemas import CaseResult, RouteInput, RouteVersionInput
+from creativity_service.modules.iam.schemas import ChannelContextInput
+from creativity_service.modules.models.assembly import build_model_services
+from creativity_service.modules.models.schemas import (
+    CaseResult,
+    ConnectionInput,
+    CredentialInput,
+    ModelInput,
+    ProviderInput,
+    RouteInput,
+    RouteVersionInput,
+)
 from creativity_service.modules.models.schemas import (
     TestCompletion as Completion,
 )
@@ -21,19 +35,74 @@ from creativity_service.modules.prompts.schemas import (
 )
 from creativity_service.modules.skills.assembly import build_skill_service
 from creativity_service.modules.tools.assembly import build_tool_services
+from tests.integration.channels.conftest import channel_body, login
 from tests.integration.channels.conftest import channel_env as channel_env
 from tests.integration.channels.test_prompts_http import MemoryStore
-from tests.integration.models.test_models import Executor, setup
+from tests.integration.models.test_models import Executor, Keys
 
 
 @pytest.fixture
-async def agent_env(channel_env):
+async def agent_env(channel_env, request):
     env = channel_env
-    tenant, models, _, _, model_input, model = await setup(env, publish=True)
+    environment = getattr(request, "param", "test")
+    channel = await env.services.channels.create(
+        env.admin,
+        channel_body(env).model_copy(
+            update={"environment": environment, "independent_actions": ["release:publish"]}
+        ),
+    )
+    domains = await env.services.channels.data_scopes(env.admin, channel.channel_id)
+    _, admin = await login(env)
+    token = await env.iam.sessions.enter(
+        admin,
+        ChannelContextInput(
+            channel_id=channel.channel_id,
+            environment=environment,
+            data_scope_id=domains[0].data_scope_id,
+        ),
+    )
+    manager = await env.iam.authentication.admin_session(
+        token.access_token, "agent-fixture", governance=True
+    )
+    tenant = SimpleNamespace(channel=channel, domain=domains[0], token=token, manager=manager)
+
+    async def resolve(host, port):
+        return ["93.184.216.34"]
+
+    models = build_model_services(
+        env.engine,
+        env.iam,
+        key_provider=Keys(),
+        outbound=OutboundPolicy(
+            (Destination(channel.channel_id, environment, "model", "models.example"),), resolve
+        ),
+    )
+    provider = await models.configuration.save_provider(
+        env.admin, ProviderInput(code="fixture", name="能力夹具", protocols=["chat_completions"])
+    )
+    credential = await models.configuration.store_credential(
+        manager, CredentialInput(secret="test-only-credential")
+    )
+    connection = await models.configuration.save_connection(
+        manager,
+        ConnectionInput(
+            name="夹具连接",
+            provider_id=provider.id,
+            protocol="chat_completions",
+            endpoint="https://models.example/v1",
+            credential_ref=credential,
+        ),
+    )
     model = await models.configuration.save_model(
-        tenant.manager,
-        model_input.model_copy(update={"revision": model.revision, "context_limit": 32000}),
-        model.id,
+        manager,
+        ModelInput(
+            model_code="fixture",
+            name="夹具模型",
+            connection_id=connection.id,
+            provider_model_name="fixture",
+            context_limit=32000,
+            parameters={"max_tokens": 100},
+        ),
     )
     models.configuration.executor = Executor()
     test = await models.testing.create(
@@ -80,19 +149,31 @@ async def agent_env(channel_env):
     from creativity_service.core.database import transaction
     from creativity_service.core.deletion import content_key
     from creativity_service.core.locking import record_key
-    from creativity_service.modules.agents.repositories import repository
     from creativity_service.core.versioning import version_view
-    async with transaction(env.engine, env.context.scope, [content_key(env.context.scope), record_key(env.context.scope.channel_id, "resource_versions", draft.version.version_id)]) as uow:
-        row = await repository("resource_versions", env.context.scope).change(uow, draft.version.version_id, draft.revision, {"state": "PUBLISHED"})
+    from creativity_service.modules.agents.repositories import repository
+
+    async with transaction(
+        env.engine,
+        env.context.scope,
+        [
+            content_key(env.context.scope),
+            record_key(env.context.scope.channel_id, "resource_versions", draft.version.version_id),
+        ],
+    ) as uow:
+        row = await repository("resource_versions", env.context.scope).change(
+            uow, draft.version.version_id, draft.revision, {"state": "PUBLISHED"}
+        )
         prompt_version = version_view(row)
     env.tools = build_tool_services(env.engine, env.iam.authorization)
     env.skills = build_skill_service(env.engine, env.iam.authorization, store, env.tools.management)
+    env.cleanup = CleanupRegistry()
     env.agents = build_agent_service(
         env.engine,
         env.iam.authorization,
         env.tools.management,
         env.skills,
         BudgetService(env.engine),
+        cleanup=env.cleanup,
     )
     env.definition = templates()[0].definition.model_copy(
         update={

@@ -15772,6 +15772,316 @@
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
         }
+      ],
+      "agent.steps[]": [
+        {
+          "name": "key",
+          "type": "varchar(128)",
+          "comment": "步骤编码",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "name",
+          "type": "varchar(128)",
+          "comment": "步骤名称",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "kind",
+          "type": "text",
+          "comment": "步骤类型",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "dependency",
+          "type": "varchar(128)",
+          "comment": "显式依赖版本",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "inputs",
+          "type": "jsonb",
+          "comment": "字段输入来源映射",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "input_schema",
+          "type": "jsonb",
+          "comment": "步骤输入结构",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "output_schema",
+          "type": "jsonb",
+          "comment": "步骤输出结构",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "timeout_seconds",
+          "type": "bigint",
+          "comment": "步骤超时秒数",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "failure_policy",
+          "type": "text",
+          "comment": "失败处理策略",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "max_retries",
+          "type": "bigint",
+          "comment": "最大重试次数",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        }
+      ],
+      "agent.steps[].inputs{}": [
+        {
+          "name": "source",
+          "type": "text",
+          "comment": "输入来源类型",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "step",
+          "type": "varchar(128)",
+          "comment": "前序步骤编码",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "path",
+          "type": "varchar(256)",
+          "comment": "来源字段路径",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "value",
+          "type": "jsonb",
+          "comment": "常量值",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        }
+      ],
+      "agent.edges[]": [
+        {
+          "name": "source",
+          "type": "varchar(128)",
+          "comment": "起始步骤编码",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "target",
+          "type": "varchar(128)",
+          "comment": "目标步骤或终止出口",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "condition",
+          "type": "jsonb",
+          "comment": "分支条件",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "otherwise",
+          "type": "boolean",
+          "comment": "是否兜底分支",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        }
+      ],
+      "agent.edges[].condition": [
+        {
+          "name": "path",
+          "type": "varchar(256)",
+          "comment": "前序输出字段路径",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "operator",
+          "type": "text",
+          "comment": "比较方式",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "value",
+          "type": "jsonb",
+          "comment": "比较值",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        }
+      ],
+      "agent.bindings": [
+        {
+          "name": "prompt_version",
+          "type": "varchar(128)",
+          "comment": "提示词版本",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "model_route_version",
+          "type": "varchar(128)",
+          "comment": "模型路由版本",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "tool_versions",
+          "type": "jsonb",
+          "comment": "工具版本白名单",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "skill_versions",
+          "type": "jsonb",
+          "comment": "技能版本清单",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        }
+      ],
+      "agent.limits": [
+        {
+          "name": "deadline_seconds",
+          "type": "bigint",
+          "comment": "运行总时限秒数",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "token_limit",
+          "type": "bigint",
+          "comment": "运行 Token 上限",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "cost_limit",
+          "type": "jsonb",
+          "comment": "运行费用上限及币种",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "max_model_rounds",
+          "type": "bigint",
+          "comment": "最大模型轮数",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "max_tool_calls",
+          "type": "bigint",
+          "comment": "最大工具调用次数",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "max_iterations",
+          "type": "bigint",
+          "comment": "最大循环次数",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "loop_timeout_seconds",
+          "type": "bigint",
+          "comment": "循环总时限秒数",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "output_repair_attempts",
+          "type": "bigint",
+          "comment": "输出最大修复次数",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        }
+      ],
+      "agent.context": [
+        {
+          "name": "conversation_enabled",
+          "type": "boolean",
+          "comment": "是否启用会话",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "context_limit",
+          "type": "bigint",
+          "comment": "上下文 Token 上限",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "summary_policy",
+          "type": "text",
+          "comment": "摘要使用策略",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "memory_policy",
+          "type": "jsonb",
+          "comment": "显式记忆策略，结构复用记忆模块契约",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        }
       ]
     },
     "models": {

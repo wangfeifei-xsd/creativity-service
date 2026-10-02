@@ -64,3 +64,7 @@
 ## 13 实现补充
 
 记忆的当前值由 `memory_sources` 独立来源集合支撑；消息/证据通过公共来源图指向记忆，来源检查采用“至少一个有效依据”，剔除失效边后再检查派生对象。版本只保存变更元信息和来源引用。`memory_deletion_jobs` 与记忆共享完整主体范围，遗忘和清空的时间边界同时约束已排队候选；25 消费清理意图后负责全图及恢复核对。
+
+## 16 Agent 实现关系
+
+`agents → resource_versions(agent)` 共用渠道内配置身份；草稿可修订，发布生成独立不可变版本。`release_mappings` 是当前环境版本的唯一真值，`agent_release_records` 保存来源修订、前后版本与检查证据，`agent_environment_states` 保存各环境启停状态。`agent_candidates` 按完整 Scope 固定 Agent 定义、完整依赖及策略；运行策略引用候选标识，公共运行快照复制同一冻结内容。Agent 和每个具体版本通过来源图指向候选，来源删除后禁止读取；清理候选原文保留摘要及历史关联。
