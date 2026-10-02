@@ -13,6 +13,49 @@
           "minLength": 1,
           "title": "Version Label",
           "type": "string"
+        },
+        "source_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "mcp",
+                "http",
+                "builtin"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Type"
+        },
+        "input_schema": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Schema"
+        },
+        "output_schema": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Schema"
         }
       },
       "required": [
@@ -78,6 +121,17 @@
       "maxItems": 32,
       "title": "Tool Requirements",
       "type": "array"
+    },
+    "tool_bindings": {
+      "additionalProperties": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "type": "string"
+      },
+      "maxProperties": 32,
+      "title": "Tool Bindings",
+      "type": "object"
     },
     "required_model_capabilities": {
       "default": [],

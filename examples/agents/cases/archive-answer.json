@@ -1,0 +1,28 @@
+{
+  "input": {
+    "document": "note-a",
+    "question": "有哪些档案摘录？"
+  },
+  "fixture_output": {
+    "business_status": "COMPLETED",
+    "schema_version": "1.0",
+    "warnings": [],
+    "evidence_refs": [],
+    "data": {
+      "answer": "档案包含一条已授权摘录。",
+      "citations": [
+        {
+          "heading": "受控资料",
+          "text": "已授权内容"
+        }
+      ]
+    }
+  },
+  "evidence_type": "controlled_model_fixture",
+  "assertions": [
+    "输出通过配置 schema",
+    "实际加载所选参考文件",
+    "依赖、包和输出结构摘要固定",
+    "正式发布仍需有效评测证据"
+  ]
+}

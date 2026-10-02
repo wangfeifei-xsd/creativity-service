@@ -66,3 +66,7 @@
 `0016_agents` 接在 `0013_memory` 后，当前迁移链已包含 14/15 的前置表。新增 `agents`、`agent_candidates`、`agent_release_records`、`agent_environment_states`；配置版本、引用和发布映射复用公共表，无历史数据回填。字段和版本内容见 [模型归档](data-model/modules/agents.md)。
 
 候选登记 Agent 及每个具体版本到 `agent_candidate` 的来源边；删除任一来源后立即不可读取候选。应用向公共 `CleanupRegistry` 注册候选清理器，有删除标记和当前清理授权才可清空 `spec`，保留摘要及关联历史。详情不返回被删除版本正文。25 负责有类型的来源删除授权、全图遍历、保留和备份恢复核对，本单元不替代完整删除验收。
+
+## 21 配置交付更新 / 2026-10-03
+
+`bindings.skill_loading` 固定实际参考文件、加载顺序与按需触发；`compute.operator=object` 根据配置的输入映射组装输出，无需逐任务注册代码。固定流程还向模型传递源工具的本次观测时间、数据版本和证据。两种结构不同的可导入配置、资源清单及实际调试记录见 [21 交接](configuration-delivery.md)。评测候选和正式发布门禁继续沿用本页接口。

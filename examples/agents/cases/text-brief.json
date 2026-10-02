@@ -1,0 +1,26 @@
+{
+  "input": {
+    "text": "会议决定周五完成资料归档。"
+  },
+  "fixture_output": {
+    "business_status": "COMPLETED",
+    "schema_version": "1.0",
+    "warnings": [],
+    "evidence_refs": [],
+    "data": {
+      "title": "资料归档",
+      "summary": "会议决定周五完成资料归档。",
+      "keywords": [
+        "周五",
+        "资料归档"
+      ]
+    }
+  },
+  "evidence_type": "controlled_model_fixture",
+  "assertions": [
+    "输出通过配置 schema",
+    "实际加载所选参考文件",
+    "依赖、包和输出结构摘要固定",
+    "正式发布仍需有效评测证据"
+  ]
+}

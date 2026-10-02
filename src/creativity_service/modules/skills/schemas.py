@@ -18,11 +18,15 @@ class SkillVariable(Contract):
 class SkillToolRequirement(Contract):
     tool_code: str = Field(pattern=r"^[a-z][a-z0-9_.-]{0,63}$")
     version_label: str = Field(min_length=1, max_length=64)
+    source_type: Literal["mcp", "http", "builtin"] | None = None
+    input_schema: dict[str, Any] | None = None
+    output_schema: dict[str, Any] | None = None
 
 
 class SkillSettings(Contract):
     change_note: str = Field(default="", max_length=4000)
     tool_requirements: tuple[SkillToolRequirement, ...] = Field(default=(), max_length=32)
+    tool_bindings: dict[str, Identifier] = Field(default_factory=dict, max_length=32)
     required_model_capabilities: tuple[str, ...] = Field(default=(), max_length=16)
     input_variables: tuple[SkillVariable, ...] = Field(default=(), max_length=64)
     loading_mode: Literal["mandatory", "on_demand"] = "on_demand"
@@ -54,6 +58,11 @@ class SkillImport(Contract):
     owner: str = Field(min_length=1, max_length=128)
     archive_base64: str = Field(min_length=1, max_length=12000000)
     version_label: str = Field(default="导入版本", min_length=1, max_length=64)
+    tool_bindings: dict[str, Identifier] = Field(default_factory=dict, max_length=32)
+
+
+class SkillImportPreviewInput(Contract):
+    archive_base64: str = Field(min_length=1, max_length=12000000)
 
 
 class SkillRevision(Contract):
@@ -92,6 +101,13 @@ class SkillFile(Contract):
     sha256: Digest
     loadable: bool
     unavailable_reason: str | None = None
+
+
+class SkillImportPreview(Contract):
+    metadata: dict[str, Any]
+    files: list[SkillFile]
+    settings: SkillSettings
+    instruction_preview: str
 
 
 class SkillDefinition(SkillSettings):
@@ -260,6 +276,7 @@ class SkillFileContent(Contract):
 
 
 class SkillToolOption(SkillToolRequirement):
+    version_id: Identifier
     name: str
     available: bool
     reason: str | None

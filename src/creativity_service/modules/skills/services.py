@@ -21,9 +21,11 @@ from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.core.versioning import VersionService
+from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.iam.authorization import IamAuthorization
+from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.skills.authorization import PackageAuthorization, SkillAuthorization
-from creativity_service.modules.skills.dependencies import resolve_dependencies
+from creativity_service.modules.skills.dependencies import local_bindings, resolve_dependencies
 from creativity_service.modules.skills.loader import PLACEHOLDER, ResolvedSkill, SkillLoader
 from creativity_service.modules.skills.packages import (
     MAX_ARCHIVE,
@@ -45,6 +47,8 @@ from creativity_service.modules.skills.schemas import (
     SkillEdit,
     SkillFileContent,
     SkillImport,
+    SkillImportPreview,
+    SkillImportPreviewInput,
     SkillIssue,
     SkillList,
     SkillLoadRequest,
@@ -61,6 +65,7 @@ from creativity_service.modules.skills.schemas import (
     SkillView,
 )
 from creativity_service.modules.skills.tables import metadata
+from creativity_service.modules.tools.schemas import ToolDefinition
 from creativity_service.modules.tools.services import ToolService
 
 
@@ -77,6 +82,16 @@ def status(value: str) -> DisplayStatus:
         label=labels.get(value, "状态不可用"),
         tone="success" if value in {"ACTIVE", "PUBLISHED"} else "default",
     )
+
+
+class SkillVersions(VersionService):
+    @staticmethod
+    def keys(scope: Scope, version_id: str, audit_id: str) -> list[ResourceKey]:
+        return [
+            *VersionService.keys(scope, version_id, audit_id),
+            policy_key(scope.channel_id),
+            policy_key("system"),
+        ]
 
 
 class SkillVersionValidator:
@@ -134,6 +149,7 @@ class SkillVersionValidator:
             version.dependency_version_ids
         ):
             raise ServiceError("SKILL_DEPENDENCY_MISSING", "工具绑定已变化，请重新保存草稿", 409)
+        await self.service.check_tool_permissions(uow, context, ids)
         files = await repository("skill_files", context.scope).find(
             uow.connection, version_id=version.version_id
         )
@@ -173,7 +189,7 @@ class SkillService:
             tools,
         )
         self.access = SkillAuthorization(engine, authorization)
-        self.versions = VersionService(engine, self.access, SkillVersionValidator(self))
+        self.versions = SkillVersions(engine, self.access, SkillVersionValidator(self))
         self.loader = SkillLoader(self)
         self.runtime_runner: SkillRuntimeRunner | None = None
         self.deletion = DeletionService(engine, self.access)
@@ -256,11 +272,16 @@ class SkillService:
         data, _, _ = await self.artifacts(context, skill_id, action).download(
             storage_context, definition.artifact_id
         )
+        async with self.engine.connect() as connection:
+            bindings = await local_bindings(connection, context, definition)
         package = await asyncio.to_thread(
             unpack,
             data,
             SkillSettings.model_validate(
-                definition.model_dump(include=set(SkillSettings.model_fields))
+                {
+                    **definition.model_dump(include=set(SkillSettings.model_fields)),
+                    "tool_bindings": bindings,
+                }
             ),
         )
         if (
@@ -342,6 +363,14 @@ class SkillService:
         action_id = "new" if resource is not None else skill_id
         await self.require(context, "skill:manage", action_id)
         await self.require(context, "version:edit", action_id)
+        # 目标工具必须显式选择并获授权；上传前拒绝跨渠道和无权访问的引用。
+        selected_tools = []
+        for identifier in set(package.settings.tool_bindings.values()):
+            tool = await self.tools.check_dependency(context, identifier)
+            tool_definition = ToolDefinition.model_validate(tool.content)
+            for action in {"run:create", *tool_definition.required_scopes}:
+                await self.authorization.boundary(context, action, "tool", tool.resource_id)
+            selected_tools.append(tool)
         variable_names = {v.name for v in package.settings.input_variables}
         for file in package.manifest:
             if file.loadable:
@@ -375,6 +404,13 @@ class SkillService:
             file_links = {path: new_id("source") for path in file_ids}
             keys = [
                 content_key(scope),
+                policy_key(scope.channel_id),
+                policy_key("system"),
+                *[
+                    record_key(scope.channel_id, "resource_versions", t.version_id)
+                    for t in selected_tools
+                ],
+                *[record_key(scope.channel_id, "tools", t.resource_id) for t in selected_tools],
                 record_key(scope.channel_id, "skills", skill_id),
                 record_key(scope.channel_id, "resource_versions", version_id),
                 record_key(scope.channel_id, "audit_events", audit_id),
@@ -420,9 +456,17 @@ class SkillService:
                     await skills.add(uow, skill_id, {**resource, "status": "ACTIVE"})
                 elif not await repository("skills", scope).get(uow.connection, skill_id):
                     raise ServiceError("NOT_FOUND", "技能不存在", 404)
-                ids, _, _ = await resolve_dependencies(
+                ids, _, issues = await resolve_dependencies(
                     uow.connection, context, package.settings, self.tools
                 )
+                invalid_bindings = [i for i in issues if i.path in package.settings.tool_bindings]
+                if invalid_bindings:
+                    raise ServiceError(
+                        "SKILL_DEPENDENCY_MISSING",
+                        "；".join(i.message for i in invalid_bindings),
+                        422,
+                    )
+                await self.check_tool_permissions(uow, context, ids)
                 definition = SkillDefinition(
                     **package.settings.model_dump(),
                     package_hash=package.package_hash,
@@ -513,6 +557,9 @@ class SkillService:
     async def import_package(self, context: AuthContext, body: SkillImport) -> SkillDetail:
         await self.require(context, "skill:manage", "new")
         package = await asyncio.to_thread(unpack, decode_archive(body.archive_base64))
+        package = validate_files(
+            package.files, package.settings.model_copy(update={"tool_bindings": body.tool_bindings})
+        )
         skill_id = new_id("skill")
         await self.write_package(
             context,
@@ -529,6 +576,32 @@ class SkillService:
             },
         )
         return await self.detail(context, skill_id)
+
+    async def preview_import(
+        self, context: AuthContext, body: SkillImportPreviewInput
+    ) -> SkillImportPreview:
+        await self.require(context, "skill:manage", "new")
+        package = await asyncio.to_thread(unpack, decode_archive(body.archive_base64))
+        return SkillImportPreview(
+            metadata=package.metadata,
+            files=list(package.manifest),
+            settings=package.settings,
+            instruction_preview=package.instructions,
+        )
+
+    async def check_tool_permissions(
+        self, uow: UnitOfWork, context: AuthContext, identifiers: list[str]
+    ) -> None:
+        """与绑定写入、冻结处于同一授权锁和事务，防止校验后撤销的竞态。"""
+        for identifier in identifiers:
+            version = await repository("resource_versions", context.scope).get(
+                uow.connection, identifier
+            )
+            if not version or version["resource_type"] != "tool":
+                raise ServiceError("SKILL_DEPENDENCY_MISSING", "工具版本不存在", 422)
+            definition = ToolDefinition.model_validate(version["content"])
+            for action in {"run:create", *definition.required_scopes}:
+                await locked_require(uow, context, action, "tool", version["resource_id"])
 
     async def view(self, context: AuthContext, row: dict[str, Any]) -> SkillView:
         return SkillView(
@@ -746,7 +819,12 @@ class SkillService:
         for dep in deps:
             if dep.version_id:
                 try:
-                    await self.tools.check_dependency(context, dep.version_id)
+                    tool = await self.tools.check_dependency(context, dep.version_id)
+                    for action in {
+                        "run:create",
+                        *ToolDefinition.model_validate(tool.content).required_scopes,
+                    }:
+                        await self.authorization.boundary(context, action, "tool", tool.resource_id)
                 except ServiceError as exc:
                     issues.append(SkillIssue(code="SKILL_DEPENDENCY_MISSING", message=exc.message))
         return SkillValidation(
@@ -829,6 +907,8 @@ class SkillService:
                 await self.authorization.boundary(
                     context, "run:create", "tool", tool["resource_id"]
                 )
+                for action in ToolDefinition.model_validate(tool["content"]).required_scopes:
+                    await self.authorization.boundary(context, action, "tool", tool["resource_id"])
         return ResolvedSkill(
             skill["id"],
             version_id,
@@ -999,13 +1079,29 @@ class SkillService:
             detail = await self.tools.detail(context, tool.tool_id)
             for version in detail.versions:
                 if version.version.state == "PUBLISHED":
+                    allowed = all(
+                        [
+                            (
+                                await self.authorization.check(
+                                    context, action, "tool", tool.tool_id
+                                )
+                            ).allowed
+                            for action in {"run:create", *version.definition.required_scopes}
+                        ]
+                    )
                     result.append(
                         SkillToolOption(
+                            version_id=version.version.version_id,
                             tool_code=tool.tool_code,
                             name=tool.name,
                             version_label=version.version.version_label,
-                            available=version.execution_enabled,
-                            reason=version.unavailable_reason,
+                            source_type=tool.source_type,
+                            input_schema=version.definition.input_schema,
+                            output_schema=version.definition.output_schema,
+                            available=version.execution_enabled and allowed,
+                            reason=version.unavailable_reason
+                            if allowed
+                            else "当前成员未获工具调用权限",
                         )
                     )
         return result

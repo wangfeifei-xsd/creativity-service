@@ -70,6 +70,11 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
     if len(canonical_json(definition.model_dump(mode="json"))) > 262144:
         fail("流程配置不能超过 256 KiB")
         return issues
+    selected = [item.version_id for item in definition.bindings.skill_loading]
+    if len(selected) != len(set(selected)) or not set(selected) <= set(
+        definition.bindings.skill_versions
+    ):
+        fail("技能加载配置必须唯一且引用已绑定的技能版本", "bindings.skill_loading")
     schemas = [
         ("input_schema", definition.input_schema),
         ("output_schema", definition.output_schema),
@@ -187,6 +192,10 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
     if set(nodes) - reached:
         fail("流程包含无法到达的步骤", "steps")
     for key, step in nodes.items():
+        if step.operator and step.kind != "compute":
+            fail("只有计算步骤可以选择通用算子", f"steps.{key}.operator")
+        if step.operator == "object" and not compatible(step.input_schema, step.output_schema):
+            fail("对象组装的输入结构必须满足输出契约", f"steps.{key}.output_schema")
         if "END" not in reachable(key):
             fail("步骤无法到达终止出口", f"steps.{key}")
         props = step.input_schema.get("properties", {})

@@ -184,9 +184,13 @@ class RuntimeExecutor:
                 raise ServiceError("RUN_INACTIVE", "运行已停止", 409)
             try:
                 async with asyncio.timeout(step.timeout_seconds):
-                    output = await self.registry.resolve(spec.definition.entrypoint, step.key)(
-                        context, values
-                    )
+                    if step.operator == "object":
+                        # 字段选择与常量来自已校验的输入映射，不执行配置代码或领域计算。
+                        output = dict(values)
+                    else:
+                        output = await self.registry.resolve(spec.definition.entrypoint, step.key)(
+                            context, values
+                        )
                 if not isinstance(output, dict) or not Draft202012Validator(
                     step.output_schema
                 ).is_valid(output):
@@ -255,6 +259,17 @@ class RuntimeExecutor:
                     assert step.dependency is not None
                     value = await self.tool(context, lease, spec, key, step.dependency, values)
                     output = value["data"]
+                    # 工具观测时间、数据版本与来源证据属于本次查询事实，独立于配置快照。
+                    state = {
+                        **state,
+                        "outputs": {
+                            **state["outputs"],
+                            "_tool_results": {
+                                **state["outputs"].get("_tool_results", {}),
+                                step.key: value,
+                            },
+                        },
+                    }
                 else:
                     saved = await self.runs.load_progress(lease, key)
                     if saved and saved["output"] is not None:
@@ -262,7 +277,7 @@ class RuntimeExecutor:
                         await self.runs.commit_step(lease, key, value)
                     else:
                         messages = await self.contexts.messages(
-                            context, lease, spec, row, values, state["outputs"], key
+                            context, lease, spec, row, values, state["outputs"], key, original
                         )
                         async with asyncio.timeout(
                             min(step.timeout_seconds, config.limits.loop_timeout_seconds)

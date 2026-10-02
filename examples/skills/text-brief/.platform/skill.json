@@ -1,0 +1,13 @@
+{
+  "format": "skill-package-v1",
+  "settings": {
+    "change_note": "",
+    "tool_requirements": [],
+    "required_model_capabilities": [],
+    "input_variables": [],
+    "loading_mode": "mandatory",
+    "priority": 0,
+    "context_budget": 12000,
+    "conflict_groups": []
+  }
+}

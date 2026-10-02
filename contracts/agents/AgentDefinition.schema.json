@@ -56,6 +56,15 @@
           "maxItems": 32,
           "title": "Skill Versions",
           "type": "array"
+        },
+        "skill_loading": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/AgentSkillLoading"
+          },
+          "maxItems": 32,
+          "title": "Skill Loading",
+          "type": "array"
         }
       },
       "title": "AgentBindings",
@@ -238,6 +247,74 @@
       "title": "AgentLimits",
       "type": "object"
     },
+    "AgentSkillLoading": {
+      "additionalProperties": false,
+      "properties": {
+        "version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Version Id",
+          "type": "string"
+        },
+        "selected": {
+          "default": false,
+          "title": "Selected",
+          "type": "boolean"
+        },
+        "selected_files": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 128,
+          "title": "Selected Files",
+          "type": "array"
+        },
+        "loading_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "mandatory",
+                "on_demand"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Loading Mode"
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "maximum": 1000,
+              "minimum": -1000,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Priority"
+        },
+        "trigger_reason": {
+          "default": "配置选择",
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Trigger Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version_id"
+      ],
+      "title": "AgentSkillLoading",
+      "type": "object"
+    },
     "AgentStep": {
       "additionalProperties": false,
       "properties": {
@@ -262,6 +339,19 @@
           ],
           "title": "Kind",
           "type": "string"
+        },
+        "operator": {
+          "anyOf": [
+            {
+              "const": "object",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operator"
         },
         "dependency": {
           "anyOf": [
@@ -528,7 +618,8 @@
         "prompt_version": null,
         "model_route_version": null,
         "tool_versions": [],
-        "skill_versions": []
+        "skill_versions": [],
+        "skill_loading": []
       }
     },
     "limits": {

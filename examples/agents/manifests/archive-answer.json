@@ -1,0 +1,66 @@
+{
+  "example": "archive-answer",
+  "skill_archive": "examples/skills/packages/archive-answer.zip",
+  "agent_config": "examples/agents/archive-answer.json",
+  "prompt_content": "examples/agents/prompts/archive-answer.json",
+  "resources": {
+    "bind_prompt": "目标渠道提示词版本",
+    "bind_model_route": "目标渠道已验证模型路由版本",
+    "bind_skill": "本次导入并冻结的技能版本",
+    "bind_archive_tool": "目标渠道显式选定的 MCP 档案查询工具版本"
+  },
+  "model_capabilities": [
+    "text",
+    "structured_output",
+    "tools"
+  ],
+  "tool_requirements": [
+    {
+      "tool_code": "archive.find-notes",
+      "version_label": "配置初版",
+      "source_type": "mcp",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "document": {
+            "type": "string",
+            "title": "文档"
+          }
+        },
+        "required": [
+          "document"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "heading": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "heading",
+                "text"
+              ]
+            }
+          }
+        },
+        "required": [
+          "notes"
+        ]
+      }
+    }
+  ],
+  "environment": "test",
+  "production_gate": "需要方案 24 的有效评测证据"
+}

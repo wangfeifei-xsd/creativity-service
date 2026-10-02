@@ -14,6 +14,8 @@ from creativity_service.modules.skills.schemas import (
     SkillEdit,
     SkillFileContent,
     SkillImport,
+    SkillImportPreview,
+    SkillImportPreviewInput,
     SkillList,
     SkillRelease,
     SkillRevision,
@@ -56,6 +58,13 @@ async def create(context: Context, service: Services, body: SkillCreate) -> Skil
 @router.post("/skills/imports", response_model=SkillDetail, status_code=201)
 async def imports(context: Context, service: Services, body: SkillImport) -> SkillDetail:
     return await service.import_package(context, body)
+
+
+@router.post("/skills/imports/preview", response_model=SkillImportPreview)
+async def preview_import(
+    context: Context, service: Services, body: SkillImportPreviewInput
+) -> SkillImportPreview:
+    return await service.preview_import(context, body)
 
 
 @router.get("/skills/agent-options", response_model=list[SkillAgentOption])

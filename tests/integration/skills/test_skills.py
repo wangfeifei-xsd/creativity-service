@@ -264,7 +264,8 @@ async def test_dependency_rebinding_unauthorized_tools_and_missing_capabilities(
         body().model_copy(
             update={
                 "settings": SkillSettings(
-                    tool_requirements=(SkillToolRequirement(tool_code="sum", version_label="v1"),)
+                    tool_requirements=(SkillToolRequirement(tool_code="sum", version_label="v1"),),
+                    tool_bindings={"sum": frozen_tool.version.version_id},
                 )
             }
         ),
@@ -273,6 +274,16 @@ async def test_dependency_rebinding_unauthorized_tools_and_missing_capabilities(
     assert (await env.skills.validate(env.context, version.version_id)).valid
     frozen = await env.skills.freeze(env.context, version.version_id, version.revision)
     summary = await env.skills.dependency_summary(env.context, frozen.version_id)
+    from creativity_service.modules.skills.schemas import SkillDefinition
+
+    _, stored = await env.skills.raw(env.context, frozen.version_id)
+    legacy = dict(stored["content"])
+    legacy.pop("tool_bindings")
+    restored = await env.skills.package(
+        env.context, created.skill.skill_id, SkillDefinition.model_validate(legacy)
+    )
+    assert restored.settings.tool_bindings == {"sum": frozen_tool.version.version_id}
+    assert restored.package_hash == frozen.package_hash
     assert summary.required_tool_versions == (frozen_tool.version.version_id,)
     denied = await env.skills.loader.load(
         env.context,

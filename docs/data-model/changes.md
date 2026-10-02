@@ -80,3 +80,7 @@ Agent 增加通用 `workflow.v1` 配置入口，历史 `matching.v1/risk.v1/anal
 ## 1.5.0 / 2026-10-02：20 MCP 业务工具配置接入
 
 新增 `0021_mcp_subject_review` 迁移与独立冻结定义 `baseline_v0021_review.json`，只创建 `subject_review_bindings` 及普通索引。旧迁移建表函数保留原输出，已保存连接、工具、版本和运行不改写。当前主体协议、MCP 身份和结果元数据通过公开 JSON Schema 交付；来源证据复用已有调用和证据模型。
+
+## 2026-10-03：21 Skills 与 Agent 配置交付
+
+复用现有 JSONB 内容，无新表、列、迁移或历史数据回写。技能 `resource_versions.content` 新增可移植依赖的来源与输入输出契约、本地 `tool_bindings`；导出剥离本地映射，旧定义仅恢复原来已固定的工具引用。Agent 内容新增 `bindings.skill_loading` 和步骤 `operator`，进入既有版本摘要及 `agent_candidates.spec`。运行上下文的 JSON 内容新增 `tool_results`，保存实际查询的来源、时间和数据版本；与配置冻结时间分开。包文件 SHA-256、引用闭包、授权锁和运行来源关系沿用现有实现，详见 [21 交接](../configuration-delivery.md)。

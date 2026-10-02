@@ -1,6 +1,4 @@
-"""按目标渠道重新解析工具名称与具体版本，并验证当前可执行性。"""
-
-from typing import Any
+"""按目标渠道的显式绑定解析依赖；可移植名称只标识契约，不授予权限。"""
 
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -10,10 +8,34 @@ from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.models.policy import configuration_digest
 from creativity_service.modules.models.tables import metadata as model_metadata
 from creativity_service.modules.skills.repositories import repository
-from creativity_service.modules.skills.schemas import SkillDependency, SkillIssue, SkillSettings
+from creativity_service.modules.skills.schemas import (
+    SkillDefinition,
+    SkillDependency,
+    SkillIssue,
+    SkillSettings,
+)
 from creativity_service.modules.tools.schemas import ToolDefinition
 from creativity_service.modules.tools.services import ToolService
 from creativity_service.modules.tools.tables import metadata as tool_metadata
+
+
+async def local_bindings(
+    connection: AsyncConnection, context: AuthContext, settings: SkillSettings
+) -> dict[str, str]:
+    bindings = dict(settings.tool_bindings)
+    if isinstance(settings, SkillDefinition) and "tool_bindings" not in settings.model_fields_set:
+        # 旧版本只恢复当时已固定的引用，不按当前名称搜索或自动升级历史依赖。
+        for identifier in settings.required_tool_versions:
+            version = await repository("resource_versions", context.scope).get(
+                connection, identifier
+            )
+            if version and version["resource_type"] == "tool":
+                tool = await Repository(tool_metadata.tables["tools"], context.scope).get(
+                    connection, version["resource_id"]
+                )
+                if tool:
+                    bindings[tool["tool_code"]] = identifier
+    return bindings
 
 
 async def resolve_dependencies(
@@ -23,30 +45,50 @@ async def resolve_dependencies(
     views: list[SkillDependency] = []
     issues: list[SkillIssue] = []
     seen = set()
+    bindings = await local_bindings(connection, context, settings)
+    for name in bindings.keys() - {r.tool_code for r in settings.tool_requirements}:
+        issues.append(
+            SkillIssue(code="SKILL_DEPENDENCY_MISSING", message="绑定未声明的工具依赖", path=name)
+        )
     for requirement in settings.tool_requirements:
         reason = None
-        rows = await Repository(tool_metadata.tables["tools"], context.scope).find(
-            connection, tool_code=requirement.tool_code
+        selected_id = bindings.get(requirement.tool_code)
+        version = (
+            await repository("resource_versions", context.scope).get(connection, selected_id)
+            if selected_id
+            else None
         )
-        tool: dict[str, Any] | None = rows[0] if len(rows) == 1 else None
-        versions = (
-            await repository("resource_versions", context.scope).find(
-                connection,
-                resource_type="tool",
-                resource_id=tool["id"],
-                version_label=requirement.version_label,
+        if version and version["resource_type"] != "tool":
+            version = None
+        tool = (
+            await Repository(tool_metadata.tables["tools"], context.scope).get(
+                connection, version["resource_id"]
             )
-            if tool
-            else []
+            if version
+            else None
         )
-        version = versions[0] if len(versions) == 1 else None
-        if not tool or not version or version["state"] != "PUBLISHED":
-            reason = "目标渠道缺少匹配的已冻结工具版本"
+        if not selected_id:
+            reason = "请显式绑定目标渠道的已授权工具版本"
+        elif not tool or not version or version["state"] != "PUBLISHED":
+            reason = "目标渠道缺少绑定的已冻结工具版本"
         elif tool["status"] != "ACTIVE":
             reason = "依赖工具已停用"
+        elif requirement.version_label != version["version_label"]:
+            reason = "工具版本名称不符合依赖要求"
+        elif requirement.source_type and tool["source_type"] != requirement.source_type:
+            reason = "工具来源不符合依赖要求"
         else:
             definition = ToolDefinition.model_validate(version["content"])
-            if (
+            if any(
+                expected is not None and expected != actual
+                for expected, actual in (
+                    (requirement.input_schema, definition.input_schema),
+                    (requirement.output_schema, definition.output_schema),
+                )
+            ):
+                # 保守要求契约一致，复杂 JSON Schema 不做不可靠的自动兼容推断。
+                reason = "工具输入或输出 schema 与依赖契约不兼容"
+            elif (
                 context.scope.environment not in definition.environments
                 or context.scope.data_scope_id not in definition.allowed_data_domains
             ):
@@ -66,7 +108,7 @@ async def resolve_dependencies(
         views.append(
             SkillDependency(
                 name=tool["name"] if tool else None,
-                version_label=requirement.version_label,
+                version_label=version["version_label"] if version else requirement.version_label,
                 version_id=version["id"] if version else None,
                 available=reason is None,
                 reason=reason,

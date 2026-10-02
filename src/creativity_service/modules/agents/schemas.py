@@ -26,6 +26,7 @@ class AgentStep(Contract):
     key: Identifier
     name: str = Field(min_length=1, max_length=128)
     kind: Literal["model", "tool", "compute"]
+    operator: Literal["object"] | None = None
     dependency: Identifier | None = None
     inputs: dict[str, InputSource] = Field(default_factory=dict, max_length=100)
     input_schema: dict[str, Any]
@@ -66,11 +67,21 @@ class AgentContextPolicy(Contract):
     memory_policy: MemoryPolicy | None = None
 
 
+class AgentSkillLoading(Contract):
+    version_id: Identifier
+    selected: bool = False
+    selected_files: tuple[str, ...] = Field(default=(), max_length=128)
+    loading_mode: Literal["mandatory", "on_demand"] | None = None
+    priority: int | None = Field(default=None, ge=-1000, le=1000, strict=True)
+    trigger_reason: str = Field(default="配置选择", min_length=1, max_length=256)
+
+
 class AgentBindings(Contract):
     prompt_version: Identifier | None = None
     model_route_version: Identifier | None = None
     tool_versions: tuple[Identifier, ...] = Field(default=(), max_length=64)
     skill_versions: tuple[Identifier, ...] = Field(default=(), max_length=32)
+    skill_loading: tuple[AgentSkillLoading, ...] = Field(default=(), max_length=32)
 
     def ids(self) -> list[str]:
         return [

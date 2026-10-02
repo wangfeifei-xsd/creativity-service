@@ -124,6 +124,16 @@ class DependencyResolver:
                         )
             if kind == "skill":
                 skill = SkillDefinition.model_validate(row["content"])
+                loading = next(
+                    (s for s in bindings.skill_loading if s.version_id == row["id"]), None
+                )
+                if loading:
+                    files = {f.relative_path: f for f in skill.files}
+                    if any(
+                        path not in files or not files[path].loadable
+                        for path in loading.selected_files
+                    ):
+                        raise ServiceError("DEPENDENCY_INVALID", "技能所选资料缺失或不可加载", 422)
                 if skill.allowed_agents and agent_id not in skill.allowed_agents:
                     raise ServiceError("DEPENDENCY_INVALID", "技能未授权此智能体", 403)
                 if not set(skill.required_tool_versions) <= set(bindings.tool_versions):

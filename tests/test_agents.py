@@ -318,8 +318,12 @@ def test_legacy_definition_golden_files_and_importable_examples():
 
     for item in legacy_templates():
         stored = Path("contracts/agents/legacy-v1") / f"{item.key}.json"
-        assert json.loads(stored.read_text()) == item.definition.model_dump(mode="json")
+        current = item.definition.model_dump(mode="json")
+        assert current["bindings"].pop("skill_loading") == []
+        for step in current["steps"]:
+            assert step.pop("operator") is None
+        assert json.loads(stored.read_text()) == current
     for path in Path("examples/agents").glob("*.json"):
         body = AgentCreate.model_validate_json(path.read_text())
-        assert body.definition.entrypoint == "workflow.v1"
+        assert body.definition.entrypoint in {"workflow.v1", "structured.v1"}
         assert not codes(body.definition)

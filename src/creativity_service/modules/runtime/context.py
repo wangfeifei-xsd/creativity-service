@@ -1,7 +1,7 @@
 """实际模型输入按冻结策略装配，来源引用和加载文件写入运行轨迹。"""
 
 import json
-from typing import Any
+from typing import Any, cast
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import transaction
@@ -72,8 +72,10 @@ class ContextBuilder:
         input_value: dict[str, Any],
         outputs: dict[str, Any],
         node_key: str,
+        agent_input: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         config = spec.definition
+        declared_input = agent_input if agent_input is not None else input_value
         versions = {v.version_id: v for v in spec.versions}
         refs: list[ContentRef] = []
         memory_values: dict[str, Any] = {}
@@ -102,7 +104,7 @@ class ContextBuilder:
         if config.bindings.prompt_version:
             version = versions[config.bindings.prompt_version]
             declared = PromptContent.model_validate(version.content).variables
-            sources = {"input": input_value, "tool": outputs, "memory": memory_values}
+            sources = {"input": declared_input, "tool": outputs, "memory": memory_values}
             arguments = {
                 source: {
                     v.name: values[v.name]
@@ -128,18 +130,24 @@ class ContextBuilder:
         loaded_files: dict[str, Any] | None = None
         if config.bindings.skill_versions:
             bindings = []
-            capabilities: set[str] = {"text", "structured_output"}
-            if config.bindings.tool_versions:
-                capabilities.add("tools")
+            route_id = config.bindings.model_route_version
+            capabilities = (
+                versions[route_id].content.get("required_capabilities", []) if route_id else []
+            )
+            loading = {s.version_id: s for s in config.bindings.skill_loading}
             for identifier in config.bindings.skill_versions:
                 definition = SkillDefinition.model_validate(versions[identifier].content)
                 bindings.append(
                     SkillBinding(
-                        version_id=identifier,
+                        **(
+                            loading[identifier].model_dump()
+                            if identifier in loading
+                            else {"version_id": identifier}
+                        ),
                         variables={
-                            v.name: input_value[v.name]
+                            v.name: declared_input[v.name]
                             for v in definition.input_variables
-                            if v.name in input_value
+                            if v.name in declared_input
                         },
                     )
                 )
@@ -149,7 +157,7 @@ class ContextBuilder:
                     bindings=tuple(bindings),
                     agent_id=spec.agent_id,
                     authorized_tool_versions=config.bindings.tool_versions,
-                    model_capabilities=tuple(capabilities),
+                    model_capabilities=tuple(cast(list[str], capabilities)),
                     context_budget=min(config.context.context_limit, 200000),
                     purpose="runtime" if spec.purpose == "production" else "test",
                 ),
@@ -189,6 +197,7 @@ class ContextBuilder:
                     {
                         "input": input_value,
                         "steps": {k: v for k, v in outputs.items() if not k.startswith("_")},
+                        "tool_results": outputs.get("_tool_results", {}),
                         "memory": memory_values,
                     }
                 ),

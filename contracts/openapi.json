@@ -425,6 +425,15 @@
             ],
             "title": "Prompt Version"
           },
+          "skill_loading": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AgentSkillLoading"
+            },
+            "maxItems": 32,
+            "title": "Skill Loading",
+            "type": "array"
+          },
           "skill_versions": {
             "default": [],
             "items": {
@@ -623,6 +632,7 @@
           "bindings": {
             "$ref": "#/components/schemas/AgentBindings",
             "default": {
+              "skill_loading": [],
               "skill_versions": [],
               "tool_versions": []
             }
@@ -718,6 +728,7 @@
           "bindings": {
             "$ref": "#/components/schemas/AgentBindings",
             "default": {
+              "skill_loading": [],
               "skill_versions": [],
               "tool_versions": []
             }
@@ -1403,6 +1414,72 @@
         "title": "AgentReleaseView",
         "type": "object"
       },
+      "AgentSkillLoading": {
+        "additionalProperties": false,
+        "properties": {
+          "loading_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mandatory",
+                  "on_demand"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loading Mode"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": -1000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "selected": {
+            "default": false,
+            "title": "Selected",
+            "type": "boolean"
+          },
+          "selected_files": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 128,
+            "title": "Selected Files",
+            "type": "array"
+          },
+          "trigger_reason": {
+            "default": "配置选择",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Trigger Reason",
+            "type": "string"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id"
+        ],
+        "title": "AgentSkillLoading",
+        "type": "object"
+      },
       "AgentStateInput": {
         "additionalProperties": false,
         "properties": {
@@ -1503,6 +1580,18 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "const": "object",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator"
           },
           "output_schema": {
             "additionalProperties": true,
@@ -13123,6 +13212,7 @@
               "loading_mode": "on_demand",
               "priority": 0,
               "required_model_capabilities": [],
+              "tool_bindings": {},
               "tool_requirements": []
             }
           },
@@ -13490,6 +13580,17 @@
             "title": "Skill Code",
             "type": "string"
           },
+          "tool_bindings": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            "maxProperties": 32,
+            "title": "Tool Bindings",
+            "type": "object"
+          },
           "version_label": {
             "default": "导入版本",
             "maxLength": 64,
@@ -13504,6 +13605,54 @@
           "archive_base64"
         ],
         "title": "SkillImport",
+        "type": "object"
+      },
+      "SkillImportPreview": {
+        "additionalProperties": false,
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/SkillFile"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "instruction_preview": {
+            "title": "Instruction Preview",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/SkillSettings"
+          }
+        },
+        "required": [
+          "metadata",
+          "files",
+          "settings",
+          "instruction_preview"
+        ],
+        "title": "SkillImportPreview",
+        "type": "object"
+      },
+      "SkillImportPreviewInput": {
+        "additionalProperties": false,
+        "properties": {
+          "archive_base64": {
+            "maxLength": 12000000,
+            "minLength": 1,
+            "title": "Archive Base64",
+            "type": "string"
+          }
+        },
+        "required": [
+          "archive_base64"
+        ],
+        "title": "SkillImportPreviewInput",
         "type": "object"
       },
       "SkillIssue": {
@@ -13856,6 +14005,17 @@
             "title": "Required Model Capabilities",
             "type": "array"
           },
+          "tool_bindings": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            "maxProperties": 32,
+            "title": "Tool Bindings",
+            "type": "object"
+          },
           "tool_requirements": {
             "default": [],
             "items": {
@@ -13977,9 +14137,33 @@
             "title": "Available",
             "type": "boolean"
           },
+          "input_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Schema"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "output_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Schema"
           },
           "reason": {
             "anyOf": [
@@ -13992,9 +14176,32 @@
             ],
             "title": "Reason"
           },
+          "source_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mcp",
+                  "http",
+                  "builtin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type"
+          },
           "tool_code": {
             "pattern": "^[a-z][a-z0-9_.-]{0,63}$",
             "title": "Tool Code",
+            "type": "string"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
             "type": "string"
           },
           "version_label": {
@@ -14007,6 +14214,7 @@
         "required": [
           "tool_code",
           "version_label",
+          "version_id",
           "name",
           "available",
           "reason"
@@ -14017,6 +14225,46 @@
       "SkillToolRequirement": {
         "additionalProperties": false,
         "properties": {
+          "input_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Schema"
+          },
+          "output_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Schema"
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mcp",
+                  "http",
+                  "builtin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type"
+          },
           "tool_code": {
             "pattern": "^[a-z][a-z0-9_.-]{0,63}$",
             "title": "Tool Code",
@@ -61400,6 +61648,230 @@
           }
         ],
         "summary": "Imports",
+        "tags": [
+          "技能管理"
+        ]
+      }
+    },
+    "/admin/v1/skills/imports/preview": {
+      "post": {
+        "operationId": "preview_import_admin_v1_skills_imports_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillImportPreviewInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillImportPreview"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Preview Import",
         "tags": [
           "技能管理"
         ]

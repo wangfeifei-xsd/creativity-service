@@ -1,0 +1,18 @@
+{
+  "example": "text-brief",
+  "skill_archive": "examples/skills/packages/text-brief.zip",
+  "agent_config": "examples/agents/text-brief.json",
+  "prompt_content": "examples/agents/prompts/text-brief.json",
+  "resources": {
+    "bind_prompt": "目标渠道提示词版本",
+    "bind_model_route": "目标渠道已验证模型路由版本",
+    "bind_skill": "本次导入并冻结的技能版本"
+  },
+  "model_capabilities": [
+    "text",
+    "structured_output"
+  ],
+  "tool_requirements": [],
+  "environment": "test",
+  "production_gate": "需要方案 24 的有效评测证据"
+}

@@ -54,3 +54,5 @@ Python 3.12 + FastAPI，API 与 Celery Worker 分进程运行。使用 uv 0.10.1
 16 已交付 Agent 定义、配置向导、静态校验、冻结快照与环境发布，见 [Agent 交接](docs/agents.md) 和 [验证记录](docs/agents-validation.md)。迁移为 `0016_agents`；17 接通真实运行，24 提供评测证据，未接入有效证据时 prod 发布保持阻断。
 
 20 的 MCP 配置接入、当前主体复核、两套受控测试服务和迁移 `0021_mcp_subject_review` 见 [配置交接](docs/mcp-business.md)。
+
+21 已交付可移植 Skills、显式 MCP 工具绑定、参考资料加载和两套 Agent 配置，见 [配置交接](docs/configuration-delivery.md) 与 [验证记录](docs/configuration-validation.md)。正式发布继续受评测门禁控制。

@@ -1,4 +1,4 @@
-"""服务端注册固定计算步骤，业务场景通过扩展注册表接入。"""
+"""保留受信内部步骤的兼容装配；新任务使用配置中的通用算子与 MCP 工具。"""
 
 from collections.abc import Awaitable, Callable
 from typing import Any

@@ -21,6 +21,7 @@ import yaml
 
 from creativity_service.core.primitives import ServiceError, canonical_json, digest
 from creativity_service.modules.skills.schemas import SkillFile, SkillSettings
+from creativity_service.modules.tools.validation import validate_schema
 
 MAX_ARCHIVE = 8 * 1024 * 1024
 MAX_TOTAL = 16 * 1024 * 1024
@@ -102,6 +103,7 @@ def parse_entry(data: bytes) -> tuple[dict[str, Any], str]:
         "resource_id",
         "version_id",
         "required_tool_versions",
+        "tool_bindings",
         "allowed_agents",
         "credential_ref",
         "credential_id",
@@ -188,8 +190,10 @@ class Package:
     def archive(self, *, portable: bool = False) -> bytes:
         files = dict(self.files)
         if portable:
-            # 授权范围与源版本标识不进入可移植格式，目标渠道按名称和版本重新解析。
-            settings = self.settings.model_dump(mode="json", exclude={"allowed_agents"})
+            # 导出只携带契约要求，目标渠道必须重新显式选择工具，不能继承本地绑定。
+            settings = self.settings.model_dump(
+                mode="json", exclude={"allowed_agents", "tool_bindings"}
+            )
             files[PORTABLE] = canonical_json({"format": "skill-package-v1", "settings": settings})
         out = io.BytesIO()
         with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -220,8 +224,8 @@ def validate_files(files: dict[str, bytes], settings: SkillSettings | None = Non
             if set(value) != {"format", "settings"} or value["format"] != "skill-package-v1":
                 raise ValueError("格式不符")
             portable_settings = SkillSettings.model_validate(value["settings"])
-            if portable_settings.allowed_agents:
-                raise invalid("导入包不能携带来源渠道授权")
+            if portable_settings.allowed_agents or portable_settings.tool_bindings:
+                raise invalid("导入包不能携带来源渠道授权或工具绑定")
             if settings is None:
                 settings = portable_settings
         except (ValueError, TypeError) as exc:
@@ -255,7 +259,15 @@ def validate_files(files: dict[str, bytes], settings: SkillSettings | None = Non
                 unavailable_reason=reason,
             )
         )
-    return Package(actual, tuple(manifest), meta, body, settings or SkillSettings())
+    settings = settings or SkillSettings()
+    for requirement in settings.tool_requirements:
+        for schema in (requirement.input_schema, requirement.output_schema):
+            if schema is not None:
+                try:
+                    validate_schema(schema)
+                except ServiceError as exc:
+                    raise invalid("工具依赖契约不合法：" + exc.message) from exc
+    return Package(actual, tuple(manifest), meta, body, settings)
 
 
 def decode_archive(value: str) -> bytes:
