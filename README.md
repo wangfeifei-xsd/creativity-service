@@ -42,3 +42,9 @@ Python 3.12 + FastAPI，API 与 Celery Worker 分进程运行。使用 uv 0.10.1
 账号初始化命令为 `uv run creativity-iam init-admin --login-name admin --display-name 管理员`，通过终端隐藏输入密码。撤销补偿使用 `make iam-reconcile`。账号、登录、成员、资源授权与审计已经接通；05 已注入真实渠道、工作区及服务 Key 状态，系统渠道须先运行 `make channels-init`。完整接口及交接见 [IAM 说明](docs/iam.md)。
 
 渠道接口、服务凭据交换、生命周期事件和后续模块端口见 [05 交接](docs/channels.md)。
+
+11 已交付任务受理与可靠调度基础，详见 [运行交接](docs/runs.md) 与 [故障验证](docs/runs-validation.md)。运行 Worker 和每 5 秒一次的补偿扫描已登记，正式运行路由、执行器与 SSE 由 17 完成装配后开放。
+
+业务接入、独立 HMAC 身份委托、源服务配置与 19/20 接口交接见 [业务接入交接](docs/integrations.md)，专项验证见 [18 验证记录](docs/integrations-validation.md)。
+
+会话生命周期、消息与运行事务、上下文来源、删除意图及页面见 [12 会话交接](docs/conversations.md)。迁移为 `0012_conversations`，正式模型与 SSE 仍由 17 装配。

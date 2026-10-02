@@ -1,0 +1,20 @@
+{
+  "format": "skill-package-v1",
+  "settings": {
+    "change_note": "",
+    "tool_requirements": [],
+    "required_model_capabilities": [],
+    "input_variables": [
+      {
+        "name": "input",
+        "label": "话术原文",
+        "value_type": "string",
+        "required": true
+      }
+    ],
+    "loading_mode": "on_demand",
+    "priority": 0,
+    "context_budget": 16000,
+    "conflict_groups": []
+  }
+}

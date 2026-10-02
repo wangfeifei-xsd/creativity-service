@@ -1,0 +1,118 @@
+{
+  "$defs": {
+    "StepPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "node_key": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Node Key",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "model",
+            "tool",
+            "compute"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "target_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Target Version Id",
+          "type": "string"
+        },
+        "read_only": {
+          "default": true,
+          "title": "Read Only",
+          "type": "boolean"
+        },
+        "max_retries": {
+          "default": 2,
+          "maximum": 2,
+          "minimum": 0,
+          "title": "Max Retries",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "node_key",
+        "kind",
+        "target_version_id"
+      ],
+      "title": "StepPolicy",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/StepPolicy"
+      },
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    },
+    "workload": {
+      "default": "online",
+      "enum": [
+        "online",
+        "analysis"
+      ],
+      "title": "Workload",
+      "type": "string"
+    },
+    "timeout_seconds": {
+      "anyOf": [
+        {
+          "maximum": 3600,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Timeout Seconds"
+    },
+    "timeout_source": {
+      "default": "platform-default",
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Timeout Source",
+      "type": "string"
+    },
+    "max_model_calls": {
+      "default": 6,
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Max Model Calls",
+      "type": "integer"
+    },
+    "max_tool_calls": {
+      "default": 10,
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Max Tool Calls",
+      "type": "integer"
+    },
+    "max_recoveries": {
+      "default": 2,
+      "maximum": 10,
+      "minimum": 0,
+      "title": "Max Recoveries",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "steps"
+  ],
+  "title": "ExecutionPolicy",
+  "type": "object"
+}

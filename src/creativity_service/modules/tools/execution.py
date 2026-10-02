@@ -64,7 +64,7 @@ class ToolExecutor:
         self.service, self.runs, self.cache = service, runs, cache
 
     async def authorize(
-        self, context: AuthContext, call: ToolExecution
+        self, context: AuthContext, call: ToolExecution, *, check_binding: bool = True
     ) -> tuple[dict[str, Any], ToolDefinition, RunToolGrant, frozenset[str]]:
         if self.runs is None:
             raise unavailable("运行限额与工具白名单服务")
@@ -103,6 +103,8 @@ class ToolExecutor:
         ):
             raise ServiceError("TOOL_FORBIDDEN", "工具缺少符合约定的受信业务主体", 403)
         self.service.registry.validate(scope, definition, tool["source_type"], executable=True)
+        if check_binding:
+            await self.service.registry.check_binding(context, definition)
         return tool, definition, grant, actions
 
     @staticmethod
@@ -317,12 +319,13 @@ class ToolExecutor:
                             arguments=call.model_copy(deep=True).arguments,
                             attempt_id=attempt.attempt_id,
                             definition=definition.model_copy(deep=True),
+                            run_id=call.run_id,
                         )
                     )
                 attempt = attempt.model_copy(update={"source_request_id": raw.source_request_id})
                 result = await self.validate_result(context, call, definition, raw, call_id)
                 _, after_definition, after_grant, after_actions = await self.authorize(
-                    context, call
+                    context, call, check_binding=False
                 )
                 if (
                     self.cache_key(context, call, after_definition, after_grant, after_actions)

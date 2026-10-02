@@ -1,0 +1,89 @@
+{
+  "$defs": {
+    "McpDifference": {
+      "additionalProperties": false,
+      "properties": {
+        "remote_tool_name": {
+          "title": "Remote Tool Name",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name"
+        },
+        "changes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Changes",
+          "type": "array"
+        },
+        "labels": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
+        "breaking": {
+          "title": "Breaking",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "remote_tool_name",
+        "name",
+        "changes",
+        "labels",
+        "breaking"
+      ],
+      "title": "McpDifference",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "discovery_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Discovery Id",
+      "type": "string"
+    },
+    "previous_discovery_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Previous Discovery Id"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/McpDifference"
+      },
+      "title": "Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "discovery_id",
+    "previous_discovery_id",
+    "items"
+  ],
+  "title": "McpDiff",
+  "type": "object"
+}

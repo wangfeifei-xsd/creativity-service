@@ -1,0 +1,111 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "discovery_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Discovery Id",
+      "type": "string"
+    },
+    "target_tool_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Tool Id"
+    },
+    "remote_tool_name": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Remote Tool Name",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "description": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "owner": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Owner",
+      "type": "string"
+    },
+    "version_label": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Version Label",
+      "type": "string"
+    },
+    "effect_type": {
+      "enum": [
+        "READ_ONLY",
+        "IDEMPOTENT_WRITE",
+        "EXTERNAL_WRITE"
+      ],
+      "title": "Effect Type",
+      "type": "string"
+    },
+    "required_scopes": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Required Scopes",
+      "type": "array"
+    },
+    "timeout_seconds": {
+      "maximum": 120,
+      "minimum": 1,
+      "title": "Timeout Seconds",
+      "type": "integer"
+    },
+    "max_result_size": {
+      "maximum": 2097152,
+      "minimum": 256,
+      "title": "Max Result Size",
+      "type": "integer"
+    },
+    "output_schema": {
+      "additionalProperties": true,
+      "title": "Output Schema",
+      "type": "object"
+    },
+    "subject_required": {
+      "default": true,
+      "title": "Subject Required",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "discovery_id",
+    "remote_tool_name",
+    "name",
+    "description",
+    "owner",
+    "version_label",
+    "effect_type",
+    "required_scopes",
+    "timeout_seconds",
+    "max_result_size",
+    "output_schema"
+  ],
+  "title": "McpImportInput",
+  "type": "object"
+}

@@ -1,0 +1,299 @@
+{
+  "$defs": {
+    "AttemptPlan": {
+      "additionalProperties": false,
+      "description": "候选路由与实际序列化输入估算；不能直接绑定 HTTP 请求正文。",
+      "properties": {
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "attempt_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Attempt Id",
+          "type": "string"
+        },
+        "agent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "model_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Model Id",
+          "type": "string"
+        },
+        "connection_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Connection Id",
+          "type": "string"
+        },
+        "purpose": {
+          "enum": [
+            "production",
+            "debug",
+            "evaluation"
+          ],
+          "title": "Purpose",
+          "type": "string"
+        },
+        "input_tokens": {
+          "minimum": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "max_output_tokens": {
+          "minimum": 0,
+          "title": "Max Output Tokens",
+          "type": "integer"
+        },
+        "additional_upper_tokens": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Additional Upper Tokens",
+          "type": "object"
+        },
+        "subset_relations": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Subset Relations",
+          "type": "object"
+        },
+        "source_type": {
+          "default": "run",
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Source Type",
+          "type": "string"
+        },
+        "names": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Names",
+          "type": "object"
+        }
+      },
+      "required": [
+        "run_id",
+        "attempt_id",
+        "agent_id",
+        "model_id",
+        "connection_id",
+        "purpose",
+        "input_tokens",
+        "max_output_tokens"
+      ],
+      "title": "AttemptPlan",
+      "type": "object"
+    },
+    "ExecutionPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/StepPolicy"
+          },
+          "minItems": 1,
+          "title": "Steps",
+          "type": "array"
+        },
+        "workload": {
+          "default": "online",
+          "enum": [
+            "online",
+            "analysis"
+          ],
+          "title": "Workload",
+          "type": "string"
+        },
+        "timeout_seconds": {
+          "anyOf": [
+            {
+              "maximum": 3600,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout Seconds"
+        },
+        "timeout_source": {
+          "default": "platform-default",
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Timeout Source",
+          "type": "string"
+        },
+        "max_model_calls": {
+          "default": 6,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Max Model Calls",
+          "type": "integer"
+        },
+        "max_tool_calls": {
+          "default": 10,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Max Tool Calls",
+          "type": "integer"
+        },
+        "max_recoveries": {
+          "default": 2,
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Max Recoveries",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "steps"
+      ],
+      "title": "ExecutionPolicy",
+      "type": "object"
+    },
+    "StepPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "node_key": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Node Key",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "model",
+            "tool",
+            "compute"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "target_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Target Version Id",
+          "type": "string"
+        },
+        "read_only": {
+          "default": true,
+          "title": "Read Only",
+          "type": "boolean"
+        },
+        "max_retries": {
+          "default": 2,
+          "maximum": 2,
+          "minimum": 0,
+          "title": "Max Retries",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "node_key",
+        "kind",
+        "target_version_id"
+      ],
+      "title": "StepPolicy",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "只由 16/17 的受信解析器返回；HTTP 不能提交此结构。",
+  "properties": {
+    "agent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "agent_name": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Agent Name",
+      "type": "string"
+    },
+    "version_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Version Ids",
+      "type": "array"
+    },
+    "input_schema": {
+      "additionalProperties": true,
+      "title": "Input Schema",
+      "type": "object"
+    },
+    "output_schema": {
+      "additionalProperties": true,
+      "title": "Output Schema",
+      "type": "object"
+    },
+    "policy": {
+      "$ref": "#/$defs/ExecutionPolicy"
+    },
+    "purpose": {
+      "default": "production",
+      "enum": [
+        "production",
+        "debug",
+        "evaluation"
+      ],
+      "title": "Purpose",
+      "type": "string"
+    },
+    "admission_plan": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AttemptPlan"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "agent_id",
+    "agent_name",
+    "version_ids",
+    "input_schema",
+    "output_schema",
+    "policy"
+  ],
+  "title": "ResolvedDefinition",
+  "type": "object"
+}

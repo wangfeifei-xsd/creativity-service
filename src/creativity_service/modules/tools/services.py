@@ -1,5 +1,6 @@
 """工具配置、版本发布、影响预览和管理调试服务。"""
 
+from collections.abc import Awaitable, Callable
 from typing import Any, Literal
 
 from sqlalchemy import func, select
@@ -12,7 +13,7 @@ from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.observability.audit import append_audit
-from creativity_service.core.primitives import ServiceError, new_id, unavailable
+from creativity_service.core.primitives import ServiceError, digest, new_id, unavailable
 from creativity_service.core.versioning import VersionService, version_view
 from creativity_service.integrations.tools import EFFECT_LABELS, SOURCE_LABELS, AdapterRegistry
 from creativity_service.modules.iam.authorization import IamAuthorization
@@ -120,6 +121,10 @@ class ToolService:
             runs,
         )
         self.repository = ToolRepository(engine)
+        self.binding_checks = registry.binding_checks
+        self.binding_option_providers: list[
+            Callable[[AuthContext], Awaitable[list[BindingOption]]]
+        ] = []
         self.versions = VersionService(
             engine, ToolVersionAuthorization(self), ToolVersionValidator(registry)
         )
@@ -310,11 +315,120 @@ class ToolService:
         return await self.version_detail(context, version.version_id)
 
     async def import_draft(
-        self, context: AuthContext, tool: ToolCreate, version: ToolVersionCreate
+        self,
+        context: AuthContext,
+        tool: ToolCreate,
+        version: ToolVersionCreate,
+        *,
+        uow: UnitOfWork | None = None,
+        import_key: str | None = None,
+        target_tool_id: str | None = None,
     ) -> ToolVersionView:
-        """14 导入前先登记同渠道 MCP 映射；失败只留下可编辑资源，不隐式发布。"""
+        """组合导入由调用方预先授权并持有全部锁，草稿与映射在同一事务提交。"""
+        if uow is not None:
+            if import_key is None:
+                raise ValueError("组合导入须提供固定导入键")
+            for key in self.import_keys(
+                context, import_key, tool.tool_code, target_tool_id, version.version_label
+            ):
+                uow.require_lock(key)
+            validate_definition(version.definition)
+            self.registry.validate(
+                context.scope, version.definition, tool.source_type, executable=False
+            )
+            tool_id, version_id, audit_id, source_id = self.import_ids(import_key)
+            tool_id = target_tool_id or tool_id
+            repo = Repository(metadata.tables["tools"], context.scope)
+            existing = await repo.get(uow.connection, tool_id) if target_tool_id else None
+            if target_tool_id and (
+                existing is None
+                or existing["status"] != "ACTIVE"
+                or existing["source_type"] != tool.source_type
+            ):
+                raise ServiceError("TOOL_UNAVAILABLE", "目标工具不存在或已停用", 409)
+            if not target_tool_id and await repo.find(uow.connection, tool_code=tool.tool_code):
+                raise ServiceError("CODE_EXISTS", "工具编码已存在", 409)
+            await DeletionGuard(context.scope).check(uow, [ContentRef("tool", tool_id)])
+            if not target_tool_id:
+                await repo.add(uow, tool_id, {**tool.model_dump(), "status": "ACTIVE"})
+            content = version.definition.model_dump(mode="json")
+            output = version.definition.output_schema
+            versions = Repository(core_metadata.tables["resource_versions"], context.scope)
+            if await versions.find(
+                uow.connection,
+                resource_type="tool",
+                resource_id=tool_id,
+                version_label=version.version_label,
+            ):
+                raise ServiceError("VERSION_LABEL_CONFLICT", "版本名称已存在", 409)
+            row = await Repository(core_metadata.tables["resource_versions"], context.scope).add(
+                uow,
+                version_id,
+                {
+                    "resource_type": "tool",
+                    "resource_id": tool_id,
+                    "version_label": version.version_label,
+                    "state": "DRAFT",
+                    "content": content,
+                    "content_digest": digest({"content": content, "output_schema": output}),
+                    "dependencies": [],
+                    "dependencies_digest": digest([]),
+                    "output_schema": output,
+                    "created_by": context.principal_id,
+                },
+            )
+            await DeletionGuard(context.scope).link(
+                uow, source_id, ContentRef("tool", tool_id), ContentRef("version", version_id)
+            )
+            await append_audit(
+                uow, context, audit_id, "tool.import", "tool", tool_id, {"version_id": version_id}
+            )
+            return ToolVersionView(
+                version=version_view(row),
+                revision=1,
+                definition=version.definition,
+                status=status("DRAFT"),
+                execution_enabled=False,
+                unavailable_reason="导入草稿尚未冻结与发布",
+                actions=[],
+            )
         resource = await self.create(context, tool)
         return await self.create_version(context, resource.tool_id, version)
+
+    @staticmethod
+    def import_ids(import_key: str) -> tuple[str, str, str, str]:
+        return (
+            digest([import_key, "tool"]),
+            digest([import_key, "version"]),
+            digest([import_key, "audit"]),
+            digest([import_key, "source"]),
+        )
+
+    @classmethod
+    def import_keys(
+        cls,
+        context: AuthContext,
+        import_key: str,
+        code: str,
+        target_tool_id: str | None = None,
+        version_label: str = "",
+    ) -> list[ResourceKey]:
+        tool_id, version_id, audit_id, source_id = cls.import_ids(import_key)
+        tool_id = target_tool_id or tool_id
+        scope = context.scope
+        return [
+            content_key(scope),
+            ResourceKey(scope.channel_id, "tool-code", (code,)),
+            ResourceKey(scope.channel_id, "version-label", ("tool", tool_id, version_label)),
+            record_key(scope.channel_id, "tools", tool_id),
+            record_key(scope.channel_id, "resource_versions", version_id),
+            record_key(scope.channel_id, "audit_events", audit_id),
+            record_key(scope.channel_id, "source_links", source_id),
+        ]
+
+    async def check_binding(self, context: AuthContext, definition: ToolDefinition) -> None:
+        for check in self.binding_checks:
+            await check(context, definition)
 
     async def edit_version(
         self, context: AuthContext, version_id: str, body: ToolVersionEdit
@@ -342,6 +456,7 @@ class ToolService:
         reason = None
         try:
             self.registry.validate(context.scope, definition, tool["source_type"], executable=True)
+            await self.check_binding(context, definition)
             if tool["status"] != "ACTIVE":
                 reason = "工具已停用"
         except ServiceError as exc:
@@ -362,10 +477,14 @@ class ToolService:
         )
 
     async def freeze(self, context: AuthContext, version_id: str, revision: int) -> ToolVersionView:
+        view = await self.version_detail(context, version_id)
+        await self.check_binding(context, view.definition)
         await self.versions.freeze(context, version_id, revision)
         return await self.version_detail(context, version_id)
 
     async def release(self, context: AuthContext, tool_id: str, body: ToolRelease) -> ToolDetail:
+        view = await self.version_detail(context, body.version_id)
+        await self.check_binding(context, view.definition)
         tool, _ = await self.repository.resolve(context, body.version_id)
         if tool["id"] != tool_id:
             raise ServiceError("NOT_FOUND", "工具版本不存在", 404)
@@ -453,7 +572,10 @@ class ToolService:
         self, context: AuthContext, tool_id: str | None = None
     ) -> list[BindingOption]:
         await self.require(context, "tool:manage", tool_id or "new")
-        return self.registry.options(context.scope)
+        options = self.registry.options(context.scope)
+        for provider in self.binding_option_providers:
+            options.extend(await provider(context))
+        return options
 
     async def test_description(self, context: AuthContext, version_id: str) -> ToolTestDescription:
         version = await self.version_detail(context, version_id)

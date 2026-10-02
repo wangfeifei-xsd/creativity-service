@@ -1,0 +1,90 @@
+{
+  "$defs": {
+    "AdmissionReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "QUEUED",
+            "RUNNING",
+            "CANCEL_REQUESTED",
+            "SUCCEEDED",
+            "FAILED",
+            "CANCELLED",
+            "TIMED_OUT"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "state_label": {
+          "title": "State Label",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "deadline": {
+          "format": "date-time",
+          "title": "Deadline",
+          "type": "string"
+        },
+        "status_url": {
+          "title": "Status Url",
+          "type": "string"
+        },
+        "events_url": {
+          "title": "Events Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "state",
+        "state_label",
+        "created_at",
+        "deadline",
+        "status_url",
+        "events_url"
+      ],
+      "title": "AdmissionReceipt",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "turn_id": {
+      "title": "Turn Id",
+      "type": "string"
+    },
+    "user_message_id": {
+      "title": "User Message Id",
+      "type": "string"
+    },
+    "assistant_message_id": {
+      "title": "Assistant Message Id",
+      "type": "string"
+    },
+    "sequence": {
+      "title": "Sequence",
+      "type": "integer"
+    },
+    "run": {
+      "$ref": "#/$defs/AdmissionReceipt"
+    }
+  },
+  "required": [
+    "turn_id",
+    "user_message_id",
+    "assistant_message_id",
+    "sequence",
+    "run"
+  ],
+  "title": "MessageReceipt",
+  "type": "object"
+}

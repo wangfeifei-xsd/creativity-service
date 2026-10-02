@@ -58,6 +58,7 @@ class AuthenticationService:
             actor_id=context.actor_id,
             client_id=context.client_id,
             key_id=context.key_id,
+            delegation_id=context.delegation_id,
         )
 
     async def active_account(self, user_id: str, *, allow_initial: bool = False) -> AccountState:

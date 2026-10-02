@@ -182,6 +182,7 @@ class IdentitySource(Contract):
     actor_id: Identifier | None = None
     client_id: Identifier | None = None
     key_id: Identifier | None = None
+    delegation_id: Identifier | None = None
 
     @model_validator(mode="after")
     def validate_source(self) -> Self:
@@ -200,6 +201,7 @@ class IdentitySource(Contract):
             actor_id=self.actor_id,
             client_id=self.client_id,
             key_id=self.key_id,
+            delegation_id=self.delegation_id,
             request_id=request_id,
         )
 

@@ -18,6 +18,8 @@ ACTION_NAMES = {
     "agent:manage": "管理智能体",
     "prompt:manage": "管理提示词",
     "tool:manage": "管理工具",
+    "integration:manage": "管理业务接入",
+    "mcp:manage": "管理 MCP 连接",
     "skill:manage": "管理技能",
     "version:edit": "编辑版本",
     "version:freeze": "冻结版本",
@@ -38,6 +40,7 @@ ACTION_NAMES = {
     "artifact:download": "下载文件",
     "snapshot:read": "查看运行快照",
     "conversation:read": "查看会话",
+    "conversation:write": "管理会话与发言",
     "memory:read": "查看记忆",
     "credential:write": "管理连接凭据",
     "credential:use": "使用连接凭据",
@@ -69,6 +72,8 @@ BUILDER_ACTIONS = frozenset(
         "agent:manage",
         "prompt:manage",
         "tool:manage",
+        "integration:manage",
+        "mcp:manage",
         "skill:manage",
         "version:edit",
         "version:freeze",
@@ -83,6 +88,8 @@ BUILDER_ACTIONS = frozenset(
         "credential:write",
         "credential:use",
         "content:derive",
+        "conversation:read",
+        "conversation:write",
     }
 )
 ROLE_NAMES = {
@@ -106,6 +113,7 @@ ROLE_ACTIONS = {
             "run:content",
             "feedback:manage",
             "conversation:read",
+            "conversation:write",
             "memory:read",
             "artifact:download",
         }

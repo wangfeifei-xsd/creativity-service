@@ -37,7 +37,11 @@ NAVIGATION = (
     ("agents", "智能体", "agent:manage"),
     ("prompts", "提示词", "prompt:manage"),
     ("tools", "工具", "tool:manage"),
+    ("integrations", "业务接入", "integration:manage"),
+    ("skills", "技能管理", "skill:manage"),
+    ("mcp-connections", "MCP 连接", "mcp:manage"),
     ("runs", "运行记录", "run:read"),
+    ("conversations", "会话管理", "conversation:read"),
     ("usage", "用量", "usage:read"),
 )
 

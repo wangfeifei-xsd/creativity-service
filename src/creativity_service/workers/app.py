@@ -75,3 +75,17 @@ app.conf.beat_schedule = {
     **(app.conf.beat_schedule or {}),
     "usage-sweep": {"task": "usage.sweep", "schedule": 60.0},
 }
+
+# 运行补偿独立于队列确认，数据库保存可重放的投递意图。
+app.conf.imports = tuple(app.conf.imports or ()) + ("creativity_service.workers.runs",)
+app.conf.beat_schedule = {
+    **(app.conf.beat_schedule or {}),
+    "runs-sweep": {"task": "runs.sweep", "schedule": 5.0},
+}
+
+# 远程连接健康检查按渠道恢复，短事务领取后再等待远端。
+app.conf.imports = tuple(app.conf.imports or ()) + ("creativity_service.modules.mcp.tasks",)
+app.conf.beat_schedule = {
+    **(app.conf.beat_schedule or {}),
+    "mcp-sweep": {"task": "mcp.sweep", "schedule": 30.0},
+}

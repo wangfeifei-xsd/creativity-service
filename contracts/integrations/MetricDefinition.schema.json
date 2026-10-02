@@ -1,0 +1,67 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "metric_code": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Metric Code",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "definition_version": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Definition Version",
+      "type": "string"
+    },
+    "unit": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Unit",
+      "type": "string"
+    },
+    "currency": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Z]{3}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Currency"
+    },
+    "supported_periods": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Supported Periods",
+      "type": "array"
+    },
+    "timezone": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Timezone",
+      "type": "string"
+    }
+  },
+  "required": [
+    "metric_code",
+    "name",
+    "definition_version",
+    "unit",
+    "supported_periods",
+    "timezone"
+  ],
+  "title": "MetricDefinition",
+  "type": "object"
+}

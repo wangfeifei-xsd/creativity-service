@@ -97,8 +97,10 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
         "model": ("模型", "model:manage"),
         "prompt": ("提示词", "prompt:manage"),
         "tool": ("工具", "tool:manage"),
+        "mcp_connection": ("MCP 连接", "mcp:manage"),
         "agent": ("智能体", "agent:manage"),
         "skill": ("技能", "skill:manage"),
+        "conversation": ("会话", "conversation:write"),
     }
     for kind, (name, action) in resource_types.items():
         if action in allowed and not any(

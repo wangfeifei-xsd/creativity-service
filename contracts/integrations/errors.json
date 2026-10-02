@@ -1,0 +1,78 @@
+{
+  "BUSINESS_UNSUPPORTED": {
+    "message": "业务能力尚不支持",
+    "http_status": 422
+  },
+  "BUSINESS_FORBIDDEN": {
+    "message": "无权访问业务数据",
+    "http_status": 403
+  },
+  "BUSINESS_TIMEOUT": {
+    "message": "业务服务响应超时",
+    "http_status": 504
+  },
+  "BUSINESS_NO_DATA": {
+    "message": "业务服务暂无数据",
+    "http_status": 404
+  },
+  "BUSINESS_UNLISTED": {
+    "message": "业务对象已下架",
+    "http_status": 410
+  },
+  "BUSINESS_NOT_FOUND": {
+    "message": "业务对象不存在",
+    "http_status": 404
+  },
+  "BUSINESS_CONTRACT_CHANGED": {
+    "message": "业务数据契约已变化",
+    "http_status": 502
+  },
+  "BUSINESS_UNAVAILABLE": {
+    "message": "业务服务暂不可用",
+    "http_status": 503
+  },
+  "DELEGATION_REQUIRED": {
+    "message": "缺少业务主体委托",
+    "http_status": 401
+  },
+  "DELEGATION_INVALID": {
+    "message": "签名、签发者、受众或声明格式无效",
+    "http_status": 401
+  },
+  "DELEGATION_EXPIRED": {
+    "message": "委托过期或时间不合法",
+    "http_status": 401
+  },
+  "DELEGATION_SCOPE_INVALID": {
+    "message": "委托归属或源数据域不符",
+    "http_status": 403
+  },
+  "DELEGATION_FORBIDDEN": {
+    "message": "委托超过当前权限或匿名范围",
+    "http_status": 403
+  },
+  "DELEGATION_REQUEST_MISMATCH": {
+    "message": "委托未绑定当前实际请求",
+    "http_status": 403
+  },
+  "DELEGATION_REPLAY": {
+    "message": "同一随机数已用于不同请求或身份",
+    "http_status": 409
+  },
+  "DELEGATION_KEY_CHANGED": {
+    "message": "验签期间密钥配置改变，请重试",
+    "http_status": 409
+  },
+  "DELEGATION_KEY_EXISTS": {
+    "message": "当前接入服务已有密钥，请轮换",
+    "http_status": 409
+  },
+  "DELEGATION_KEY_UNAVAILABLE": {
+    "message": "委托密钥不可轮换",
+    "http_status": 409
+  },
+  "DELEGATION_KEY_ROTATED": {
+    "message": "旧密钥已轮换，请使用新密钥",
+    "http_status": 409
+  }
+}

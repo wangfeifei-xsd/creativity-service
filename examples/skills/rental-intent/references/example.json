@@ -1,0 +1,10 @@
+{
+  "example_only": true,
+  "game_name": null,
+  "duration_hours": null,
+  "budget": {
+    "amount": null,
+    "currency": null
+  },
+  "source_quote": null
+}

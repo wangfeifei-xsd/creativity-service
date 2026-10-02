@@ -1,0 +1,132 @@
+{
+  "$defs": {
+    "AttachmentPart": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "attachment",
+          "default": "attachment",
+          "title": "Type",
+          "type": "string"
+        },
+        "artifact_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Artifact Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_id"
+      ],
+      "title": "AttachmentPart",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "TextPart": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "text",
+          "default": "text",
+          "title": "Type",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 100000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "TextPart",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "由会话服务组装的受理参数，运行 HTTP 接口不能直接提交此类型。",
+  "properties": {
+    "agent_code": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Agent Code",
+      "type": "string"
+    },
+    "input": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Input",
+      "type": "object"
+    },
+    "conversation_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Conversation Id"
+    },
+    "delivery": {
+      "default": "async",
+      "pattern": "^(async|sync|stream)$",
+      "title": "Delivery",
+      "type": "string"
+    },
+    "client_message_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Client Message Id"
+    },
+    "content_parts": {
+      "default": [],
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "attachment": "#/$defs/AttachmentPart",
+            "text": "#/$defs/TextPart"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/TextPart"
+          },
+          {
+            "$ref": "#/$defs/AttachmentPart"
+          }
+        ]
+      },
+      "title": "Content Parts",
+      "type": "array"
+    }
+  },
+  "required": [
+    "agent_code",
+    "input"
+  ],
+  "title": "ConversationRunRequest",
+  "type": "object"
+}

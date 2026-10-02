@@ -1,0 +1,12 @@
+{
+  "example_only": true,
+  "metric_name": null,
+  "value": null,
+  "unit": null,
+  "period": null,
+  "definition_ref": {
+    "version": null,
+    "effective_at": null
+  },
+  "evidence_ref": null
+}

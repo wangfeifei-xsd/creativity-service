@@ -44,3 +44,19 @@
 `channel_lifecycle_events` 与治理变更、审计共用事务，载荷只包含状态及修订等元数据；原始 channel_id、environment、target_id 不因消费或清理改写。runs 与 retention 消费进度分别记录；消费按至少一次交付，接收方按 event_id 幂等。归档不删除 Key、轮换、用量和审计记录。
 
 08 实现：`usage_records` 按原始 run/attempt 固定渠道与来源，`usage_events` 的连接/供应商请求/版本去重键归同一渠道；`usage_adjustments` 关联账本和可空来源事件（价格重算没有新供应商事件）。`budget_reservations.policy_version_id` 指向公共预算版本，`platform_quota_occupancies` 的系统记录只引用实际渠道/run 元数据。普通导出包含授权业务范围；平台汇总导出归系统渠道并保留实际渠道集合。汇率只用于展示折算，不跨币种共享硬预算。
+
+## 11 运行派生关系
+
+`runs` 引用公共 `release_snapshots`，`run_contents` 按 run 保存输入、返回内容、事件正文与恢复点内容。会话→run 来源链接与快照的来源链接由同一受理事务登记。`run_occupancies` 保存会话运行占用；`run_recoveries` 保留失效租约代次的处理决定。清理运行原文时删除内容及 checkpoint，保留幂等定位、尝试和用量引用；晚到用量只能回到原渠道的原尝试。
+
+### 18 业务接入关系
+
+`integrations.scope_mapping_ref` 引用同渠道环境中 05 的 data_scopes，并与服务端 data_scope_id 一致；credential_ref 引用同渠道环境的 http_tool 密文。delegation_keys 按稳定 service_clients 与环境绑定独立 delegation 密文，rotated_from 保留轮换来源。delegation_nonces 按已验证上下文关联 kid，保存请求及身份摘要，运行只保存 delegation_id；同 nonce 重发不新增运行，运行幂等仍归 11。integration_tests 固定连接配置 revision，不保存业务参数与原文。
+
+## 技能包实现关系
+
+`skills → resource_versions(skill) → skill_files` 构成资源与版本文件清单；文件引用该版本不可变 ZIP 产物。可移植工具声明在目标渠道解析后进入公共版本依赖，冻结时登记 `resource_references`。`skill_tests.context_snapshot` 保存本次定义、输入和加载结果，仍引用旧产物时不回收旧包。来源图登记技能到版本、版本到文件/产物/测试；原文与包正文不进入审计摘要。
+
+## 12 会话及来源关系
+
+会话固定完整身份范围与 Agent；轮次关联用户/助手消息及唯一有效 run，每轮保留其发布版本和契约。conversation→message/run/artifact/context、message→summary/context、summary→context 通过公共来源图登记；受控附件作为消息来源，既有独立产物不因被引用而改变归属。普通追问保存 source_run_id 及 confirmed_conditions。删除共享 deletion_jobs 保存来源图影响，先访问屏障，再由 25 完成关联传播。

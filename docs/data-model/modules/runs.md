@@ -4,7 +4,7 @@
 
 ## runs
 
-逻辑执行任务。状态：设计基线；归属：主体；迁移：由所属方案新增。
+逻辑执行任务。状态：已实现；归属：主体；迁移：0011_runs。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -34,12 +34,21 @@
 | `partial_output_ref` | `varchar(64)` | 部分输出引用 | 否 | 服务层校验后的业务输入 | 内部 |
 | `error` | `jsonb` | 脱敏错误 | 否 | 服务层校验后的业务输入 | 敏感内容 |
 | `completed_at` | `timestamptz` | 终结时间 | 否 | 服务层校验后的业务输入 | 内部 |
+| `agent_code` | `varchar(128)` | 智能体调用编码 | 是 | 受信服务校验与事务写入 | 内部 |
+| `agent_name` | `varchar(128)` | 受理时智能体名称 | 是 | 受信服务校验与事务写入 | 内部 |
+| `identity` | `jsonb` | 不含访问令牌的原始身份 | 是 | 受信服务校验与事务写入 | 内部 |
+| `execution_policy` | `jsonb` | 冻结执行限额与步骤策略 | 是 | 受信服务校验与事务写入 | 内部 |
+| `timeout_seconds` | `integer` | 全程时限秒数 | 是 | 受信服务校验与事务写入 | 内部 |
+| `timeout_source` | `varchar(128)` | 时限配置来源 | 是 | 受信服务校验与事务写入 | 内部 |
+| `event_sequence` | `bigint` | 最后事件序号 | 是 | 受信服务校验与事务写入 | 内部 |
+| `resources_released` | `boolean` | 终态占用已释放 | 是 | 受信服务校验与事务写入 | 内部 |
+| `recovery_count` | `integer` | 租约失效恢复次数 | 是 | 受信服务校验与事务写入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, state, created_at)`。
 
 ## run_idempotency
 
-接入请求幂等。状态：设计基线；归属：主体；迁移：由所属方案新增。
+接入请求幂等。状态：已实现；归属：主体；迁移：0011_runs。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -52,18 +61,21 @@
 | `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
-| `client_id` | `varchar(64)` | 接入服务稳定标识 | 是 | 服务层校验后的业务输入 | 内部 |
+| `client_id` | `varchar(64)` | 接入服务稳定标识 | 否 | 服务层校验后的业务输入 | 内部 |
 | `agent_id` | `varchar(64)` | 智能体标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `key` | `varchar(128)` | 调用方幂等键 | 是 | 服务层校验后的业务输入 | 内部 |
 | `request_digest` | `varchar(64)` | 语义请求摘要 | 是 | 服务层校验后的业务输入 | 内部 |
 | `run_id` | `varchar(64)` | 首次受理运行 | 是 | 服务层校验后的业务输入 | 内部 |
 | `expires_at` | `timestamptz` | 最早可清理时间 | 是 | 服务层校验后的业务输入 | 内部 |
+| `identity_type` | `varchar(32)` | 稳定身份来源类型 | 是 | 受信服务校验与事务写入 | 内部 |
+| `identity_id` | `varchar(128)` | 稳定调用服务或管理操作者 | 是 | 受信服务校验与事务写入 | 内部 |
+| `scope_digest` | `varchar(64)` | 幂等范围摘要 | 是 | 受信服务校验与事务写入 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id, client_id, agent_id, key)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id, client_id, agent_id, key)`；`(channel_id, scope_digest, key)`。
 
 ## dispatch_outbox
 
-可靠调度投递意图。状态：设计基线；归属：环境；迁移：由所属方案新增。
+可靠调度投递意图。状态：已实现；归属：环境；迁移：0011_runs。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -78,12 +90,13 @@
 | `dispatch_attempts` | `integer` | 投递次数 | 是 | 服务层校验后的业务输入 | 内部 |
 | `next_attempt_at` | `timestamptz` | 下次补偿时间 | 是 | 服务层校验后的业务输入 | 内部 |
 | `last_error` | `varchar(64)` | 脱敏错误类别 | 否 | 服务层校验后的业务输入 | 内部 |
+| `delivery_version` | `bigint` | 本次投递声明代次 | 是 | 受信服务校验与事务写入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, state, next_attempt_at)`。
 
 ## run_steps
 
-执行步骤。状态：设计基线；归属：主体；迁移：由所属方案新增。
+执行步骤。状态：已实现；归属：主体；迁移：0011_runs。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -103,12 +116,14 @@
 | `output_ref` | `varchar(64)` | 输出引用 | 否 | 服务层校验后的业务输入 | 内部 |
 | `checkpoint_ref` | `varchar(64)` | 恢复点 | 否 | 服务层校验后的业务输入 | 内部 |
 | `sequence` | `bigint` | 步骤顺序 | 是 | 服务层校验后的业务输入 | 内部 |
+| `attempt_count` | `integer` | 实际尝试累计次数 | 是 | 受信服务校验与事务写入 | 内部 |
+| `lease_version` | `bigint` | 最近有效提交租约代次 | 是 | 受信服务校验与事务写入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id, sequence)`。
 
 ## attempts
 
-外部实际尝试。状态：设计基线；归属：主体；迁移：由所属方案新增。
+外部实际尝试。状态：已实现；归属：主体；迁移：0011_runs。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -132,12 +147,15 @@
 | `finished_at` | `timestamptz` | 结束时间 | 否 | 服务层校验后的业务输入 | 内部 |
 | `error` | `jsonb` | 脱敏错误 | 否 | 服务层校验后的业务输入 | 敏感内容 |
 | `usage_id` | `varchar(64)` | 用量账本引用 | 否 | 服务层校验后的业务输入 | 内部 |
+| `lease_version` | `bigint` | 调用所属租约代次 | 是 | 受信服务校验与事务写入 | 内部 |
+| `sent_at` | `timestamptz` | 外部发送意图登记时间 | 否 | 受信服务校验与事务写入 | 内部 |
+| `retryable` | `boolean` | 明确失败是否允许有限重试 | 是 | 受信服务校验与事务写入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id)`；`(channel_id, step_id, created_at)`。
 
 ## run_events
 
-可补发运行事件。状态：设计基线；归属：主体；迁移：由所属方案新增。
+可补发运行事件。状态：已实现；归属：主体；迁移：0011_runs。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -160,7 +178,7 @@
 
 ## run_leases
 
-工作进程执行租约。状态：设计基线；归属：环境；迁移：由所属方案新增。
+工作进程执行租约。状态：已实现；归属：环境；迁移：0011_runs。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -180,7 +198,7 @@
 
 ## checkpoints
 
-自有流程恢复点。状态：设计基线；归属：主体；迁移：由所属方案新增。
+自有流程恢复点。状态：已实现；归属：主体；迁移：0011_runs。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -225,3 +243,67 @@
 | `payload_ref` | `varchar(64)` | 写入内容引用 | 是 | 服务层校验后的业务输入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, checkpoint_id, task_id, sequence)`。
+
+## run_contents
+
+运行敏感内容引用。状态：已实现；归属：主体；迁移：0011_runs。
+
+| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
+| --- | --- | --- | --- | --- | --- |
+| `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
+| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
+| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
+| `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
+| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
+| `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
+| `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
+| `run_id` | `varchar(64)` | 所属运行 | 是 | 受信服务校验与事务写入 | 内部 |
+| `kind` | `varchar(32)` | 内容用途 | 是 | 受信服务校验与事务写入 | 内部 |
+| `payload` | `jsonb` | 受控内容正文 | 否 | 受信服务校验与事务写入 | 敏感内容 |
+
+普通索引：`(channel_id, id)`；`(channel_id, run_id)`。
+
+## run_recoveries
+
+执行租约恢复判断记录。状态：已实现；归属：主体；迁移：0011_runs。
+
+| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
+| --- | --- | --- | --- | --- | --- |
+| `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
+| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
+| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
+| `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
+| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
+| `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
+| `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
+| `run_id` | `varchar(64)` | 所属运行 | 是 | 受信服务校验与事务写入 | 内部 |
+| `lease_version` | `bigint` | 失效租约代次 | 是 | 受信服务校验与事务写入 | 内部 |
+| `decision` | `varchar(32)` | 恢复判断结果 | 是 | 受信服务校验与事务写入 | 内部 |
+| `reason` | `varchar(64)` | 脱敏原因类别 | 是 | 受信服务校验与事务写入 | 内部 |
+
+普通索引：`(channel_id, id)`；`(channel_id, run_id, lease_version)`。
+
+## run_occupancies
+
+运行会话执行占用。状态：已实现；归属：主体；迁移：0011_runs。
+
+| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
+| --- | --- | --- | --- | --- | --- |
+| `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
+| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
+| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
+| `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
+| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
+| `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
+| `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
+| `conversation_id` | `varchar(64)` | 占用会话 | 是 | 受信服务校验与事务写入 | 内部 |
+| `run_id` | `varchar(64)` | 占用运行 | 是 | 受信服务校验与事务写入 | 内部 |
+| `state` | `varchar(32)` | 占用状态 | 是 | 受信服务校验与事务写入 | 内部 |
+
+普通索引：`(channel_id, id)`；`(channel_id, environment, conversation_id)`。

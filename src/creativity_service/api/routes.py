@@ -5,9 +5,13 @@ from fastapi import APIRouter
 from creativity_service.api.artifacts import router as artifact_router
 from creativity_service.modules.channels.api import auth_router
 from creativity_service.modules.channels.api import router as channels_router
+from creativity_service.modules.conversations.api import router as conversations_router
 from creativity_service.modules.iam.api import router as iam_router
+from creativity_service.modules.integrations.api import router as integrations_router
+from creativity_service.modules.mcp.api import router as mcp_router
 from creativity_service.modules.models.api import router as models_router
 from creativity_service.modules.prompts.api import router as prompts_router
+from creativity_service.modules.skills.api import router as skills_router
 from creativity_service.modules.tools.api import router as tools_router
 from creativity_service.modules.usage.api import router as usage_router
 
@@ -29,3 +33,12 @@ admin_router.include_router(tools_router)
 admin_router.include_router(models_router)
 
 admin_router.include_router(usage_router)
+
+admin_router.include_router(mcp_router)
+
+admin_router.include_router(skills_router)
+
+admin_router.include_router(integrations_router)
+
+admin_router.include_router(conversations_router)
+api_router.include_router(conversations_router)

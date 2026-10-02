@@ -1,0 +1,200 @@
+{
+  "$defs": {
+    "SkillDiscovery": {
+      "additionalProperties": false,
+      "properties": {
+        "version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Version Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version_id",
+        "name",
+        "description",
+        "text"
+      ],
+      "title": "SkillDiscovery",
+      "type": "object"
+    },
+    "SkillIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "SkillIssue",
+      "type": "object"
+    },
+    "SkillLoadedFile": {
+      "additionalProperties": false,
+      "properties": {
+        "version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Version Id",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "budget_units": {
+          "title": "Budget Units",
+          "type": "integer"
+        },
+        "trigger_reason": {
+          "title": "Trigger Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version_id",
+        "path",
+        "sha256",
+        "text",
+        "budget_units",
+        "trigger_reason"
+      ],
+      "title": "SkillLoadedFile",
+      "type": "object"
+    },
+    "SkillOmission": {
+      "additionalProperties": false,
+      "properties": {
+        "version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Version Id",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version_id",
+        "path",
+        "reason"
+      ],
+      "title": "SkillOmission",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "loaded": {
+      "items": {
+        "$ref": "#/$defs/SkillLoadedFile"
+      },
+      "title": "Loaded",
+      "type": "array"
+    },
+    "discoveries": {
+      "items": {
+        "$ref": "#/$defs/SkillDiscovery"
+      },
+      "title": "Discoveries",
+      "type": "array"
+    },
+    "omitted": {
+      "items": {
+        "$ref": "#/$defs/SkillOmission"
+      },
+      "title": "Omitted",
+      "type": "array"
+    },
+    "issues": {
+      "items": {
+        "$ref": "#/$defs/SkillIssue"
+      },
+      "title": "Issues",
+      "type": "array"
+    },
+    "used_budget": {
+      "title": "Used Budget",
+      "type": "integer"
+    },
+    "budget_unit": {
+      "const": "utf8_bytes",
+      "default": "utf8_bytes",
+      "title": "Budget Unit",
+      "type": "string"
+    },
+    "callable_tool_versions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Callable Tool Versions",
+      "type": "array"
+    },
+    "complete": {
+      "title": "Complete",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "loaded",
+    "discoveries",
+    "omitted",
+    "issues",
+    "used_budget",
+    "callable_tool_versions",
+    "complete"
+  ],
+  "title": "SkillLoadResult",
+  "type": "object"
+}

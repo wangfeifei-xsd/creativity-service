@@ -75,6 +75,7 @@ class AuthContext(Contract):
     actor_id: Identifier | None = None
     session_id: Identifier | None = None
     token_digest: Digest | None = None
+    delegation_id: Identifier | None = None
     granted_actions: frozenset[str] = Field(default_factory=frozenset)
 
     @model_validator(mode="after")
@@ -150,6 +151,11 @@ async def require_http_context(
     )
     if context.principal_type != purpose:
         raise ServiceError("TOKEN_PURPOSE_INVALID", "凭据用途不符", 401)
+    if purpose == "service":
+        delegation = getattr(request.app.state, "delegation", None)
+        if delegation is None:
+            raise unavailable("业务主体委托验证服务")
+        context = await delegation.verify_request(context, request)
     with bind_context(context):
         yield context
 

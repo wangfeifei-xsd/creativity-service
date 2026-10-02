@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "RemoteTool": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "description": {
+          "default": "",
+          "maxLength": 16000,
+          "title": "Description",
+          "type": "string"
+        },
+        "input_schema": {
+          "additionalProperties": true,
+          "title": "Input Schema",
+          "type": "object"
+        },
+        "output_schema": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Schema"
+        },
+        "annotations": {
+          "additionalProperties": true,
+          "title": "Annotations",
+          "type": "object"
+        },
+        "schema_hash": {
+          "title": "Schema Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "input_schema",
+        "schema_hash"
+      ],
+      "title": "RemoteTool",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "discovery_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Discovery Id",
+      "type": "string"
+    },
+    "connection_revision": {
+      "minimum": 1,
+      "title": "Connection Revision",
+      "type": "integer"
+    },
+    "negotiated_version": {
+      "title": "Negotiated Version",
+      "type": "string"
+    },
+    "tools": {
+      "items": {
+        "$ref": "#/$defs/RemoteTool"
+      },
+      "title": "Tools",
+      "type": "array"
+    },
+    "discovered_at": {
+      "format": "date-time",
+      "title": "Discovered At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "discovery_id",
+    "connection_revision",
+    "negotiated_version",
+    "tools",
+    "discovered_at"
+  ],
+  "title": "McpDiscovery",
+  "type": "object"
+}

@@ -25,3 +25,26 @@
 ## 10 工具实现增量 / 2026-10-02
 
 `0010_tools` 新增工具资源、调用实例和证据三表；调用新增工具关联、脱敏参数、结果摘要、证据集合及独立 Attempt 状态，拒绝和缓存调用允许没有 attempt_id。版本内容补充模型字段白名单和适用环境，继续复用公共版本/发布/引用存储。调用与证据声明清理类型，缓存仅存 Redis 并受完整授权及来源删除屏障约束。字段定义冻结在 `modules/tools/baseline_v0010.json`；新表不回填其他模块数据。
+
+## 2026-10-02 · 方案 11
+
+新增 `0011_runs` 与运行冻结基线：落地运行、幂等、投递、步骤、尝试、事件、租约及 checkpoint，新增 `run_contents`、`run_recoveries`、`run_occupancies`。运行增加稳定身份、冻结执行策略、deadline 来源、事件序号与释放标记；幂等补充管理操作者范围；投递和租约均记录代次。`0019_parallel_runs` 汇合同期迁移分支。完整验收见 [运行验证](../runs-validation.md)。
+
+## 2026-10-02：14 MCP 连接与工具发现
+
+实现 `mcp_connections`、`mcp_checks`、`mcp_discoveries`、`mcp_imports`，迁移 `0014_mcp`。连接补配置/凭据修订、当前测试有效性、健康阈值与检查租约、原授权成员/数据域；快照补协商协议与凭据版本；导入补本地固定输入、影响类型、可读名称及契约可用状态。导入与 10 的草稿、版本、来源关联在同一短事务写入，重复导入按渠道、环境、连接、快照、远端名加锁处理。字段清单与实现冻结在 MCP 模块档案及 `baseline_v0014.json`，执行记录见 [MCP 交接](../mcp.md)。
+
+## 18 业务接入与身份委托实现 / 2026-10-02
+
+`0018_integrations` 落实业务连接、委托密钥和契约测试三表，新增 `delegation_nonces` 防重放与已验签身份来源。连接与测试补齐数据域；连接固定适配器编码、单项能力路径与字段映射。委托密钥补齐 issuer、最长有效期、时钟容差、生效时间及轮换来源；复用 credentials 密文，不复用渠道 API Key。nonce 记录绑定 client_id、请求摘要、完整声明摘要与验签后的 Scope，最少保留 24 小时。字段冻结在 `modules/integrations/baseline_v0018.json`，新表无历史回填。公共 AuthContext/IdentitySource 增加可选 delegation_id，旧管理及测试上下文保持兼容。
+
+## 方案 15 技能包实现
+
+- `0015_skills` 实现技能资源、文件清单和加载测试；冻结定义在 `modules/skills/baseline_v0015.json`。
+- 文件清单新增 `unavailable_reason`，区分脚本禁执行与不支持格式；所有文件指向不可变归档产物。
+- 技能版本内容增加入口兼容元数据、哈希清单、归档产物、可移植工具声明和互斥规则组。具体依赖仍由公共版本与引用表保存。
+- 加载测试增加 `context_snapshot`；`run_id` 与 `release_snapshot_id` 可空，仅本地加载验证时不伪造运行或发布快照。
+
+## 2026-10-02：12 会话管理
+
+`0012_conversations` 接在 `0019_parallel_runs` 后，实现五张会话表及共享 `deletion_jobs`。增加固定 Agent 编码/名称、主体名称、保存期限、消息与轮次序号、不可变输入和版本契约、普通追问来源及已确认条件、摘要生成来源和截断记录、实际上下文来源。字段冻结在 `modules/conversations/baseline_v0012.json`，删除任务归属仍为 25，交接见 [会话管理](../conversations.md)。

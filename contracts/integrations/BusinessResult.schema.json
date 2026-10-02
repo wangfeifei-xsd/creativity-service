@@ -1,0 +1,83 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "contract_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "operation": {
+      "enum": [
+        "dictionary",
+        "candidates",
+        "quote",
+        "recheck",
+        "risk_facts",
+        "policies",
+        "metric_catalog",
+        "metric_results"
+      ],
+      "title": "Operation",
+      "type": "string"
+    },
+    "source_request_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Source Request Id",
+      "type": "string"
+    },
+    "source_version": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Source Version",
+      "type": "string"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "title": "Observed At",
+      "type": "string"
+    },
+    "items": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "has_more": {
+      "title": "Has More",
+      "type": "boolean"
+    },
+    "cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cursor"
+    },
+    "coverage": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Coverage",
+      "type": "string"
+    }
+  },
+  "required": [
+    "operation",
+    "source_request_id",
+    "source_version",
+    "observed_at",
+    "items",
+    "has_more",
+    "coverage"
+  ],
+  "title": "BusinessResult",
+  "type": "object"
+}

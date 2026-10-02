@@ -1,0 +1,12 @@
+{
+  "example_only": true,
+  "candidates": [
+    {
+      "display_name": null,
+      "price": null,
+      "unit": null,
+      "availability_checked_at": null,
+      "evidence_ref": null
+    }
+  ]
+}

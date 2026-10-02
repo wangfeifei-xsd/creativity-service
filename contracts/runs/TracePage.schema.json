@@ -1,0 +1,35 @@
+{
+  "$defs": {
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "properties": {
+    "items": {
+      "items": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": "object"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "next_sequence": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Sequence"
+    }
+  },
+  "required": [
+    "items",
+    "next_sequence"
+  ],
+  "title": "TracePage",
+  "type": "object"
+}

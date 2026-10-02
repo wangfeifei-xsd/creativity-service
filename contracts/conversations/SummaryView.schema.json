@@ -1,0 +1,52 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "summary_id": {
+      "title": "Summary Id",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "integer"
+    },
+    "content": {
+      "title": "Content",
+      "type": "string"
+    },
+    "source_message_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Message Ids",
+      "type": "array"
+    },
+    "source_sequences": {
+      "items": {
+        "type": "integer"
+      },
+      "title": "Source Sequences",
+      "type": "array"
+    },
+    "truncation": {
+      "additionalProperties": true,
+      "title": "Truncation",
+      "type": "object"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "summary_id",
+    "version",
+    "content",
+    "source_message_ids",
+    "source_sequences",
+    "truncation",
+    "created_at"
+  ],
+  "title": "SummaryView",
+  "type": "object"
+}

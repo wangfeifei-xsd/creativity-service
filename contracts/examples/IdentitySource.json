@@ -19,6 +19,7 @@
   "success": {
     "actor_id": null,
     "client_id": "client_demo",
+    "delegation_id": null,
     "key_id": "key_demo",
     "principal_id": "client_demo",
     "scope": {

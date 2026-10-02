@@ -1,0 +1,50 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "method": {
+      "enum": [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "HEAD"
+      ],
+      "title": "Method",
+      "type": "string"
+    },
+    "target": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "pattern": "^/api/v1/",
+      "title": "Target",
+      "type": "string"
+    },
+    "body_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Body Sha256",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Idempotency Key"
+    }
+  },
+  "required": [
+    "method",
+    "target",
+    "body_sha256"
+  ],
+  "title": "RequestBinding",
+  "type": "object"
+}

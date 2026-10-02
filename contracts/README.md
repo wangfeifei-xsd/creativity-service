@@ -29,3 +29,13 @@ Money 以十进制字符串传输，numeric(24,8) 保存，禁止客户端浮点
 08 的 AttemptPlan、ReservationReceipt 和管理查询结构由 `modules/usage/export.py` 导出至 `contracts/usage/`，供 11/17 内部受信调用使用。03 UsageEvent 继续复用原样例。渠道 UsageView 的 Token 字段现在允许 null，新增暂估费用和完整性字段；消费者需使用缺失展示，见 [08 交接](../docs/usage.md)。
 
 07 的 FrozenModel、DebugExecution、TestCompletion、ModelRequest 和 ModelEvent 由 `modules/models/export.py` 导出至 `contracts/models/`，供 16/17 内部受信调用使用。ModelEvent 保留供应商请求标识和发送边界；原始 usage 及缓存子集样例见 [models/usage-examples.json](models/usage-examples.json)，执行、取消和版本复核约定见 [07 交接](../docs/models.md)。
+
+`contracts/runs/` 为 11 的独立交接契约，包含待 17 挂载的运行 OpenAPI、受理回执、租约、轨迹及服务端冻结定义。`ResolvedDefinition` 仅供内部解析器使用，不接受 HTTP 上传。通过 `python -m creativity_service.modules.runs.export --check` 核验。
+
+业务接入 1.0.0 契约位于 `integrations/`：版本化 OpenAPI、主体委托/请求绑定、实体/事实/指标 schema、稳定错误表和 Python/JavaScript 签名向量。调用约定与职责见 [业务接入交接](../docs/integrations.md)。生成与核对入口：`python -m creativity_service.modules.integrations.export [--check]`。
+
+MCP 的发现、差异及草稿导入契约位于 `contracts/mcp/`，由 `python -m creativity_service.modules.mcp.export` 生成，`--check` 已进入 `make check`。连接管理以主 OpenAPI 为准，执行继续使用 `contracts/tools/` 的统一入口。
+
+技能包契约位于 `skills/`：固定依赖摘要、内部加载请求、加载结果、可移植设置及加载测试快照。运行授权字段只由 16/17 受信服务构造，不作为业务请求参数。导出命令为 `python -m creativity_service.modules.skills.export`；加载语义与边界见 [技能交接](../docs/skills.md)。
+
+会话契约位于 `conversations/`，HTTP 路由同时进入主 OpenAPI。`ConversationRunRequest` 与 `SelectedContext` 为 12/17 内部交接对象，客户端只提交 `MessageInput`。导出及过期核对：`python -m creativity_service.modules.conversations.export [--check]`；语义见 [会话交接](../docs/conversations.md)。

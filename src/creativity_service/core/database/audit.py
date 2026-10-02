@@ -13,7 +13,12 @@ from sqlalchemy.schema import CreateIndex, CreateTable
 
 from creativity_service.core.database.tables import BASELINE
 from creativity_service.modules.channels.tables import BASELINE as CHANNEL_BASELINE
+from creativity_service.modules.conversations.tables import BASELINE as CONVERSATION_BASELINE
 from creativity_service.modules.iam.tables import BASELINE as IAM_BASELINE
+from creativity_service.modules.integrations.tables import BASELINE as INTEGRATION_BASELINE
+from creativity_service.modules.mcp.tables import BASELINE as MCP_BASELINE
+from creativity_service.modules.runs.tables import BASELINE as RUN_BASELINE
+from creativity_service.modules.skills.tables import BASELINE as SKILL_BASELINE
 from creativity_service.modules.tools.tables import BASELINE as TOOL_BASELINE
 from creativity_service.modules.usage.tables import BASELINE as USAGE_BASELINE
 from creativity_service.storage import metadata
@@ -133,6 +138,20 @@ def audit_catalog(root: Path) -> list[str]:
         failures.append("工具模块归档与冻结实现不一致")
     if [t for t in catalog["tables"] if t["revision"] == "0004_usage"] != USAGE_BASELINE:
         failures.append("用量模块归档与冻结实现不一致")
+    if [t for t in catalog["tables"] if t["revision"] == "0014_mcp"] != MCP_BASELINE:
+        failures.append("MCP 模块归档与冻结实现不一致")
+    if [t for t in catalog["tables"] if t["revision"] == "0015_skills"] != SKILL_BASELINE:
+        failures.append("技能模块归档与冻结实现不一致")
+    if [t for t in catalog["tables"] if t["revision"] == "0011_runs"] != RUN_BASELINE:
+        failures.append("运行模块归档与冻结实现不一致")
+    if [
+        t for t in catalog["tables"] if t["revision"] == "0012_conversations"
+    ] != CONVERSATION_BASELINE:
+        failures.append("会话模块归档与冻结实现不一致")
+    if [
+        t for t in catalog["tables"] if t["revision"] == "0018_integrations"
+    ] != INTEGRATION_BASELINE:
+        failures.append("业务接入归档与冻结实现不一致")
     for table in catalog["tables"]:
         if table["module"] not in catalog["modules"] or "channel_id" not in [
             c["name"] for c in table["columns"]

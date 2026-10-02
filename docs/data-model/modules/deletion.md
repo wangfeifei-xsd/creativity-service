@@ -4,7 +4,7 @@
 
 ## deletion_jobs
 
-删除传播任务。状态：设计基线；归属：主体；迁移：由所属方案新增。
+删除传播任务。状态：已实现；归属：主体；迁移：0012_conversations。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -22,8 +22,9 @@
 | `affected_resources` | `jsonb` | 影响引用清单 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `state` | `varchar(32)` | 清理状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `completed_at` | `timestamptz` | 完成时间 | 否 | 服务层校验后的业务输入 | 内部 |
+| `conversation_id` | `varchar(64)` | 删除目标会话 | 否 | 服务层校验后的业务输入 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, state, created_at)`。
+普通索引：`(channel_id, id)`；`(channel_id, state, created_at)`；`(channel_id, conversation_id)`。
 
 ## deletion_work_items
 

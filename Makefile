@@ -16,9 +16,14 @@ check:
 	uv run pytest -m 'not integration'
 	uv run creativity-openapi --check
 	uv run python -m creativity_service.core.contracts.export --check
+	uv run python -m creativity_service.modules.integrations.export --check
 	uv run python -m creativity_service.modules.channels.export --check
 	uv run python -m creativity_service.modules.usage.export --check
+	uv run python -m creativity_service.modules.skills.export --check
 	uv run python -m creativity_service.modules.tools.export --check
+	uv run python -m creativity_service.modules.mcp.export --check
+	uv run python -m creativity_service.modules.runs.export --check
+	uv run python -m creativity_service.modules.conversations.export --check
 	uv run python -m creativity_service.modules.prompts.export --check
 	uv run python -m creativity_service.modules.models.export --check
 	uv run python scripts/render_data_model.py --check
@@ -49,9 +54,14 @@ infra-down:
 
 contracts:
 	uv run python -m creativity_service.core.contracts.export
+	uv run python -m creativity_service.modules.integrations.export
 	uv run python -m creativity_service.modules.channels.export
 	uv run python -m creativity_service.modules.usage.export
+	uv run python -m creativity_service.modules.skills.export
 	uv run python -m creativity_service.modules.tools.export
+	uv run python -m creativity_service.modules.mcp.export
+	uv run python -m creativity_service.modules.runs.export
+	uv run python -m creativity_service.modules.conversations.export
 	uv run python -m creativity_service.modules.prompts.export
 	uv run python -m creativity_service.modules.models.export
 	uv run creativity-openapi

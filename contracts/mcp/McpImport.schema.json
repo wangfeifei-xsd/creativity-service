@@ -1,0 +1,73 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "import_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Import Id",
+      "type": "string"
+    },
+    "discovery_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Discovery Id",
+      "type": "string"
+    },
+    "remote_tool_name": {
+      "title": "Remote Tool Name",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "local_tool_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Local Tool Id",
+      "type": "string"
+    },
+    "imported_version": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Imported Version",
+      "type": "string"
+    },
+    "schema_hash": {
+      "title": "Schema Hash",
+      "type": "string"
+    },
+    "available": {
+      "title": "Available",
+      "type": "boolean"
+    },
+    "unavailable_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Unavailable Reason"
+    }
+  },
+  "required": [
+    "import_id",
+    "discovery_id",
+    "remote_tool_name",
+    "name",
+    "local_tool_id",
+    "imported_version",
+    "schema_hash",
+    "available",
+    "unavailable_reason"
+  ],
+  "title": "McpImport",
+  "type": "object"
+}

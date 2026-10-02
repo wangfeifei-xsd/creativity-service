@@ -21,12 +21,17 @@ from creativity_service.core.infrastructure import Infrastructure
 from creativity_service.core.observability import configure_logging, create_tracer_provider
 from creativity_service.core.services import build_core_services
 from creativity_service.modules.channels.assembly import build_channel_services
+from creativity_service.modules.conversations.assembly import build_conversation_service
+from creativity_service.modules.integrations.assembly import build_integration_services
+from creativity_service.modules.mcp.assembly import build_mcp_service
 from creativity_service.modules.models.assembly import build_model_services
 from creativity_service.modules.prompts.api import register_prompt_errors
 from creativity_service.modules.prompts.assembly import (
     build_prompt_service,
     register_prompt_cleanup,
 )
+from creativity_service.modules.runs.assembly import build_run_service
+from creativity_service.modules.skills.assembly import build_skill_service, register_skill_cleanup
 from creativity_service.modules.tools.assembly import build_tool_services, register_tool_cleanup
 from creativity_service.modules.usage.assembly import build_usage_services
 
@@ -35,8 +40,20 @@ class PlatformAPI(FastAPI):
     def openapi(self) -> dict[str, Any]:
         if self.openapi_schema is None:
             schema = get_openapi(title=self.title, version=self.version, routes=self.routes)
-            for path in schema["paths"].values():
+            for path_name, path in schema["paths"].items():
                 for operation in path.values():
+                    if path_name.startswith("/api/v1/") and path_name != "/api/v1/auth/token":
+                        operation.setdefault("parameters", []).append(
+                            {
+                                "name": "X-Business-Delegation",
+                                "in": "header",
+                                "required": True,
+                                "description": (
+                                    "业务后端签发并绑定实际请求的 business-delegation-v1 委托"
+                                ),
+                                "schema": {"type": "string", "maxLength": 16384},
+                            }
+                        )
                     for response in operation.get("responses", {}).values():
                         response.setdefault("headers", {})["X-Request-ID"] = {
                             "description": "请求标识",
@@ -95,11 +112,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             redis=infrastructure.redis_clients["redis_cache"],
             prefix=settings.redis_key_prefix,
         )
+        app.state.skills = build_skill_service(
+            infrastructure.engine,
+            app.state.iam.authorization,
+            S3ObjectStore(infrastructure.s3, infrastructure.bucket),
+            app.state.tools.management,
+        )
         app.state.usage = build_usage_services(
             infrastructure.engine,
             app.state.channels.channels,
             S3ObjectStore(infrastructure.s3, infrastructure.bucket),
         )
+        app.state.mcp = build_mcp_service(
+            infrastructure.engine, app.state.iam.authorization, app.state.tools
+        )
+        app.state.integrations = build_integration_services(
+            infrastructure.engine, app.state.iam.authorization
+        )
+        app.state.delegation = app.state.integrations.delegation
         app.state.authentication = app.state.iam.authentication
         app.state.core = build_core_services(
             infrastructure.engine,
@@ -112,12 +142,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         register_tool_cleanup(
             app.state.core.cleanup, infrastructure.engine, app.state.iam.authorization
         )
+        register_skill_cleanup(app.state.core.cleanup, app.state.skills)
         app.state.usage.exports.register_cleanup(app.state.core.cleanup)
         app.state.models = build_model_services(
             infrastructure.engine,
             app.state.iam,
             cleanup=app.state.core.cleanup,
             prices=app.state.usage.prices,
+        )
+        app.state.runs = build_run_service(
+            infrastructure.engine,
+            app.state.iam,
+            app.state.core.versions,
+            app.state.usage.budgets,
+            app.state.usage.ledger,
+            cleanup=app.state.core.cleanup,
+        )
+        app.state.conversations = build_conversation_service(
+            infrastructure.engine,
+            app.state.iam.authorization,
+            app.state.runs,
+            S3ObjectStore(infrastructure.s3, infrastructure.bucket),
+            app.state.core.cleanup,
         )
         try:
             yield

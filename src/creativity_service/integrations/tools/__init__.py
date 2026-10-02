@@ -1,5 +1,6 @@
 """受控工具适配端口和显式注册表，不执行上传代码。"""
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -40,6 +41,7 @@ class AdapterRequest:
     arguments: dict[str, Any]
     attempt_id: str
     definition: ToolDefinition
+    run_id: str | None = None
 
 
 class ToolAdapter(Protocol):
@@ -77,6 +79,18 @@ class AdapterRegistration:
 class AdapterRegistry:
     def __init__(self) -> None:
         self._items: dict[tuple[str | None, str | None, str], AdapterRegistration] = {}
+        self._resolvers: list[Callable[[Scope, ToolBinding], AdapterRegistration | None]] = []
+        self.binding_checks: list[Callable[[AuthContext, ToolDefinition], Awaitable[None]]] = []
+
+    async def check_binding(self, context: AuthContext, definition: ToolDefinition) -> None:
+        for check in self.binding_checks:
+            await check(context, definition)
+
+    def register_resolver(
+        self, resolver: Callable[[Scope, ToolBinding], AdapterRegistration | None]
+    ) -> None:
+        """持久化连接按固定绑定解析；解析器须在调用前核验当前配置与权限。"""
+        self._resolvers.append(resolver)
 
     def register(self, item: AdapterRegistration) -> None:
         if item.source_type != "builtin" and (not item.channel_id or not item.environment):
@@ -92,6 +106,11 @@ class AdapterRegistry:
         item = self._items.get((scope.channel_id, scope.environment, binding.adapter_key))
         if item is None:
             item = self._items.get((None, None, binding.adapter_key))
+        if item is None:
+            for resolver in self._resolvers:
+                item = resolver(scope, binding)
+                if item is not None:
+                    break
         if item is None or not item.active:
             raise ServiceError("TOOL_UNAVAILABLE", "工具连接未登记或已停用", 503)
         if (
