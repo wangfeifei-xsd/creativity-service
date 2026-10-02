@@ -6533,7 +6533,7 @@
           "name": "data_scope_id",
           "type": "varchar(64)",
           "comment": "业务数据域标识",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -6541,7 +6541,7 @@
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -6549,7 +6549,7 @@
           "name": "subject_id",
           "type": "varchar(128)",
           "comment": "业务主体编号",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "个人"
         },
@@ -6581,7 +6581,7 @@
           "name": "value",
           "type": "jsonb",
           "comment": "记忆值",
-          "required": true,
+          "required": false,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
         },
@@ -6608,6 +6608,46 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "confirmed",
+          "type": "boolean",
+          "comment": "是否经过明确确认",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "observed_at",
+          "type": "timestamptz",
+          "comment": "最新有效依据时间",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "trust_level",
+          "type": "integer",
+          "comment": "有效来源可信等级",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "usage_count",
+          "type": "bigint",
+          "comment": "实际使用次数",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "subject_name",
+          "type": "varchar(255)",
+          "comment": "主体可读名称",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "个人"
         }
       ],
       "indexes": [
@@ -6625,8 +6665,8 @@
           "status"
         ]
       ],
-      "status": "设计基线",
-      "revision": null,
+      "status": "已实现",
+      "revision": "0013_memory",
       "scope": "主体",
       "control_purpose": null,
       "content": true
@@ -6688,7 +6728,7 @@
           "name": "data_scope_id",
           "type": "varchar(64)",
           "comment": "业务数据域标识",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -6696,7 +6736,7 @@
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -6704,7 +6744,7 @@
           "name": "subject_id",
           "type": "varchar(128)",
           "comment": "业务主体编号",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "个人"
         },
@@ -6752,7 +6792,7 @@
           "name": "evidence_id",
           "type": "varchar(64)",
           "comment": "证据标识",
-          "required": true,
+          "required": false,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
         },
@@ -6760,6 +6800,22 @@
           "name": "status",
           "type": "varchar(32)",
           "comment": "来源状态",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "authority",
+          "type": "varchar(32)",
+          "comment": "来源权限类型",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "trust_level",
+          "type": "integer",
+          "comment": "来源可信等级",
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
@@ -6773,10 +6829,19 @@
         [
           "channel_id",
           "memory_id"
+        ],
+        [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id",
+          "source_type",
+          "source_id"
         ]
       ],
-      "status": "设计基线",
-      "revision": null,
+      "status": "已实现",
+      "revision": "0013_memory",
       "scope": "主体",
       "control_purpose": null,
       "content": true
@@ -6838,7 +6903,7 @@
           "name": "data_scope_id",
           "type": "varchar(64)",
           "comment": "业务数据域标识",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -6846,7 +6911,7 @@
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -6854,7 +6919,7 @@
           "name": "subject_id",
           "type": "varchar(128)",
           "comment": "业务主体编号",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "个人"
         },
@@ -6877,8 +6942,8 @@
         {
           "name": "value",
           "type": "jsonb",
-          "comment": "该版本记忆值",
-          "required": true,
+          "comment": "历史内容空槽位，不保存原文",
+          "required": false,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
         },
@@ -6897,6 +6962,30 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "version_number",
+          "type": "integer",
+          "comment": "版本序号",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "status",
+          "type": "varchar(32)",
+          "comment": "变更后状态",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "source_ids",
+          "type": "jsonb",
+          "comment": "有效来源记录集合",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -6910,8 +6999,8 @@
           "created_at"
         ]
       ],
-      "status": "设计基线",
-      "revision": null,
+      "status": "已实现",
+      "revision": "0013_memory",
       "scope": "主体",
       "control_purpose": null,
       "content": true
@@ -6973,7 +7062,7 @@
           "name": "data_scope_id",
           "type": "varchar(64)",
           "comment": "业务数据域标识",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -6981,7 +7070,7 @@
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -6989,7 +7078,7 @@
           "name": "subject_id",
           "type": "varchar(128)",
           "comment": "业务主体编号",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "个人"
         },
@@ -7023,8 +7112,8 @@
           "subject_id"
         ]
       ],
-      "status": "设计基线",
-      "revision": null,
+      "status": "已实现",
+      "revision": "0013_memory",
       "scope": "主体",
       "control_purpose": null,
       "content": false
@@ -7121,6 +7210,30 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "read_enabled",
+          "type": "boolean",
+          "comment": "是否允许读取",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "suggest_enabled",
+          "type": "boolean",
+          "comment": "是否允许建议写入",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "failure_mode",
+          "type": "varchar(16)",
+          "comment": "读取故障处理方式",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -7133,8 +7246,8 @@
           "agent_id"
         ]
       ],
-      "status": "设计基线",
-      "revision": null,
+      "status": "已实现",
+      "revision": "0013_memory",
       "scope": "渠道",
       "control_purpose": null,
       "content": false
@@ -7196,7 +7309,7 @@
           "name": "data_scope_id",
           "type": "varchar(64)",
           "comment": "业务数据域标识",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -7204,7 +7317,7 @@
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -7212,7 +7325,7 @@
           "name": "subject_id",
           "type": "varchar(128)",
           "comment": "业务主体编号",
-          "required": false,
+          "required": true,
           "source": "受信服务上下文",
           "sensitivity": "个人"
         },
@@ -7239,6 +7352,22 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "warnings",
+          "type": "jsonb",
+          "comment": "脱敏降级提示",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "agent_id",
+          "type": "varchar(64)",
+          "comment": "使用记忆的智能体",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -7251,8 +7380,8 @@
           "run_id"
         ]
       ],
-      "status": "设计基线",
-      "revision": null,
+      "status": "已实现",
+      "revision": "0013_memory",
       "scope": "主体",
       "control_purpose": null,
       "content": true
@@ -14895,6 +15024,135 @@
           "channel_id",
           "environment",
           "retain_until"
+        ]
+      ]
+    },
+    {
+      "name": "memory_deletion_jobs",
+      "module": "memory",
+      "comment": "主体记忆删除清理意图",
+      "status": "已实现",
+      "scope": "主体",
+      "revision": "0013_memory",
+      "control_purpose": null,
+      "columns": [
+        {
+          "name": "id",
+          "type": "varchar(64)",
+          "comment": "记录标识",
+          "required": true,
+          "source": "服务端随机标识",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "channel_id",
+          "type": "varchar(64)",
+          "comment": "所属渠道标识",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "comment": "创建时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "comment": "更新时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "comment": "并发修订号",
+          "required": true,
+          "source": "服务层递增",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "environment",
+          "type": "varchar(16)",
+          "comment": "所属环境",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "data_scope_id",
+          "type": "varchar(64)",
+          "comment": "业务数据域标识",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "subject_type",
+          "type": "varchar(64)",
+          "comment": "业务主体类型",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "subject_id",
+          "type": "varchar(128)",
+          "comment": "业务主体编号",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "个人"
+        },
+        {
+          "name": "memory_ids",
+          "type": "jsonb",
+          "comment": "待清理记忆标识集合",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "state",
+          "type": "varchar(32)",
+          "comment": "清理进度",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamptz",
+          "comment": "完成时间",
+          "required": false,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "kind",
+          "type": "varchar(16)",
+          "comment": "单项遗忘或主体清空",
+          "required": true,
+          "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        }
+      ],
+      "indexes": [
+        [
+          "channel_id",
+          "id"
+        ],
+        [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id",
+          "state"
         ]
       ]
     }

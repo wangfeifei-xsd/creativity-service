@@ -42,6 +42,9 @@ ACTION_NAMES = {
     "conversation:read": "查看会话",
     "conversation:write": "管理会话与发言",
     "memory:read": "查看记忆",
+    "memory:write": "确认与修正记忆",
+    "memory:delete": "遗忘与清空记忆",
+    "memory:preferences": "管理长期记忆开关",
     "credential:write": "管理连接凭据",
     "credential:use": "使用连接凭据",
     "content:derive": "生成派生内容",
@@ -115,6 +118,8 @@ ROLE_ACTIONS = {
             "conversation:read",
             "conversation:write",
             "memory:read",
+            "memory:write",
+            "memory:preferences",
             "artifact:download",
         }
     ),

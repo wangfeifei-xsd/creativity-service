@@ -48,3 +48,5 @@ Python 3.12 + FastAPI，API 与 Celery Worker 分进程运行。使用 uv 0.10.1
 业务接入、独立 HMAC 身份委托、源服务配置与 19/20 接口交接见 [业务接入交接](docs/integrations.md)，专项验证见 [18 验证记录](docs/integrations-validation.md)。
 
 会话生命周期、消息与运行事务、上下文来源、删除意图及页面见 [12 会话交接](docs/conversations.md)。迁移为 `0012_conversations`，正式模型与 SSE 仍由 17 装配。
+
+结构化记忆、完整 Scope 属性检索、来源重算与管理页面见 [13 记忆交接](docs/memory.md)；专项验收见 [验证记录](docs/memory-validation.md)。新增迁移 `0013_memory`；真实运行调用由 17 装配，全图删除与恢复由 25 组合验收。

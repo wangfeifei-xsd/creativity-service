@@ -9,6 +9,8 @@ from creativity_service.modules.conversations.api import router as conversations
 from creativity_service.modules.iam.api import router as iam_router
 from creativity_service.modules.integrations.api import router as integrations_router
 from creativity_service.modules.mcp.api import router as mcp_router
+from creativity_service.modules.memory.api import admin_router as memory_admin_router
+from creativity_service.modules.memory.api import router as memory_router
 from creativity_service.modules.models.api import router as models_router
 from creativity_service.modules.prompts.api import router as prompts_router
 from creativity_service.modules.skills.api import router as skills_router
@@ -42,3 +44,7 @@ admin_router.include_router(integrations_router)
 
 admin_router.include_router(conversations_router)
 api_router.include_router(conversations_router)
+
+admin_router.include_router(memory_router)
+admin_router.include_router(memory_admin_router)
+api_router.include_router(memory_router)

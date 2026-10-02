@@ -23,6 +23,7 @@ check:
 	uv run python -m creativity_service.modules.tools.export --check
 	uv run python -m creativity_service.modules.mcp.export --check
 	uv run python -m creativity_service.modules.runs.export --check
+	uv run python -m creativity_service.modules.memory.export --check
 	uv run python -m creativity_service.modules.conversations.export --check
 	uv run python -m creativity_service.modules.prompts.export --check
 	uv run python -m creativity_service.modules.models.export --check
@@ -61,6 +62,7 @@ contracts:
 	uv run python -m creativity_service.modules.tools.export
 	uv run python -m creativity_service.modules.mcp.export
 	uv run python -m creativity_service.modules.runs.export
+	uv run python -m creativity_service.modules.memory.export
 	uv run python -m creativity_service.modules.conversations.export
 	uv run python -m creativity_service.modules.prompts.export
 	uv run python -m creativity_service.modules.models.export

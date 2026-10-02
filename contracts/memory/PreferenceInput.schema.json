@@ -1,0 +1,20 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "enabled": {
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "revision": {
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "enabled",
+    "revision"
+  ],
+  "title": "PreferenceInput",
+  "type": "object"
+}

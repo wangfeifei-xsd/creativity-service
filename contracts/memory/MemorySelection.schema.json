@@ -1,0 +1,61 @@
+{
+  "$defs": {
+    "MemoryRef": {
+      "additionalProperties": false,
+      "properties": {
+        "memory_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Memory Id",
+          "type": "string"
+        },
+        "version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Version Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "memory_id",
+        "version_id"
+      ],
+      "title": "MemoryRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "队列与缓存只携带引用；加载时仍须核对运行归属和当前状态。",
+  "properties": {
+    "retrieval_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Retrieval Id",
+      "type": "string"
+    },
+    "refs": {
+      "items": {
+        "$ref": "#/$defs/MemoryRef"
+      },
+      "title": "Refs",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "retrieval_id",
+    "refs",
+    "warnings"
+  ],
+  "title": "MemorySelection",
+  "type": "object"
+}

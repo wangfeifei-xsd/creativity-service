@@ -1,0 +1,64 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "allowed_types": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Allowed Types",
+      "type": "array"
+    },
+    "read_enabled": {
+      "default": true,
+      "title": "Read Enabled",
+      "type": "boolean"
+    },
+    "suggest_enabled": {
+      "default": true,
+      "title": "Suggest Enabled",
+      "type": "boolean"
+    },
+    "write_mode": {
+      "default": "EXPLICIT",
+      "enum": [
+        "DISABLED",
+        "CANDIDATE",
+        "EXPLICIT"
+      ],
+      "title": "Write Mode",
+      "type": "string"
+    },
+    "ttl_seconds": {
+      "default": 15552000,
+      "maximum": 31536000,
+      "minimum": 60,
+      "title": "Ttl Seconds",
+      "type": "integer"
+    },
+    "max_items": {
+      "default": 100,
+      "maximum": 1000,
+      "minimum": 1,
+      "title": "Max Items",
+      "type": "integer"
+    },
+    "retrieval_limit": {
+      "default": 10,
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Retrieval Limit",
+      "type": "integer"
+    },
+    "failure_mode": {
+      "default": "OMIT",
+      "enum": [
+        "OMIT",
+        "FAIL"
+      ],
+      "title": "Failure Mode",
+      "type": "string"
+    }
+  },
+  "title": "MemoryPolicy",
+  "type": "object"
+}

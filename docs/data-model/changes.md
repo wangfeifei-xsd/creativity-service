@@ -48,3 +48,7 @@
 ## 2026-10-02：12 会话管理
 
 `0012_conversations` 接在 `0019_parallel_runs` 后，实现五张会话表及共享 `deletion_jobs`。增加固定 Agent 编码/名称、主体名称、保存期限、消息与轮次序号、不可变输入和版本契约、普通追问来源及已确认条件、摘要生成来源和截断记录、实际上下文来源。字段冻结在 `modules/conversations/baseline_v0012.json`，删除任务归属仍为 25，交接见 [会话管理](../conversations.md)。
+
+## 2026-10-02：13 结构化记忆管理
+
+`0013_memory` 接在 `0012_conversations` 后，落地六张记忆表及主体级 `memory_deletion_jobs`。新增确认依据、来源等级、观测时间、使用次数、版本状态与序号、读取/建议开关、降级策略和检索 warnings；清理意图记录单项/清空范围，用于阻断旧运行回写。所有主体记录要求完整 Scope。历史 `value` 只保留显式空槽位，不保存可恢复的已改/已删原文。工具调用的既有 `result_summary` JSON 增加 `data_digest`，用于校验事实确实来自已登记结果，不存工具原文。冻结模型见 `modules/memory/baseline_v0013.json`，无需历史数据回填。交接见 [结构化记忆管理](../memory.md)。

@@ -168,6 +168,7 @@ class ToolRepository:
                         "has_more": result.has_more,
                         "observed_at": result.observed_at.isoformat(),
                         "source_version": result.source_version,
+                        "data_digest": digest(result.data),
                     }
                     if result
                     else None

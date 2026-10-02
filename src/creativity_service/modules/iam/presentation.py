@@ -101,6 +101,7 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
         "agent": ("智能体", "agent:manage"),
         "skill": ("技能", "skill:manage"),
         "conversation": ("会话", "conversation:write"),
+        "memory": ("记忆", "memory:write"),
     }
     for kind, (name, action) in resource_types.items():
         if action in allowed and not any(

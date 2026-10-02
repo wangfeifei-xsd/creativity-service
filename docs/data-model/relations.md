@@ -60,3 +60,7 @@
 ## 12 会话及来源关系
 
 会话固定完整身份范围与 Agent；轮次关联用户/助手消息及唯一有效 run，每轮保留其发布版本和契约。conversation→message/run/artifact/context、message→summary/context、summary→context 通过公共来源图登记；受控附件作为消息来源，既有独立产物不因被引用而改变归属。普通追问保存 source_run_id 及 confirmed_conditions。删除共享 deletion_jobs 保存来源图影响，先访问屏障，再由 25 完成关联传播。
+
+## 13 实现补充
+
+记忆的当前值由 `memory_sources` 独立来源集合支撑；消息/证据通过公共来源图指向记忆，来源检查采用“至少一个有效依据”，剔除失效边后再检查派生对象。版本只保存变更元信息和来源引用。`memory_deletion_jobs` 与记忆共享完整主体范围，遗忘和清空的时间边界同时约束已排队候选；25 消费清理意图后负责全图及恢复核对。

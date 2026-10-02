@@ -42,6 +42,7 @@ NAVIGATION = (
     ("mcp-connections", "MCP 连接", "mcp:manage"),
     ("runs", "运行记录", "run:read"),
     ("conversations", "会话管理", "conversation:read"),
+    ("memories", "记忆管理", "memory:read"),
     ("usage", "用量", "usage:read"),
 )
 

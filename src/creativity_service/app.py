@@ -24,6 +24,7 @@ from creativity_service.modules.channels.assembly import build_channel_services
 from creativity_service.modules.conversations.assembly import build_conversation_service
 from creativity_service.modules.integrations.assembly import build_integration_services
 from creativity_service.modules.mcp.assembly import build_mcp_service
+from creativity_service.modules.memory.assembly import build_memory_service
 from creativity_service.modules.models.assembly import build_model_services
 from creativity_service.modules.prompts.api import register_prompt_errors
 from creativity_service.modules.prompts.assembly import (
@@ -164,6 +165,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.runs,
             S3ObjectStore(infrastructure.s3, infrastructure.bucket),
             app.state.core.cleanup,
+        )
+        app.state.memory = build_memory_service(
+            infrastructure.engine, app.state.iam.authorization, app.state.core.cleanup
         )
         try:
             yield

@@ -17,6 +17,7 @@ from creativity_service.modules.conversations.tables import BASELINE as CONVERSA
 from creativity_service.modules.iam.tables import BASELINE as IAM_BASELINE
 from creativity_service.modules.integrations.tables import BASELINE as INTEGRATION_BASELINE
 from creativity_service.modules.mcp.tables import BASELINE as MCP_BASELINE
+from creativity_service.modules.memory.tables import BASELINE as MEMORY_BASELINE
 from creativity_service.modules.runs.tables import BASELINE as RUN_BASELINE
 from creativity_service.modules.skills.tables import BASELINE as SKILL_BASELINE
 from creativity_service.modules.tools.tables import BASELINE as TOOL_BASELINE
@@ -152,6 +153,8 @@ def audit_catalog(root: Path) -> list[str]:
         t for t in catalog["tables"] if t["revision"] == "0018_integrations"
     ] != INTEGRATION_BASELINE:
         failures.append("业务接入归档与冻结实现不一致")
+    if [t for t in catalog["tables"] if t["revision"] == "0013_memory"] != MEMORY_BASELINE:
+        failures.append("记忆模块归档与冻结实现不一致")
     for table in catalog["tables"]:
         if table["module"] not in catalog["modules"] or "channel_id" not in [
             c["name"] for c in table["columns"]

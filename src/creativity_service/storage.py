@@ -8,6 +8,7 @@ from creativity_service.modules.conversations.tables import metadata as conversa
 from creativity_service.modules.iam.tables import metadata as iam_metadata
 from creativity_service.modules.integrations.tables import metadata as integration_metadata
 from creativity_service.modules.mcp.tables import metadata as mcp_metadata
+from creativity_service.modules.memory.tables import metadata as memory_metadata
 from creativity_service.modules.models.tables import metadata as model_metadata
 from creativity_service.modules.prompts.tables import metadata as prompt_metadata
 from creativity_service.modules.runs.tables import metadata as run_metadata
@@ -17,6 +18,7 @@ from creativity_service.modules.usage.tables import metadata as usage_metadata
 
 metadata = MetaData()
 for source in (
+    memory_metadata,
     conversation_metadata,
     integration_metadata,
     model_metadata,

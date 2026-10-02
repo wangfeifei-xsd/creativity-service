@@ -1,0 +1,112 @@
+{
+  "$defs": {
+    "JsonValue": {},
+    "LoadedMemory": {
+      "additionalProperties": false,
+      "properties": {
+        "memory_id": {
+          "title": "Memory Id",
+          "type": "string"
+        },
+        "version_id": {
+          "title": "Version Id",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "memory_type": {
+          "title": "Memory Type",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/MemorySourceView"
+          },
+          "title": "Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "memory_id",
+        "version_id",
+        "key",
+        "display_name",
+        "memory_type",
+        "value",
+        "sources"
+      ],
+      "title": "LoadedMemory",
+      "type": "object"
+    },
+    "MemorySourceView": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "source_type_label": {
+          "title": "Source Type Label",
+          "type": "string"
+        },
+        "source_version": {
+          "title": "Source Version",
+          "type": "string"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "source_type_label",
+        "source_version",
+        "observed_at"
+      ],
+      "title": "MemorySourceView",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/LoadedMemory"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    },
+    "required_tool_keys": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Required Tool Keys",
+      "type": "array"
+    }
+  },
+  "required": [
+    "items",
+    "warnings",
+    "required_tool_keys"
+  ],
+  "title": "MemoryLoad",
+  "type": "object"
+}
