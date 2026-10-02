@@ -4034,6 +4034,60 @@
                 }
               }
             }
+          },
+          "410": {
+            "description": "Gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -4043,7 +4097,8 @@
         "tags": [
           "任务运行"
         ],
-        "summary": "Admit",
+        "summary": "创建统一运行",
+        "description": "sync 最多等待 15 秒；窗口内终结返回 200，否则返回原运行的 202。async/stream 返回 202。相同逻辑请求重发沿用原幂等键，每次均重新授权。",
         "operationId": "admit_api_v1_runs_post",
         "security": [
           {
@@ -4085,19 +4140,11 @@
         },
         "responses": {
           "202": {
-            "description": "Successful Response",
+            "description": "已受理，使用原 run_id 查询或订阅",
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/AdmissionReceipt"
-                    },
-                    {
-                      "$ref": "#/components/schemas/ResultEnvelope"
-                    }
-                  ],
-                  "title": "Response Admit Api V1 Runs Post"
+                  "$ref": "#/components/schemas/AdmissionReceipt"
                 }
               }
             },
@@ -4290,7 +4337,62 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "200": {
+            "description": "同步窗口内已终结，须检查 state 和 error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4298,7 +4400,6 @@
                 }
               }
             },
-            "description": "OK",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -4343,6 +4444,24 @@
               "default": 0,
               "title": "After Sequence"
             }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "最后已处理的事件序号；优先于 after_sequence",
+              "title": "Last-Event-Id"
+            },
+            "description": "最后已处理的事件序号；优先于 after_sequence"
           },
           {
             "name": "X-Business-Delegation",
@@ -4551,7 +4670,50 @@
             }
           },
           "410": {
-            "description": "事件已过期",
+            "description": "事件已过期，查询原运行快照",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -4795,6 +4957,60 @@
                 }
               }
             }
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -5022,6 +5238,60 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",

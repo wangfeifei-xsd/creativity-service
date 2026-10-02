@@ -56,3 +56,5 @@
 删除时先在同一事务持有会话、内容图及关联运行锁，提交删除标记、`DELETING`、在途取消和 `PENDING` 清理任务。读取、发言、上下文恢复及受控文件立即拒绝。清理器 `conversation/message/summary/context` 已登记；运行清理继续使用 11 的 `run` 清理器。会话本地原文清除后进入 `WAITING_PROPAGATION`，不会提前报告完成。25 负责派发与重试共享任务、清理 checkpoint/缓存/关联记忆及文件，核验来源图后把任务置为 `COMPLETED`、会话置为 `DELETED`；该组合验收不计为本单元已完成。
 
 前端入口为 `/conversations`，支持列表筛选、创建、版本与消息时间线、结果、取消、标题、归档/恢复、删除预览和独立进度页、附件与导出。未终结运行每三秒刷新持久化快照，保留正在填写的消息；删除进度每五秒刷新。真实 SSE 组件继续由 17 装配。
+
+22 已用真实服务 Token 和主体委托验证会话创建、消息幂等、运行、导出及下载撤权；渠道服务的可选权限补齐 `conversation:write/content:derive`，见 [接入指南](unified-api.md) 与 [验证记录](unified-api-validation.md)。

@@ -52,9 +52,10 @@ pytestmark = [
 
 
 @pytest.fixture
-async def business_env(runtime_env):
+async def business_env(runtime_env, request):
     env = runtime_env
     actions = ["run:create", "run:read", "run:content", "data:read_sensitive"]
+    actions += getattr(request, "param", [])
     client = await env.services.channels.create_client(
         env.tenant.manager,
         env.context.scope.channel_id,
@@ -132,7 +133,18 @@ async def business_env(runtime_env):
             actions=actions,
             resources={
                 kind: ["*"]
-                for kind in ("agent", "model", "model_route", "prompt", "tool", "run", "skill")
+                for kind in (
+                    "agent",
+                    "model",
+                    "model_route",
+                    "prompt",
+                    "tool",
+                    "run",
+                    "skill",
+                    "conversation",
+                    "artifact",
+                    "content",
+                )
             },
             issuer="source.example",
             audience="creativity-api",

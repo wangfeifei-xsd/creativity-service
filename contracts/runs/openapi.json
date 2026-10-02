@@ -10,7 +10,8 @@
         "tags": [
           "任务运行"
         ],
-        "summary": "Admit",
+        "summary": "创建统一运行",
+        "description": "sync 最多等待 15 秒；窗口内终结返回 200，否则返回原运行的 202。async/stream 返回 202。相同逻辑请求重发沿用原幂等键，每次均重新授权。",
         "operationId": "admit_api_v1_runs_post",
         "security": [
           {
@@ -42,32 +43,24 @@
         },
         "responses": {
           "202": {
-            "description": "Successful Response",
+            "description": "已受理，使用原 run_id 查询或订阅",
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/AdmissionReceipt"
-                    },
-                    {
-                      "$ref": "#/components/schemas/ResultEnvelope"
-                    }
-                  ],
-                  "title": "Response Admit Api V1 Runs Post"
+                  "$ref": "#/components/schemas/AdmissionReceipt"
                 }
               }
             }
           },
           "200": {
+            "description": "同步窗口内已终结，须检查 state 和 error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResultEnvelope"
                 }
               }
-            },
-            "description": "OK"
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -114,6 +107,24 @@
               "default": 0,
               "title": "After Sequence"
             }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "最后已处理的事件序号；优先于 after_sequence",
+              "title": "Last-Event-Id"
+            },
+            "description": "最后已处理的事件序号；优先于 after_sequence"
           }
         ],
         "responses": {
@@ -124,7 +135,14 @@
             }
           },
           "410": {
-            "description": "事件已过期"
+            "description": "事件已过期，查询原运行快照",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -265,6 +283,24 @@
               "default": 0,
               "title": "After Sequence"
             }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "最后已处理的事件序号；优先于 after_sequence",
+              "title": "Last-Event-Id"
+            },
+            "description": "最后已处理的事件序号；优先于 after_sequence"
           }
         ],
         "responses": {
@@ -275,7 +311,14 @@
             }
           },
           "410": {
-            "description": "事件已过期"
+            "description": "事件已过期，查询原运行快照",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -980,6 +1023,52 @@
         ],
         "title": "BusinessResult"
       },
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "供程序处理的稳定错误标识"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "可供界面展示的中文错误说明"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "字段错误列表"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorDetail"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id",
+            "description": "对应响应头 X-Request-ID 的请求标识"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error",
+          "request_id"
+        ],
+        "title": "ErrorResponse"
+      },
       "EvidenceLocation": {
         "properties": {
           "field_path": {
@@ -1102,6 +1191,36 @@
           "authorized_actions"
         ],
         "title": "EvidenceRef"
+      },
+      "FieldError": {
+        "properties": {
+          "path": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Path",
+            "description": "表单字段路径，不包含传输位置前缀"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "可供界面展示的中文错误说明"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "message"
+        ],
+        "title": "FieldError"
       },
       "HTTPValidationError": {
         "properties": {

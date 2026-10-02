@@ -32678,6 +32678,18 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "description": "原始文件字节，最多 20 MB；委托摘要绑定实际字节，非 multipart",
+          "required": true
+        },
         "responses": {
           "201": {
             "content": {
@@ -32914,7 +32926,15 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "文件字节，Content-Type 为文件实际类型，下载重新检查当前授权",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -58202,6 +58222,24 @@
               "title": "After Sequence",
               "type": "integer"
             }
+          },
+          {
+            "description": "最后已处理的事件序号；优先于 after_sequence",
+            "in": "header",
+            "name": "Last-Event-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "最后已处理的事件序号；优先于 after_sequence",
+              "title": "Last-Event-Id"
+            }
           }
         ],
         "responses": {
@@ -58328,7 +58366,14 @@
             }
           },
           "410": {
-            "description": "事件已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "事件已过期，查询原运行快照",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -70747,6 +70792,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -70801,6 +70864,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -70810,6 +70891,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -70971,6 +71070,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -71025,6 +71142,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -71034,6 +71169,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -71318,6 +71471,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -71372,6 +71543,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -71381,6 +71570,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -71552,6 +71759,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -71606,6 +71831,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -71615,6 +71858,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -71787,6 +72048,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -71841,6 +72120,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -71850,6 +72147,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -72020,6 +72335,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -72074,6 +72407,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -72083,6 +72434,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -72263,6 +72632,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -72317,6 +72704,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -72326,6 +72731,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -72498,6 +72921,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -72552,6 +72993,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -72561,6 +73020,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -72617,6 +73094,18 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "description": "原始文件字节，最多 20 MB；委托摘要绑定实际字节，非 multipart",
+          "required": true
+        },
         "responses": {
           "201": {
             "content": {
@@ -72744,6 +73233,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -72798,6 +73305,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -72807,6 +73332,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -72863,7 +73406,15 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "文件字节，Content-Type 为文件实际类型，下载重新检查当前授权",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -72981,6 +73532,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -73035,6 +73604,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -73044,6 +73631,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -73216,6 +73821,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -73270,6 +73893,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -73279,6 +73920,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -73451,6 +74110,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -73505,6 +74182,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -73514,6 +74209,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -73714,6 +74427,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -73768,6 +74499,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -73777,6 +74526,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -73957,6 +74724,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -74011,6 +74796,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -74020,6 +74823,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -74192,6 +75013,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -74246,6 +75085,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -74255,6 +75112,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -74436,6 +75311,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -74490,6 +75383,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -74499,6 +75410,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -74680,6 +75609,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -74734,6 +75681,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -74743,6 +75708,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -74915,6 +75898,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -74969,6 +75970,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -74978,6 +75997,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -75217,6 +76254,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -75271,6 +76326,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -75280,6 +76353,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -75467,6 +76558,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -75521,6 +76630,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -75530,6 +76657,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -75709,6 +76854,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -75763,6 +76926,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -75772,6 +76953,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -75944,6 +77143,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -75998,6 +77215,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -76007,6 +77242,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -76177,6 +77430,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -76231,6 +77502,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -76240,6 +77529,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -76420,6 +77727,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -76474,6 +77799,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -76483,6 +77826,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -76665,6 +78026,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -76719,6 +78098,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -76728,6 +78125,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -76900,6 +78315,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -76954,6 +78387,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -76963,6 +78414,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -77142,6 +78611,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -77196,6 +78683,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -77205,6 +78710,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -77392,6 +78915,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -77446,6 +78987,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -77455,6 +79014,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -77478,6 +79055,7 @@
     },
     "/api/v1/runs": {
       "post": {
+        "description": "sync 最多等待 15 秒；窗口内终结返回 200，否则返回原运行的 202。async/stream 返回 202。相同逻辑请求重发沿用原幂等键，每次均重新授权。",
         "operationId": "admit_api_v1_runs_post",
         "parameters": [
           {
@@ -77521,7 +79099,7 @@
                 }
               }
             },
-            "description": "OK",
+            "description": "同步窗口内已终结，须检查 state 和 error",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -77535,19 +79113,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/AdmissionReceipt"
-                    },
-                    {
-                      "$ref": "#/components/schemas/ResultEnvelope"
-                    }
-                  ],
-                  "title": "Response Admit Api V1 Runs Post"
+                  "$ref": "#/components/schemas/AdmissionReceipt"
                 }
               }
             },
-            "description": "Successful Response",
+            "description": "已受理，使用原 run_id 查询或订阅",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -77665,6 +79235,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -77719,6 +79307,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -77736,6 +79342,24 @@
                 }
               }
             }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -77743,7 +79367,7 @@
             "PlatformToken": []
           }
         ],
-        "summary": "Admit",
+        "summary": "创建统一运行",
         "tags": [
           "任务运行"
         ]
@@ -77900,6 +79524,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -77954,6 +79596,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -77963,6 +79623,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -78135,6 +79813,24 @@
               }
             }
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "422": {
             "content": {
               "application/json": {
@@ -78189,6 +79885,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -78198,6 +79912,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -78241,6 +79973,24 @@
               "minimum": 0,
               "title": "After Sequence",
               "type": "integer"
+            }
+          },
+          {
+            "description": "最后已处理的事件序号；优先于 after_sequence",
+            "in": "header",
+            "name": "Last-Event-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "最后已处理的事件序号；优先于 after_sequence",
+              "title": "Last-Event-Id"
             }
           },
           {
@@ -78378,7 +80128,14 @@
             }
           },
           "410": {
-            "description": "事件已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "事件已过期，查询原运行快照",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",
@@ -78442,6 +80199,24 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -78451,6 +80226,24 @@
               }
             },
             "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout",
             "headers": {
               "X-Request-ID": {
                 "description": "请求标识",

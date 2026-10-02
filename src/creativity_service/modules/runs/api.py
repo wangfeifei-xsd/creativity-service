@@ -8,6 +8,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from starlette.responses import StreamingResponse
 
+from creativity_service.api.errors import ErrorResponse
 from creativity_service.core.context import AuthContext, require_http_context
 from creativity_service.core.contracts import ResultEnvelope
 from creativity_service.modules.runs.assembly import require_runs
@@ -37,7 +38,18 @@ def service(request: Request) -> RunService:
 Runs = Annotated[RunService, Depends(service)]
 
 
-@router.post("", status_code=202, responses={200: {"model": ResultEnvelope}})
+@router.post(
+    "",
+    status_code=202,
+    response_model=None,
+    summary="创建统一运行",
+    description="sync 最多等待 15 秒；窗口内终结返回 200，否则返回原运行的 202。"
+    "async/stream 返回 202。相同逻辑请求重发沿用原幂等键，每次均重新授权。",
+    responses={
+        200: {"model": ResultEnvelope, "description": "同步窗口内已终结，须检查 state 和 error"},
+        202: {"model": AdmissionReceipt, "description": "已受理，使用原 run_id 查询或订阅"},
+    },
+)
 async def admit(
     body: RunRequest, key: Key, context: Context, runs: Runs, request: Request, response: Response
 ) -> AdmissionReceipt | ResultEnvelope:
@@ -58,12 +70,18 @@ async def admit(
 @router.get(
     "/{run_id}/events",
     response_class=StreamingResponse,
-    responses={200: {"content": {"text/event-stream": {}}}, 410: {"description": "事件已过期"}},
+    responses={
+        200: {"content": {"text/event-stream": {}}},
+        410: {"model": ErrorResponse, "description": "事件已过期，查询原运行快照"},
+    },
 )
 @admin_router.get(
     "/{run_id}/events",
     response_class=StreamingResponse,
-    responses={200: {"content": {"text/event-stream": {}}}, 410: {"description": "事件已过期"}},
+    responses={
+        200: {"content": {"text/event-stream": {}}},
+        410: {"model": ErrorResponse, "description": "事件已过期，查询原运行快照"},
+    },
 )
 async def events(
     run_id: str,
@@ -71,6 +89,10 @@ async def events(
     runs: Runs,
     request: Request,
     after_sequence: Annotated[int, Query(ge=0)] = 0,
+    _last_event_id: Annotated[
+        str | None,
+        Header(alias="Last-Event-ID", description="最后已处理的事件序号；优先于 after_sequence"),
+    ] = None,
 ) -> StreamingResponse:
     return await event_stream(request, context, runs, run_id, after_sequence)
 

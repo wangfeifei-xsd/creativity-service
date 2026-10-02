@@ -56,3 +56,5 @@ Python 3.12 + FastAPI，API 与 Celery Worker 分进程运行。使用 uv 0.10.1
 20 的 MCP 配置接入、当前主体复核、两套受控测试服务和迁移 `0021_mcp_subject_review` 见 [配置交接](docs/mcp-business.md)。
 
 21 已交付可移植 Skills、显式 MCP 工具绑定、参考资料加载和两套 Agent 配置，见 [配置交接](docs/configuration-delivery.md) 与 [验证记录](docs/configuration-validation.md)。正式发布继续受评测门禁控制。
+
+22 已交付统一后端客户端、业务接口 OpenAPI 与实际 TCP MCP 调用证据，见 [接入指南](docs/unified-api.md)、[可运行样例](examples/backend/README.md) 和 [验证记录](docs/unified-api-validation.md)。

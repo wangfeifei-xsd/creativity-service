@@ -1,6 +1,6 @@
 # 18 业务接入与身份委托交接
 
-2026-10-02 增量：渠道分类、显式映射、通用流程及旧 HTTP 兼容处理已由 [19](access-decoupling.md) 交付；下文保留原单元交付说明。当前接入契约使用 `contracts/integrations/openapi-v1.1.json`。
+2026-10-02 增量：渠道分类、显式映射、通用流程及旧 HTTP 兼容处理已由 [19](access-decoupling.md) 交付；下文保留原单元交付说明。身份委托及旧协议兼容契约使用 `contracts/integrations/openapi-v1.1.json`。22 的统一运行、会话及产物接口以 [统一 API 接入指南](unified-api.md) 和 `contracts/backend/openapi-v1.json` 为准。
 
 执行日期：2026-10-02。依据 [执行方案 18](../../代码编写执行方案/18-业务接入与身份委托.md)；公共规则引用 [rule.md](../../rule.md)。本文记录 18 在旧需求 v0.6 下交付的公共协议、服务与页面。按 v0.7 边界，领域工具改由业务 MCP 提供；19/20 负责旧协议兼容与通用主体复核，22/23/26 验证统一 API 及业务无关接入。本文的标准 HTTP 领域协议为既有实现说明，不是新增业务的必选接口。
 
@@ -54,7 +54,7 @@ Worker 当前需要注入 `CurrentSubjectReader`，后续由 20 提供可配置�
 
 服务端环境变量 `CREATIVITY_BUSINESS_KEY_VERSION`、`CREATIVITY_BUSINESS_ENCRYPTION_KEYS` 配置加密主密钥版本与 Base64 的 32 字节密钥字典；HMAC 密钥由管理接口生成，与这些加密主密钥不同。`CREATIVITY_BUSINESS_DESTINATIONS` 为出站白名单，字段沿用公共 Destination：channel_id、environment、purpose=http_tool、hostname、scheme、port、path_prefix 及必要的 allowed_networks。未配置时拒绝保存/调用目标，不提供生产默认秘密。
 
-业务后端示例 [business_backend.py](examples/business_backend.py) 展示 Token 缓存、换取、签名、提交、查询、订阅及取消；业务前端只请求自己的后端。正常断网重试沿用原委托、正文及幂等键，401 最多换 Token 重试一次。SSE 使用 Authorization 请求头，恢复时携带游标并重签实际请求路径；完整流协议由 17 实现、26 联调。
+业务后端可运行示例已由 22 统一交付到 [examples/backend](../examples/backend/README.md)，旧 `docs/examples/business_backend.py` 仅保留导出入口。每次发送或重连重新读取当前主体并签署实际请求，网络重发沿用原正文和幂等键；401 最多换一次 Token。SSE 使用 Authorization 请求头和 `after_sequence` 游标，过期事件回查原运行。业务前端只请求自己的后端。
 
 版本化接口为 [openapi-v1.json](../contracts/integrations/openapi-v1.json)；独立实体/事实/指标 schema 位于同目录。运行路由在离线契约中复用 11 的待装配 router（实际挂载仍归 17），后续 17 补充 SSE 后重新生成，不复制一份项目专用实现。执行 `python -m creativity_service.modules.integrations.export --check` 校验交付物。
 

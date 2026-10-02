@@ -39,3 +39,5 @@ MCP 的发现、差异及草稿导入契约位于 `contracts/mcp/`，由 `python
 技能包契约位于 `skills/`：固定依赖摘要、内部加载请求、加载结果、可移植设置及加载测试快照。运行授权字段只由 16/17 受信服务构造，不作为业务请求参数。导出命令为 `python -m creativity_service.modules.skills.export`；加载语义与边界见 [技能交接](../docs/skills.md)。
 
 会话契约位于 `conversations/`，HTTP 路由同时进入主 OpenAPI。`ConversationRunRequest` 与 `SelectedContext` 为 12/17 内部交接对象，客户端只提交 `MessageInput`。导出及过期核对：`python -m creativity_service.modules.conversations.export [--check]`；语义见 [会话交接](../docs/conversations.md)。
+
+22 的 `backend/openapi-v1.json` 从正式 `/api/v1` 路由裁剪，覆盖 Token、运行/SSE、会话与产物。通过 `uv run creativity-openapi --backend` 生成，`--backend --check` 校验；已纳入 `make contracts/openapi/check` 对应目标。签名仍采用 integrations 目录的版本化协议和向量。

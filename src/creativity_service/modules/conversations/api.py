@@ -153,7 +153,19 @@ async def deletion(
     return await conversations.deletion(context, deletion_id)
 
 
-@router.post("/conversations/{conversation_id}/attachments", status_code=201)
+@router.post(
+    "/conversations/{conversation_id}/attachments",
+    status_code=201,
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "description": "原始文件字节，最多 20 MB；委托摘要绑定实际字节，非 multipart",
+            "content": {
+                "application/octet-stream": {"schema": {"type": "string", "format": "binary"}}
+            },
+        }
+    },
+)
 async def upload(
     conversation_id: str,
     request: Request,
@@ -176,7 +188,16 @@ async def upload(
 
 
 @router.get(
-    "/conversations/{conversation_id}/attachments/{artifact_id}/content", response_class=Response
+    "/conversations/{conversation_id}/attachments/{artifact_id}/content",
+    response_class=Response,
+    responses={
+        200: {
+            "description": "文件字节，Content-Type 为文件实际类型，下载重新检查当前授权",
+            "content": {
+                "application/octet-stream": {"schema": {"type": "string", "format": "binary"}}
+            },
+        }
+    },
 )
 async def download(
     conversation_id: str, artifact_id: str, context: Context, conversations: Conversations

@@ -69,3 +69,5 @@ Key 和 system 中受限身份索引同事务提交。未认证的 Token 交换�
 [channels 契约目录](../contracts/channels/) 单独导出 LifecycleEvent、UsageQuery 和 UsageView，`make check` 核验其一致性。服务不会因尚未接入运行、用量或委托模块而允许未经授权的业务执行。
 
 06 已完成上述页面交接及真实浏览器开通至归档流程，见 [06 交接与验证](workspace.md)。
+
+22 为业务后端会话与派生产物补齐可选服务动作 `conversation:write`、`content:derive`。管理员须显式授予接入服务和 Key，主体委托及源身份复核同时允许才可调用；已有凭据不自动扩权。完整动作组合见 [统一 API 接入指南](unified-api.md)。

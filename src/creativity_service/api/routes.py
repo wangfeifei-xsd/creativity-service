@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from creativity_service.api.artifacts import router as artifact_router
+from creativity_service.api.errors import ErrorResponse
 from creativity_service.modules.agents.api import router as agents_router
 from creativity_service.modules.channels.api import auth_router
 from creativity_service.modules.channels.api import router as channels_router
@@ -24,7 +25,9 @@ ADMIN_PREFIX = "/admin/v1"
 API_PREFIX = "/api/v1"
 
 admin_router = APIRouter(prefix=ADMIN_PREFIX)
-api_router = APIRouter(prefix=API_PREFIX)
+api_router = APIRouter(
+    prefix=API_PREFIX, responses={status: {"model": ErrorResponse} for status in (410, 502, 504)}
+)
 
 admin_router.include_router(artifact_router)
 admin_router.include_router(iam_router)

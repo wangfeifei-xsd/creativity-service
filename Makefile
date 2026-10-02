@@ -15,6 +15,7 @@ check:
 	uv run mypy
 	uv run pytest -m 'not integration'
 	uv run creativity-openapi --check
+	uv run creativity-openapi --backend --check
 	uv run python -m creativity_service.core.contracts.export --check
 	uv run python -m creativity_service.modules.integrations.export --check
 	uv run python -m creativity_service.modules.channels.export --check
@@ -43,6 +44,7 @@ integration:
 
 openapi:
 	uv run creativity-openapi
+	uv run creativity-openapi --backend
 
 migrate:
 	uv run alembic upgrade head
@@ -69,6 +71,7 @@ contracts:
 	uv run python -m creativity_service.modules.prompts.export
 	uv run python -m creativity_service.modules.models.export
 	uv run creativity-openapi
+	uv run creativity-openapi --backend
 
 model-check:
 	uv run python scripts/render_data_model.py --check

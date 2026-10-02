@@ -17,7 +17,7 @@ data: {"run_id":"run_example","sequence":7,"event_type":"text_delta","payload":{
 
 ```
 
-示例 scope 简写；实际响应始终携带原始完整范围。accepted、step_started、text_delta、tool_status、result、error、completed 使用相同帧结构。text_delta 仅是未验证内容；只有 result 事件包含通过 schema 的 BusinessResult，completed 标记技术终态。步骤/尝试标识用于关联，不作为页面名称。
+示例 scope 简写；实际响应始终携带原始完整范围。accepted、step_started、text_delta、tool_status、result、error、completed 使用相同帧结构。模型路由声明并验证 streaming 能力时才生成 text_delta，delivery 不改变已冻结的模型能力。text_delta 仅是未验证内容；只有 result 事件包含通过 schema 的 BusinessResult，completed 标记技术终态。步骤/尝试标识用于关联，不作为页面名称。
 
 ## 重连与失效
 
@@ -34,3 +34,5 @@ data: {"code":"AUTH_EXPIRED","message":"请重新认证","status":401,"snapshot_
 Redis 认证故障同样控制关闭，status=503；权限撤销或删除返回对应错误类别。控制事件不是可重放的运行事件，不占用序号。重新认证后可查询或重连原运行。HTTP/SSE 断线和访问 Token 自然到期都不会触发取消；取消必须显式调用 cancel。
 
 响应使用 `Content-Type: text/event-stream`、`Cache-Control: no-store`、`X-Accel-Buffering: no`。客户端实现位于 `src/api/event-stream.ts`，覆盖 UTF-8 分片、CRLF、多行 data、去重、断线游标和控制关闭。
+
+22 的独立后端客户端见 [examples/backend](../examples/backend/README.md)，支持换 Token、重新签名、逐帧解析、游标去重和过期快照回查；接入流程见 [统一 API 指南](unified-api.md)。
