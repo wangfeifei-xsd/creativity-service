@@ -1230,6 +1230,13 @@
             "title": "Environment Label",
             "type": "string"
           },
+          "legacy_templates": {
+            "items": {
+              "$ref": "#/components/schemas/AgentTemplate"
+            },
+            "title": "Legacy Templates",
+            "type": "array"
+          },
           "templates": {
             "items": {
               "$ref": "#/components/schemas/AgentTemplate"
@@ -3304,12 +3311,18 @@
         "additionalProperties": false,
         "properties": {
           "business_type": {
-            "enum": [
-              "gamerental",
-              "playmate"
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Business Type",
-            "type": "string"
+            "description": "可选业务分类，仅用于展示",
+            "title": "Business Type"
           },
           "channel_code": {
             "maxLength": 64,
@@ -3370,7 +3383,6 @@
           "channel_code",
           "name",
           "owner",
-          "business_type",
           "first_admin_user_id",
           "environment",
           "data_scope"
@@ -3389,6 +3401,8 @@
             "type": "array"
           },
           "business_types": {
+            "deprecated": true,
+            "description": "兼容字段；分类为可选自由文本",
             "items": {
               "$ref": "#/components/schemas/NamedOption"
             },
@@ -3413,7 +3427,6 @@
         "required": [
           "accounts",
           "environments",
-          "business_types",
           "independent_actions"
         ],
         "title": "ChannelCreateOptions",
@@ -3633,12 +3646,26 @@
             "title": "Archived At"
           },
           "business_type": {
-            "title": "Business Type",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Type"
           },
           "business_type_name": {
-            "title": "Business Type Name",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Type Name"
           },
           "channel_code": {
             "title": "Channel Code",
@@ -4861,10 +4888,8 @@
             "type": "string"
           },
           "external_scope_type": {
-            "enum": [
-              "default",
-              "club"
-            ],
+            "maxLength": 64,
+            "minLength": 1,
             "title": "External Scope Type",
             "type": "string"
           },
@@ -4964,8 +4989,15 @@
             "type": "string"
           },
           "external_scope_type_name": {
-            "title": "External Scope Type Name",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Scope Type Name"
           },
           "name": {
             "title": "Name",
@@ -5070,6 +5102,23 @@
           "signing_secret"
         ],
         "title": "DelegationKeyIssued",
+        "type": "object"
+      },
+      "DelegationKeyOptions": {
+        "additionalProperties": false,
+        "properties": {
+          "clients": {
+            "items": {
+              "$ref": "#/components/schemas/NamedOption"
+            },
+            "title": "Clients",
+            "type": "array"
+          }
+        },
+        "required": [
+          "clients"
+        ],
+        "title": "DelegationKeyOptions",
         "type": "object"
       },
       "DelegationKeyRotate": {
@@ -6296,10 +6345,8 @@
             "type": "string"
           },
           "external_scope_type": {
-            "enum": [
-              "default",
-              "club"
-            ],
+            "maxLength": 64,
+            "minLength": 1,
             "title": "External Scope Type",
             "type": "string"
           },
@@ -6381,6 +6428,7 @@
       },
       "IntegrationCreate": {
         "additionalProperties": false,
+        "description": "旧 HTTP 业务协议的兼容配置；新业务工具使用 MCP 连接与发现。",
         "properties": {
           "adapter_code": {
             "maxLength": 128,
@@ -34707,6 +34755,220 @@
         ]
       }
     },
+    "/admin/v1/delegation-keys/options": {
+      "get": {
+        "operationId": "key_options_admin_v1_delegation_keys_options_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegationKeyOptions"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Key Options",
+        "tags": [
+          "业务接入"
+        ]
+      }
+    },
     "/admin/v1/delegation-keys/{kid}/revoke": {
       "post": {
         "operationId": "revoke_admin_v1_delegation_keys__kid__revoke_post",
@@ -35404,6 +35666,7 @@
     },
     "/admin/v1/integration-credentials": {
       "post": {
+        "deprecated": true,
         "operationId": "credential_admin_v1_integration_credentials_post",
         "requestBody": {
           "content": {
@@ -35628,6 +35891,7 @@
     },
     "/admin/v1/integrations": {
       "get": {
+        "deprecated": true,
         "operationId": "integrations_admin_v1_integrations_get",
         "responses": {
           "200": {
@@ -35840,6 +36104,7 @@
         ]
       },
       "post": {
+        "deprecated": true,
         "operationId": "create_admin_v1_integrations_post",
         "requestBody": {
           "content": {
@@ -36064,6 +36329,7 @@
     },
     "/admin/v1/integrations/options": {
       "get": {
+        "deprecated": true,
         "operationId": "options_admin_v1_integrations_options_get",
         "responses": {
           "200": {
@@ -36278,6 +36544,7 @@
     },
     "/admin/v1/integrations/{integration_id}": {
       "get": {
+        "deprecated": true,
         "operationId": "detail_admin_v1_integrations__integration_id__get",
         "parameters": [
           {
@@ -36501,6 +36768,7 @@
         ]
       },
       "patch": {
+        "deprecated": true,
         "operationId": "edit_admin_v1_integrations__integration_id__patch",
         "parameters": [
           {
@@ -36736,6 +37004,7 @@
     },
     "/admin/v1/integrations/{integration_id}/capabilities": {
       "get": {
+        "deprecated": true,
         "operationId": "capabilities_admin_v1_integrations__integration_id__capabilities_get",
         "parameters": [
           {
@@ -36965,6 +37234,7 @@
     },
     "/admin/v1/integrations/{integration_id}/tests": {
       "get": {
+        "deprecated": true,
         "operationId": "tests_admin_v1_integrations__integration_id__tests_get",
         "parameters": [
           {
@@ -37192,6 +37462,7 @@
         ]
       },
       "post": {
+        "deprecated": true,
         "operationId": "test_admin_v1_integrations__integration_id__tests_post",
         "parameters": [
           {

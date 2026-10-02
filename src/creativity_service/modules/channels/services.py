@@ -370,7 +370,6 @@ class ChannelService:
                 "VALIDATION_ERROR", "渠道编码须以字母开头，使用小写字母、数字、下划线或短横线", 422
             )
         self.validate_mapping(
-            body.business_type,
             body.data_scope.external_scope_type,
             body.data_scope.external_scope_id,
         )
@@ -417,7 +416,7 @@ class ChannelService:
                     "channel_code": code,
                     "name": clean_name(body.name),
                     "owner": clean_name(body.owner),
-                    "business_type": body.business_type,
+                    "business_type": clean_name(body.business_type) if body.business_type else None,
                     "status": "ACTIVE",
                     "archived_at": None,
                     "retention_policy": body.retention_policy.model_dump(),
@@ -461,12 +460,17 @@ class ChannelService:
         return self.channel_view(row, session)
 
     @staticmethod
-    def validate_mapping(business_type: str, kind: str, external_id: str) -> None:
-        if (business_type == "gamerental" and (kind, external_id) != ("default", "default")) or (
-            business_type == "playmate"
-            and (kind != "club" or not external_id.strip() or external_id != external_id.strip())
+    def validate_mapping(kind: str, external_id: str) -> None:
+        # 映射是源系统的精确身份，不规范化、不补默认值，避免不同编号合并授权。
+        if any(
+            not value
+            or value != value.strip()
+            or any(unicodedata.category(c) == "Cc" for c in value)
+            for value in (kind, external_id)
         ):
-            raise ServiceError("INVALID_MAPPING", "租号使用默认业务域，陪玩须填写俱乐部映射", 422)
+            raise ServiceError(
+                "INVALID_MAPPING", "外部数据域类型和编号不能为空或含首尾空白、控制字符", 422
+            )
 
     def channel_view(
         self, row: dict[str, Any], session: AdminSession, actions: set[str] | None = None
@@ -480,7 +484,7 @@ class ChannelService:
             name=row["name"],
             owner=row["owner"],
             business_type=row["business_type"],
-            business_type_name=BUSINESS_NAMES[row["business_type"]],
+            business_type_name=BUSINESS_NAMES.get(row["business_type"], row["business_type"]),
             status=row["status"],
             status_label=STATUS_LABELS[row["status"]],
             created_at=row["created_at"],
@@ -657,9 +661,9 @@ class ChannelService:
         return DataScopeView(
             data_scope_id=row["id"],
             environment_name=env["name"] if env else None,
-            external_scope_type_name="俱乐部"
-            if row["external_scope_type"] == "club"
-            else "默认业务域",
+            external_scope_type_name={"club": "俱乐部", "default": "默认业务域"}.get(
+                row["external_scope_type"]
+            ),
             status_label=STATUS_LABELS[row["status"]],
             **{
                 k: row[k]
@@ -698,15 +702,13 @@ class ChannelService:
                 channel_id, body.administrator_id, domain_id
             )
         async with transaction(self.repository.engine, fresh_scope, keys) as uow:
-            channel = await self.locked(uow, session, "data_scope:manage")
+            await self.locked(uow, session, "data_scope:manage")
             env = await required(
                 uow.connection, "channel_environments", channel_id, environment=body.environment
             )
             if env["status"] != "ACTIVE":
                 raise ServiceError("ENVIRONMENT_DISABLED", "环境已停用", 403)
-            self.validate_mapping(
-                channel["business_type"], body.external_scope_type, body.external_scope_id
-            )
+            self.validate_mapping(body.external_scope_type, body.external_scope_id)
             if await one(
                 uow.connection,
                 "data_scopes",

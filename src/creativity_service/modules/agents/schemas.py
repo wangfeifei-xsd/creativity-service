@@ -288,6 +288,7 @@ class AgentTemplate(Contract):
 
 class AgentOptions(Contract):
     templates: list[AgentTemplate]
+    legacy_templates: list[AgentTemplate] = Field(default_factory=list)
     dependencies: list[AgentDependency]
     environment: Environment
     environment_label: str

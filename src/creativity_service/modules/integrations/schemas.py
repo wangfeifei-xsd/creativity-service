@@ -8,6 +8,8 @@ from creativity_service.integrations.business.base import Capability, Operation
 
 
 class IntegrationCreate(Contract):
+    """旧 HTTP 业务协议的兼容配置；新业务工具使用 MCP 连接与发现。"""
+
     name: str = Field(min_length=1, max_length=128)
     adapter_code: Identifier
     adapter_version: str = Field(min_length=1, max_length=64)
@@ -60,6 +62,10 @@ class AdapterOption(Contract):
 class NamedOption(Contract):
     value: str
     label: str
+
+
+class DelegationKeyOptions(Contract):
+    clients: list[NamedOption]
 
 
 class IntegrationOptions(Contract):

@@ -15,7 +15,7 @@ from creativity_service.core.locking import record_key
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, new_id, unavailable, utcnow
 from creativity_service.core.security.credentials import CredentialService, KeyProvider
-from creativity_service.modules.channels.repositories import required
+from creativity_service.modules.channels.repositories import required, rows
 from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.integrations.authorization import require_management
@@ -27,8 +27,10 @@ from creativity_service.modules.integrations.repositories import (
 from creativity_service.modules.integrations.schemas import (
     DelegationKeyCreate,
     DelegationKeyIssued,
+    DelegationKeyOptions,
     DelegationKeyRotate,
     DelegationKeyView,
+    NamedOption,
 )
 
 
@@ -91,6 +93,26 @@ class DelegationKeys:
                 if set(client["data_scopes"]) <= set(member.data_scopes):
                     visible.append(row)
         return [await self.view(context, row) for row in visible]
+
+    async def options(self, context: AuthContext) -> DelegationKeyOptions:
+        """委托凭据只依赖接入服务授权，不依赖旧 HTTP 连接或能力目录。"""
+        await self.require(context)
+        member = await self.authorization.authentication.active_member(context)
+        async with self.engine.connect() as connection:
+            clients = await rows(
+                connection,
+                "service_clients",
+                context.scope.channel_id,
+                environment=context.scope.environment,
+                status="ACTIVE",
+            )
+        return DelegationKeyOptions(
+            clients=[
+                NamedOption(value=client["id"], label=client["name"])
+                for client in clients
+                if set(client["data_scopes"]) <= set(member.data_scopes)
+            ]
+        )
 
     async def create(
         self,

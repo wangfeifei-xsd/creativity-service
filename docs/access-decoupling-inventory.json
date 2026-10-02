@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-02",
+  "source": "本地开发库，不代表外部部署环境",
+  "migration_from": "0016_agents",
+  "migration_to": "0020_access_decoupling",
+  "business_channels": 0,
+  "legacy_http_connections": 0,
+  "compared_tables": 87,
+  "records_unchanged": true,
+  "before_sha256": "7886c19b6c1c10c27add19f23e2179a0d37298cbc3cba36444013ab6b2be6d50",
+  "after_sha256": "7886c19b6c1c10c27add19f23e2179a0d37298cbc3cba36444013ab6b2be6d50",
+  "nonempty_tables": {
+    "channels": 1
+  }
+}

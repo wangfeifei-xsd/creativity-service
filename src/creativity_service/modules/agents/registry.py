@@ -1,4 +1,4 @@
-"""固定流程入口注册，不装载用户代码；执行实现由 17 和场景单元提供。"""
+"""通用执行入口与初始配置；历史场景入口只用于版本兼容。"""
 
 from creativity_service.modules.agents.schemas import (
     AgentDefinition,
@@ -9,19 +9,32 @@ from creativity_service.modules.agents.schemas import (
     WorkflowType,
 )
 
-ENTRYPOINTS: dict[str, tuple[WorkflowType, str]] = {
+GENERIC_ENTRYPOINTS: dict[str, tuple[WorkflowType, str]] = {
     "structured.v1": ("structured", "单步结构化任务"),
-    "matching.v1": ("template", "智能匹配"),
-    "risk.v1": ("template", "风险评估"),
-    "analysis.v1": ("template", "数据分析"),
+    "workflow.v1": ("template", "通用流程"),
     "tool_loop.v1": ("tool_loop", "受约束工具循环"),
     "stateful.v1": ("stateful", "有状态流程"),
 }
+LEGACY_ENTRYPOINTS: dict[str, tuple[WorkflowType, str]] = {
+    "matching.v1": ("template", "智能匹配（旧版）"),
+    "risk.v1": ("template", "风险评估（旧版）"),
+    "analysis.v1": ("template", "数据分析（旧版）"),
+}
+ENTRYPOINTS = GENERIC_ENTRYPOINTS | LEGACY_ENTRYPOINTS
 
 
 def templates() -> list[AgentTemplate]:
+    return _templates(GENERIC_ENTRYPOINTS)
+
+
+def legacy_templates() -> list[AgentTemplate]:
+    """保持旧版定义内容与拓扑规则，不能静默替换已保存版本和快照。"""
+    return _templates(LEGACY_ENTRYPOINTS)
+
+
+def _templates(entries: dict[str, tuple[WorkflowType, str]]) -> list[AgentTemplate]:
     result = []
-    for key, (kind, name) in ENTRYPOINTS.items():
+    for key, (kind, name) in entries.items():
         input_schema = {
             "type": "object",
             "properties": {"request": {"type": "string", "title": "业务诉求", "minLength": 1}},

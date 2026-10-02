@@ -1,4 +1,4 @@
-"""显式登记适配器实现、版本和能力，不从用户输入导入代码。"""
+"""旧 HTTP 适配器的版本兼容注册；新业务通过 MCP 配置，不新增业务专用实现。"""
 
 from dataclasses import dataclass
 

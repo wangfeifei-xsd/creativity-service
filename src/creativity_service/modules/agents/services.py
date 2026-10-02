@@ -10,7 +10,7 @@ from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id
 from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.agents.base import ENVIRONMENTS
-from creativity_service.modules.agents.registry import templates
+from creativity_service.modules.agents.registry import legacy_templates, templates
 from creativity_service.modules.agents.repositories import RESOURCE_TABLES, repository, required
 from creativity_service.modules.agents.schemas import (
     AgentCreate,
@@ -315,6 +315,7 @@ class AgentService(AgentSnapshots):
                     raise
         return AgentOptions(
             templates=templates(),
+            legacy_templates=legacy_templates(),
             dependencies=result,
             environment=context.scope.environment,
             environment_label=ENVIRONMENTS[context.scope.environment],

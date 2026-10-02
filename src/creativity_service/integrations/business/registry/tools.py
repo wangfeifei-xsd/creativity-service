@@ -1,4 +1,4 @@
-"""将业务单项能力接到 10 的统一工具执行层；运行编号由执行器注入。"""
+"""旧 HTTP 能力的兼容工具桥接；新业务工具由 MCP 发现和导入。"""
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.primitives import ServiceError
@@ -51,7 +51,7 @@ async def register_business_tools(
     context: AuthContext,
     integration_id: str,
 ) -> None:
-    """19/20 或受信装配器按已保存的连接登记；模型不能动态选择实现或连接。"""
+    """保留旧绑定的受信装配，不用于新增业务目录；模型不能动态选择连接。"""
     await service.require(context)
     row = await service.row(context, integration_id)
     registered = service.registry.resolve(row["adapter_code"], row["adapter_version"])

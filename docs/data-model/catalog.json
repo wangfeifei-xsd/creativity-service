@@ -1,5 +1,5 @@
 {
-  "model_version": "1.3.0",
+  "model_version": "1.4.0",
   "requirements_version": "v0.7",
   "date": "2026-10-02",
   "modules": {
@@ -1507,9 +1507,9 @@
         {
           "name": "business_type",
           "type": "varchar(32)",
-          "comment": "接入业务类型",
-          "required": true,
-          "source": "服务层校验后的业务输入",
+          "comment": "可选业务分类展示文本，历史分类原值保留",
+          "required": false,
+          "source": "可选展示元数据，不参与身份、路由或授权",
           "sensitivity": "内部"
         }
       ],
@@ -1524,7 +1524,7 @@
         ]
       ],
       "status": "已实现",
-      "revision": "0003_channels",
+      "revision": "0020_access_decoupling",
       "scope": "渠道",
       "control_purpose": null,
       "content": false
@@ -1695,17 +1695,17 @@
         {
           "name": "external_scope_type",
           "type": "varchar(64)",
-          "comment": "外部域类型",
+          "comment": "显式配置的外部数据域类型",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "管理员配置，验签后按原值精确匹配",
           "sensitivity": "内部"
         },
         {
           "name": "external_scope_id",
           "type": "varchar(128)",
-          "comment": "外部域编号",
+          "comment": "显式配置的外部数据域编号",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "管理员配置，验签后按原值精确匹配",
           "sensitivity": "内部"
         },
         {
@@ -1730,7 +1730,7 @@
         ]
       ],
       "status": "已实现",
-      "revision": "0003_channels",
+      "revision": "0020_access_decoupling",
       "scope": "环境",
       "control_purpose": null,
       "content": false

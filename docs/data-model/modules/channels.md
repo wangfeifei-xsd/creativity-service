@@ -1,10 +1,10 @@
 # 渠道管理模型
 
-模型版本 1.3.0；负责方案 05；需求 [01-渠道管理.md](../../../../需求文档/01-渠道管理.md)。总索引见 [README](../README.md)。
+模型版本 1.4.0；负责方案 05；需求 [01-渠道管理.md](../../../../需求文档/01-渠道管理.md)。总索引见 [README](../README.md)。
 
 ## channels
 
-渠道主档。状态：已实现；归属：渠道；迁移：0003_channels。
+渠道主档。状态：已实现；归属：渠道；迁移：0020_access_decoupling。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -21,7 +21,7 @@
 | `retention_policy` | `jsonb` | 保存策略 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `budget_policy_refs` | `jsonb` | 预算策略引用 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `rate_limit_policy_refs` | `jsonb` | 限流策略引用 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `business_type` | `varchar(32)` | 接入业务类型 | 是 | 服务层校验后的业务输入 | 内部 |
+| `business_type` | `varchar(32)` | 可选业务分类展示文本，历史分类原值保留 | 否 | 可选展示元数据，不参与身份、路由或授权 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, channel_code)`。
 
@@ -46,7 +46,7 @@
 
 ## data_scopes
 
-业务数据域映射。状态：已实现；归属：环境；迁移：0003_channels。
+业务数据域映射。状态：已实现；归属：环境；迁移：0020_access_decoupling。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -57,8 +57,8 @@
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `name` | `varchar(128)` | 数据域名称 | 是 | 服务层校验后的业务输入 | 内部 |
-| `external_scope_type` | `varchar(64)` | 外部域类型 | 是 | 服务层校验后的业务输入 | 内部 |
-| `external_scope_id` | `varchar(128)` | 外部域编号 | 是 | 服务层校验后的业务输入 | 内部 |
+| `external_scope_type` | `varchar(64)` | 显式配置的外部数据域类型 | 是 | 管理员配置，验签后按原值精确匹配 | 内部 |
+| `external_scope_id` | `varchar(128)` | 显式配置的外部数据域编号 | 是 | 管理员配置，验签后按原值精确匹配 | 内部 |
 | `status` | `varchar(32)` | 数据域状态 | 是 | 服务层校验后的业务输入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, external_scope_type, external_scope_id)`。

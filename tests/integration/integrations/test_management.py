@@ -135,3 +135,38 @@ async def test_tool_bridge_preserves_run_and_rejects_changed_connection(
     with pytest.raises(ServiceError) as failure:
         await bridge.invoke(request)
     assert failure.value.code == "BUSINESS_CONTRACT_CHANGED"
+
+
+async def test_compatibility_inventory_and_migration_keep_credentials_and_nonce(integration_env):
+    from alembic.config import Config
+
+    from alembic import command
+    from scripts.inventory_access import inventory
+    from tests.integration.integrations.test_delegation import claims, verify
+
+    env = integration_env
+    claim = claims(env)
+    original = await verify(env, claim)
+
+    def roundtrip(connection):
+        before = inventory(connection)
+        item = before["channels"][0]
+        assert item["keys"][0]["id"] == env.identity.key.key.key_id
+        assert item["legacy_http"][0]["id"] == env.connection.integration_id
+        assert item["data_scopes"][0]["external_scope_id"] == "default"
+        assert before["record_fingerprints"]["delegation_nonces"]["count"] == 1
+        assert env.identity.key.api_key not in json.dumps(before)
+        assert env.key.signing_secret not in json.dumps(before)
+        config = Config("alembic.ini")
+        config.set_main_option("version_table_schema", env.schema)
+        config.attributes["connection"] = connection
+        command.downgrade(config, "0016_agents")
+        command.upgrade(config, "head")
+        assert inventory(connection) == before
+
+    async with env.engine.begin() as connection:
+        await connection.run_sync(roundtrip)
+    current = await verify(env, claim)
+    assert current.scope == original.scope
+    assert current.delegation_id == original.delegation_id
+    assert current.client_id == original.client_id

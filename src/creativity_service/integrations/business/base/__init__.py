@@ -1,4 +1,4 @@
-"""标准实体、事实、指标与显式只读能力，名称和单位必须源自授权字典。"""
+"""版本冻结的旧 HTTP 业务协议；这些能力不限制 MCP 工具名称或 schema。"""
 
 from dataclasses import dataclass
 from typing import Any, Literal

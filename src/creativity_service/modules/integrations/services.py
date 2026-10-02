@@ -107,7 +107,7 @@ class IntegrationService:
             values = await repository(context.scope, "integrations").find(connection)
         return IntegrationList(
             items=[await self.view(context, v) for v in values],
-            actions=[VisibleAction(action_key="integration:create", label="新建连接")],
+            actions=[VisibleAction(action_key="integration:create", label="新建旧 HTTP 连接")],
         )
 
     async def detail(self, context: AuthContext, integration_id: str) -> IntegrationView:

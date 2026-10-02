@@ -13,7 +13,7 @@ from sqlalchemy.schema import CreateIndex, CreateTable
 
 from creativity_service.core.database.tables import BASELINE
 from creativity_service.modules.agents.tables import BASELINE as AGENT_BASELINE
-from creativity_service.modules.channels.tables import BASELINE as CHANNEL_BASELINE
+from creativity_service.modules.channels.tables import CURRENT as CHANNEL_BASELINE
 from creativity_service.modules.conversations.tables import BASELINE as CONVERSATION_BASELINE
 from creativity_service.modules.iam.tables import BASELINE as IAM_BASELINE
 from creativity_service.modules.integrations.tables import BASELINE as INTEGRATION_BASELINE
@@ -136,7 +136,7 @@ def audit_catalog(root: Path) -> list[str]:
         failures.append("公共表归档与冻结实现不一致")
     if [t for t in catalog["tables"] if t["revision"] == "0002_iam"] != IAM_BASELINE:
         failures.append("账号模块归档与冻结实现不一致")
-    if [t for t in catalog["tables"] if t["revision"] == "0003_channels"] != CHANNEL_BASELINE:
+    if [t for t in catalog["tables"] if t["module"] == "channels"] != CHANNEL_BASELINE:
         failures.append("渠道模块归档与冻结实现不一致")
     if [t for t in catalog["tables"] if t["revision"] == "0010_tools"] != TOOL_BASELINE:
         failures.append("工具模块归档与冻结实现不一致")

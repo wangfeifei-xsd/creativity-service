@@ -14,6 +14,7 @@ from creativity_service.modules.integrations.schemas import (
     ContractTestView,
     DelegationKeyCreate,
     DelegationKeyIssued,
+    DelegationKeyOptions,
     DelegationKeyRotate,
     DelegationKeyView,
     IntegrationCreate,
@@ -46,7 +47,9 @@ class CredentialReference(Contract):
     credential_ref: str
 
 
-@router.post("/integration-credentials", response_model=CredentialReference, status_code=201)
+@router.post(
+    "/integration-credentials", response_model=CredentialReference, status_code=201, deprecated=True
+)
 async def credential(
     context: Context, service: Services, body: CredentialInput
 ) -> CredentialReference:
@@ -58,27 +61,27 @@ async def credential(
     )
 
 
-@router.get("/integrations", response_model=IntegrationList)
+@router.get("/integrations", response_model=IntegrationList, deprecated=True)
 async def integrations(context: Context, service: Services) -> IntegrationList:
     return await service.management.list_integrations(context)
 
 
-@router.get("/integrations/options", response_model=IntegrationOptions)
+@router.get("/integrations/options", response_model=IntegrationOptions, deprecated=True)
 async def options(context: Context, service: Services) -> IntegrationOptions:
     return await service.management.options(context)
 
 
-@router.post("/integrations", response_model=IntegrationView, status_code=201)
+@router.post("/integrations", response_model=IntegrationView, status_code=201, deprecated=True)
 async def create(context: Context, service: Services, body: IntegrationCreate) -> IntegrationView:
     return await service.management.save(context, body)
 
 
-@router.get("/integrations/{integration_id}", response_model=IntegrationView)
+@router.get("/integrations/{integration_id}", response_model=IntegrationView, deprecated=True)
 async def detail(context: Context, service: Services, integration_id: str) -> IntegrationView:
     return await service.management.detail(context, integration_id)
 
 
-@router.patch("/integrations/{integration_id}", response_model=IntegrationView)
+@router.patch("/integrations/{integration_id}", response_model=IntegrationView, deprecated=True)
 async def edit(
     context: Context, service: Services, integration_id: str, body: IntegrationEdit
 ) -> IntegrationView:
@@ -86,7 +89,9 @@ async def edit(
 
 
 @router.get(
-    "/integrations/{integration_id}/capabilities", response_model=list[BusinessCapabilityView]
+    "/integrations/{integration_id}/capabilities",
+    response_model=list[BusinessCapabilityView],
+    deprecated=True,
 )
 async def capabilities(
     context: Context, service: Services, integration_id: str
@@ -94,13 +99,18 @@ async def capabilities(
     return await service.management.capabilities(context, integration_id)
 
 
-@router.get("/integrations/{integration_id}/tests", response_model=list[ContractTestView])
+@router.get(
+    "/integrations/{integration_id}/tests", response_model=list[ContractTestView], deprecated=True
+)
 async def tests(context: Context, service: Services, integration_id: str) -> list[ContractTestView]:
     return await service.management.tests(context, integration_id)
 
 
 @router.post(
-    "/integrations/{integration_id}/tests", response_model=ContractTestView, status_code=201
+    "/integrations/{integration_id}/tests",
+    response_model=ContractTestView,
+    status_code=201,
+    deprecated=True,
 )
 async def test(
     context: Context, service: Services, integration_id: str, body: ContractTestInput
@@ -134,3 +144,8 @@ async def revoke(
     context: Context, service: Services, kid: str, body: RevisionInput
 ) -> DelegationKeyView:
     return await service.keys.revoke(context, kid, body.revision)
+
+
+@router.get("/delegation-keys/options", response_model=DelegationKeyOptions)
+async def key_options(context: Context, service: Services) -> DelegationKeyOptions:
+    return await service.keys.options(context)

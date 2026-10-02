@@ -10,7 +10,6 @@ from creativity_service.core.context import Environment
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.primitives import Contract, Identifier, Money, Revision
 
-BusinessType = Literal["gamerental", "playmate"]
 ChannelStatus = Literal["ACTIVE", "SUSPENDED", "ARCHIVED"]
 LifecycleAction = Literal["suspend", "resume", "archive"]
 
@@ -25,7 +24,7 @@ class ReleasePolicy(Contract):
 
 class InitialDataScope(Contract):
     name: str = Field(min_length=1, max_length=128)
-    external_scope_type: Literal["default", "club"]
+    external_scope_type: str = Field(min_length=1, max_length=64)
     external_scope_id: str = Field(min_length=1, max_length=128)
 
 
@@ -33,7 +32,9 @@ class ChannelCreate(Contract):
     channel_code: str = Field(min_length=1, max_length=64)
     name: str = Field(min_length=1, max_length=128)
     owner: str = Field(min_length=1, max_length=128)
-    business_type: BusinessType
+    business_type: str | None = Field(
+        default=None, min_length=1, max_length=32, description="可选业务分类，仅用于展示"
+    )
     first_admin_user_id: Identifier
     environment: Environment
     data_scope: InitialDataScope
@@ -118,8 +119,8 @@ class ChannelView(Contract):
     channel_code: str
     name: str
     owner: str
-    business_type: str
-    business_type_name: str
+    business_type: str | None
+    business_type_name: str | None
     status: ChannelStatus
     status_label: str
     created_at: datetime
@@ -145,7 +146,7 @@ class DataScopeView(Contract):
     environment_name: str | None
     name: str
     external_scope_type: str
-    external_scope_type_name: str
+    external_scope_type_name: str | None
     external_scope_id: str
     status: Status
     status_label: str

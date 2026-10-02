@@ -6,7 +6,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
 from creativity_service.core.primitives import canonical_json
-from creativity_service.modules.agents.registry import ENTRYPOINTS, templates
+from creativity_service.modules.agents.registry import ENTRYPOINTS, legacy_templates
 from creativity_service.modules.agents.schemas import AgentDefinition, AgentIssue
 
 
@@ -128,13 +128,15 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
     ):
         fail("业务状态须使用平台结果契约中定义的状态", "output_schema.business_status")
     if definition.workflow_type == "template":
-        template = next((t.definition for t in templates() if t.key == definition.entrypoint), None)
+        template = next(
+            (t.definition for t in legacy_templates() if t.key == definition.entrypoint), None
+        )
         if template and (
             [(s.key, s.kind) for s in definition.steps] != [(s.key, s.kind) for s in template.steps]
             or definition.edges != template.edges
             or definition.start_step != template.start_step
         ):
-            fail("固定场景流程只允许替换资源绑定、结构和参数", "steps")
+            fail("旧版流程只允许替换资源绑定、结构和参数；自定义步骤请使用通用流程", "steps")
     if ENTRYPOINTS.get(definition.entrypoint, (None,))[0] != definition.workflow_type:
         fail("流程类型与已登记入口不符", "entrypoint")
     nodes = {s.key: s for s in definition.steps}

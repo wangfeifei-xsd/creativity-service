@@ -32,7 +32,7 @@ Money 以十进制字符串传输，numeric(24,8) 保存，禁止客户端浮点
 
 `contracts/runs/` 为 11 的独立交接契约，包含待 17 挂载的运行 OpenAPI、受理回执、租约、轨迹及服务端冻结定义。`ResolvedDefinition` 仅供内部解析器使用，不接受 HTTP 上传。通过 `python -m creativity_service.modules.runs.export --check` 核验。
 
-业务接入 1.0.0 契约位于 `integrations/`：版本化 OpenAPI、主体委托/请求绑定、实体/事实/指标 schema、稳定错误表和 Python/JavaScript 签名向量。调用约定与职责见 [业务接入交接](../docs/integrations.md)。生成与核对入口：`python -m creativity_service.modules.integrations.export [--check]`。
+接入契约位于 `integrations/`：当前 OpenAPI 为 `openapi-v1.1.json`，委托载荷为 `DelegationClaims-v1.1.schema.json`，解除外部数据域的平台 ID 格式限制。旧 `openapi-v1.json`、`DelegationClaims.schema.json` 及实体/事实/指标 schema 保留兼容；HMAC 签名串、版本头和跨语言向量不变。调用约定与迁移见 [19 交接](../docs/access-decoupling.md)。生成与核对入口：`python -m creativity_service.modules.integrations.export [--check]`。
 
 MCP 的发现、差异及草稿导入契约位于 `contracts/mcp/`，由 `python -m creativity_service.modules.mcp.export` 生成，`--check` 已进入 `make check`。连接管理以主 OpenAPI 为准，执行继续使用 `contracts/tools/` 的统一入口。
 

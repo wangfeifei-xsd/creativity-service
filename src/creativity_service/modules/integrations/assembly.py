@@ -246,7 +246,7 @@ def build_integration_services(
     registry.register(
         Registration(
             "standard_http",
-            "标准业务接口",
+            "旧 HTTP 业务协议",
             "1.0.0",
             transport,
             tuple(

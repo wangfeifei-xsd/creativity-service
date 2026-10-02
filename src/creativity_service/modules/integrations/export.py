@@ -76,7 +76,7 @@ def artifacts() -> dict[str, object]:
 
     app = create_schema_app()
     schema = app.openapi()
-    schema["info"] = {"title": "业务接入与身份委托", "version": "1.0.0"}
+    schema["info"] = {"title": "身份委托与旧 HTTP 接入兼容", "version": "1.1.0"}
     schema["paths"] = {
         p: v
         for p, v in schema["paths"].items()
@@ -124,7 +124,11 @@ def artifacts() -> dict[str, object]:
     }
     return {
         **{
-            f"{model.__name__}.schema.json": model.model_json_schema(mode="serialization")
+            (
+                "DelegationClaims-v1.1.schema.json"
+                if model is DelegationClaims
+                else f"{model.__name__}.schema.json"
+            ): model.model_json_schema(mode="serialization")
             for model in (
                 DelegationClaims,
                 RequestBinding,
@@ -143,7 +147,7 @@ def artifacts() -> dict[str, object]:
             code: {"message": name, "http_status": status}
             for code, (name, status) in (ERRORS | delegation_errors).items()
         },
-        "openapi-v1.json": schema,
+        "openapi-v1.1.json": schema,
     }
 
 

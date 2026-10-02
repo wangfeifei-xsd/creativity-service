@@ -2,17 +2,20 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import Column, Index, MetaData, Table
 
 from creativity_service.core.database.tables import column_type
 
 BASELINE = json.loads(Path(__file__).with_name("baseline_v0003.json").read_text(encoding="utf-8"))
+CURRENT = json.loads(Path(__file__).with_name("baseline_v0020.json").read_text(encoding="utf-8"))
 
 
-def build_metadata() -> MetaData:
+def build_metadata(definitions: list[dict[str, Any]] | None = None) -> MetaData:
+    """无参数调用仍返回旧迁移定义，运行仓储显式选用当前版本。"""
     result = MetaData()
-    for definition in BASELINE:
+    for definition in BASELINE if definitions is None else definitions:
         table = Table(
             definition["name"],
             result,
@@ -30,4 +33,4 @@ def build_metadata() -> MetaData:
     return result
 
 
-metadata = build_metadata()
+metadata = build_metadata(CURRENT)

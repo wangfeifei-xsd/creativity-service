@@ -337,6 +337,25 @@ async def test_suspend_governance_resume_archive_and_durable_events(
     await env.iam.authentication.authenticate(service_identity.token.access_token, "service")
     preview = await env.services.lifecycle.preview(env.admin, channel_id, "archive")
     assert not preview.can_execute and preview.active_keys == 1
+    # 当前夹具已安装任务表；缺少真实检查器时须拒绝，不能再假定未安装 11。
+    with pytest.raises(ServiceError) as missing_guard:
+        await env.services.lifecycle.change(env.admin, channel_id, "archive", resumed.revision)
+    assert missing_guard.value.status == 503
+
+    class EmptyTaskFixture:
+        def keys(self, channel_id):
+            return []
+
+        async def unfinished(self, connection, channel_id):
+            # 此用例没有任务，明确核对测试前提后仅验证渠道状态与事件。
+            count = await connection.scalar(
+                text("SELECT count(*) FROM runs WHERE channel_id = :channel_id"),
+                {"channel_id": channel_id},
+            )
+            assert count == 0
+            return count
+
+    env.services.lifecycle.register_tasks(EmptyTaskFixture())
     with pytest.raises(ServiceError) as exc:
         await env.services.lifecycle.change(env.admin, channel_id, "archive", resumed.revision)
     assert exc.value.status == 409

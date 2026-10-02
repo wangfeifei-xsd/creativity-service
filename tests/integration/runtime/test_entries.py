@@ -335,3 +335,92 @@ async def test_memory_omission_is_reported_in_business_result(runtime_env, monke
     result = await env.runs.get_run(env.context, receipt.run_id)
     assert result.state == "SUCCEEDED", result.error
     assert result.result.warnings == (warning,)
+
+
+@pytest.mark.parametrize("entrypoint", ["matching.v1", "risk.v1", "analysis.v1", "workflow.v1"])
+async def test_legacy_and_generic_entrypoints_execute_frozen_configuration(runtime_env, entrypoint):
+    from creativity_service.modules.agents.schemas import AgentEdge
+    from creativity_service.modules.runtime.storage import load_spec
+
+    env = runtime_env
+    definition = env.definition.model_copy(
+        update={"workflow_type": "template", "entrypoint": entrypoint}
+    )
+    if entrypoint == "workflow.v1":
+        first = definition.steps[0].model_copy(update={"key": "gather", "name": "整理资料"})
+        second = definition.steps[0].model_copy(update={"key": "explain", "name": "解释资料"})
+        definition = definition.model_copy(
+            update={
+                "start_step": "gather",
+                "steps": (first, second),
+                "edges": (
+                    AgentEdge(source="gather", target="explain"),
+                    AgentEdge(source="explain", target="END"),
+                ),
+            }
+        )
+    receipt, message = await admitted(env, definition=definition)
+    original = await load_spec(env.runs, await env.runs.load(message))
+    await execute_message(env.runs, message, "worker", env.runtime)
+    await execute_message(env.runs, message, "redelivery", env.runtime)
+    result = await env.runs.get_run(env.context, receipt.run_id)
+    assert result.state == "SUCCEEDED", result.error
+    assert len(env.adapter.calls) == (2 if entrypoint == "workflow.v1" else 1)
+    assert await load_spec(env.runs, await env.runs.load(message)) == original
+    assert original.definition.entrypoint == entrypoint
+
+
+async def test_decoupling_migration_preserves_saved_identity_versions_and_runs(runtime_env):
+    from alembic.config import Config
+    from sqlalchemy import select
+
+    from alembic import command
+    from creativity_service.core.database.audit import audit_database
+    from creativity_service.core.primitives import digest
+    from creativity_service.modules.runtime.storage import load_spec
+    from creativity_service.storage import metadata
+
+    env = runtime_env
+    definition = env.definition.model_copy(
+        update={"workflow_type": "template", "entrypoint": "matching.v1"}
+    )
+    receipt, message = await admitted(env, definition=definition)
+    spec = await load_spec(env.runs, await env.runs.load(message))
+
+    def migrate(connection):
+        import json
+
+        def contents():
+            result = {}
+            for table in metadata.tables.values():
+                rows = (
+                    connection.execute(
+                        select(table).where(
+                            table.c.channel_id.in_(["system", env.context.scope.channel_id])
+                        )
+                    )
+                    .mappings()
+                    .all()
+                )
+                result[table.name] = sorted(
+                    json.dumps(dict(row), sort_keys=True, default=str) for row in rows
+                )
+            return digest(result)
+
+        config = Config("alembic.ini")
+        config.set_main_option("version_table_schema", env.schema)
+        config.attributes["connection"] = connection
+        before = contents()
+        command.downgrade(config, "0016_agents")
+        assert contents() == before
+        command.upgrade(config, "head")
+        command.upgrade(config, "head")
+        assert contents() == before
+        assert audit_database(connection, env.schema) == []
+
+    async with env.engine.begin() as connection:
+        await connection.run_sync(migrate)
+    assert await load_spec(env.runs, await env.runs.load(message)) == spec
+    await execute_message(env.runs, message, "after_upgrade", env.runtime)
+    result = await env.runs.get_run(env.context, receipt.run_id)
+    assert result.state == "SUCCEEDED", result.error

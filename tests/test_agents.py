@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from creativity_service.core.context import Scope
 from creativity_service.core.primitives import digest, utcnow
-from creativity_service.modules.agents.registry import templates
+from creativity_service.modules.agents.registry import legacy_templates, templates
 from creativity_service.modules.agents.schemas import (
     AgentCondition,
     AgentDefinition,
@@ -29,7 +29,7 @@ def codes(definition):
     return [issue.message for issue in static_issues(definition)]
 
 
-def test_four_registered_workflows_and_fixed_scenarios():
+def test_generic_workflows_and_legacy_entrypoints_are_separate():
     all_templates = templates()
     assert {t.workflow_type for t in all_templates} == {
         "structured",
@@ -37,12 +37,33 @@ def test_four_registered_workflows_and_fixed_scenarios():
         "tool_loop",
         "stateful",
     }
-    assert {t.key for t in all_templates if t.workflow_type == "template"} == {
+    assert {t.key for t in all_templates if t.workflow_type == "template"} == {"workflow.v1"}
+    assert {t.key for t in legacy_templates()} == {
         "matching.v1",
         "risk.v1",
         "analysis.v1",
     }
     assert not codes(all_templates[0].definition)
+
+
+def test_generic_workflow_accepts_configured_steps_and_legacy_keeps_topology():
+    base = next(t.definition for t in templates() if t.key == "workflow.v1")
+    first = base.steps[0].model_copy(update={"key": "collect", "name": "整理资料"})
+    second = base.steps[0].model_copy(update={"key": "summarize", "name": "生成摘要"})
+    configured = base.model_copy(
+        update={
+            "start_step": "collect",
+            "steps": (first, second),
+            "edges": (
+                AgentEdge(source="collect", target="summarize"),
+                AgentEdge(source="summarize", target="END"),
+            ),
+        }
+    )
+    assert not codes(configured)
+    for old in legacy_templates():
+        assert not codes(old.definition)
+        assert codes(configured.model_copy(update={"entrypoint": old.key}))
 
 
 @pytest.mark.parametrize(
@@ -288,3 +309,17 @@ async def test_caller_key_budget_is_enforced_without_changing_published_dependen
     with pytest.raises(ServiceError) as exc:
         await check_budget(service, uow, caller, "agent", changed(), [model])
     assert exc.value.code == "BUDGET_NOT_EXECUTABLE"
+
+
+def test_legacy_definition_golden_files_and_importable_examples():
+    from pathlib import Path
+
+    from creativity_service.modules.agents.schemas import AgentCreate
+
+    for item in legacy_templates():
+        stored = Path("contracts/agents/legacy-v1") / f"{item.key}.json"
+        assert json.loads(stored.read_text()) == item.definition.model_dump(mode="json")
+    for path in Path("examples/agents").glob("*.json"):
+        body = AgentCreate.model_validate_json(path.read_text())
+        assert body.definition.entrypoint == "workflow.v1"
+        assert not codes(body.definition)

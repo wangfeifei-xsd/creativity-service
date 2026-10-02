@@ -19,8 +19,8 @@ Action = Annotated[str, Field(pattern=r"^[a-z_]+:[a-z_]+$", max_length=64)]
 
 
 class SourceScope(Contract):
-    type: Identifier
-    id: Identifier
+    type: str = Field(min_length=1, max_length=64)
+    id: str = Field(min_length=1, max_length=128)
 
 
 class RequestBinding(Contract):
