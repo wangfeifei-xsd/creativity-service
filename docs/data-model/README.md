@@ -1,6 +1,6 @@
 # Creativity P0 数据模型索引
 
-模型版本 **1.7.0**；需求基线 **v0.7**；技术基线 **v1.6**。
+模型版本 **1.8.0**；需求基线 **v0.7**；技术基线 **v1.6**。
 
 本档案覆盖全部 P0 持久化对象。机器清单为 [catalog.json](catalog.json)，字段文档由 `scripts/render_data_model.py` 生成。共享基础的代码定义位于 `core/database/baseline_v0001.json`；公共表对应 `0001_core`，账号模块对应 `0002_iam`，渠道模块对应 `0003_channels`；其余通用平台表按所属方案建库。开发规范引用 [rule.md](../../../rule.md)。
 
@@ -37,6 +37,7 @@
 | `channel_memberships` | [账号与授权](modules/iam.md) | 02-账号与权限管理.md | 已实现 | 04 |
 | `resource_grants` | [账号与授权](modules/iam.md) | 02-账号与权限管理.md | 已实现 | 04 |
 | `iam_revocations` | [账号与授权](modules/iam.md) | 02-账号与权限管理.md | 已实现 | 04 |
+| `custom_roles` | [账号与授权](modules/iam.md) | 02-账号与权限管理.md | 已实现 | 04 |
 | `auth_tokens`（Redis 认证库） | [账号与授权](modules/iam.md) | 02-账号与权限管理.md | 已实现 | 04 |
 | `provider_catalog` | [模型配置](modules/models.md) | 03-模型配置.md | 已实现 | 07 |
 | `model_connections` | [模型配置](modules/models.md) | 03-模型配置.md | 已实现 | 07 |
@@ -56,6 +57,7 @@
 | `platform_limits` | [用量与预算](modules/usage.md) | 04-用量监控与预算.md | 已实现 | 08 |
 | `platform_quota_occupancies` | [用量与预算](modules/usage.md) | 04-用量监控与预算.md | 已实现 | 08 |
 | `usage_exchange_rates` | [用量与预算](modules/usage.md) | 04-用量监控与预算.md | 已实现 | 08 |
+| `provider_statements` | [用量与预算](modules/usage.md) | 04-用量监控与预算.md | 已实现 | 08 |
 | `prompts` | [提示词](modules/prompts.md) | 05-提示词管理.md | 已实现 | 09 |
 | `prompt_samples` | [提示词](modules/prompts.md) | 05-提示词管理.md | 已实现 | 09 |
 | `prompt_tests` | [提示词](modules/prompts.md) | 05-提示词管理.md | 已实现 | 09 |
@@ -76,10 +78,13 @@
 | `memory_policies` | [结构化记忆](modules/memory.md) | 08-记忆管理.md | 已实现 | 13 |
 | `memory_retrievals` | [结构化记忆](modules/memory.md) | 08-记忆管理.md | 已实现 | 13 |
 | `memory_deletion_jobs` | [结构化记忆](modules/memory.md) | 08-记忆管理.md | 已实现 | 13 |
+| `memory_embeddings` | [结构化记忆](modules/memory.md) | 08-记忆管理.md | 已实现 | 13 |
 | `mcp_connections` | [远程工具连接](modules/mcp.md) | 09-MCP配置.md | 已实现 | 14 |
 | `mcp_checks` | [远程工具连接](modules/mcp.md) | 09-MCP配置.md | 已实现 | 14 |
 | `mcp_discoveries` | [远程工具连接](modules/mcp.md) | 09-MCP配置.md | 已实现 | 14 |
 | `mcp_imports` | [远程工具连接](modules/mcp.md) | 09-MCP配置.md | 已实现 | 14 |
+| `mcp_oauth_flows` | [远程工具连接](modules/mcp.md) | 09-MCP配置.md | 已实现 | 14 |
+| `mcp_oauth_tokens` | [远程工具连接](modules/mcp.md) | 09-MCP配置.md | 已实现 | 14 |
 | `tools` | [工具定义与证据](modules/tools.md) | 10-工具管理.md | 已实现 | 10 |
 | `tool_calls` | [工具定义与证据](modules/tools.md) | 10-工具管理.md | 已实现 | 10 |
 | `evidence_refs` | [工具定义与证据](modules/tools.md) | 10-工具管理.md | 已实现 | 10 |
@@ -110,6 +115,12 @@
 | `integration_tests` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
 | `delegation_nonces` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
 | `subject_review_bindings` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
+| `automation_schedules` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
+| `automation_batches` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
+| `automation_items` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
+| `webhook_endpoints` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
+| `webhook_deliveries` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
+| `alert_rules` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
 | `deletion_jobs` | [删除传播与保留](modules/deletion.md) | 00-需求总纲.md | 已实现 | 25 |
 | `deletion_work_items` | [删除传播与保留](modules/deletion.md) | 00-需求总纲.md | 已实现 | 25 |
 | `deletion_receipts` | [删除传播与保留](modules/deletion.md) | 00-需求总纲.md | 已实现 | 25 |

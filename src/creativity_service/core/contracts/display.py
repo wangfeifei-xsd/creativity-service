@@ -12,6 +12,8 @@ STATUS_LABELS = {
     "RETIRED": ("已退役", "default"),
     "QUEUED": ("排队中", "default"),
     "RUNNING": ("执行中", "processing"),
+    "WAITING_INPUT": ("等待补充", "warning"),
+    "WAITING_APPROVAL": ("等待审批", "warning"),
     "CANCEL_REQUESTED": ("取消中", "warning"),
     "SUCCEEDED": ("已完成", "success"),
     "FAILED": ("失败", "error"),

@@ -1,5 +1,29 @@
 {
   "$defs": {
+    "AnalysisPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "rows_path": {
+          "default": [
+            "rows"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Rows Path",
+          "type": "array"
+        },
+        "max_rows": {
+          "default": 1000,
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Max Rows",
+          "type": "integer"
+        }
+      },
+      "title": "AnalysisPolicy",
+      "type": "object"
+    },
     "CachePolicy": {
       "additionalProperties": false,
       "properties": {
@@ -45,6 +69,45 @@
         }
       },
       "title": "RetryPolicy",
+      "type": "object"
+    },
+    "ScriptBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "profile_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "profile_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Profile Digest",
+          "type": "string"
+        },
+        "skill_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Skill Version Id",
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9_/-]+\\.py$",
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile_id",
+        "profile_digest",
+        "skill_version_id",
+        "path"
+      ],
+      "title": "ScriptBinding",
       "type": "object"
     },
     "SubjectRequirements": {
@@ -97,6 +160,17 @@
           ],
           "default": null,
           "title": "Connection Id"
+        },
+        "script": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScriptBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -104,6 +178,37 @@
         "implementation_version"
       ],
       "title": "ToolBinding",
+      "type": "object"
+    },
+    "WritePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "status_tool_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Status Tool Version Id",
+          "type": "string"
+        },
+        "max_submissions": {
+          "default": 1,
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Max Submissions",
+          "type": "integer"
+        },
+        "max_checks": {
+          "default": 3,
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Max Checks",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "status_tool_version_id"
+      ],
+      "title": "WritePolicy",
       "type": "object"
     }
   },
@@ -208,10 +313,35 @@
       }
     },
     "idempotency_policy": {
-      "const": "none",
       "default": "none",
+      "enum": [
+        "none",
+        "source_key"
+      ],
       "title": "Idempotency Policy",
       "type": "string"
+    },
+    "write_policy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WritePolicy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "analysis_policy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AnalysisPolicy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [

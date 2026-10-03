@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from jsonschema import Draft202012Validator
+
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork
 from creativity_service.core.deletion import ContentRef, DeletionGuard
@@ -57,6 +59,13 @@ class DependencyResolver:
             **dict.fromkeys(bindings.tool_versions, "tool"),
             **dict.fromkeys(bindings.skill_versions, "skill"),
         }
+        if bindings.embedding_route_version:
+            types[bindings.embedding_route_version] = "model_route"
+            if (
+                not definition.context.memory_policy
+                or not definition.context.memory_policy.read_enabled
+            ):
+                raise ServiceError("DEPENDENCY_INVALID", "语义检索需要启用记忆读取", 422)
         for identifier, kind in types.items():
             if indexed[identifier]["resource_type"] != kind:
                 raise ServiceError("DEPENDENCY_INVALID", "依赖版本类型与选择位置不符", 422)
@@ -99,11 +108,21 @@ class DependencyResolver:
                 if (
                     scope.environment not in tool.environments
                     or scope.data_scope_id not in tool.allowed_data_domains
-                    or tool.effect_type != "READ_ONLY"
                 ):
-                    raise ServiceError(
-                        "DEPENDENCY_INVALID", "工具未授权当前环境或数据域，或不属于只读工具", 422
-                    )
+                    raise ServiceError("DEPENDENCY_INVALID", "工具未授权当前环境或数据域", 422)
+                if tool.write_policy:
+                    status_id = tool.write_policy.status_tool_version_id
+                    if status_id not in bindings.tool_versions or status_id not in indexed:
+                        raise ServiceError(
+                            "DEPENDENCY_INVALID", "写工具的核查工具须在固定白名单中", 422
+                        )
+                    status = ToolDefinition.model_validate(indexed[status_id]["content"])
+                    if status.effect_type != "READ_ONLY" or not Draft202012Validator(
+                        status.input_schema
+                    ).is_valid({"operation_key": "0" * 64}):
+                        raise ServiceError(
+                            "DEPENDENCY_INVALID", "核查工具须只读并接受 operation_key", 422
+                        )
                 for action in tool.required_scopes:
                     await locked_require(uow, context, action, "tool", resource["id"])
                 self.tools.registry.validate(scope, tool, resource["source_type"], executable=True)
@@ -170,7 +189,22 @@ class DependencyResolver:
             raise ServiceError(
                 "CAPABILITY_MISMATCH", "模型路由未声明智能体所需的结构化输出或工具能力", 422
             )
-        for model_snapshot in snapshots:
+        embedding_snapshots: list[FrozenModel] = []
+        if bindings.embedding_route_version:
+            embedding_route = indexed[bindings.embedding_route_version]["content"]
+            if "embedding" not in embedding_route.get("required_capabilities", []):
+                raise ServiceError("CAPABILITY_MISMATCH", "语义检索路由须声明向量能力", 422)
+            embedding_snapshots = [
+                FrozenModel.model_validate(v) for v in embedding_route.get("models", [])
+            ]
+            if len(embedding_snapshots) != 1:
+                raise ServiceError(
+                    "CAPABILITY_MISMATCH", "向量路由须固定一个模型，避免混用向量空间", 422
+                )
+        for model_snapshot in [*snapshots, *embedding_snapshots]:
+            required_capabilities = (
+                {"embedding"} if model_snapshot in embedding_snapshots else capabilities
+            )
             if (
                 model_snapshot.scope.channel_id != scope.channel_id
                 or model_snapshot.scope.environment != scope.environment
@@ -211,11 +245,13 @@ class DependencyResolver:
             try:
                 if purpose == "production":
                     require_capabilities(
-                        model["capabilities"], model_snapshot.config_digest, sorted(capabilities)
+                        model["capabilities"],
+                        model_snapshot.config_digest,
+                        sorted(required_capabilities),
                     )
                 elif any(
                     model["capabilities"].get(c, {}).get("state") == "UNSUPPORTED"
-                    for c in capabilities
+                    for c in required_capabilities
                 ):
                     raise ServiceError("CAPABILITY_MISMATCH", "模型已明确不支持所需能力", 422)
             except (ServiceError, KeyError) as exc:

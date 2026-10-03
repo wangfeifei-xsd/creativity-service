@@ -17,6 +17,7 @@ LABELS = {
     "summary": "摘要",
     "context": "上下文",
     "memory": "记忆",
+    "memory_embedding": "记忆向量",
     "run": "运行内容",
     "artifact": "文件",
     "snapshot": "运行快照",
@@ -35,6 +36,16 @@ LABELS = {
     "skill_file": "技能文件",
     "skill_test": "技能测试",
     "agent_candidate": "智能体候选快照",
+    "oauth_flow": "委托授权流程",
+    "oauth_token": "委托授权凭据",
+    "credential": "加密凭据",
+    "alert_rule": "告警规则",
+    "provider_statement": "供应商账单",
+    "schedule": "定时计划",
+    "batch": "批次",
+    "batch_item": "批次条目",
+    "webhook_endpoint": "投递端点",
+    "webhook_delivery": "投递记录",
 }
 
 
@@ -69,6 +80,11 @@ async def affected(
                 edges.setdefault(key, set()).add(("run", row["run_id"]))
             if target == "run":
                 edges.setdefault(key, set()).add(("snapshot", row["release_snapshot_id"]))
+            if target == "webhook_endpoint":
+                edges.setdefault(key, set()).add(("credential", row["secret_ref"]))
+            if target in {"oauth_flow", "oauth_token"}:
+                field = "verifier_ref" if target == "oauth_flow" else "credential_ref"
+                edges.setdefault(key, set()).add(("credential", row[field]))
             if target == "evaluation_result":
                 if row.get("run_id"):
                     edges.setdefault(key, set()).add(("run", row["run_id"]))

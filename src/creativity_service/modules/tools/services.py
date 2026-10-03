@@ -289,6 +289,12 @@ class ToolService:
         ) != {context.scope.environment}:
             raise ServiceError("TOOL_FORBIDDEN", "工具权限须使用当前已授权工作区", 403)
 
+    @staticmethod
+    def dependencies(definition: ToolDefinition) -> list[str]:
+        return (
+            [definition.binding.script.skill_version_id] if definition.binding.script else []
+        ) + ([definition.write_policy.status_tool_version_id] if definition.write_policy else [])
+
     async def create_version(
         self, context: AuthContext, tool_id: str, body: ToolVersionCreate
     ) -> ToolVersionView:
@@ -309,7 +315,7 @@ class ToolService:
             tool_id,
             body.version_label,
             body.definition.model_dump(mode="json"),
-            [],
+            self.dependencies(body.definition),
             body.definition.output_schema,
         )
         return await self.version_detail(context, version.version_id)
@@ -444,7 +450,7 @@ class ToolService:
             version_id,
             body.revision,
             body.definition.model_dump(mode="json"),
-            [],
+            self.dependencies(body.definition),
             body.definition.output_schema,
         )
         return await self.version_detail(context, version_id)

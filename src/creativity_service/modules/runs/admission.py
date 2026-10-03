@@ -58,7 +58,13 @@ class AdmissionService(RunKernel):
             return self.receipt(row)
 
     async def admit_run(
-        self, context: AuthContext, request: RunInput, key: str, *, parent_run_id: str | None = None
+        self,
+        context: AuthContext,
+        request: RunInput,
+        key: str,
+        *,
+        parent_run_id: str | None = None,
+        sources: tuple[ContentRef, ...] = (),
     ) -> AdmissionReceipt:
         if not key or len(key) > 128:
             raise ServiceError("IDEMPOTENCY_KEY_REQUIRED", "请提供有效幂等键", 422)
@@ -77,6 +83,10 @@ class AdmissionService(RunKernel):
             if existing_run:
                 return await self.replay(context, existing_run, "", "")
         request_digest = digest([request.semantic_digest(), parent_run_id])
+        if sources:
+            request_digest = digest(
+                [request_digest, [[s.resource_type, s.resource_id] for s in sources]]
+            )
         async with self.engine.connect() as connection:
             previous = await one(
                 connection,
@@ -95,10 +105,23 @@ class AdmissionService(RunKernel):
         validate_schema(definition.input_schema)
         validate_schema(definition.output_schema)
         if any(
-            s.target_version_id not in definition.version_ids or not s.read_only
+            s.target_version_id not in definition.version_ids
+            or (
+                not s.read_only
+                and (
+                    s.kind != "tool"
+                    or definition.frozen_spec is None
+                    or not any(
+                        v.version_id == s.target_version_id
+                        and v.resource_type == "tool"
+                        and v.content.get("write_policy")
+                        for v in definition.frozen_spec.versions
+                    )
+                )
+            )
             for s in definition.policy.steps
         ):
-            raise ServiceError("EXECUTION_POLICY_INVALID", "步骤依赖或只读策略无效", 422)
+            raise ServiceError("EXECUTION_POLICY_INVALID", "步骤依赖或写入确认策略无效", 422)
         if request.conversation_id and self.turns is None:
             raise unavailable("会话受理事务钩子")
         run_id = new_id("run")
@@ -118,7 +141,10 @@ class AdmissionService(RunKernel):
         source_link = digest(["run", run_id, request.conversation_id])
         input_links = [
             (digest([run_id, kind, identifier]), ContentRef(kind, identifier))
-            for kind, identifier in definition.source_refs
+            for kind, identifier in (
+                *definition.source_refs,
+                *((s.resource_type, s.resource_id) for s in sources),
+            )
         ]
         keys.extend(
             record_key(context.scope.channel_id, "source_links", identifier)
@@ -292,7 +318,7 @@ class AdmissionService(RunKernel):
             row = await self.locked_run(uow, run_id)
             if context.client_id and row["client_id"] != context.client_id:
                 raise ServiceError("NOT_FOUND", "运行记录不存在", 404)
-            if row["state"] == "QUEUED":
+            if row["state"] in {"QUEUED", "WAITING_INPUT", "WAITING_APPROVAL"}:
                 await self.transition(uow, row, "CANCELLED")
             elif row["state"] == "RUNNING":
                 await self.transition(uow, row, "CANCEL_REQUESTED")
@@ -311,6 +337,20 @@ class AdmissionService(RunKernel):
             verify_scope(row, context.scope)
             if row["state"] not in TERMINAL:
                 raise ServiceError("RUN_NOT_FINISHED", "请等待原运行结束", 409)
+            intents = await rows(
+                uow.connection,
+                "run_contents",
+                context.scope.channel_id,
+                run_id=run_id,
+                kind="write_intent",
+            )
+            if any(
+                item["payload"] and item["payload"]["state"] in {"SENT", "UNKNOWN"}
+                for item in intents
+            ):
+                raise ServiceError(
+                    "TOOL_OUTCOME_UNKNOWN", "原运行有未核实写入，不能重跑生成新写入", 409
+                )
             await self.guard(uow, row)
             content = await one(
                 uow.connection,

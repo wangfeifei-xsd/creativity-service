@@ -27,6 +27,7 @@ class BoundToolPort:
         authorization: IamAuthorization,
     ) -> None:
         self.runs, self.lease, self.spec, self.authorization = runs, lease, spec, authorization
+        self.operation: dict[str, str] | None = None
 
     async def step(self, context: AuthContext, run_id: str, step_id: str) -> dict[str, Any]:
         if context.scope != self.lease.scope or run_id != self.lease.run_id:

@@ -11,9 +11,11 @@ from creativity_service.core.database import UnitOfWork, validate_row
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import Contract, ServiceError, utcnow
+from creativity_service.modules.iam.operations_tables import metadata as operations_metadata
+from creativity_service.modules.iam.roles import ROLE_ACTIONS, ROLE_NAMES
 from creativity_service.modules.iam.tables import metadata
 
-TABLES = {**core_metadata.tables, **metadata.tables}
+TABLES = {**core_metadata.tables, **metadata.tables, **operations_metadata.tables}
 
 
 def policy_key(channel_id: str) -> ResourceKey:
@@ -93,6 +95,64 @@ async def save(
     return value
 
 
+async def role_catalog(connection: AsyncConnection, channel_id: str) -> dict[str, dict[str, Any]]:
+    result = {
+        code: {
+            "id": code,
+            "name": name,
+            "allowed_actions": sorted(ROLE_ACTIONS[code]),
+            "state": "ACTIVE",
+            "builtin": True,
+            "revision": None,
+        }
+        for code, name in ROLE_NAMES.items()
+        if code != "platform_admin"
+    }
+    for row in await rows(connection, "custom_roles", channel_id):
+        result[row["id"]] = {**row, "builtin": False}
+    return result
+
+
+async def resolved_actions(
+    connection: AsyncConnection, channel_id: str, codes: list[str], *, require_active: bool = False
+) -> frozenset[str]:
+    catalog = await role_catalog(connection, channel_id)
+    if require_active and any(
+        code not in catalog or catalog[code]["state"] != "ACTIVE" for code in codes
+    ):
+        raise ServiceError("ROLE_UNAVAILABLE", "角色不存在、已停用或不属于当前渠道", 403)
+    return frozenset(
+        a
+        for code in codes
+        if code in catalog and catalog[code]["state"] == "ACTIVE"
+        for a in catalog[code]["allowed_actions"]
+    )
+
+
+async def membership_state(
+    connection: AsyncConnection, row: dict[str, Any], override: dict[str, Any] | None = None
+) -> MembershipState:
+    catalog = await role_catalog(connection, row["channel_id"])
+    if override:
+        catalog[override["id"]] = override
+    codes = [
+        code for code in row["roles"] if code in catalog and catalog[code]["state"] == "ACTIVE"
+    ]
+    return to_state(
+        MembershipState,
+        {
+            **row,
+            "roles": codes,
+            "custom_actions": frozenset(
+                a
+                for code in codes
+                if code not in ROLE_ACTIONS
+                for a in catalog[code]["allowed_actions"]
+            ),
+        },
+    )
+
+
 class IdentityRepository:
     def __init__(self, engine: AsyncEngine) -> None:
         self.engine = engine
@@ -109,7 +169,7 @@ class IdentityRepository:
     async def membership(self, channel_id: str, user_id: str) -> MembershipState | None:
         async with self.engine.connect() as connection:
             row = await one(connection, "channel_memberships", channel_id, user_id=user_id)
-        return to_state(MembershipState, row) if row else None
+            return await membership_state(connection, row) if row else None
 
     async def grants(self, channel_id: str) -> list[GrantState]:
         async with self.engine.connect() as connection:

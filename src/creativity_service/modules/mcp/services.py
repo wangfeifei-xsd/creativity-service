@@ -121,6 +121,9 @@ class McpService:
         self.engine, self.authorization, self.tools = engine, authorization, tools
         self.credentials, self.outbound = credentials, outbound
         self.transport = transport or McpTransport(outbound)
+        from creativity_service.modules.mcp.oauth import OAuthService
+
+        self.oauth = OAuthService(self)
 
     async def require(self, context: AuthContext, connection_id: str) -> None:
         if context.principal_type not in {"management", "worker"} or not context.actor_id:
@@ -153,13 +156,19 @@ class McpService:
     async def validate_config(self, context: AuthContext, body: McpCreate) -> int | None:
         if not context.scope.data_scope_id:
             raise ServiceError("CONTEXT_REQUIRED", "请先选择已授权业务数据域", 403)
-        if body.transport != "streamable_http":
-            raise ServiceError("MCP_TRANSPORT_UNSUPPORTED", "此连接方式尚不可用", 422)
+        if body.transport == "stdio":
+            from creativity_service.integrations.sandbox import ContainerSandbox
+            from creativity_service.modules.mcp.stdio import profile_for
+
+            profile_for(ContainerSandbox(), context.scope, body.endpoint)
+        if body.transport == "oauth" and body.credential_ref:
+            raise ServiceError("OAUTH_PROFILE_INVALID", "OAuth 连接通过独立授权流程保存凭据", 422)
         if urlsplit(body.endpoint).query:
             raise ServiceError(
                 "MCP_DESTINATION_FORBIDDEN", "服务地址不能包含查询参数，凭据请单独配置", 422
             )
-        await self.outbound.validate(context.scope, "mcp", body.endpoint)
+        if body.transport != "stdio":
+            await self.outbound.validate(context.scope, "mcp", body.endpoint)
         row = await self.credential_row(context, body.credential_ref)
         if row:
             await self.authorization.boundary(context, "credential:use", "credential", row["id"])
@@ -193,7 +202,11 @@ class McpService:
             name=row["name"],
             endpoint=row["endpoint"],
             transport=row["transport"],
-            transport_label="Streamable HTTP",
+            transport_label={
+                "streamable_http": "Streamable HTTP",
+                "stdio": "隔离 stdio",
+                "oauth": "OAuth 委托",
+            }[row["transport"]],
             revision=row["revision"],
             configuration_revision=row["configuration_revision"],
             credential_mask="••••••••" if row["credential_ref"] else None,
@@ -404,6 +417,16 @@ class McpService:
         return await self.view(context, changed)
 
     async def key(self, context: AuthContext, row: dict[str, Any]) -> SessionKey:
+        if row["transport"] == "oauth":
+            _, grant = await self.oauth.grant(context, row["id"])
+            return SessionKey(
+                context.scope.channel_id,
+                context.scope.environment,
+                row["id"],
+                row["configuration_revision"],
+                grant["credential_ref"],
+                grant["revision"],
+            )
         credential = await self.credential_row(context, row["credential_ref"])
         if credential and credential["revision"] != row["credential_revision"]:
             raise ServiceError("MCP_AUTH_FAILED", "凭据版本已变化，请更新配置并重新测试", 403)
@@ -439,7 +462,9 @@ class McpService:
                 )
 
             result = (
-                await self.credentials.call(context, row["credential_ref"], "mcp", operation)
+                await self.oauth.call(context, row, operation)
+                if row["transport"] == "oauth"
+                else await self.credentials.call(context, row["credential_ref"], "mcp", operation)
                 if row["credential_ref"]
                 else await operation(None)
             )
@@ -809,7 +834,7 @@ class McpService:
                 continue
             view = await self.import_view(context, row)
             reason = view.unavailable_reason or (
-                "写入工具尚未启用执行" if row["effect_type"] != "READ_ONLY" else None
+                "写入须配置核查工具并经逐次审批" if row["effect_type"] != "READ_ONLY" else None
             )
             result.append(
                 BindingOption(

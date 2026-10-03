@@ -47,6 +47,7 @@ CAPABILITY_NAMES = {
 CAPABILITY_LABELS = {"SUPPORTED": "已支持", "UNSUPPORTED": "不支持", "UNVERIFIED": "未验证"}
 HEALTH_LABELS = {"UNKNOWN": "未知", "HEALTHY": "正常", "DEGRADED": "异常", "UNAVAILABLE": "不可用"}
 CASE_CAPABILITIES = {
+    "embedding": "embedding",
     "text": "text",
     "schema": "structured_output",
     "tools": "tools",

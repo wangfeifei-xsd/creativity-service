@@ -3,6 +3,7 @@
 from creativity_service.core.artifacts import S3ObjectStore
 from creativity_service.core.infrastructure import Infrastructure
 from creativity_service.core.services import build_core_services
+from creativity_service.integrations.sandbox import ContainerSandbox
 from creativity_service.modules.agents.assembly import build_agent_service
 from creativity_service.modules.budgets.services import BudgetService
 from creativity_service.modules.conversations.assembly import build_conversation_service
@@ -60,4 +61,13 @@ def worker_services(
     )
     evaluations = build_evaluation_service(engine, iam.authorization, agents, runs, core.cleanup)
     runs.evaluation_sweep = evaluations.sweep
+    integration_sweep = runs.integration_sweep
+
+    async def maintenance(channel_id: str) -> None:
+        await mcp.oauth.sweep(channel_id)
+        await ContainerSandbox().reap()
+        if integration_sweep:
+            await integration_sweep(channel_id)
+
+    runs.integration_sweep = maintenance
     return runs

@@ -201,7 +201,15 @@ class Artifact(Contract):
 
 
 RunState = Literal[
-    "QUEUED", "RUNNING", "CANCEL_REQUESTED", "SUCCEEDED", "FAILED", "CANCELLED", "TIMED_OUT"
+    "QUEUED",
+    "RUNNING",
+    "WAITING_INPUT",
+    "WAITING_APPROVAL",
+    "CANCEL_REQUESTED",
+    "SUCCEEDED",
+    "FAILED",
+    "CANCELLED",
+    "TIMED_OUT",
 ]
 
 

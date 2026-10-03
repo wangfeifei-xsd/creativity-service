@@ -26,7 +26,7 @@ class AgentStep(Contract):
     key: Identifier
     name: str = Field(min_length=1, max_length=128)
     kind: Literal["model", "tool", "compute"]
-    operator: Literal["object"] | None = None
+    operator: Literal["object", "input", "approval"] | None = None
     dependency: Identifier | None = None
     inputs: dict[str, InputSource] = Field(default_factory=dict, max_length=100)
     input_schema: dict[str, Any]
@@ -77,6 +77,7 @@ class AgentSkillLoading(Contract):
 
 
 class AgentBindings(Contract):
+    embedding_route_version: Identifier | None = None
     prompt_version: Identifier | None = None
     model_route_version: Identifier | None = None
     tool_versions: tuple[Identifier, ...] = Field(default=(), max_length=64)
@@ -89,6 +90,7 @@ class AgentBindings(Contract):
             for v in (
                 self.prompt_version,
                 self.model_route_version,
+                self.embedding_route_version,
                 *self.tool_versions,
                 *self.skill_versions,
             )

@@ -11,7 +11,7 @@ from creativity_service.core.context import Scope
 from creativity_service.core.database import assert_external_io_allowed
 from creativity_service.core.primitives import ServiceError
 
-Purpose = Literal["model", "mcp", "http_tool"]
+Purpose = Literal["model", "mcp", "http_tool", "oauth", "webhook", "identity"]
 
 
 @dataclass(frozen=True)

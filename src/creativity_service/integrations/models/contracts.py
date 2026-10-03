@@ -14,6 +14,7 @@ from creativity_service.modules.models.schemas import FrozenModel
 
 
 class ModelRequest(Contract):
+    operation: Literal["generation", "embedding"] = "generation"
     messages: list[dict[str, Any]] = Field(min_length=1, max_length=1000)
     tools: list[dict[str, Any]] = Field(default_factory=list, max_length=100)
     output_schema: dict[str, Any] | None = None
@@ -82,6 +83,23 @@ def validate_request(
             "MODEL_ATTEMPT_REQUIRED", "模型调用需要匹配的执行尝试和有效预算预占", 403
         )
     parameters = {**config.parameters, **request.parameters}
+    if request.operation == "embedding":
+        if (
+            config.protocol != "chat_completions"
+            or request.tools
+            or request.stream
+            or request.output_schema
+        ):
+            raise ServiceError(
+                "MODEL_CAPABILITY_UNSUPPORTED", "向量请求须使用支持 embeddings 的兼容连接", 422
+            )
+        texts = [item.get("content") for item in request.messages]
+        if (
+            any(not isinstance(item, str) or not item.strip() for item in texts)
+            or len(str(texts).encode()) > 262144
+        ):
+            raise ServiceError("MODEL_INPUT_INVALID", "向量输入为空或超过 256 KiB", 422)
+        return {}
     validate_parameters(config.protocol, config.parameter_allowlist, parameters)
     if request.output_schema is not None:
         validate_schema(request.output_schema)

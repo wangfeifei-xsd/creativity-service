@@ -24,6 +24,7 @@ from creativity_service.modules.models.schemas import (
 from creativity_service.modules.models.services import ModelService
 
 CASES = {
+    "embedding": CaseDefinition(case="embedding", name="语义向量", prompt="查询用户的长期偏好"),
     "text": CaseDefinition(case="text", name="短文本", prompt="请只回复：验证完成"),
     "schema": CaseDefinition(
         case="schema",

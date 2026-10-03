@@ -17,6 +17,10 @@ from creativity_service.modules.iam.schemas import AuditView
 AUDIT_NAMES = {
     **ACTION_NAMES,
     "auth:login": "登录",
+    "auth:external": "外部身份登录",
+    "role:edit": "修改渠道角色",
+    "usage:statement": "导入供应商账单",
+    "integration:configure": "修改运行与事件配置",
     "auth:logout": "退出登录",
     "auth:password": "修改密码",
     "account:create": "创建账号",
@@ -60,6 +64,7 @@ FIELD_NAMES = {
     "expires_at": "有效期",
     "display_name": "显示名称",
     "status": "状态",
+    "state": "状态",
     "platform_roles": "平台角色",
     "password": "密码凭据",
     "roles": "渠道角色",

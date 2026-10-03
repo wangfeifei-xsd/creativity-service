@@ -15,7 +15,7 @@ ProtocolType = Literal[
 Capability = Literal["text", "tools", "structured_output", "streaming", "vision", "embedding"]
 CapabilityState = Literal["SUPPORTED", "UNSUPPORTED", "UNVERIFIED"]
 Status = Literal["ACTIVE", "DISABLED"]
-TestCase = Literal["text", "schema", "tools", "stream_cancel", "usage"]
+TestCase = Literal["text", "schema", "tools", "stream_cancel", "usage", "embedding"]
 
 
 class ProtocolView(Contract):
@@ -161,7 +161,7 @@ class ReleaseInput(Contract):
 
 
 class TestInput(Contract):
-    cases: list[TestCase] = Field(default=["text", "usage"], min_length=1, max_length=5)
+    cases: list[TestCase] = Field(default=["text", "usage"], min_length=1, max_length=6)
 
 
 class CaseDefinition(Contract):

@@ -10,7 +10,7 @@ from creativity_service.core.context import Environment
 from creativity_service.core.contracts import NavigationItem, VisibleAction
 from creativity_service.core.primitives import Contract, Identifier, Revision
 
-ChannelRole = Literal["channel_admin", "builder", "operator", "analyst", "auditor"]
+ChannelRole = Identifier
 
 
 class LoginInput(Contract):

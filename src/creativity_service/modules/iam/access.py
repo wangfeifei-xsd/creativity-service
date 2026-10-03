@@ -20,8 +20,11 @@ from creativity_service.modules.iam.authorization import (
 )
 from creativity_service.modules.iam.repositories import (
     IdentityRepository,
+    membership_state,
     one,
     policy_key,
+    resolved_actions,
+    role_catalog,
     rows,
     save,
     to_state,
@@ -90,7 +93,7 @@ class AccessService:
             or row["revision"] != session.token.membership_version
         ):
             raise ServiceError("MEMBERSHIP_DISABLED", "成员身份已变更", 401)
-        member = to_state(MembershipState, row)
+        member = await membership_state(uow.connection, row)
         grants = [
             to_state(GrantState, row)
             for row in await rows(uow.connection, "resource_grants", uow.scope.channel_id)
@@ -181,7 +184,7 @@ class AccessService:
             grants,
             list(target.environments),
             list(target.data_scopes),
-            role_actions(target.roles),
+            role_actions(target.roles) | target.custom_actions,
             "channel",
             target.channel_id,
             known_pairs,
@@ -243,7 +246,9 @@ class AccessService:
                 grants,
                 list(body.environments),
                 list(body.data_scopes),
-                role_actions(list(body.roles)),
+                await resolved_actions(
+                    uow.connection, channel_id, list(body.roles), require_active=True
+                ),
                 "channel",
                 channel_id,
                 known_pairs,
@@ -256,7 +261,7 @@ class AccessService:
                 raise ServiceError("STORAGE_INVARIANT_BROKEN", "成员记录标识不一致", 503)
             if existing:
                 self.member_delegation(
-                    member, grants, to_state(MembershipState, existing), known_pairs
+                    member, grants, await membership_state(uow.connection, existing), known_pairs
                 )
             candidate = MembershipState(
                 id=member_id,
@@ -268,6 +273,7 @@ class AccessService:
                 status=body.status,
                 revision=1,
             )
+            candidate = await membership_state(uow.connection, candidate.model_dump(mode="json"))
             self.member_delegation(member, grants, candidate, known_pairs)
             row = await save(
                 uow,
@@ -334,7 +340,7 @@ class AccessService:
                 grants,
                 row["environments"],
                 row["data_scopes"],
-                role_actions(row["roles"]),
+                await resolved_actions(uow.connection, channel_id, row["roles"]),
                 "channel",
                 channel_id,
                 known_pairs,
@@ -380,11 +386,13 @@ class AccessService:
             for option in options
             if option.channel_id == row["channel_id"]
         }
+        async with self.repository.engine.connect() as connection:
+            catalog = await role_catalog(connection, row["channel_id"])
         return MembershipView(
             user_id=row["user_id"],
             display_name=account.display_name if account else None,
             roles=row["roles"],
-            role_names=[ROLE_NAMES[r] for r in row["roles"]],
+            role_names=[catalog[r]["name"] for r in row["roles"] if r in catalog],
             environments=row["environments"],
             environment_names=[ENVIRONMENT_NAMES[e] for e in row["environments"]],
             data_scopes=row["data_scopes"],
@@ -454,9 +462,12 @@ class AccessService:
                 known_pairs,
             )
             if body.grantee_type == "role":
-                if body.grantee_id not in ROLE_NAMES or body.grantee_id == "platform_admin":
-                    raise ServiceError("FORBIDDEN", "不能在渠道中授予平台角色", 403)
-                ceiling = ROLE_ACTIONS[body.grantee_id] | INDEPENDENT_ACTIONS
+                ceiling = (
+                    await resolved_actions(
+                        uow.connection, channel_id, [body.grantee_id], require_active=True
+                    )
+                    | INDEPENDENT_ACTIONS
+                )
             else:
                 member = await one(
                     uow.connection, "channel_memberships", channel_id, user_id=body.grantee_id
@@ -467,7 +478,12 @@ class AccessService:
                     body.data_scopes
                 ) <= set(member["data_scopes"]):
                     raise ServiceError("GRANT_SCOPE_EXCEEDED", "授权不能超出成员范围", 403)
-                ceiling = role_actions(member["roles"]) | INDEPENDENT_ACTIONS
+                ceiling = (
+                    await resolved_actions(
+                        uow.connection, channel_id, member["roles"], require_active=True
+                    )
+                    | INDEPENDENT_ACTIONS
+                )
             if not set(body.allowed_actions) <= ceiling:
                 raise ServiceError("GRANT_SCOPE_EXCEEDED", "授权动作超出目标角色范围", 403)
             existing = await one(uow.connection, "resource_grants", channel_id, id=grant_id)
@@ -607,12 +623,19 @@ class AccessService:
         return GrantView(
             **{key: row[key] for key in GrantInput.model_fields},
             grant_id=row["id"],
-            grantee_name=account.display_name if account else ROLE_NAMES.get(row["grantee_id"]),
+            grantee_name=account.display_name
+            if account
+            else await self.role_name(row["channel_id"], row["grantee_id"]),
             resource_name=resource_name,
             action_names=[ACTION_NAMES[a] for a in row["allowed_actions"]],
             environment_names=[ENVIRONMENT_NAMES[e] for e in row["environments"]],
             data_scope_names=[scope_names.get(value) for value in row["data_scopes"]],
         )
+
+    async def role_name(self, channel_id: str, code: str) -> str | None:
+        async with self.repository.engine.connect() as connection:
+            catalog = await role_catalog(connection, channel_id)
+        return catalog[code]["name"] if code in catalog else None
 
     async def roles(self, session: AdminSession) -> list[RoleView]:
         await self.authentication.revalidate_admin(session)
@@ -640,7 +663,7 @@ class AccessService:
                 and "membership:manage" in actions
                 and ceiling <= actions
             ]
-        return [
+        result = [
             RoleView(
                 role_code=code,
                 name=ROLE_NAMES[code],
@@ -653,6 +676,26 @@ class AccessService:
             )
             for code in codes
         ]
+        if isinstance(session.context, AuthContext) and "membership:manage" in actions:
+            async with self.repository.engine.connect() as connection:
+                catalog = await role_catalog(connection, session.context.scope.channel_id)
+            result.extend(
+                RoleView(
+                    role_code=code,
+                    name=value["name"],
+                    grant_scope="channel",
+                    grant_scope_name="渠道",
+                    actions=[
+                        VisibleAction(action_key=a, label=ACTION_NAMES[a])
+                        for a in value["allowed_actions"]
+                    ],
+                )
+                for code, value in catalog.items()
+                if not value["builtin"]
+                and value["state"] == "ACTIVE"
+                and set(value["allowed_actions"]) <= actions
+            )
+        return result
 
     def provisioning_keys(self, channel_id: str, user_id: str) -> list[ResourceKey]:
         return self.member_keys(channel_id, user_id) + [

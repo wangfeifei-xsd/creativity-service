@@ -36,6 +36,10 @@ class ExecutionService(RunKernel):
         ):
             if attempt["state"] == "STARTED":
                 sent = attempt["sent_at"] is not None
+                step = await required(
+                    uow.connection, "run_steps", uow.scope.channel_id, id=attempt["step_id"]
+                )
+                read_only = self.step_policy(row, step["node_key"]).read_only
                 attempt = await save(
                     uow,
                     "attempts",
@@ -43,7 +47,7 @@ class ExecutionService(RunKernel):
                     {
                         "state": "UNKNOWN" if sent else "FAILED",
                         "finished_at": utcnow(),
-                        "retryable": not sent or attempt["kind"] != "model",
+                        "retryable": not sent or attempt["kind"] != "model" and read_only,
                         "error": self.error(
                             row,
                             "WORKER_LOST",
@@ -184,7 +188,10 @@ class ExecutionService(RunKernel):
             raise ServiceError("WORKER_INVALID", "执行进程标识无效", 422)
         await self.reconcile_run(message)
         original = await self.load(message)
-        if original["state"] in TERMINAL:
+        if original["state"] in TERMINAL or original["state"] in {
+            "WAITING_INPUT",
+            "WAITING_APPROVAL",
+        }:
             return None
         context = self.context(original)
         result = None
@@ -193,6 +200,8 @@ class ExecutionService(RunKernel):
         ) as uow:
             row = await self.locked_run(uow, message.run_id)
             if not await self.expire(uow, row):
+                if row["state"] in {"WAITING_INPUT", "WAITING_APPROVAL"}:
+                    return None
                 await self.snapshot(uow, row)
                 old = await one(uow.connection, "run_leases", message.channel_id, run_id=row["id"])
                 if old and old["expires_at"] > utcnow():
@@ -669,9 +678,29 @@ class ExecutionService(RunKernel):
                 attempts = await rows(
                     uow.connection, "attempts", lease.scope.channel_id, step_id=step["id"]
                 )
-                if policy.kind != "compute" and (
-                    not attempts
-                    or max(attempts, key=lambda a: a["created_at"])["state"] != "SUCCEEDED"
+                reconciled = False
+                if policy.kind == "tool" and not policy.read_only:
+                    intents = await rows(
+                        uow.connection,
+                        "run_contents",
+                        lease.scope.channel_id,
+                        run_id=row["id"],
+                        kind="write_intent",
+                    )
+                    reconciled = any(
+                        item["payload"]
+                        and item["payload"].get("step_id") == step["id"]
+                        and item["payload"]["state"] == "SUCCEEDED"
+                        and item["payload"]["result"] == output
+                        for item in intents
+                    )
+                if (
+                    policy.kind != "compute"
+                    and not reconciled
+                    and (
+                        not attempts
+                        or max(attempts, key=lambda a: a["created_at"])["state"] != "SUCCEEDED"
+                    )
                 ):
                     raise ServiceError("ATTEMPT_REQUIRED", "外部步骤必须先登记成功尝试", 409)
                 checkpoint_ref = None

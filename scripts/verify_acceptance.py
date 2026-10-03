@@ -32,6 +32,21 @@ def command_environment():
     return env
 
 
+def source_manifest(service_root=ROOT, web_root=WEB):
+    from tests.support.independence_evidence import tree
+
+    return {
+        "service_source": tree(service_root, ["src", "pyproject.toml", "uv.lock", "deploy"]),
+        "web_source": tree(web_root, ["src", "package.json", "pnpm-lock.yaml", "vite.config.ts"]),
+        "commits": {
+            label: subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=root, text=True
+            ).strip()
+            for label, root in (("service", service_root), ("web", web_root))
+        },
+    }
+
+
 def execute(name, command, cwd, output, env):
     print(f"执行 {name}", flush=True)
     started = datetime.now(UTC)
@@ -59,7 +74,7 @@ def execute(name, command, cwd, output, env):
     return result.returncode
 
 
-def environment(output):
+def environment(output, workspace=None):
     from sqlalchemy import create_engine, text
 
     from creativity_service.core.config import Settings
@@ -116,6 +131,15 @@ def environment(output):
     if platform.system() == "Darwin":
         for key in ("hw.memsize", "machdep.cpu.brand_string"):
             hardware[key] = subprocess.check_output(["sysctl", "-n", key], text=True).strip()
+    docker = subprocess.run(
+        ["docker", "info", "--format", "{{json .NCPU}} {{json .MemTotal}} {{json .ServerVersion}}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if docker.returncode == 0:
+        cpus, memory, version = shlex.split(docker.stdout)
+        hardware["docker"] = {"cpus": int(cpus), "memory_bytes": int(memory), "version": version}
     manifest = {
         "recorded_at": datetime.now(UTC).isoformat(),
         "python": sys.version,
@@ -131,6 +155,26 @@ def environment(output):
             "object_store": "专门用例使用真实 MinIO，组合页面使用内存夹具",
         },
     }
+    baseline = output / "onboarding/baseline.json"
+    if baseline.exists():
+        tested = json.loads(baseline.read_text())
+        current = (
+            source_manifest(workspace / "creativity-service", workspace / "creativity-web")
+            if workspace
+            else source_manifest()
+        )
+        changed = {}
+        for name in ("service_source", "web_source"):
+            before, after = tested[name]["files"], current[name]["files"]
+            changed[name] = [
+                path
+                for path in sorted(before.keys() | after.keys())
+                if before.get(path) != after.get(path)
+            ]
+        manifest["onboarding_build_still_matches_workspace"] = not any(changed.values())
+        manifest["changed_since_onboarding"] = changed
+        manifest["workspace_source"] = current
+        manifest["verification_source"] = "独立检出" if workspace else "当前工作区"
     (output / "environment.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
     )
@@ -198,11 +242,13 @@ def main():
         default="all",
     )
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--workspace", type=Path, help="独立检出汇总时，对比并链接原工作区根目录")
     args = parser.parse_args()
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     output = (args.output or ROOT / "docs/acceptance/runs" / stamp).resolve()
     (output / "logs").mkdir(parents=True, exist_ok=True)
     env = command_environment()
+    env.pop("CREATIVITY_ACCEPTANCE_PERFORMANCE", None)
     env["CREATIVITY_ACCEPTANCE_DIR"] = str(output)
     env["CREATIVITY_API_EVIDENCE_DIR"] = str(output / "api")
     env["CREATIVITY_EVALUATION_EVIDENCE_DIR"] = str(output / "evaluations")
@@ -215,6 +261,7 @@ def main():
     for stage in stages:
         commands = []
         if stage == "checks":
+            checks_source = source_manifest()
             commands = [
                 ("migrations", [sys.executable, "-m", "alembic", "upgrade", "head"], ROOT),
                 (
@@ -305,8 +352,10 @@ def main():
                     stdout=stream,
                     check=True,
                 )
-            environment(output)
-            report = render(output)
+            environment(output, args.workspace)
+            report = render(
+                output, links_root=args.workspace / "creativity-service" if args.workspace else ROOT
+            )
             gate = release_gate(output, report, failures)
         for name, command, cwd in commands:
             command_env = dict(env)
@@ -322,6 +371,11 @@ def main():
                 # 构建失败不能继续把旧制品当作本次页面验收依据。
                 if name.startswith("build-"):
                     break
+        if stage == "checks":
+            checks_source["unchanged_during_checks"] = checks_source == source_manifest()
+            (output / "checks-source.json").write_text(
+                json.dumps(checks_source, ensure_ascii=False, indent=2) + "\n"
+            )
     print(f"证据目录：{output}", flush=True)
     if failures:
         raise SystemExit(1)

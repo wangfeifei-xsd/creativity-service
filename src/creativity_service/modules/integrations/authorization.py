@@ -1,13 +1,19 @@
 """管理写入在渠道授权互斥下复核最新权限，事务内仅查询数据库。"""
 
-from creativity_service.core.auth.types import GrantState, MembershipState
+from creativity_service.core.auth.types import GrantState
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.channels.repositories import required
 from creativity_service.modules.channels.state import require_available
 from creativity_service.modules.iam.authorization import effective_actions
-from creativity_service.modules.iam.repositories import one, policy_key, rows, to_state
+from creativity_service.modules.iam.repositories import (
+    membership_state,
+    one,
+    policy_key,
+    rows,
+    to_state,
+)
 
 
 async def require_management(
@@ -40,7 +46,7 @@ async def require_management(
     ]
     for domain in data_scopes or [scope.data_scope_id or ""]:
         if action not in effective_actions(
-            to_state(MembershipState, member),
+            await membership_state(uow.connection, member),
             grants,
             scope.environment,
             domain,

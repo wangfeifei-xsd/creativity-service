@@ -165,6 +165,19 @@ class McpTransport:
         operation: Callable[[ClientSession, InitializeResult, GuardedTransport], Awaitable[T]],
     ) -> T:
         assert_external_io_allowed()
+        if endpoint.startswith("sandbox://"):
+            from creativity_service.integrations.sandbox import ContainerSandbox
+            from creativity_service.modules.mcp.stdio import execute_stdio
+
+            self.active[key] = self.active.get(key, 0) + 1
+            try:
+                return await execute_stdio(
+                    ContainerSandbox(), scope, endpoint, token, timeouts, operation
+                )
+            finally:
+                self.active[key] -= 1
+                if self.active[key] == 0:
+                    self.active.pop(key)
         target = await self.policy.validate(scope, "mcp", endpoint)
         transport = GuardedTransport(target, 2 * 1024 * 1024)
         headers = {"Accept-Encoding": "identity"}

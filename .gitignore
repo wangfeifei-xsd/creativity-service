@@ -25,6 +25,8 @@ dist/
 # 本地配置与日志
 .logs/
 *.log
+# 26 的受控验收日志属于交付证据，临时调试日志仍放在 .logs。
+!docs/acceptance/logs/*.log
 .idea/
 .DS_Store
 

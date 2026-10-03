@@ -12,6 +12,9 @@ from creativity_service.modules.data_lifecycle.api import router as lifecycle_ro
 from creativity_service.modules.evaluations.api import router as evaluations_router
 from creativity_service.modules.iam.api import router as iam_router
 from creativity_service.modules.integrations.api import router as integrations_router
+from creativity_service.modules.integrations.automation_api import batch_router
+from creativity_service.modules.integrations.automation_api import router as automation_router
+from creativity_service.modules.mcp.api import oauth_router
 from creativity_service.modules.mcp.api import router as mcp_router
 from creativity_service.modules.memory.api import admin_router as memory_admin_router
 from creativity_service.modules.memory.api import router as memory_router
@@ -45,6 +48,7 @@ admin_router.include_router(models_router)
 admin_router.include_router(usage_router)
 
 admin_router.include_router(mcp_router)
+api_router.include_router(oauth_router)
 
 admin_router.include_router(skills_router)
 
@@ -64,3 +68,7 @@ admin_router.include_router(runs_admin_router)
 admin_router.include_router(evaluations_router)
 admin_router.include_router(lifecycle_router)
 api_router.include_router(lifecycle_router)
+
+admin_router.include_router(automation_router)
+admin_router.include_router(batch_router)
+api_router.include_router(batch_router)

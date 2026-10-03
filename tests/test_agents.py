@@ -320,6 +320,7 @@ def test_legacy_definition_golden_files_and_importable_examples():
         stored = Path("contracts/agents/legacy-v1") / f"{item.key}.json"
         current = item.definition.model_dump(mode="json")
         assert current["bindings"].pop("skill_loading") == []
+        assert current["bindings"].pop("embedding_route_version") is None
         for step in current["steps"]:
             assert step.pop("operator") is None
         assert json.loads(stored.read_text()) == current

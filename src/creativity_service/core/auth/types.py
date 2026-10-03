@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Literal, Protocol, Self
 
-from pydantic import AwareDatetime, Field, model_validator
+from pydantic import AwareDatetime, Field, PrivateAttr, model_validator
 
 from creativity_service.core.context import AuthContext, Environment, Scope
 from creativity_service.core.primitives import Contract, Digest, Identifier, Revision
@@ -24,6 +24,7 @@ class AccountState(Contract):
 
 
 class MembershipState(Contract):
+    custom_actions: frozenset[str] = Field(default_factory=frozenset)
     id: Identifier
     channel_id: Identifier
     user_id: Identifier
@@ -48,6 +49,9 @@ class GrantState(Contract):
 
 
 class TokenRecord(Contract):
+    _stored_json: str | None = PrivateAttr(default=None)
+    upstream_expires_at: AwareDatetime | None = None
+    identity_channel_id: Identifier | None = None
     channel_id: Identifier
     token_digest: Digest
     session_id: Identifier

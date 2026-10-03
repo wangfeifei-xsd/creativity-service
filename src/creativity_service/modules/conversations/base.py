@@ -109,10 +109,11 @@ class ConversationKernel:
             ("send", "发送", "conversation:write"),
             ("delete", "删除", "content:delete"),
             ("export", "导出", "data:export"),
+            ("branch", "创建分支", "conversation:write"),
             ("upload", "上传附件", "artifact:upload"),
         ):
             if await self.allowed(
-                context, permission, "new" if key == "upload" else conversation_id
+                context, permission, "new" if key in {"upload", "branch"} else conversation_id
             ):
                 actions.append(VisibleAction(action_key=key, label=label))
         return actions

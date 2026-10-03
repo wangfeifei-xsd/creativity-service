@@ -249,6 +249,7 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
         current_keys: list[str],
         *,
         frozen_policy: MemoryPolicy | None = None,
+        for_embedding: bool = False,
     ) -> MemorySelection:
         self.validate_keys(keys)
         self.validate_keys(current_keys)
@@ -282,7 +283,9 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
                                     version_id=active[0]["current_version_id"],
                                 )
                             )
-                        if len(refs) >= policy.retrieval_limit:
+                        if len(refs) >= (
+                            policy.max_items if for_embedding else policy.retrieval_limit
+                        ):
                             break
                 await self.record_selection(
                     uow, context, run, retrieval_id, refs, keys, current_keys, []

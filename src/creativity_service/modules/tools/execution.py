@@ -206,6 +206,14 @@ class ToolExecutor:
                 "TOOL_RESULT_INVALID", "工具结果体积或 JSON 内容不符合约定", 502
             ) from None
         validate_json(raw.data, definition.output_schema, "TOOL_RESULT_INVALID")
+        if definition.analysis_policy:
+            records = raw.data
+            for field in definition.analysis_policy.rows_path:
+                records = records.get(field) if isinstance(records, dict) else None
+            if not isinstance(records, list) or len(records) > definition.analysis_policy.max_rows:
+                raise ServiceError("ANALYSIS_ROWS_INVALID", "分析源缺少行数据或超过行数上限", 502)
+            if raw.coverage.get("returned_count", len(records)) != len(records):
+                raise ServiceError("TOOL_RESULT_INVALID", "分析源完整性声明与实际行数不符", 502)
         age = (utcnow() - raw.observed_at).total_seconds()
         if age < -5 or (self.fixture is None and age > definition.cache_policy.freshness_seconds):
             raise ServiceError("TOOL_RESULT_INVALID", "工具观测时间过期或晚于当前时间", 502)
@@ -319,6 +327,9 @@ class ToolExecutor:
             )
             raise
         assert self.runs is not None
+        operation = getattr(self.runs, "operation", None)
+        if definition.effect_type != "READ_ONLY" and not operation:
+            raise ServiceError("TOOL_CONFIRMATION_REQUIRED", "写入须经受控确认步骤执行", 409)
         key = self.cache_key(context, call, definition, grant, actions)
         auth_scope = {
             "scope": context.scope.model_dump(),
@@ -419,6 +430,7 @@ class ToolExecutor:
                                 attempt_id=attempt.attempt_id,
                                 definition=definition.model_copy(deep=True),
                                 run_id=call.run_id,
+                                operation=operation,
                             )
                         )
                     )
@@ -444,7 +456,12 @@ class ToolExecutor:
             except Exception:
                 failure = ToolAdapterError("TOOL_UNAVAILABLE", "工具适配器执行失败")
             finally:
-                retryable = isinstance(failure, ToolAdapterError) and failure.retryable
+                unknown_write = bool(failure and definition.effect_type != "READ_ONLY")
+                retryable = (
+                    isinstance(failure, ToolAdapterError)
+                    and failure.retryable
+                    and not unknown_write
+                )
                 error = (
                     RunError(
                         code=failure.code,
@@ -458,7 +475,11 @@ class ToolExecutor:
                 )
                 attempt = attempt.model_copy(
                     update={
-                        "state": "FAILED" if failure else "SUCCEEDED",
+                        "state": "UNKNOWN"
+                        if unknown_write
+                        else "FAILED"
+                        if failure
+                        else "SUCCEEDED",
                         "finished_at": utcnow(),
                         "error": error,
                         "source_request_id": (

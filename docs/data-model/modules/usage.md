@@ -1,6 +1,6 @@
 # 用量与预算模型
 
-模型版本 1.7.0；负责方案 08；需求 [04-用量监控与预算.md](../../../../需求文档/04-用量监控与预算.md)。总索引见 [README](../README.md)。
+模型版本 1.8.0；负责方案 08；需求 [04-用量监控与预算.md](../../../../需求文档/04-用量监控与预算.md)。总索引见 [README](../README.md)。
 
 ## price_versions
 
@@ -334,6 +334,33 @@
 | `source` | `varchar(1024)` | 汇率来源 | 是 | 服务层校验后的业务输入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, base_currency, quote_currency, effective_at)`。
+
+## provider_statements
+
+供应商账单核查批次。状态：已实现；归属：主体；迁移：0031_identity_operations。
+
+| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
+| --- | --- | --- | --- | --- | --- |
+| `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
+| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
+| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
+| `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
+| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
+| `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
+| `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
+| `name` | `varchar(128)` | 账单来源名称 | 是 | 受信上下文与服务层校验 | 内部 |
+| `source_digest` | `varchar(64)` | 导入来源摘要 | 是 | 受信上下文与服务层校验 | 内部 |
+| `version` | `varchar(64)` | 来源账单版本 | 是 | 受信上下文与服务层校验 | 内部 |
+| `connection_id` | `varchar(64)` | 模型连接标识 | 是 | 受信上下文与服务层校验 | 内部 |
+| `currency` | `varchar(3)` | 账单币种 | 是 | 受信上下文与服务层校验 | 内部 |
+| `start_at` | `timestamptz` | 核查开始时间 | 是 | 受信上下文与服务层校验 | 内部 |
+| `end_at` | `timestamptz` | 核查结束时间 | 是 | 受信上下文与服务层校验 | 内部 |
+| `lines` | `jsonb` | 规范化供应商记录 | 是 | 受信上下文与服务层校验 | 内部 |
+| `owner_key` | `varchar(64)` | 创建身份摘要 | 是 | 受信上下文与服务层校验 | 内部 |
+
+普通索引：`(channel_id, id)`。
 
 ## 版本内容结构：budget_policy
 

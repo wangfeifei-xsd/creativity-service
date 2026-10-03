@@ -43,6 +43,12 @@ class TitleInput(Contract):
     revision: Revision
 
 
+class BranchInput(Contract):
+    message_id: Identifier
+    title: str = Field(default="新分支", min_length=1, max_length=255)
+    idempotency_key: Identifier
+
+
 class MessageInput(Contract):
     client_message_id: Identifier
     content: str = Field(min_length=1, max_length=100000)

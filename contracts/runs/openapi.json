@@ -5,6 +5,118 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/api/v1/runs/{run_id}/interruption": {
+      "get": {
+        "tags": [
+          "任务运行"
+        ],
+        "summary": "Interruption",
+        "operationId": "interruption_api_v1_runs__run_id__interruption_get",
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/InterruptionView"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Interruption Api V1 Runs  Run Id  Interruption Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/resume": {
+      "post": {
+        "tags": [
+          "任务运行"
+        ],
+        "summary": "Resume",
+        "operationId": "resume_api_v1_runs__run_id__resume_post",
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdmissionReceipt"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/runs": {
       "post": {
         "tags": [
@@ -227,6 +339,118 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdmissionReceipt"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/runs/{run_id}/interruption": {
+      "get": {
+        "tags": [
+          "运行管理"
+        ],
+        "summary": "Interruption",
+        "operationId": "interruption_admin_v1_runs__run_id__interruption_get",
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/InterruptionView"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Interruption Admin V1 Runs  Run Id  Interruption Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/runs/{run_id}/resume": {
+      "post": {
+        "tags": [
+          "运行管理"
+        ],
+        "summary": "Resume",
+        "operationId": "resume_admin_v1_runs__run_id__resume_post",
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeInput"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -864,6 +1088,8 @@
             "enum": [
               "QUEUED",
               "RUNNING",
+              "WAITING_INPUT",
+              "WAITING_APPROVAL",
               "CANCEL_REQUESTED",
               "SUCCEEDED",
               "FAILED",
@@ -1235,6 +1461,72 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "InterruptionView": {
+        "properties": {
+          "interruption_id": {
+            "type": "string",
+            "title": "Interruption Id"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "state_label": {
+            "type": "string",
+            "title": "State Label"
+          },
+          "confirmation_digest": {
+            "type": "string",
+            "title": "Confirmation Digest"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input Schema"
+          },
+          "proposed_input": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Proposed Input"
+          },
+          "can_respond": {
+            "type": "boolean",
+            "title": "Can Respond"
+          },
+          "can_approve": {
+            "type": "boolean",
+            "title": "Can Approve"
+          },
+          "can_verify": {
+            "type": "boolean",
+            "title": "Can Verify"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "interruption_id",
+          "revision",
+          "name",
+          "state",
+          "state_label",
+          "confirmation_digest",
+          "input_schema",
+          "proposed_input",
+          "can_respond",
+          "can_approve",
+          "can_verify"
+        ],
+        "title": "InterruptionView"
+      },
       "JsonValue": {},
       "RerunInput": {
         "properties": {
@@ -1278,6 +1570,8 @@
             "enum": [
               "QUEUED",
               "RUNNING",
+              "WAITING_INPUT",
+              "WAITING_APPROVAL",
               "CANCEL_REQUESTED",
               "SUCCEEDED",
               "FAILED",
@@ -1358,6 +1652,59 @@
         ],
         "title": "ResultEnvelope"
       },
+      "ResumeInput": {
+        "properties": {
+          "interruption_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Interruption Id"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          },
+          "confirmation_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Confirmation Digest"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "respond",
+              "approve",
+              "reject",
+              "verify"
+            ],
+            "title": "Decision"
+          },
+          "input": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Idempotency Key"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "interruption_id",
+          "revision",
+          "confirmation_digest",
+          "decision",
+          "idempotency_key"
+        ],
+        "title": "ResumeInput"
+      },
       "RunDetail": {
         "properties": {
           "run_id": {
@@ -1369,6 +1716,8 @@
             "enum": [
               "QUEUED",
               "RUNNING",
+              "WAITING_INPUT",
+              "WAITING_APPROVAL",
               "CANCEL_REQUESTED",
               "SUCCEEDED",
               "FAILED",
@@ -1786,6 +2135,8 @@
             "enum": [
               "QUEUED",
               "RUNNING",
+              "WAITING_INPUT",
+              "WAITING_APPROVAL",
               "CANCEL_REQUESTED",
               "SUCCEEDED",
               "FAILED",

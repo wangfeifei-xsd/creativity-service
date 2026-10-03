@@ -34,6 +34,7 @@ class McpIdentity(Contract):
     attempt_id: str
     observed_at: AwareDatetime
     expires_at: AwareDatetime
+    operation: dict[str, str] | None = None
 
 
 class McpResultMetadata(Contract):
@@ -162,4 +163,5 @@ async def trusted_identity(
         attempt_id=request.attempt_id,
         observed_at=utcnow(),
         expires_at=expires_at,
+        operation=request.operation,
     ).model_dump(mode="json")

@@ -64,3 +64,5 @@ Python 3.12 + FastAPI，API 与 Celery Worker 分进程运行。使用 uv 0.10.1
 24 已交付样本版本、JSONL/CSV 导入、统一运行批量评测、基线对比、人工复核及 prod 发布门禁；见 [评测交接](docs/evaluations.md)、[验证记录](docs/evaluations-validation.md) 与 [样本装配](examples/evaluations/README.md)。迁移为 `0024_evaluations`，真实模型与 MCP 组合证据由 26 汇总。
 
 25 已完成删除全图、分批重试、渠道保留政策与独立恢复屏障；迁移为 `0025_data_lifecycle`。启动清理前配置独立持久卷并运行 Worker/Beat，命令与证明格式见 [删除生命周期交接](docs/data-lifecycle.md)，实测结果见 [验收记录](docs/data-lifecycle-validation.md)。
+
+26 的组合回归入口为 `.venv/bin/python -m scripts.verify_acceptance --stage all`，每次生成独立证据目录。当前交付包含完整需求追踪、真实管理页面、API、双域隔离、评测、性能和故障记录；见 [验收说明与阻断范围](docs/acceptance/README.md)。退出码 2 表示汇总完成但切换关口未通过，真实模型替身不计为供应商验收。

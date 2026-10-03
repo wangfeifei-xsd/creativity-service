@@ -129,7 +129,7 @@ def test_sensitive_export_is_refused_and_scripts_are_inert(tmp_path):
     )
     assert (
         next(f for f in package.manifest if f.relative_path.endswith(".py")).unavailable_reason
-        == "脚本执行未启用"
+        == "通过隔离工具执行"
     )
     with pytest.raises(ServiceError) as error:
         check_export(package)

@@ -8,7 +8,22 @@ from creativity_service.core.primitives import Contract, Identifier
 
 
 class LifecycleTarget(Contract):
-    resource_type: Literal["conversation", "message", "memory", "run", "tool_call", "artifact"]
+    resource_type: Literal[
+        "conversation",
+        "message",
+        "memory",
+        "run",
+        "tool_call",
+        "artifact",
+        "schedule",
+        "batch",
+        "batch_item",
+        "webhook_endpoint",
+        "webhook_delivery",
+        "alert_rule",
+        "provider_statement",
+        "oauth_token",
+    ]
     resource_id: Identifier
 
 

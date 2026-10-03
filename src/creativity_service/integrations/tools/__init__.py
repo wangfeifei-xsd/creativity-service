@@ -1,4 +1,4 @@
-"""受控工具适配端口和显式注册表，不执行上传代码。"""
+"""受控工具适配端口和显式注册表，脚本仅通过隔离执行器运行。"""
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -18,7 +18,12 @@ from creativity_service.modules.tools.schemas import (
 )
 
 EFFECT_LABELS = {"READ_ONLY": "只读", "IDEMPOTENT_WRITE": "幂等写入", "EXTERNAL_WRITE": "外部写入"}
-SOURCE_LABELS = {"http": "HTTP 接口", "mcp": "MCP 工具", "builtin": "预置函数"}
+SOURCE_LABELS = {
+    "http": "HTTP 接口",
+    "mcp": "MCP 工具",
+    "builtin": "预置函数",
+    "sandbox": "隔离脚本",
+}
 
 
 class SourceEvidence(Contract):
@@ -54,6 +59,7 @@ class AdapterRequest:
     attempt_id: str
     definition: ToolDefinition
     run_id: str | None = None
+    operation: dict[str, str] | None = None
 
 
 class ToolAdapter(Protocol):
@@ -136,12 +142,18 @@ class AdapterRegistry:
         self, scope: Scope, definition: ToolDefinition, source_type: SourceType, *, executable: bool
     ) -> AdapterRegistration:
         item = self.resolve(scope, definition.binding)
+        if definition.analysis_policy and (
+            source_type != "mcp" or definition.effect_type != "READ_ONLY"
+        ):
+            raise ServiceError(
+                "ANALYSIS_SOURCE_INVALID", "分析源须使用固定版本的只读 MCP 工具", 422
+            )
         if item.source_type != source_type or item.actual_effect != definition.effect_type:
             raise ServiceError("TOOL_EFFECT_MISMATCH", "影响类型与来源实际副作用不一致", 422)
         if item.sensitive and not definition.subject_requirements.required:
             raise ServiceError("TOOL_INPUT_INVALID", "敏感工具必须要求受信业务主体", 422)
-        if executable and definition.effect_type != "READ_ONLY":
-            raise ServiceError("TOOL_WRITE_DISABLED", "写入工具尚未启用执行", 409)
+        if executable and definition.effect_type != "READ_ONLY" and not definition.write_policy:
+            raise ServiceError("TOOL_WRITE_DISABLED", "写工具须配置源幂等和状态核查契约", 409)
         return item
 
     def options(self, scope: Scope) -> list[BindingOption]:
@@ -160,7 +172,7 @@ class AdapterRegistry:
                 unavailable_reason=(
                     None
                     if i.active and i.actual_effect == "READ_ONLY"
-                    else "写入工具尚未启用执行"
+                    else "须配置来源状态核查并逐次审批"
                     if i.active
                     else "连接已停用"
                 ),

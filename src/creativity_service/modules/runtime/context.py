@@ -9,6 +9,7 @@ from creativity_service.core.deletion import ContentRef
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.agents.schemas import FrozenExecutionSpec
 from creativity_service.modules.conversations.services import ConversationService
+from creativity_service.modules.memory.semantic import semantic_selection
 from creativity_service.modules.memory.services import MemoryService
 from creativity_service.modules.memory.validation import ATTRIBUTE_MAP
 from creativity_service.modules.prompts.schemas import PromptContent, PromptRuntimeInput
@@ -16,6 +17,7 @@ from creativity_service.modules.prompts.services import PromptService
 from creativity_service.modules.runs.repositories import rows
 from creativity_service.modules.runs.schemas import Lease
 from creativity_service.modules.runs.services import RunService
+from creativity_service.modules.runtime.model import ModelRunner
 from creativity_service.modules.runtime.storage import record_inputs
 from creativity_service.modules.skills.schemas import (
     SkillBinding,
@@ -40,6 +42,7 @@ class ContextBuilder:
     ) -> None:
         self.runs, self.prompts, self.skills = runs, prompts, skills
         self.conversations, self.memory = conversations, memory
+        self.model_runner: ModelRunner | None = None
 
     async def warnings(self, lease: Lease) -> tuple[str, ...]:
         """从持久化加载记录合并降级提示，进程恢复后仍保留同一事实。"""
@@ -83,9 +86,33 @@ class ContextBuilder:
         policy = config.context.memory_policy
         if policy and policy.read_enabled and context.scope.subject_id:
             current = [k for k in input_value if k in ATTRIBUTE_MAP]
-            selection = await self.memory.select(
-                context, lease.run_id, list(ATTRIBUTE_MAP), current, frozen_policy=policy
-            )
+            if config.bindings.embedding_route_version and self.model_runner:
+                try:
+                    selection = await semantic_selection(
+                        self.memory,
+                        self.model_runner,
+                        context,
+                        lease,
+                        spec,
+                        node_key,
+                        json_text(input_value),
+                        current,
+                        policy,
+                    )
+                except Exception as exc:
+                    if not self.memory.may_degrade(exc, policy):
+                        raise
+                    from creativity_service.core.primitives import new_id
+                    from creativity_service.modules.memory.runtime import WARNING
+                    from creativity_service.modules.memory.schemas import MemorySelection
+
+                    selection = MemorySelection(
+                        retrieval_id=new_id("memory_retrieval"), refs=[], warnings=[WARNING]
+                    )
+            else:
+                selection = await self.memory.select(
+                    context, lease.run_id, list(ATTRIBUTE_MAP), current, frozen_policy=policy
+                )
             loaded = await self.memory.load(
                 context, lease.run_id, selection, current, [], frozen_policy=policy
             )

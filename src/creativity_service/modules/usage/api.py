@@ -26,6 +26,7 @@ from creativity_service.modules.usage.schemas import (
     UsageFilter,
     UsageSummary,
 )
+from creativity_service.modules.usage.statements import StatementCreate, Statements
 
 router = APIRouter(tags=["用量与预算"])
 
@@ -193,3 +194,25 @@ async def download_platform_export(export_id: str, session: Session, service: Se
             "Content-Disposition": "attachment; filename*=UTF-8''" + quote("渠道用量汇总.csv"),
         },
     )
+
+
+@router.get("/provider-statements/options")
+async def statement_options(session: Session, service: Services) -> list[dict[str, str]]:
+    return await Statements(service.management).options(session)
+
+
+@router.get("/provider-statements")
+async def statements(session: Session, service: Services) -> list[dict[str, Any]]:
+    return await Statements(service.management).list(session)
+
+
+@router.post("/provider-statements", status_code=201)
+async def import_statement(
+    session: Session, service: Services, body: StatementCreate
+) -> dict[str, Any]:
+    return await Statements(service.management).create(session, body)
+
+
+@router.get("/provider-statements/{identifier}")
+async def statement_detail(session: Session, service: Services, identifier: str) -> dict[str, Any]:
+    return await Statements(service.management).detail(session, identifier)

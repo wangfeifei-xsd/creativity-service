@@ -73,6 +73,8 @@ class HttpToolAdapter:
             "Accept-Encoding": "identity",
             "X-Request-ID": request.attempt_id,
         }
+        if request.operation:
+            headers["Idempotency-Key"] = request.operation["idempotency_key"]
         if self.credentials is not None:
             secrets = dict(await self.credentials(request.context))
             if set(secrets) != {"Authorization"} or any(
@@ -86,6 +88,8 @@ class HttpToolAdapter:
             "client_id": request.context.client_id,
             "key_id": request.context.key_id,
         }
+        if request.operation:
+            identity["operation"] = request.operation
         body = canonical_json({"arguments": request.arguments, "identity": identity})
         parts = urlsplit(target.url)
         path = urlunsplit(("", "", parts.path or "/", parts.query, ""))

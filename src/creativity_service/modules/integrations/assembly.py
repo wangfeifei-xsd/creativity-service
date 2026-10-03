@@ -94,7 +94,7 @@ class IntegrationCredentialService(CredentialService):
     async def store(
         self,
         context: AuthContext,
-        purpose: Literal["model", "mcp", "http_tool", "delegation"],
+        purpose: Literal["model", "mcp", "http_tool", "delegation", "webhook"],
         plaintext: SecretBytes,
     ) -> str:
         assert_external_io_allowed()

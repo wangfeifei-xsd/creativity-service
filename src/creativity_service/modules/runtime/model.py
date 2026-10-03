@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import Attempt, BudgetReservation
-from creativity_service.core.primitives import ServiceError, canonical_json, utcnow
+from creativity_service.core.primitives import ServiceError, canonical_json, digest, utcnow
 from creativity_service.integrations.models.contracts import Cancellation, ModelRequest
 from creativity_service.modules.agents.schemas import FrozenExecutionSpec
 from creativity_service.modules.models.assembly import ModelServices
@@ -33,9 +33,9 @@ def plan_for(
         connection_id=model.connection_id,
         purpose=spec.purpose,
         input_tokens=input_tokens,
-        max_output_tokens=int(
-            request.parameters.get("max_tokens", model.parameters.get("max_tokens", 1024))
-        ),
+        max_output_tokens=0
+        if request.operation == "embedding"
+        else int(request.parameters.get("max_tokens", model.parameters.get("max_tokens", 1024))),
         source_type="run",
         names={"agent": spec.agent_name, "model": model.model_name},
     )
@@ -108,6 +108,8 @@ class ModelRunner:
                 *(["structured_output"] if request.output_schema is not None else []),
                 *(["streaming"] if request.stream else []),
             ]
+            if request.operation == "embedding":
+                required = ["embedding"]
             config = await self.models.routing.prepare_attempt(
                 context, config, required, debug=capability_test
             )
@@ -285,6 +287,7 @@ class ModelRunner:
             if content_error:
                 raise content_error
             output = {
+                "request_digest": digest(request.model_dump(mode="json")),
                 "text": "".join(text_parts),
                 "structured": structured,
                 "tools": list(tool_parts.values()),

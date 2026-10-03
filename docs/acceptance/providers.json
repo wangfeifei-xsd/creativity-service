@@ -1,0 +1,39 @@
+{
+  "recorded_at": "2026-10-03T04:40:10.090642+00:00",
+  "acceptance_complete": false,
+  "reason": "本轮仅运行模型替身；没有提供并验证两种真实模型供应商或协议组合。",
+  "combinations": [
+    {
+      "protocol": "chat_completions",
+      "provider": null,
+      "model": null,
+      "status": "UNVERIFIED",
+      "text": null,
+      "structured_output": null,
+      "tools": null,
+      "streaming_and_cancel": null,
+      "retry": null,
+      "price_and_usage": null,
+      "run_ids": []
+    },
+    {
+      "protocol": "anthropic_messages",
+      "provider": null,
+      "model": null,
+      "status": "UNVERIFIED",
+      "text": null,
+      "structured_output": null,
+      "tools": null,
+      "streaming_and_cancel": null,
+      "retry": null,
+      "price_and_usage": null,
+      "run_ids": []
+    }
+  ],
+  "completion_requirements": [
+    "在非系统渠道配置出站白名单、凭据加密主密钥、供应商、连接和具体模型。",
+    "通过模型管理发起 text、schema、tools、stream_cancel、usage 验证，保存真实 debug run 与 Attempt。",
+    "至少两种供应商或协议组合分别验证流式、失败重试、单独价格和原始用量口径；填写供应商、模型、能力结论、时间和运行引用。",
+    "不支持的能力如实标记，不以协议名称或夹具通过代替模型能力。"
+  ]
+}

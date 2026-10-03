@@ -11,9 +11,9 @@ from creativity_service.core.contracts import (
     ToolResult,
     VisibleAction,
 )
-from creativity_service.core.primitives import Contract, Identifier, Revision
+from creativity_service.core.primitives import Contract, Digest, Identifier, Revision
 
-SourceType = Literal["http", "mcp", "builtin"]
+SourceType = Literal["http", "mcp", "builtin", "sandbox"]
 EffectType = Literal["READ_ONLY", "IDEMPOTENT_WRITE", "EXTERNAL_WRITE"]
 
 
@@ -32,10 +32,18 @@ class ToolEdit(Contract):
     owner: str = Field(min_length=1, max_length=128)
 
 
+class ScriptBinding(Contract):
+    profile_id: Identifier
+    profile_digest: Digest
+    skill_version_id: Identifier
+    path: str = Field(min_length=1, max_length=512, pattern=r"^[a-zA-Z0-9_/-]+\.py$")
+
+
 class ToolBinding(Contract):
     adapter_key: Identifier
     implementation_version: str = Field(min_length=1, max_length=128)
     connection_id: Identifier | None = None
+    script: ScriptBinding | None = None
 
 
 class RetryPolicy(Contract):
@@ -54,6 +62,17 @@ class SubjectRequirements(Contract):
     allowed_types: tuple[str, ...] = ()
 
 
+class WritePolicy(Contract):
+    status_tool_version_id: Identifier
+    max_submissions: int = Field(default=1, ge=1, le=3, strict=True)
+    max_checks: int = Field(default=3, ge=1, le=10, strict=True)
+
+
+class AnalysisPolicy(Contract):
+    rows_path: tuple[str, ...] = ("rows",)
+    max_rows: int = Field(default=1000, ge=1, le=10000, strict=True)
+
+
 class ToolDefinition(Contract):
     input_schema: dict[str, Any]
     output_schema: dict[str, Any]
@@ -68,7 +87,9 @@ class ToolDefinition(Contract):
     max_result_size: int = Field(default=262144, ge=256, le=2097152, strict=True)
     retry_policy: RetryPolicy = RetryPolicy()
     cache_policy: CachePolicy = CachePolicy()
-    idempotency_policy: Literal["none"] = "none"
+    idempotency_policy: Literal["none", "source_key"] = "none"
+    write_policy: WritePolicy | None = None
+    analysis_policy: AnalysisPolicy | None = None
 
 
 class ToolVersionCreate(Contract):
@@ -214,3 +235,9 @@ class BindingOption(Contract):
     effect_label: str
     execution_enabled: bool
     unavailable_reason: str | None
+
+
+class ExecutionOptions(Contract):
+    profiles: list[dict[str, Any]]
+    scripts: list[dict[str, Any]]
+    queries: list[dict[str, Any]]

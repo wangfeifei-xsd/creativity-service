@@ -12,6 +12,7 @@ from creativity_service.modules.agents.repositories import repository, required
 from creativity_service.modules.agents.schemas import FrozenExecutionSpec
 from creativity_service.modules.agents.services import AgentService
 from creativity_service.modules.runs.schemas import ExecutionPolicy, ResolvedDefinition, StepPolicy
+from creativity_service.modules.tools.schemas import ToolDefinition
 
 
 class AgentRunResolver:
@@ -35,6 +36,17 @@ class AgentRunResolver:
                         max_retries=step.max_retries,
                     )
                 )
+                if step.kind == "model" and config.bindings.embedding_route_version:
+                    node = step.key if iteration == 0 else f"{step.key}.i{iteration}"
+                    steps.append(
+                        StepPolicy(
+                            node_key=f"{node}.memory",
+                            name="语义记忆检索",
+                            kind="model",
+                            target_version_id=config.bindings.embedding_route_version,
+                            max_retries=0,
+                        )
+                    )
         for index, version_id in enumerate(config.bindings.tool_versions):
             for call in range(config.limits.max_tool_calls):
                 steps.append(
@@ -43,6 +55,29 @@ class AgentRunResolver:
                         name="调用授权工具",
                         kind="tool",
                         target_version_id=version_id,
+                        max_retries=2,
+                    )
+                )
+        # 核查也是冻结的只读工具步骤，计入既有工具调用上限。
+        tools = {
+            v.version_id: ToolDefinition.model_validate(v.content)
+            for v in spec.versions
+            if v.resource_type == "tool"
+        }
+        for index, policy in enumerate(list(steps)):
+            tool = tools.get(policy.target_version_id) if policy.kind == "tool" else None
+            if not tool or not tool.write_policy:
+                continue
+            steps[index] = policy.model_copy(
+                update={"read_only": False, "max_retries": tool.write_policy.max_submissions - 1}
+            )
+            for check in range(tool.write_policy.max_checks):
+                steps.append(
+                    StepPolicy(
+                        node_key=f"{policy.node_key}.check.{check}",
+                        name="核查外部写入结果",
+                        kind="tool",
+                        target_version_id=tool.write_policy.status_tool_version_id,
                         max_retries=2,
                     )
                 )

@@ -15,6 +15,8 @@ TERMINAL = frozenset({"SUCCEEDED", "FAILED", "CANCELLED", "TIMED_OUT"})
 LABELS = {
     "QUEUED": "排队中",
     "RUNNING": "执行中",
+    "WAITING_INPUT": "等待补充",
+    "WAITING_APPROVAL": "等待审批",
     "CANCEL_REQUESTED": "取消中",
     "SUCCEEDED": "已完成",
     "FAILED": "失败",
@@ -23,7 +25,16 @@ LABELS = {
 }
 TRANSITIONS = {
     "QUEUED": {"RUNNING", "CANCELLED", "TIMED_OUT", "FAILED"},
-    "RUNNING": {"SUCCEEDED", "FAILED", "TIMED_OUT", "CANCEL_REQUESTED"},
+    "RUNNING": {
+        "SUCCEEDED",
+        "FAILED",
+        "TIMED_OUT",
+        "CANCEL_REQUESTED",
+        "WAITING_INPUT",
+        "WAITING_APPROVAL",
+    },
+    "WAITING_INPUT": {"QUEUED", "CANCELLED", "FAILED", "TIMED_OUT"},
+    "WAITING_APPROVAL": {"QUEUED", "CANCELLED", "FAILED", "TIMED_OUT"},
     "CANCEL_REQUESTED": {"CANCELLED"},
 }
 

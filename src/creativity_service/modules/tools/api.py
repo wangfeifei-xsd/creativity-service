@@ -9,6 +9,7 @@ from creativity_service.core.primitives import unavailable
 from creativity_service.modules.tools.assembly import ToolServices
 from creativity_service.modules.tools.schemas import (
     BindingOption,
+    ExecutionOptions,
     ToolCallView,
     ToolCreate,
     ToolDetail,
@@ -39,6 +40,69 @@ def services(request: Request) -> ToolService:
 
 
 Services = Annotated[ToolService, Depends(services)]
+
+
+@router.get("/tool-execution-options")
+async def execution_options(
+    context: Context, service: Services, tool_id: str = "new"
+) -> ExecutionOptions:
+    from creativity_service.core.database import Repository
+    from creativity_service.core.database.tables import metadata
+    from creativity_service.core.primitives import digest
+    from creativity_service.integrations.sandbox import ContainerSandbox
+
+    await service.require(context, "tool:manage", tool_id)
+    profiles = [
+        {
+            "profile_id": p.profile_id,
+            "name": p.name,
+            "mode": p.mode,
+            "digest": digest(p.model_dump(mode="json")),
+            "endpoint": f"sandbox://{p.profile_id}/{digest(p.model_dump(mode='json'))}",
+        }
+        for p in ContainerSandbox().settings.profiles
+        if context.scope.channel_id in p.channels
+    ]
+    queries, scripts = [], []
+    async with service.engine.connect() as connection:
+        versions = await Repository(metadata.tables["resource_versions"], context.scope).find(
+            connection
+        )
+    for version in versions:
+        kind = version["resource_type"]
+        if kind not in {"tool", "skill"} or version["state"] not in {"DRAFT", "PUBLISHED"}:
+            continue
+        if not (
+            await service.authorization.check(context, "run:create", kind, version["resource_id"])
+        ).allowed:
+            continue
+        from creativity_service.storage import metadata as all_metadata
+
+        async with service.engine.connect() as connection:
+            parent = await Repository(
+                all_metadata.tables["tools" if kind == "tool" else "skills"], context.scope
+            ).get(connection, version["resource_id"])
+        if not parent or parent["status"] != "ACTIVE":
+            continue
+        item = {
+            "version_id": version["id"],
+            "name": parent["name"],
+            "version_label": version["version_label"],
+        }
+        if kind == "tool" and version["content"].get("effect_type") == "READ_ONLY":
+            queries.append(item)
+        elif kind == "skill" and version["state"] == "PUBLISHED":
+            scripts.append(
+                {
+                    **item,
+                    "paths": [
+                        f["relative_path"]
+                        for f in version["content"]["files"]
+                        if f["relative_path"].endswith(".py")
+                    ],
+                }
+            )
+    return ExecutionOptions(profiles=profiles, scripts=scripts, queries=queries)
 
 
 @router.get("/tools", response_model=ToolList)

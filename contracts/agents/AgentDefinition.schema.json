@@ -3,6 +3,21 @@
     "AgentBindings": {
       "additionalProperties": false,
       "properties": {
+        "embedding_route_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Embedding Route Version"
+        },
         "prompt_version": {
           "anyOf": [
             {
@@ -343,7 +358,11 @@
         "operator": {
           "anyOf": [
             {
-              "const": "object",
+              "enum": [
+                "object",
+                "input",
+                "approval"
+              ],
               "type": "string"
             },
             {
@@ -615,6 +634,7 @@
     "bindings": {
       "$ref": "#/$defs/AgentBindings",
       "default": {
+        "embedding_route_version": null,
         "prompt_version": null,
         "model_route_version": null,
         "tool_versions": [],

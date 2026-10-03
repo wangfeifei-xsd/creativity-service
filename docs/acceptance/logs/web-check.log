@@ -1,0 +1,47 @@
+
+> creativity-web@0.1.0 check /private/tmp/creativity-26.ZmvAWg/creativity-web
+> pnpm api:check && pnpm typecheck && pnpm lint && pnpm test && pnpm build
+
+
+> creativity-web@0.1.0 api:check /private/tmp/creativity-26.ZmvAWg/creativity-web
+> node scripts/generate-api.mjs --check
+
+
+> creativity-web@0.1.0 typecheck /private/tmp/creativity-26.ZmvAWg/creativity-web
+> tsc -b --pretty false
+
+
+> creativity-web@0.1.0 lint /private/tmp/creativity-26.ZmvAWg/creativity-web
+> eslint . --max-warnings 0
+
+
+> creativity-web@0.1.0 test /private/tmp/creativity-26.ZmvAWg/creativity-web
+> vitest run
+
+
+ RUN  v4.1.11 /private/tmp/creativity-26.ZmvAWg/creativity-web
+
+
+ Test Files  3 passed (3)
+      Tests  19 passed (19)
+   Start at  12:32:16
+   Duration  221ms (transform 126ms, setup 0ms, import 158ms, tests 97ms, environment 0ms)
+
+
+> creativity-web@0.1.0 build /private/tmp/creativity-26.ZmvAWg/creativity-web
+> tsc -b && vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 1637 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-DdsIXwTl.css      3.87 kB │ gzip:   1.51 kB
+dist/assets/index-oMf9xf_A.js   1,512.27 kB │ gzip: 471.94 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 2.71s

@@ -2,7 +2,7 @@
 
 from collections.abc import Awaitable, Callable
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -41,6 +41,10 @@ from creativity_service.modules.runs.schemas import (
 )
 from creativity_service.modules.usage.services import UsageService
 
+if TYPE_CHECKING:
+    from creativity_service.modules.integrations.automation import AutomationService
+    from creativity_service.modules.integrations.webhooks import WebhookService
+
 
 class RunKernel:
     def __init__(
@@ -65,6 +69,9 @@ class RunKernel:
         self.runtime_executor: Executor | None = None
         self.content_guard: Callable[[UnitOfWork, dict[str, Any]], Awaitable[None]] | None = None
         self.content_guard_keys: Callable[[AuthContext], list[ResourceKey]] | None = None
+        self.automation: AutomationService | None = None
+        self.webhooks: WebhookService | None = None
+        self.integration_sweep: Callable[[str], Awaitable[None]] | None = None
         self.evaluation_sweep: Callable[[str], Awaitable[None]] | None = None
         self.rerun_handler: (
             Callable[[AuthContext, dict[str, Any], RunInput, str], Awaitable[AdmissionReceipt]]

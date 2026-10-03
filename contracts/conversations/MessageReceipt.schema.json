@@ -11,6 +11,8 @@
           "enum": [
             "QUEUED",
             "RUNNING",
+            "WAITING_INPUT",
+            "WAITING_APPROVAL",
             "CANCEL_REQUESTED",
             "SUCCEEDED",
             "FAILED",

@@ -81,7 +81,7 @@ async def test_create_freeze_fork_load_and_release_preserve_history(skills_env):
         ),
     )
     assert [f.path for f in loaded.loaded] == ["SKILL.md", "references/a.md"]
-    assert loaded.omitted[0].reason == "脚本执行未启用"
+    assert loaded.omitted[0].reason == "通过隔离工具执行"
     test = await env.skills.test(
         env.context,
         frozen.version_id,

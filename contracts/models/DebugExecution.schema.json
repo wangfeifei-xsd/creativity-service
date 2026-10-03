@@ -21,7 +21,8 @@
             "schema",
             "tools",
             "stream_cancel",
-            "usage"
+            "usage",
+            "embedding"
           ],
           "title": "Case",
           "type": "string"

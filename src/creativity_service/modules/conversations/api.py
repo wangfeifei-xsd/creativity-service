@@ -11,6 +11,7 @@ from creativity_service.core.context import AuthContext, require_http_context
 from creativity_service.core.contracts import Artifact, ResultEnvelope
 from creativity_service.core.primitives import ServiceError, unavailable
 from creativity_service.modules.conversations.schemas import (
+    BranchInput,
     ConversationCreate,
     ConversationDetail,
     ConversationList,
@@ -37,6 +38,13 @@ def service(request: Request) -> ConversationService:
 
 
 Conversations = Annotated[ConversationService, Depends(service)]
+
+
+@router.post("/conversations/{conversation_id}/branches", status_code=201)
+async def branch(
+    conversation_id: str, body: BranchInput, context: Context, conversations: Conversations
+) -> ConversationView:
+    return await conversations.branch(context, conversation_id, body)
 
 
 @router.get("/conversations")

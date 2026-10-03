@@ -1,6 +1,6 @@
 """认证与身份管理传输层，业务校验统一委托服务。"""
 
-from typing import Annotated, cast
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials
@@ -9,6 +9,8 @@ from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.auth.types import TokenResponse, WorkspaceOption
 from creativity_service.core.context import bearer_scheme
 from creativity_service.core.primitives import ServiceError, new_id, unavailable
+from creativity_service.modules.iam.custom_roles import CustomRoles, RoleSave
+from creativity_service.modules.iam.external import ExternalIdentity, IdentityExchange
 from creativity_service.modules.iam.presentation import AccessOptions, access_options
 from creativity_service.modules.iam.schemas import (
     AccountCreate,
@@ -198,3 +200,37 @@ async def audit_events(
     session: Session, iam: Services, limit: Annotated[int, Query(ge=1, le=200)] = 50
 ) -> list[AuditView]:
     return await iam.audit.query(session, limit)
+
+
+@router.get("/auth/identity-providers")
+async def identity_providers(iam: Services) -> list[dict[str, str]]:
+    return ExternalIdentity(iam).profiles()
+
+
+@router.post("/auth/external-token", response_model=TokenResponse)
+async def external_token(
+    body: IdentityExchange, request: Request, response: Response, iam: Services
+) -> TokenResponse:
+    response.headers["Cache-Control"] = "no-store"
+    return await ExternalIdentity(iam).exchange(
+        body,
+        request.client.host if request.client else "unknown",
+        getattr(request.state, "request_id", None) or new_id("request"),
+    )
+
+
+@router.get("/custom-roles")
+async def custom_roles(session: Session, iam: Services) -> list[dict[str, Any]]:
+    return await CustomRoles(iam.access).list(session)
+
+
+@router.post("/custom-roles", status_code=201)
+async def create_role(session: Session, iam: Services, body: RoleSave) -> dict[str, Any]:
+    return await CustomRoles(iam.access).save(session, body)
+
+
+@router.patch("/custom-roles/{identifier}")
+async def edit_role(
+    session: Session, iam: Services, identifier: str, body: RoleSave
+) -> dict[str, Any]:
+    return await CustomRoles(iam.access).save(session, body, identifier)

@@ -1,0 +1,22 @@
+{
+  "recorded_at": "2026-10-03T04:40:10.111123+00:00",
+  "formal_cutover_allowed": false,
+  "blockers": [
+    "未提供两种真实供应商/协议组合的运行、能力、重试和价格用量证据。",
+    "需求证据仍阻断：MOD-A01",
+    "当前工作区源码与固定构建验收不一致；新改动须另行验证，见 environment.json。",
+    "最近一次参数用例仍失败：1 项，详见 test-results.json。",
+    "management_query P95 为 7317.502 毫秒，超过 1000 毫秒目标。",
+    "admission_service P95 为 5970.125 毫秒，超过 500 毫秒目标。",
+    "真实模型执行并发、供应商等待时延及同候选真实评测尚未验收。"
+  ],
+  "failed_commands": [
+    "performance"
+  ],
+  "test_summary": {
+    "passed": 586,
+    "skipped": 1,
+    "failed": 1
+  },
+  "merge_rule": "相同测试及参数以最新 JUnit 覆盖；旧失败日志保留以追踪修复。"
+}

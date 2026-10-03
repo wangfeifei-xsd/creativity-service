@@ -1,6 +1,6 @@
 # 远程工具连接模型
 
-模型版本 1.7.0；负责方案 14；需求 [09-MCP配置.md](../../../../需求文档/09-MCP配置.md)。总索引见 [README](../README.md)。
+模型版本 1.8.0；负责方案 14；需求 [09-MCP配置.md](../../../../需求文档/09-MCP配置.md)。总索引见 [README](../README.md)。
 
 ## mcp_connections
 
@@ -104,3 +104,59 @@
 | `contract_status` | `varchar(32)` | 固定契约可用状态 | 是 | 服务层校验后的业务输入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, connection_id, remote_tool_name)`；`(channel_id, environment, connection_id, discovery_id, remote_tool_name)`。
+
+## mcp_oauth_flows
+
+MCP 一次性授权流程。状态：已实现；归属：主体；迁移：0029_mcp_oauth。
+
+| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
+| --- | --- | --- | --- | --- | --- |
+| `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
+| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
+| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
+| `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
+| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
+| `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
+| `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
+| `connection_id` | `varchar(64)` | 连接标识 | 是 | 受信授权流程 | 内部 |
+| `configuration_revision` | `bigint` | 连接配置修订 | 是 | 受信授权流程 | 内部 |
+| `profile_id` | `varchar(64)` | 身份提供方配置 | 是 | 受信授权流程 | 内部 |
+| `profile_digest` | `varchar(64)` | 提供方配置摘要 | 是 | 受信授权流程 | 内部 |
+| `ownership` | `varchar(16)` | 凭据归属类型 | 是 | 受信授权流程 | 内部 |
+| `owner_id` | `varchar(64)` | 归属身份摘要 | 是 | 受信授权流程 | 内部 |
+| `state` | `varchar(16)` | 授权流程状态 | 是 | 受信授权流程 | 内部 |
+| `verifier_ref` | `varchar(64)` | 加密验证凭据引用 | 是 | 受信授权流程 | 内部 |
+| `expires_at` | `timestamptz` | 授权流程截止时间 | 是 | 受信授权流程 | 内部 |
+
+普通索引：`(channel_id, id)`；`(channel_id, environment, connection_id)`。
+
+## mcp_oauth_tokens
+
+MCP 分身份委托凭据。状态：已实现；归属：主体；迁移：0029_mcp_oauth。
+
+| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
+| --- | --- | --- | --- | --- | --- |
+| `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
+| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
+| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
+| `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
+| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
+| `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
+| `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
+| `connection_id` | `varchar(64)` | 连接标识 | 是 | 受信授权流程 | 内部 |
+| `profile_id` | `varchar(64)` | 身份提供方配置 | 是 | 受信授权流程 | 内部 |
+| `profile_digest` | `varchar(64)` | 提供方配置摘要 | 是 | 受信授权流程 | 内部 |
+| `ownership` | `varchar(16)` | 凭据归属类型 | 是 | 受信授权流程 | 内部 |
+| `owner_id` | `varchar(64)` | 归属身份摘要 | 是 | 受信授权流程 | 内部 |
+| `credential_ref` | `varchar(64)` | 加密委托令牌引用 | 是 | 受信授权流程 | 内部 |
+| `expires_at` | `timestamptz` | 访问令牌截止时间 | 是 | 受信授权流程 | 内部 |
+| `state` | `varchar(16)` | 委托状态 | 是 | 受信授权流程 | 内部 |
+| `refresh_until` | `timestamptz` | 刷新占用截止时间 | 否 | 受信授权流程 | 内部 |
+| `refresh_nonce` | `varchar(64)` | 刷新互斥代次 | 否 | 受信授权流程 | 内部 |
+| `authorized_at` | `timestamptz` | 授权发起时间 | 是 | 受信授权流程 | 内部 |
+
+普通索引：`(channel_id, id)`；`(channel_id, environment, connection_id)`。

@@ -21,7 +21,7 @@ def source_requirements():
         if int(source.name[:2]) > 14:
             continue
         for number, line in enumerate(source.read_text().splitlines(), 1):
-            match = re.match(r"\| ([A-Z]+-[FA]\d+) \| (.*?) \|", line)
+            match = re.match(r"\| ([A-Z]+-[FA]\d+) \| (.*) \|$", line)
             if match:
                 identifier, description = match.groups()
                 if identifier in result:
@@ -30,7 +30,7 @@ def source_requirements():
                     "id": identifier,
                     "source": "../需求文档/" + source.name,
                     "line": number,
-                    "description": description,
+                    "description": description.replace(" | ", "；"),
                     "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
                 }
     return result
@@ -109,7 +109,7 @@ def classify(nodes, outcomes, collected):
     return status, evidence
 
 
-def render(folder):
+def render(folder, links_root=ROOT):
     linked = mappings()
     outcomes = results(folder)
     collection = folder / "logs/collection.txt"
@@ -149,11 +149,12 @@ def render(folder):
     (folder / "traceability.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
     )
+    rule_link = Path(os.path.relpath(links_root.parent / "rule.md", folder)).as_posix()
     lines = [
         "# 26 需求追踪表",
         "",
         "源编号直接读取需求总纲及 01–14；15–17 配置示例不计入平台必测。"
-        "通用规范见 [rule.md](../../../rule.md)。",
+        f"通用规范见 [rule.md]({rule_link})。",
         "",
         "“关联用例通过”仅表示本次记录中的全部参数用例成功，"
         "不等于真实供应商兼容或正式上线验收完成。跳过、缺记录和失败均不计通过；"
@@ -165,10 +166,10 @@ def render(folder):
         "| --- | --- | --- | --- | --- |",
     ]
     for row in records:
-        source = Path(os.path.relpath(ROOT / row["source"], folder)).as_posix()
+        source = Path(os.path.relpath(links_root / row["source"], folder)).as_posix()
         references = "<br>".join(
             f"[{node.split('::')[-1]}]"
-            f"({Path(os.path.relpath(ROOT / node.split('::')[0], folder)).as_posix()})"
+            f"({Path(os.path.relpath(links_root / node.split('::')[0], folder)).as_posix()})"
             for node in row["tests"]
         )
         # 输出目录可按本轮时间分层；原始节点与日志保存在 JSON。

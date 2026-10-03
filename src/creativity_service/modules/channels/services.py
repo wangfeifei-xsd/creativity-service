@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.auth.authentication import AdminSession
-from creativity_service.core.auth.types import GrantState, MembershipState
+from creativity_service.core.auth.types import GrantState
 from creativity_service.core.context import AuthContext, ControlScope, Scope
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.database import UnitOfWork, transaction
@@ -46,11 +46,12 @@ from creativity_service.modules.iam.accounts import current_actor
 from creativity_service.modules.iam.audit import append_event
 from creativity_service.modules.iam.authorization import effective_actions, require_platform
 from creativity_service.modules.iam.repositories import (
-    one as identity_one,
-)
-from creativity_service.modules.iam.repositories import (
+    membership_state,
     policy_key,
     to_state,
+)
+from creativity_service.modules.iam.repositories import (
+    one as identity_one,
 )
 from creativity_service.modules.iam.repositories import (
     rows as identity_rows,
@@ -212,7 +213,7 @@ class ChannelService:
         )
         if row is None or row["status"] != "ACTIVE" or environment not in row["environments"]:
             return False
-        member = to_state(MembershipState, row)
+        member = await membership_state(connection, row)
         target_domains = domains
         if target_domains is None:
             target_domains = [

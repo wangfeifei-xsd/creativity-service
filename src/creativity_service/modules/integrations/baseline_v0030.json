@@ -1,0 +1,875 @@
+[
+  {
+    "module": "integrations",
+    "name": "automation_schedules",
+    "comment": "通用运行定时计划",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "data_scope_id",
+        "type": "varchar(64)",
+        "comment": "业务数据域标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_type",
+        "type": "varchar(64)",
+        "comment": "业务主体类型",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_id",
+        "type": "varchar(128)",
+        "comment": "业务主体编号",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "个人"
+      },
+      {
+        "name": "name",
+        "type": "varchar(128)",
+        "comment": "计划名称",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "spec",
+        "type": "jsonb",
+        "comment": "周期与运行输入",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "owner_key",
+        "type": "varchar(64)",
+        "comment": "执行身份摘要",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "identity",
+        "type": "jsonb",
+        "comment": "原执行身份快照",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "state",
+        "type": "varchar(32)",
+        "comment": "当前处理状态",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "next_at",
+        "type": "timestamptz",
+        "comment": "下次触发时间",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "last_error",
+        "type": "jsonb",
+        "comment": "最近派发错误",
+        "required": false,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "data_scope_id",
+        "subject_type",
+        "subject_id"
+      ],
+      [
+        "channel_id",
+        "state",
+        "next_at"
+      ]
+    ],
+    "status": "已实现",
+    "scope": "主体",
+    "revision": "0030_automation",
+    "control_purpose": null,
+    "content": true,
+    "cleanup_type": "schedule"
+  },
+  {
+    "module": "integrations",
+    "name": "automation_batches",
+    "comment": "批量运行受理批次",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "data_scope_id",
+        "type": "varchar(64)",
+        "comment": "业务数据域标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_type",
+        "type": "varchar(64)",
+        "comment": "业务主体类型",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_id",
+        "type": "varchar(128)",
+        "comment": "业务主体编号",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "个人"
+      },
+      {
+        "name": "name",
+        "type": "varchar(128)",
+        "comment": "批次名称",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "request_digest",
+        "type": "varchar(64)",
+        "comment": "受理请求摘要",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "item_ids",
+        "type": "jsonb",
+        "comment": "批次条目关联",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "owner_key",
+        "type": "varchar(64)",
+        "comment": "执行身份摘要",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "identity",
+        "type": "jsonb",
+        "comment": "原执行身份快照",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "state",
+        "type": "varchar(32)",
+        "comment": "当前处理状态",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "data_scope_id",
+        "subject_type",
+        "subject_id"
+      ]
+    ],
+    "status": "已实现",
+    "scope": "主体",
+    "revision": "0030_automation",
+    "control_purpose": null,
+    "content": true,
+    "cleanup_type": "batch"
+  },
+  {
+    "module": "integrations",
+    "name": "automation_items",
+    "comment": "逐项运行派发记录",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "data_scope_id",
+        "type": "varchar(64)",
+        "comment": "业务数据域标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_type",
+        "type": "varchar(64)",
+        "comment": "业务主体类型",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_id",
+        "type": "varchar(128)",
+        "comment": "业务主体编号",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "个人"
+      },
+      {
+        "name": "batch_id",
+        "type": "varchar(64)",
+        "comment": "来源批次标识",
+        "required": false,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "schedule_id",
+        "type": "varchar(64)",
+        "comment": "来源计划标识",
+        "required": false,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "event_id",
+        "type": "varchar(128)",
+        "comment": "外部事件或窗口编号",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "request_digest",
+        "type": "varchar(64)",
+        "comment": "条目语义摘要",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "request",
+        "type": "jsonb",
+        "comment": "受理运行输入",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "owner_key",
+        "type": "varchar(64)",
+        "comment": "执行身份摘要",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "identity",
+        "type": "jsonb",
+        "comment": "原执行身份快照",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "state",
+        "type": "varchar(32)",
+        "comment": "当前处理状态",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "lease_until",
+        "type": "timestamptz",
+        "comment": "派发租约到期",
+        "required": false,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "lease_nonce",
+        "type": "varchar(64)",
+        "comment": "派发租约凭据",
+        "required": false,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "attempts",
+        "type": "bigint",
+        "comment": "受理尝试次数",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "run_id",
+        "type": "varchar(64)",
+        "comment": "关联运行标识",
+        "required": false,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "error",
+        "type": "jsonb",
+        "comment": "最近受理错误",
+        "required": false,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "data_scope_id",
+        "subject_type",
+        "subject_id"
+      ],
+      [
+        "channel_id",
+        "state",
+        "lease_until"
+      ]
+    ],
+    "status": "已实现",
+    "scope": "主体",
+    "revision": "0030_automation",
+    "control_purpose": null,
+    "content": true,
+    "cleanup_type": "batch_item"
+  },
+  {
+    "module": "integrations",
+    "name": "webhook_endpoints",
+    "comment": "事件投递端点",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "data_scope_id",
+        "type": "varchar(64)",
+        "comment": "业务数据域标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_type",
+        "type": "varchar(64)",
+        "comment": "业务主体类型",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_id",
+        "type": "varchar(128)",
+        "comment": "业务主体编号",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "个人"
+      },
+      {
+        "name": "name",
+        "type": "varchar(128)",
+        "comment": "端点名称",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "url",
+        "type": "text",
+        "comment": "固定接收地址",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "secret_ref",
+        "type": "varchar(64)",
+        "comment": "签名密钥密文引用",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "events",
+        "type": "jsonb",
+        "comment": "订阅事件类型",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "owner_key",
+        "type": "varchar(64)",
+        "comment": "执行身份摘要",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "identity",
+        "type": "jsonb",
+        "comment": "原执行身份快照",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "state",
+        "type": "varchar(32)",
+        "comment": "当前处理状态",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "data_scope_id",
+        "subject_type",
+        "subject_id"
+      ]
+    ],
+    "status": "已实现",
+    "scope": "主体",
+    "revision": "0030_automation",
+    "control_purpose": null,
+    "content": true,
+    "cleanup_type": "webhook_endpoint"
+  },
+  {
+    "module": "integrations",
+    "name": "webhook_deliveries",
+    "comment": "持久化事件投递",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "data_scope_id",
+        "type": "varchar(64)",
+        "comment": "业务数据域标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_type",
+        "type": "varchar(64)",
+        "comment": "业务主体类型",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_id",
+        "type": "varchar(128)",
+        "comment": "业务主体编号",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "个人"
+      },
+      {
+        "name": "endpoint_id",
+        "type": "varchar(64)",
+        "comment": "投递端点标识",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "event_id",
+        "type": "varchar(64)",
+        "comment": "稳定事件编号",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "kind",
+        "type": "varchar(64)",
+        "comment": "事件类型",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "payload",
+        "type": "jsonb",
+        "comment": "最小事件正文",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "owner_key",
+        "type": "varchar(64)",
+        "comment": "执行身份摘要",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "state",
+        "type": "varchar(32)",
+        "comment": "当前处理状态",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "attempts",
+        "type": "bigint",
+        "comment": "累计投递次数",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "next_at",
+        "type": "timestamptz",
+        "comment": "下次尝试时间",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "lease_until",
+        "type": "timestamptz",
+        "comment": "投递租约到期",
+        "required": false,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "lease_nonce",
+        "type": "varchar(64)",
+        "comment": "投递租约凭据",
+        "required": false,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "error",
+        "type": "jsonb",
+        "comment": "最近投递错误",
+        "required": false,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "http_status",
+        "type": "bigint",
+        "comment": "最近响应状态",
+        "required": false,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "cycle_attempts",
+        "type": "bigint",
+        "comment": "本轮自动投递次数，人工重投重新计数",
+        "required": true,
+        "source": "受信上下文与服务层校验",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "data_scope_id",
+        "subject_type",
+        "subject_id"
+      ],
+      [
+        "channel_id",
+        "state",
+        "next_at"
+      ]
+    ],
+    "status": "已实现",
+    "scope": "主体",
+    "revision": "0030_automation",
+    "control_purpose": null,
+    "content": true,
+    "cleanup_type": "webhook_delivery"
+  }
+]

@@ -1,0 +1,120 @@
+
+> creativity-web@0.1.0 test:e2e /Users/wanghongfei/work/work-space/一玄/70.agent/creativity-web
+> playwright test --reporter=list,junit
+
+[WebServer] (node:90068) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:90081) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 59 tests using 5 workers
+
+(node:90089) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90090) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90093) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90092) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90091) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   3 [chromium] › tests/agents.spec.ts:39:1 › 配置、流程、资源名称和发布记录可查看 (3.0s)
+  ✓   1 [chromium] › tests/integrations.spec.ts:28:1 › 连接列表、能力与脱敏测试使用业务名称 (3.2s)
+  ✓   4 [chromium] › tests/conversations.spec.ts:48:1 › 持久化时间线区分部分内容和取消终态并保留历史版本 (3.2s)
+  ✓   5 [chromium] › tests/evaluations.spec.ts:25:1 › 样本版本、人工标签与导入错误行可审阅 (3.6s)
+  ✓   2 [chromium] › tests/channels.spec.ts:20:34 › 渠道开通显式填写任意映射且分类可留空（1280） (4.7s)
+  ✓   6 [chromium] › tests/agents.spec.ts:54:1 › 生产门禁错误明确显示，发布携带修订与工作区环境 (2.0s)
+  ✓   8 [chromium] › tests/conversations.spec.ts:60:1 › 网络失败保留正文并复用客户端消息标识 (1.9s)
+  ✓   9 [chromium] › tests/evaluations.spec.ts:42:1 › 部分报告不显示整集通过，暂停和冲突反馈保留上下文 (1.9s)
+  ✓   7 [chromium] › tests/integrations.spec.ts:43:1 › 契约测试错误保留输入且请求不包含渠道身份 (2.4s)
+  ✓  14 [chromium] › tests/integrations.spec.ts:64:1 › 窄屏配置表单可操作 (1.9s)
+  ✓  13 [chromium] › tests/evaluations.spec.ts:57:1 › 窄屏发布检查显示服务端阻断原因 (2.1s)
+  ✓  12 [chromium] › tests/conversations.spec.ts:75:1 › 归档恢复与删除进度入口可用 (3.0s)
+  ✓  11 [chromium] › tests/agents.spec.ts:68:1 › 窄屏修改冲突保留草稿，提交不覆盖受信渠道 (3.1s)
+  ✓  10 [chromium] › tests/channels.spec.ts:20:34 › 渠道开通显式填写任意映射且分类可留空（390） (3.5s)
+  ✓  15 [chromium] › tests/integrations.spec.ts:76:1 › 旧 HTTP 目录不可用时仍能配置独立委托凭据 (1.8s)
+  ✓  18 [chromium] › tests/agents.spec.ts:88:1 › 调试按字段标题生成输入，执行服务未接通时不显示成功结果 (1.8s)
+  ✓  16 [chromium] › tests/evaluations.spec.ts:75:1 › 人工复核使用结果修订且与确定性判定分列 (2.6s)
+  ✓  17 [chromium] › tests/conversations.spec.ts:92:1 › 窄屏摘要来源和截断记录可读且不泄露内部标识 (2.2s)
+  ✓  19 [chromium] › tests/channels.spec.ts:51:1 › 新增数据域保留外部配置原值 (3.0s)
+  ✓  22 [chromium] › tests/mcp.spec.ts:31:1 › 连接详情区分人工启用和健康，契约变化明确提示 (2.3s)
+  ✓  21 [chromium] › tests/agents.spec.ts:105:1 › 新增向导使用模板并提交完整依赖及限制 (3.1s)
+  ✓  23 [chromium] › tests/memory.spec.ts:44:1 › 确认候选、查看来源并在修正冲突后保留输入 (3.2s)
+  ✓  20 [chromium] › tests/integrations.spec.ts:87:1 › 主体复核从 MCP 发现绑定，保存不含用户或数据域覆盖 (4.7s)
+  ✓  24 [chromium] › tests/models.spec.ts:27:1 › 模型详情展示能力证据、价格单位和不可执行的验证记录 (3.1s)
+  ✓  25 [chromium] › tests/mcp.spec.ts:43:1 › 工具导入要求本地权限与执行策略，只提交草稿请求 (3.1s)
+  ✓  28 [chromium] › tests/prompts.spec.ts:35:1 › 提示词六个操作区、中文变量、脱敏预览和未知上下文上限 (2.5s)
+  ✓  29 [chromium] › tests/models.spec.ts:57:1 › 连接编辑不回显凭据，保存保留凭据引用与修订号 (2.3s)
+  ✓  27 [chromium] › tests/memory.spec.ts:64:1 › 关闭长期记忆保留列表，清空进入可刷新删除进度 (3.2s)
+  ✓  26 [chromium] › tests/agents.spec.ts:127:1 › 旧入口编辑保留版本，新增可选择通用流程 (4.9s)
+  ✓  30 [chromium] › tests/mcp.spec.ts:67:1 › 窄屏连接配置标明暂不可用连接方式 (2.4s)
+  ✓  31 [chromium] › tests/prompts.spec.ts:52:1 › 草稿冲突保留输入并展示最新修订 (2.5s)
+  ✓  32 [chromium] › tests/models.spec.ts:76:1 › 不支持的参数反馈保留输入，并阻止重复提交 (2.6s)
+  ✓  35 [chromium] › tests/mcp.spec.ts:80:1 › 身份复核工具只能进入复核配置，不向模型导入 (1.6s)
+  ✓  33 [chromium] › tests/memory.spec.ts:79:1 › 新增与策略表单使用结构化值和明确单位 (3.5s)
+  ✓  38 [chromium] › tests/shell.spec.ts:15:1 › 无 Token 时仍查询服务端会话，401 显示登录 (1.2s)
+  ✓  37 [chromium] › tests/runs.spec.ts:27:1 › 执行中心展示名称、独立尝试、部分业务结果和费用完整性 (2.5s)
+  ✓  36 [chromium] › tests/prompts.spec.ts:67:1 › 旧测试读取固定快照，后续草稿不替换测试内容 (2.8s)
+  ✓  40 [chromium] › tests/shell.spec.ts:26:1 › 初始化服务故障可重试，不信任本地 Token 或到期时间 (1.3s)
+  ✓  34 [chromium] › tests/agents.spec.ts:154:1 › Agent 固定技能参考文件与按需加载选择 (4.4s)
+  ✓  39 [chromium] › tests/memory.spec.ts:97:1 › 窄屏详情与删除操作不显示内部标识 (2.2s)
+  ✓  41 [chromium] › tests/runs.spec.ts:44:1 › 窄屏无原文权限时仍可查看步骤，不提供输入输出或重新执行 (1.8s)
+  ✓  42 [chromium] › tests/skills.spec.ts:34:1 › 技能包文件树、脚本状态与两种预览使用实际内容 (2.2s)
+  ✓  44 [chromium] › tests/tools.spec.ts:34:1 › 工具列表和详情使用名称，缺少运行服务时禁止测试 (2.1s)
+  ✓  43 [chromium] › tests/shell.spec.ts:38:1 › 409 保留输入，重复提交只发出一次请求，读取新版本后可恢复 (3.2s)
+  ✓  47 [chromium] › tests/skills.spec.ts:48:1 › 加载测试只提交所选文件并显示省略记录 (2.2s)
+  ✓  45 [chromium] › tests/memory.spec.ts:110:1 › 切换渠道后同号主体不会复用前一渠道记忆 (3.9s)
+  ✓  49 [chromium] › tests/shell.spec.ts:65:1 › 直接访问接口被拒绝时显示无权限，导航不成为授权依据 (1.3s)
+  ✓  48 [chromium] › tests/tools.spec.ts:47:1 › 测试只提交业务参数，服务器字段错误保留输入 (2.3s)
+  ✓  52 [chromium] › tests/shell.spec.ts:73:1 › 窄屏与未知页面没有横向溢出或浏览器错误 (1.8s)
+  ✓  50 [chromium] › tests/skills.spec.ts:71:1 › 窄屏编辑资料并保留服务端错误前的输入 (2.3s)
+  ✓  53 [chromium] › tests/tools.spec.ts:72:1 › 窄屏版本编辑和执行策略可用 (2.4s)
+  ✓  51 [chromium] › tests/usage.spec.ts:19:1 › USG 页面保留币种、缺失值及只读权限，支持筛选与核查 (2.9s)
+  ✓  55 [chromium] › tests/skills.spec.ts:93:1 › 导出通过受控产物下载 (1.5s)
+  ✓  46 [chromium] › tests/runs.spec.ts:56:1 › 原文权限收紧后隐藏部分内容并继续更新执行状态 (6.7s)
+  ✓  56 [chromium] › tests/usage.spec.ts:44:1 › USG 窄屏总览与调用明细无页面横向溢出 (1.4s)
+  ✓  54 [chromium] › tests/shell.spec.ts:86:1 › IAM-A14 切换渠道清除筛选和旧请求，迟到 401 不影响新工作区 (2.3s)
+  ✓  58 [chromium] › tests/runs.spec.ts:78:1 › 删除运行先展示影响，清理失败可以重试并显示完成进度 (1.3s)
+  ✓  57 [chromium] › tests/skills.spec.ts:103:1 › 导入预览后显式绑定本渠道工具，契约失败保留选择 (2.4s)
+(node:90410) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  59 [chromium] › tests/workspace-live.spec.ts:19:1 › 真实 IAM/渠道：首次改密、开通、成员双入口、签发和轮换 Key、暂停与归档 (30.5s)
+
+
+  1) [chromium] › tests/workspace-live.spec.ts:19:1 › 真实 IAM/渠道：首次改密、开通、成员双入口、签发和轮换 Key、暂停与归档 ──────
+
+    TimeoutError: locator.click: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '确认归档渠道', exact: true })
+        - locator resolved to <button disabled type="button" class="ant-btn css-dev-only-do-not-override-oc1rc0 css-var-_r_0_ ant-btn-primary ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-solid">…</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is not stable
+        - retrying click action
+          - waiting 100ms
+        19 × waiting for element to be visible, enabled and stable
+           - element is not enabled
+         - retrying click action
+           - waiting 500ms
+
+
+      140 |   await expect(page.getByRole('dialog')).toBeHidden()
+      141 |   await page.getByRole('button', { name: '归档渠道', exact: true }).click()
+    > 142 |   await page.getByRole('button', { name: '确认归档渠道', exact: true }).click()
+          |                                                                   ^
+      143 |   await expect(page.getByText('已归档', { exact: true })).toBeVisible()
+      144 |   await page.getByRole('button', { name: '返回平台', exact: true }).click()
+      145 |   await expect(page.getByRole('heading', { name: '工作台' })).toBeVisible()
+        at /Users/wanghongfei/work/work-space/一玄/70.agent/creativity-web/tests/workspace-live.spec.ts:142:67
+
+    Error Context: test-results/workspace-live-真实-IAM-渠道：首次改密、开通、成员双入口、签发和轮换-Key、暂停与归档-chromium/error-context.md
+
+  1 failed
+    [chromium] › tests/workspace-live.spec.ts:19:1 › 真实 IAM/渠道：首次改密、开通、成员双入口、签发和轮换 Key、暂停与归档 ───────
+  58 passed (1.1m)
+ ELIFECYCLE  Command failed with exit code 1.

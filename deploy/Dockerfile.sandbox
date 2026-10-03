@@ -1,0 +1,4 @@
+FROM python:3.12-alpine
+USER 65532:65532
+WORKDIR /work
+ENTRYPOINT ["python3", "-I", "-B", "/work/main.py"]

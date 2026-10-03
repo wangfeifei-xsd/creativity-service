@@ -1,0 +1,506 @@
+"""定时与批量条目先持久化，再以稳定幂等键进入统一运行。"""
+
+import secrets
+from datetime import datetime, timedelta
+from typing import Any
+
+from sqlalchemy import select
+
+from creativity_service.core.context import AuthContext, Scope
+from creativity_service.core.database import Repository, UnitOfWork, transaction
+from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
+from creativity_service.core.locking import ResourceKey, record_key
+from creativity_service.core.primitives import RunInput, ServiceError, digest, new_id, utcnow
+from creativity_service.modules.iam.audit import append_event
+from creativity_service.modules.iam.authorization import IamAuthorization
+from creativity_service.modules.iam.repositories import policy_key
+from creativity_service.modules.integrations.authorization import require_management
+from creativity_service.modules.integrations.automation_schemas import (
+    BatchCreate,
+    BatchView,
+    ItemView,
+    ScheduleCreate,
+    Toggle,
+    next_window,
+)
+from creativity_service.modules.integrations.automation_tables import metadata
+from creativity_service.modules.runs.services import RunService
+
+KINDS = {
+    "automation_schedules": "schedule",
+    "automation_batches": "batch",
+    "automation_items": "batch_item",
+    "webhook_endpoints": "webhook_endpoint",
+    "webhook_deliveries": "webhook_delivery",
+}
+LABELS = {
+    "ACTIVE": "启用",
+    "PAUSED": "暂停",
+    "PENDING": "待派发",
+    "CLAIMED": "派发中",
+    "ADMITTED": "已受理",
+    "FAILED": "受理失败",
+    "CANCELLED": "已取消",
+    "DELETED": "已删除",
+}
+
+
+def worker_identity(context: AuthContext) -> AuthContext:
+    return context.model_copy(
+        update={
+            "principal_type": "worker",
+            "session_id": None,
+            "token_digest": None,
+            "granted_actions": frozenset(),
+        }
+    )
+
+
+def owner(context: AuthContext) -> str:
+    return digest([context.actor_id, context.client_id, context.principal_id])
+
+
+def scope_of(row: dict[str, Any]) -> Scope:
+    return Scope.model_validate({k: row[k] for k in Scope.model_fields})
+
+
+def repo(scope: Scope, name: str) -> Repository:
+    return Repository(metadata.tables[name], scope)
+
+
+def keys(context: AuthContext, *records: tuple[str, str]) -> list[ResourceKey]:
+    return [
+        content_key(context.scope),
+        policy_key(context.scope.channel_id),
+        policy_key("system"),
+        *(record_key(context.scope.channel_id, name, identifier) for name, identifier in records),
+    ]
+
+
+def configuration_keys(
+    context: AuthContext, name: str, identifier: str, event_id: str
+) -> list[ResourceKey]:
+    return keys(context, (name, identifier), ("audit_events", event_id))
+
+
+async def audit_configuration(
+    uow: UnitOfWork, context: AuthContext, name: str, identifier: str, event_id: str
+) -> None:
+    await append_event(
+        uow,
+        event_id,
+        context.actor_id or context.principal_id,
+        context.request_id,
+        "integration:configure",
+        KINDS.get(name, "alert_rule"),
+        identifier,
+    )
+
+
+async def add(
+    uow: UnitOfWork, context: AuthContext, name: str, identifier: str, values: dict[str, Any]
+) -> dict[str, Any]:
+    protected = set(Scope.model_fields) | {"id", "created_at", "updated_at", "revision"}
+    return await repo(context.scope, name).add(
+        uow,
+        identifier,
+        {**{c: None for c in metadata.tables[name].c.keys() if c not in protected}, **values},
+    )
+
+
+class AutomationService:
+    def __init__(self, runs: RunService, authorization: IamAuthorization) -> None:
+        self.runs, self.engine, self.authorization = runs, runs.engine, authorization
+
+    async def manage(self, context: AuthContext) -> None:
+        if not context.actor_id:
+            raise ServiceError("FORBIDDEN", "此配置需要渠道管理身份", 403)
+        await self.authorization.boundary(
+            context, "integration:manage", "channel", context.scope.channel_id
+        )
+
+    async def get(self, context: AuthContext, name: str, identifier: str) -> dict[str, Any]:
+        async with transaction(self.engine, context.scope, keys(context)) as uow:
+            row = await repo(context.scope, name).get(uow.connection, identifier)
+            if not row or row["owner_key"] != owner(context):
+                raise ServiceError("NOT_FOUND", "当前身份与范围没有此记录", 404)
+            await DeletionGuard(context.scope).check(uow, [ContentRef(KINDS[name], identifier)])
+            return row
+
+    async def channel_rows(self, channel_id: str, name: str) -> list[dict[str, Any]]:
+        table = metadata.tables[name]
+        async with self.engine.connect() as connection:
+            return [
+                dict(r)
+                for r in (
+                    await connection.execute(select(table).where(table.c.channel_id == channel_id))
+                ).mappings()
+            ]
+
+    async def list_schedules(self, context: AuthContext) -> list[dict[str, Any]]:
+        await self.manage(context)
+        async with self.engine.connect() as connection:
+            records = await repo(context.scope, "automation_schedules").find(
+                connection, owner_key=owner(context)
+            )
+        return [self.schedule_view(r) for r in records if r["state"] != "DELETED"]
+
+    @staticmethod
+    def schedule_view(row: dict[str, Any]) -> dict[str, Any]:
+        return {k: row[k] for k in ("id", "name", "spec", "revision", "next_at", "last_error")} | {
+            "state": row["state"],
+            "state_label": LABELS[row["state"]],
+        }
+
+    async def create_schedule(self, context: AuthContext, body: ScheduleCreate) -> dict[str, Any]:
+        await self.manage(context)
+        await self.runs.authorization.require(context, "run:create", "new")
+        identifier = new_id("schedule")
+        event_id = new_id("audit")
+        async with transaction(
+            self.engine,
+            context.scope,
+            configuration_keys(context, "automation_schedules", identifier, event_id),
+        ) as uow:
+            await require_management(uow, context, "integration:manage")
+            await DeletionGuard(context.scope).check(uow, [])
+            row = await add(
+                uow,
+                context,
+                "automation_schedules",
+                identifier,
+                {
+                    "name": body.name,
+                    "spec": body.model_dump(mode="json"),
+                    "owner_key": owner(context),
+                    "identity": worker_identity(context).model_dump(mode="json"),
+                    "state": "ACTIVE",
+                    "next_at": next_window(body, utcnow()),
+                    "last_error": None,
+                },
+            )
+            await audit_configuration(uow, context, "automation_schedules", identifier, event_id)
+        return self.schedule_view(row)
+
+    async def toggle_schedule(
+        self, context: AuthContext, identifier: str, body: Toggle
+    ) -> dict[str, Any]:
+        await self.manage(context)
+        await self.get(context, "automation_schedules", identifier)
+        event_id = new_id("audit")
+        async with transaction(
+            self.engine,
+            context.scope,
+            configuration_keys(context, "automation_schedules", identifier, event_id),
+        ) as uow:
+            await require_management(uow, context, "integration:manage")
+            await DeletionGuard(context.scope).check(uow, [ContentRef("schedule", identifier)])
+            row = await repo(context.scope, "automation_schedules").get(uow.connection, identifier)
+            assert row
+            values: dict[str, Any] = {"state": "ACTIVE" if body.active else "PAUSED"}
+            if body.active:
+                values["next_at"] = next_window(
+                    ScheduleCreate.model_validate(row["spec"]), utcnow()
+                )
+            row = await repo(context.scope, "automation_schedules").change(
+                uow, identifier, body.revision, values
+            )
+            await audit_configuration(uow, context, "automation_schedules", identifier, event_id)
+        return self.schedule_view(row)
+
+    async def batch(self, context: AuthContext, identifier: str) -> BatchView:
+        await self.runs.authorization.require(context, "run:read", "scope")
+        row = await self.get(context, "automation_batches", identifier)
+        items = [await self.get(context, "automation_items", i) for i in row["item_ids"]]
+        return BatchView(
+            batch_id=identifier,
+            name=row["name"],
+            state_label=LABELS[row["state"]],
+            revision=row["revision"],
+            items=[self.item_view(i) for i in items],
+        )
+
+    @staticmethod
+    def item_view(row: dict[str, Any]) -> ItemView:
+        return ItemView(
+            item_id=row["id"],
+            event_id=row["event_id"],
+            state=row["state"],
+            state_label=LABELS[row["state"]],
+            run_id=row["run_id"],
+            error=row["error"],
+            revision=row["revision"],
+        )
+
+    async def create_batch(self, context: AuthContext, body: BatchCreate, key: str) -> BatchView:
+        await self.runs.authorization.require(context, "run:create", "new")
+        if not key or len(key) > 128:
+            raise ServiceError("IDEMPOTENCY_KEY_REQUIRED", "请提供有效幂等键", 422)
+        identifier = digest([context.scope.model_dump(), owner(context), "batch", key])
+        items = [
+            (digest([context.scope.model_dump(), owner(context), "event", i.event_id]), i)
+            for i in body.items
+        ]
+        links = [(digest(["batch", identifier, item_id]), item_id) for item_id, _ in items]
+        lock = keys(
+            context,
+            ("automation_batches", identifier),
+            *(("automation_items", i) for i, _ in items),
+            *(("source_links", i) for i, _ in links),
+        )
+        async with transaction(self.engine, context.scope, lock) as uow:
+            await DeletionGuard(context.scope).check(uow, [ContentRef("batch", identifier)])
+            previous = await repo(context.scope, "automation_batches").get(
+                uow.connection, identifier
+            )
+            if previous and previous["request_digest"] != digest(body.model_dump(mode="json")):
+                raise ServiceError("IDEMPOTENCY_CONFLICT", "相同批次幂等键的内容不同", 409)
+            if not previous:
+                await add(
+                    uow,
+                    context,
+                    "automation_batches",
+                    identifier,
+                    {
+                        "name": body.name,
+                        "request_digest": digest(body.model_dump(mode="json")),
+                        "item_ids": [i for i, _ in items],
+                        "owner_key": owner(context),
+                        "identity": worker_identity(context).model_dump(mode="json"),
+                        "state": "ACTIVE",
+                    },
+                )
+                for item_id, item in items:
+                    semantic = item.request.semantic_digest()
+                    previous_item = await repo(context.scope, "automation_items").get(
+                        uow.connection, item_id
+                    )
+                    if previous_item and previous_item["request_digest"] != semantic:
+                        raise ServiceError(
+                            "IDEMPOTENCY_CONFLICT", "相同外部事件的运行内容不同", 409
+                        )
+                    if not previous_item:
+                        await self.new_item(
+                            uow, context, item_id, item.request, item.event_id, batch_id=identifier
+                        )
+                    await DeletionGuard(context.scope).link(
+                        uow,
+                        digest(["batch", identifier, item_id]),
+                        ContentRef("batch", identifier),
+                        ContentRef("batch_item", item_id),
+                    )
+        return await self.batch(context, identifier)
+
+    async def new_item(
+        self,
+        uow: UnitOfWork,
+        context: AuthContext,
+        identifier: str,
+        request: RunInput,
+        event_id: str,
+        *,
+        batch_id: str | None = None,
+        schedule_id: str | None = None,
+    ) -> None:
+        await DeletionGuard(context.scope).check(uow, [ContentRef("batch_item", identifier)])
+        await add(
+            uow,
+            context,
+            "automation_items",
+            identifier,
+            {
+                "batch_id": batch_id,
+                "schedule_id": schedule_id,
+                "event_id": event_id,
+                "request_digest": request.semantic_digest(),
+                "request": request.model_dump(mode="json"),
+                "owner_key": owner(context),
+                "identity": worker_identity(context).model_dump(mode="json"),
+                "state": "PENDING",
+                "attempts": 0,
+            },
+        )
+
+    async def retry_item(self, context: AuthContext, identifier: str, revision: int) -> ItemView:
+        await self.runs.authorization.require(context, "run:create", "new")
+        await self.get(context, "automation_items", identifier)
+        async with transaction(
+            self.engine, context.scope, keys(context, ("automation_items", identifier))
+        ) as uow:
+            await DeletionGuard(context.scope).check(uow, [ContentRef("batch_item", identifier)])
+            row = await repo(context.scope, "automation_items").get(uow.connection, identifier)
+            assert row
+            if row["state"] != "FAILED" or row["run_id"]:
+                raise ServiceError("ITEM_NOT_RETRYABLE", "只有尚未受理的失败条目可重试", 409)
+            if row["batch_id"]:
+                parent = await repo(context.scope, "automation_batches").get(
+                    uow.connection, row["batch_id"]
+                )
+                if not parent or parent["state"] != "ACTIVE":
+                    raise ServiceError("BATCH_CANCELLED", "批次已停止派发", 409)
+            row = await repo(context.scope, "automation_items").change(
+                uow,
+                identifier,
+                revision,
+                {"state": "PENDING", "error": None, "lease_until": None, "lease_nonce": None},
+            )
+        return self.item_view(row)
+
+    async def cancel_batch(
+        self, context: AuthContext, identifier: str, revision: int, cancel_runs: bool
+    ) -> BatchView:
+        await self.runs.authorization.require(context, "run:create", "new")
+        batch = await self.get(context, "automation_batches", identifier)
+        run_ids = []
+        async with transaction(
+            self.engine,
+            context.scope,
+            keys(
+                context,
+                ("automation_batches", identifier),
+                *(("automation_items", i) for i in batch["item_ids"]),
+            ),
+        ) as uow:
+            await repo(context.scope, "automation_batches").change(
+                uow, identifier, revision, {"state": "CANCELLED"}
+            )
+            for item_id in batch["item_ids"]:
+                item = await repo(context.scope, "automation_items").get(uow.connection, item_id)
+                if not item or item["batch_id"] != identifier:
+                    continue
+                if item["state"] in {"PENDING", "CLAIMED", "FAILED"}:
+                    await repo(context.scope, "automation_items").change(
+                        uow, item_id, item["revision"], {"state": "CANCELLED"}
+                    )
+                if item["run_id"] and cancel_runs:
+                    run_ids.append(item["run_id"])
+        for run_id in run_ids:
+            await self.runs.cancel(context, run_id)
+        return await self.batch(context, identifier)
+
+    async def fire(self, row: dict[str, Any], now: datetime) -> None:
+        context = AuthContext.model_validate(row["identity"])
+        spec = ScheduleCreate.model_validate(row["spec"])
+        identifier = digest(["schedule", row["id"], row["next_at"].isoformat()])
+        link = digest(["schedule", row["id"], identifier])
+        async with transaction(
+            self.engine,
+            context.scope,
+            keys(
+                context,
+                ("automation_schedules", row["id"]),
+                ("automation_items", identifier),
+                ("source_links", link),
+            ),
+        ) as uow:
+            current = await repo(context.scope, "automation_schedules").get(
+                uow.connection, row["id"]
+            )
+            if (
+                not current
+                or current["revision"] != row["revision"]
+                or current["state"] != "ACTIVE"
+                or current["next_at"] > now
+            ):
+                return
+            await DeletionGuard(context.scope).check(uow, [ContentRef("schedule", row["id"])])
+            next_at = next_window(spec, now)
+            if spec.interval_seconds:
+                missed = int((now - row["next_at"]).total_seconds() // spec.interval_seconds)
+                next_at = row["next_at"] + timedelta(seconds=spec.interval_seconds * (missed + 1))
+            await repo(context.scope, "automation_schedules").change(
+                uow, row["id"], row["revision"], {"next_at": next_at}
+            )
+            if (now - row["next_at"]).total_seconds() > 60:
+                return
+            await self.new_item(
+                uow,
+                context,
+                identifier,
+                spec.request,
+                row["next_at"].isoformat(),
+                schedule_id=row["id"],
+            )
+            await DeletionGuard(context.scope).link(
+                uow, link, ContentRef("schedule", row["id"]), ContentRef("batch_item", identifier)
+            )
+
+    async def dispatch(self, row: dict[str, Any]) -> None:
+        context = AuthContext.model_validate(row["identity"])
+        nonce = secrets.token_hex(16)
+        item_repo = repo(context.scope, "automation_items")
+        lock = keys(context, ("automation_items", row["id"]))
+        async with transaction(self.engine, context.scope, lock) as uow:
+            current = await item_repo.get(uow.connection, row["id"])
+            if not current or current["state"] not in {"PENDING", "CLAIMED"}:
+                return
+            if current["lease_until"] and current["lease_until"] > utcnow():
+                return
+            await DeletionGuard(context.scope).check(uow, [ContentRef("batch_item", row["id"])])
+            for table, field in (
+                ("automation_batches", "batch_id"),
+                ("automation_schedules", "schedule_id"),
+            ):
+                if current[field]:
+                    parent = await repo(context.scope, table).get(uow.connection, current[field])
+                    if not parent or parent["state"] != "ACTIVE":
+                        return
+            await item_repo.change(
+                uow,
+                row["id"],
+                current["revision"],
+                {
+                    "state": "CLAIMED",
+                    "lease_nonce": nonce,
+                    "lease_until": utcnow() + timedelta(seconds=120),
+                    "attempts": current["attempts"] + 1,
+                },
+            )
+        receipt, error = None, None
+        try:
+            receipt = await self.runs.admit_run(
+                context,
+                RunInput.model_validate(row["request"]),
+                "item:" + row["id"],
+                sources=(ContentRef("batch_item", row["id"]),),
+            )
+        except ServiceError as exc:
+            error = {"code": exc.code, "message": exc.message}
+        cancel = False
+        async with transaction(self.engine, context.scope, lock) as uow:
+            current = await item_repo.get(uow.connection, row["id"])
+            if not current or current["state"] in {"CANCELLED", "DELETED"}:
+                cancel = bool(receipt)
+            elif current["lease_nonce"] != nonce:
+                return
+            else:
+                await DeletionGuard(context.scope).check(uow, [ContentRef("batch_item", row["id"])])
+                await item_repo.change(
+                    uow,
+                    row["id"],
+                    current["revision"],
+                    {
+                        "state": "ADMITTED" if receipt else "FAILED",
+                        "run_id": receipt.run_id if receipt else None,
+                        "error": error,
+                        "lease_nonce": None,
+                        "lease_until": None,
+                    },
+                )
+        if cancel and receipt:
+            await self.runs.cancel(context, receipt.run_id)
+
+    async def sweep(self, channel_id: str) -> None:
+        now = utcnow()
+        for row in await self.channel_rows(channel_id, "automation_schedules"):
+            if row["state"] == "ACTIVE" and row["next_at"] <= now:
+                try:
+                    await self.fire(row, now)
+                except ServiceError:
+                    continue
+        for row in await self.channel_rows(channel_id, "automation_items"):
+            if row["state"] in {"PENDING", "CLAIMED"}:
+                try:
+                    await self.dispatch(row)
+                except ServiceError:
+                    continue

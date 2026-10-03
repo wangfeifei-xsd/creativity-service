@@ -158,6 +158,7 @@ class EvaluationBudget(Contract):
 
 
 class EvaluationCreate(Contract):
+    experiment_prompt_id: Identifier | None = None
     name: str = Field(min_length=1, max_length=128)
     dataset_version_id: Identifier
     candidates: list[CandidateInput] = Field(min_length=1, max_length=8)

@@ -83,6 +83,20 @@ class EvaluationService(DatasetService):
         if body.baseline_evaluation_id and body.baseline_candidate_version_id is None:
             raise ServiceError("BASELINE_REQUIRED", "历史基线需要指定候选版本", 422)
         candidates: list[dict[str, Any]] = []
+        experiment_definition: dict[str, Any] | None = None
+        experiment_versions: set[str] = set()
+        if body.experiment_prompt_id and (
+            len(body.candidates) < 2
+            or body.execution_mode != "fixture"
+            or body.release_target
+            or not body.baseline_candidate_version_id
+            or body.baseline_evaluation_id
+        ):
+            raise ServiceError(
+                "EXPERIMENT_INVALID",
+                "提示词实验需要至少两个候选、同批基线及固定样本，不能自动用于发布",
+                422,
+            )
         for value in body.candidates:
             spec = await self.agents.freeze_candidate(
                 context,
@@ -91,6 +105,31 @@ class EvaluationService(DatasetService):
                 "evaluation",
                 published_dependencies=body.release_target,
             )
+            if body.experiment_prompt_id:
+                prompt = next(
+                    (
+                        v
+                        for v in spec.versions
+                        if v.version_id == spec.definition.bindings.prompt_version
+                    ),
+                    None,
+                )
+                if (
+                    not prompt
+                    or prompt.resource_type != "prompt"
+                    or prompt.resource_id != body.experiment_prompt_id
+                ):
+                    raise ServiceError(
+                        "EXPERIMENT_PROMPT_MISMATCH", "候选须绑定所选提示词的版本", 422
+                    )
+                definition = spec.definition.model_dump(mode="json")
+                definition["bindings"]["prompt_version"] = None
+                if experiment_definition is not None and definition != experiment_definition:
+                    raise ServiceError(
+                        "EXPERIMENT_NOT_COMPARABLE", "提示词实验的其他流程、模型和策略必须相同", 422
+                    )
+                experiment_definition = definition
+                experiment_versions.add(prompt.version_id)
             candidates.append(
                 {
                     "snapshot_id": spec.snapshot_id,
@@ -115,6 +154,8 @@ class EvaluationService(DatasetService):
                     "limits": spec.definition.limits.model_dump(mode="json"),
                 }
             )
+        if body.experiment_prompt_id and len(experiment_versions) != len(body.candidates):
+            raise ServiceError("EXPERIMENT_DUPLICATE", "提示词实验候选必须采用不同提示词版本", 422)
         cost_limit = body.budget.cost_limit
         if cost_limit and (
             cost_limit.amount <= 0
@@ -219,6 +260,7 @@ class EvaluationService(DatasetService):
                             "minimum_pass_rate",
                             "maximum_regression",
                             "release_target",
+                            "experiment_prompt_id",
                         },
                     ),
                     "identity": identity.model_dump(mode="json"),

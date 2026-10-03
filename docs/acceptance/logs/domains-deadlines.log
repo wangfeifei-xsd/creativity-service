@@ -1,0 +1,42 @@
+F..                                                                      [100%]
+=================================== FAILURES ===================================
+____ test_same_channel_two_domains_same_subject_and_idempotency[agent_env0] ____
+
+business_env = namespace(iam=IamServices(authentication=<creativity_service.core.auth.authentication.AuthenticationService object at ...t=None, delegation_id='91e5eeefc0adb0816682603268b5c898b47fc5a3ff806ffc432243297f9f7078', granted_actions=frozenset()))
+
+    async def test_same_channel_two_domains_same_subject_and_idempotency(business_env):
+        env = business_env
+        channel_id = env.context.scope.channel_id
+        second = await env.services.channels.create_data_scope(
+            env.admin,
+            channel_id,
+            DataScopeCreate(
+                environment="test",
+                name="第二资料域",
+                external_scope_type="workspace",
+                external_scope_id="domain-two",
+            ),
+        )
+>       member = (await env.iam.access.list_members(env.admin, channel_id))[0]
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/acceptance/test_domains.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/creativity_service/modules/iam/access.py:358: in list_members
+    await self.context(session, channel_id, "membership:read")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <creativity_service.modules.iam.access.AccessService object at 0x10f0d1fd0>
+session = AdminSession(token=TokenRecord(channel_id='system', token_digest='81a65e12673342ff462e74356be91e6dbd30661af4679a163b6c...cb881b', token_digest='81a65e12673342ff462e74356be91e6dbd30661af4679a163b6cc1fa2349b017', granted_actions=frozenset()))
+channel_id = 'channel_cab39274e0f341f0b5968a3f5274bb9c'
+action = 'membership:read'
+
+    async def context(self, session: AdminSession, channel_id: str, action: str) -> AuthContext:
+        if not isinstance(session.context, AuthContext):
+>           raise ServiceError("FORBIDDEN", "请先进入获授权的渠道工作区", 403)
+E           creativity_service.core.primitives.ServiceError: 请先进入获授权的渠道工作区
+
+src/creativity_service/modules/iam/access.py:70: ServiceError
+=========================== short test summary info ============================
+FAILED tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency[agent_env0]
+1 failed, 2 passed, 2 deselected in 18.31s

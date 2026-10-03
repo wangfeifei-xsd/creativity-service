@@ -6,8 +6,8 @@ from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import NavigationItem, VisibleAction
 from creativity_service.core.primitives import Contract, ServiceError
 from creativity_service.modules.iam.authorization import effective_actions, require_platform
-from creativity_service.modules.iam.repositories import rows
-from creativity_service.modules.iam.roles import ACTION_NAMES, ROLE_NAMES
+from creativity_service.modules.iam.repositories import role_catalog, rows
+from creativity_service.modules.iam.roles import ACTION_NAMES
 from creativity_service.modules.iam.schemas import RoleView
 from creativity_service.modules.iam.services import IamServices
 
@@ -136,6 +136,8 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
                     label=f"{workspace.environment_name} · {workspace.data_scope_name}",
                 )
             )
+    async with iam.accounts.repository.engine.connect() as connection:
+        catalog = await role_catalog(connection, channel_id)
     return AccessOptions(
         tabs=[
             NavigationItem(navigation_key=key, label=label)
@@ -151,7 +153,9 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
         else [],
         roles=await iam.access.roles(session) if "membership:manage" in allowed else [],
         grantee_roles=[
-            NamedOption(value=k, label=v) for k, v in ROLE_NAMES.items() if k != "platform_admin"
+            NamedOption(value=k, label=v["name"])
+            for k, v in catalog.items()
+            if v["state"] == "ACTIVE"
         ],
         workspaces=options,
         resources=resources,

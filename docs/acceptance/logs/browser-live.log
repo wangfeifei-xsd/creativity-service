@@ -1,0 +1,16 @@
+
+> creativity-web@0.1.0 test:e2e /Users/wanghongfei/work/work-space/一玄/70.agent/creativity-web
+> playwright test tests/workspace-live.spec.ts --reporter=list,junit
+
+[WebServer] (node:91647) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:91660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:91671) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › tests/workspace-live.spec.ts:19:1 › 真实 IAM/渠道：首次改密、开通、成员双入口、签发和轮换 Key、暂停与归档 (21.4s)
+
+  1 passed (23.3s)

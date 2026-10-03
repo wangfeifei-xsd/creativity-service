@@ -19,6 +19,7 @@ def normalize_usage(
     *,
     event_version: int = 1,
     final: bool = True,
+    embedding: bool = False,
 ) -> UsageEvent:
     tokens: dict[str, int | None] = {
         "input": None,
@@ -32,7 +33,9 @@ def normalize_usage(
             details = raw.get("prompt_tokens_details") or {}
             tokens.update(
                 input=count(raw.get("prompt_tokens")),
-                output=count(raw.get("completion_tokens")),
+                output=0
+                if embedding and count(raw.get("prompt_tokens")) is not None
+                else count(raw.get("completion_tokens")),
                 cache_read=count(details.get("cached_tokens")),
             )
             subsets["cache_read"] = "input"

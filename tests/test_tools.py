@@ -387,3 +387,37 @@ def test_registry_never_resolves_another_channel(setup):
     )
     with pytest.raises(ServiceError):
         registry.resolve(context().scope, definition().binding)
+
+
+async def test_analysis_rows_preserve_missing_and_reject_excess_or_false_coverage(setup):
+    contract = definition(
+        output_schema={"type": "object"}, analysis_policy={"rows_path": ["rows"], "max_rows": 2}
+    )
+    raw = AdapterResult(
+        data={"rows": [{"amount": None}, {"amount": "0.00"}]},
+        coverage={"returned_count": 2, "original_count": 3},
+        truncated=True,
+        source_request_id="analysis",
+        source_version="1",
+        observed_at=utcnow(),
+    )
+    result = await setup.executor.validate_result(
+        context(), setup.call, contract, raw, "analysis_call"
+    )
+    assert result.data["rows"] == [{"amount": None}, {"amount": "0.00"}]
+    assert result.truncated and result.coverage["original_count"] == 3
+    for invalid in (
+        raw.model_copy(update={"data": {"rows": [None] * 3}}),
+        raw.model_copy(update={"coverage": {"returned_count": 1, "original_count": 3}}),
+    ):
+        with pytest.raises(ServiceError):
+            await setup.executor.validate_result(
+                context(), setup.call, contract, invalid, "invalid"
+            )
+    with pytest.raises(ServiceError, match="只读 MCP"):
+        setup.service.registry.validate(context().scope, contract, "builtin", executable=True)
+    setup.repository.definition = contract
+    setup.auth.allowed = False
+    with pytest.raises(ServiceError):
+        await setup.executor.execute(context(), setup.call)
+    assert not setup.adapter.requests

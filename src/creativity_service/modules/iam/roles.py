@@ -25,6 +25,7 @@ ACTION_NAMES = {
     "version:freeze": "冻结版本",
     "version:read": "查看版本",
     "run:create": "执行能力",
+    "run:approve": "审批运行操作",
     "run:read": "查看运行元数据",
     "run:content": "查看运行内容",
     "feedback:manage": "处理反馈",
@@ -61,7 +62,9 @@ ACTION_NAMES = {
     "data:export": "导出数据",
     "data:read_sensitive": "读取敏感原文",
 }
-INDEPENDENT_ACTIONS = frozenset({"release:publish", "data:export", "data:read_sensitive"})
+INDEPENDENT_ACTIONS = frozenset(
+    {"release:publish", "data:export", "data:read_sensitive", "run:approve"}
+)
 PLATFORM_ACTIONS = frozenset(
     {
         "account:manage",

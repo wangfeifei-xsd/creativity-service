@@ -17,6 +17,7 @@ from creativity_service.integrations.models.contracts import ModelRequest
 from creativity_service.modules.agents.schemas import AgentStep, FrozenExecutionSpec
 from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.models.schemas import FrozenModel
+from creativity_service.modules.runs.interruptions import RuntimeSuspended
 from creativity_service.modules.runs.schemas import Lease
 from creativity_service.modules.runs.services import RunService
 from creativity_service.modules.runtime.context import ContextBuilder
@@ -111,15 +112,23 @@ class RuntimeExecutor:
         executor = ToolExecutor(
             self.tools, port, fixture=fixture
         )  # 每次实际执行独立计数，缓存不冒充外部尝试。
-        result = await executor.execute(
-            context,
-            ToolExecution(
-                run_id=lease.run_id,
-                step_id=step["id"],
-                tool_version_id=version_id,
-                arguments=values,
-            ),
+        call = ToolExecution(
+            run_id=lease.run_id,
+            step_id=step["id"],
+            tool_version_id=version_id,
+            arguments=values,
         )
+        definition = ToolDefinition.model_validate(
+            next(v for v in spec.versions if v.version_id == version_id).content
+        )
+        if definition.effect_type != "READ_ONLY":
+            from creativity_service.modules.runtime.writes import WriteExecution
+
+            result = await WriteExecution(
+                self, context, lease, spec, node_key, call, executor, port
+            ).execute(definition)
+        else:
+            result = await executor.execute(context, call)
         output = result.model_dump(mode="json")
         await self.runs.commit_step(lease, node_key, output)
         return output
@@ -187,6 +196,17 @@ class RuntimeExecutor:
         current = await self.runs.start_step(lease, key, values)
         if current is None:
             raise ServiceError("RUN_INACTIVE", "运行已停止", 409)
+        if step.operator in {"input", "approval"}:
+            output = await self.runs.suspend(
+                lease,
+                key,
+                step.name,
+                step.output_schema,
+                values,
+                approval=step.operator == "approval",
+            )
+            await self.runs.commit_step(lease, key, output)
+            return output
         for number in range(current["attempt_count"], step.max_retries + 1):
             attempt = await self.runs.start_attempt(lease, key)
             if attempt is None:
@@ -442,6 +462,8 @@ class RuntimeExecutor:
             )
             await self.validate_evidence(context, lease, result)
             await self.runs.finish_run(lease, "SUCCEEDED", result)
+        except RuntimeSuspended:
+            return
         except ServiceError as exc:
             with suppress_inactive():
                 await self.runs.finish_run(lease, "FAILED", failure=exc)

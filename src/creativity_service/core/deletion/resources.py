@@ -10,6 +10,7 @@ CONTENT_TABLES = {
     "summary": "conversation_summaries",
     "context": "context_snapshots",
     "memory": "memories",
+    "memory_embedding": "memory_embeddings",
     "run": "runs",
     "artifact": "artifacts",
     "snapshot": "release_snapshots",
@@ -28,6 +29,16 @@ CONTENT_TABLES = {
     "skill_file": "skill_files",
     "skill_test": "skill_tests",
     "agent_candidate": "agent_candidates",
+    "oauth_flow": "mcp_oauth_flows",
+    "oauth_token": "mcp_oauth_tokens",
+    "credential": "credentials",
+    "alert_rule": "alert_rules",
+    "provider_statement": "provider_statements",
+    "schedule": "automation_schedules",
+    "batch": "automation_batches",
+    "batch_item": "automation_items",
+    "webhook_endpoint": "webhook_endpoints",
+    "webhook_delivery": "webhook_deliveries",
 }
 
 

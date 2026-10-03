@@ -135,7 +135,12 @@ class ContextService(ConversationKernel):
                         if old_run["state"] == "SUCCEEDED":
                             completed_runs.add(old_run["id"])
                 eligible = sorted(
-                    (m for m in all_messages if m["run_id"] in completed_runs),
+                    (
+                        m
+                        for m in all_messages
+                        if m["run_id"] in completed_runs
+                        or (m["run_id"] is None and m["status"] == "COMPLETED")
+                    ),
                     key=lambda m: m["sequence"],
                     reverse=True,
                 )

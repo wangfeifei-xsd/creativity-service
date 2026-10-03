@@ -1,0 +1,13 @@
+FROM postgres:17-alpine AS build
+ARG PGVECTOR_VERSION=0.8.2
+ARG PGVECTOR_SHA256=69f4019389af05dc1c9548deb8628e62878e6e207c03907f2b8af2016472cdaa
+RUN apk add --no-cache build-base curl \
+    && curl --fail --location --max-time 120 "https://codeload.github.com/pgvector/pgvector/tar.gz/refs/tags/v${PGVECTOR_VERSION}" -o /tmp/vector.tar.gz \
+    && printf '%s  /tmp/vector.tar.gz\n' "${PGVECTOR_SHA256}" | sha256sum -c - \
+    && tar -xzf /tmp/vector.tar.gz -C /tmp \
+    && make -C "/tmp/pgvector-${PGVECTOR_VERSION}" OPTFLAGS="" with_llvm=no \
+    && make -C "/tmp/pgvector-${PGVECTOR_VERSION}" with_llvm=no install
+
+FROM postgres:17-alpine
+COPY --from=build /usr/local/lib/postgresql/vector.so /usr/local/lib/postgresql/vector.so
+COPY --from=build /usr/local/share/postgresql/extension/vector* /usr/local/share/postgresql/extension/

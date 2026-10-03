@@ -220,6 +220,10 @@ class ToolDebug:
         versions = await self.admission.versions(context, [version_id])
         target = versions[0]
         definition = ToolDefinition.model_validate(target.content)
+        tool_versions: tuple[str, ...] = (version_id,)
+        if definition.write_policy:
+            status_id = definition.write_policy.status_tool_version_id
+            tool_versions = (version_id, status_id)
         config = test_definition(
             [
                 AgentStep(
@@ -232,7 +236,7 @@ class ToolDebug:
                     max_retries=2,
                 )
             ],
-            AgentBindings(tool_versions=(version_id,)),
+            AgentBindings(tool_versions=tool_versions),
         )
         key = new_id("tool_test")
         spec = await self.admission.freeze_test(
@@ -312,6 +316,7 @@ class DebugExecutor:
                         spec,
                         case.case,
                         ModelRequest(
+                            operation="embedding" if case.case == "embedding" else "generation",
                             messages=[{"role": "user", "content": case.prompt}],
                             output_schema=case.output_schema,
                             tools=case.tools,

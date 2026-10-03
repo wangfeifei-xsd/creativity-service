@@ -99,6 +99,8 @@ class LiteLLMAdapter:
             *(["structured_output"] if request.output_schema is not None else []),
             *(["streaming"] if request.stream else []),
         ]
+        if request.operation == "embedding":
+            required = ["embedding"]
 
         async def produce() -> None:
             capture, emitted = RawCapture(), False
@@ -162,7 +164,11 @@ class LiteLLMAdapter:
                         attempt_id=attempt.attempt_id,
                         source_request_id=capture.request_id or capture.response_id,
                         usage=normalize_usage(
-                            current, attempt.attempt_id, source_id, capture.usage
+                            current,
+                            attempt.attempt_id,
+                            source_id,
+                            capture.usage,
+                            embedding=request.operation == "embedding",
                         ),
                     )
                 )
@@ -183,7 +189,12 @@ class LiteLLMAdapter:
                         attempt_id=attempt.attempt_id,
                         source_request_id=capture.request_id or capture.response_id,
                         usage=normalize_usage(
-                            current, attempt.attempt_id, source_id, capture.usage, final=False
+                            current,
+                            attempt.attempt_id,
+                            source_id,
+                            capture.usage,
+                            final=False,
+                            embedding=request.operation == "embedding",
                         ),
                     )
                 )
@@ -206,7 +217,12 @@ class LiteLLMAdapter:
                         attempt_id=attempt.attempt_id,
                         source_request_id=capture.request_id or capture.response_id,
                         usage=normalize_usage(
-                            current, attempt.attempt_id, source_id, capture.usage, final=False
+                            current,
+                            attempt.attempt_id,
+                            source_id,
+                            capture.usage,
+                            final=False,
+                            embedding=request.operation == "embedding",
                         ),
                     )
                 )
@@ -264,6 +280,27 @@ class LiteLLMAdapter:
                 api_key=token, base_url=config.endpoint, http_client=http_client, max_retries=0
             )
             base = config.endpoint
+            if request.operation == "embedding":
+                from creativity_service.modules.memory.semantic import validate_embeddings
+
+                embedded = await cancellable(
+                    client.embeddings.create(
+                        model=config.provider_model_name,
+                        input=[item["content"] for item in request.messages],
+                        encoding_format="float",
+                    ),
+                    cancellation,
+                )
+                data = sorted(embedded.data, key=lambda item: item.index)
+                if [item.index for item in data] != list(range(len(request.messages))):
+                    raise ServiceError("MODEL_OUTPUT_INVALID", "向量响应条目不完整", 502)
+                vectors = validate_embeddings(
+                    [item.embedding for item in data], len(request.messages)
+                )
+                yield ModelEvent(
+                    kind="structured", attempt_id=attempt_id, structured={"embeddings": vectors}
+                )
+                return
         else:
             # LiteLLM 要求 AsyncHTTPHandler；只替换其传输，不创建其他联网客户端。
             client = object.__new__(AsyncHTTPHandler)

@@ -12,6 +12,7 @@ from creativity_service.api.errors import ErrorResponse
 from creativity_service.core.context import AuthContext, require_http_context
 from creativity_service.core.contracts import ResultEnvelope
 from creativity_service.modules.runs.assembly import require_runs
+from creativity_service.modules.runs.interruptions import InterruptionView, ResumeInput
 from creativity_service.modules.runs.schemas import (
     TERMINAL,
     AdmissionReceipt,
@@ -36,6 +37,18 @@ def service(request: Request) -> RunService:
 
 
 Runs = Annotated[RunService, Depends(service)]
+
+
+@router.get("/{run_id}/interruption")
+@admin_router.get("/{run_id}/interruption")
+async def interruption(run_id: str, context: Context, runs: Runs) -> InterruptionView | None:
+    return await runs.interruption(context, run_id)
+
+
+@router.post("/{run_id}/resume")
+@admin_router.post("/{run_id}/resume")
+async def resume(run_id: str, body: ResumeInput, context: Context, runs: Runs) -> AdmissionReceipt:
+    return await runs.resume(context, run_id, body)
 
 
 @router.post(

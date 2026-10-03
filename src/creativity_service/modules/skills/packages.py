@@ -239,7 +239,7 @@ def validate_files(files: dict[str, bytes], settings: SkillSettings | None = Non
         content_type = TEXT_TYPES.get(suffix, "application/octet-stream")
         reason = None
         if suffix not in TEXT_TYPES:
-            reason = "脚本执行未启用" if suffix in SCRIPT_SUFFIXES else "暂不支持加载此文件格式"
+            reason = "通过隔离工具执行" if suffix in SCRIPT_SUFFIXES else "暂不支持加载此文件格式"
         else:
             try:
                 text = data.decode("utf-8-sig")

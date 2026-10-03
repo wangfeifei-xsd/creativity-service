@@ -150,9 +150,41 @@ class ContentHandlers:
                     "input_schema": {},
                     "status": "DELETING",
                 }
-            elif ref.resource_type in {"message", "summary", "context", "skill_file"}:
+            elif ref.resource_type in {
+                "message",
+                "summary",
+                "context",
+                "skill_file",
+                "memory_embedding",
+                "oauth_flow",
+                "oauth_token",
+                "credential",
+                "provider_statement",
+            }:
                 await remove(uow, name, id=row["id"])
                 return
+            elif ref.resource_type in {
+                "schedule",
+                "batch",
+                "batch_item",
+                "webhook_endpoint",
+                "webhook_delivery",
+                "alert_rule",
+            }:
+                values = {"state": "DELETED"}
+                for field, empty in (
+                    ("spec", {}),
+                    ("request", {}),
+                    ("payload", {}),
+                    ("pending_events", []),
+                    ("identity", {}),
+                    ("name", "已删除"),
+                    ("url", "已删除"),
+                    ("error", None),
+                    ("last_error", None),
+                ):
+                    if field in row:
+                        values[field] = empty
             elif ref.resource_type == "run":
                 for table in ("run_contents", "checkpoints", "run_events", "memory_retrievals"):
                     await remove(uow, table, run_id=row["id"])

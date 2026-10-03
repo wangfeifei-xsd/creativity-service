@@ -1,6 +1,6 @@
 # 账号与授权模型
 
-模型版本 1.7.0；负责方案 04；需求 [02-账号与权限管理.md](../../../../需求文档/02-账号与权限管理.md)。总索引见 [README](../README.md)。
+模型版本 1.8.0；负责方案 04；需求 [02-账号与权限管理.md](../../../../需求文档/02-账号与权限管理.md)。总索引见 [README](../README.md)。
 
 ## platform_accounts
 
@@ -104,6 +104,23 @@
 | `completed_at` | `timestamptz` | 缓存补偿完成时间 | 否 | 受信服务上下文与服务层校验 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, kind, target_id)`；`(completed_at)`。
+
+## custom_roles
+
+渠道自定义角色。状态：已实现；归属：渠道；迁移：0031_identity_operations。
+
+| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
+| --- | --- | --- | --- | --- | --- |
+| `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
+| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
+| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
+| `name` | `varchar(128)` | 角色名称 | 是 | 受信上下文与服务层校验 | 内部 |
+| `allowed_actions` | `jsonb` | 角色动作上限 | 是 | 受信上下文与服务层校验 | 内部 |
+| `state` | `varchar(32)` | 启停状态 | 是 | 受信上下文与服务层校验 | 内部 |
+
+普通索引：`(channel_id, id)`。
 
 ## auth_tokens
 

@@ -957,7 +957,9 @@ class SkillService:
         self, context: AuthContext, version_id: str, body: SkillTestInput
     ) -> SkillTestView:
         if body.execute_scripts:
-            raise ServiceError("SKILL_EXECUTION_UNSUPPORTED", "脚本执行未启用", 422)
+            raise ServiceError(
+                "SKILL_EXECUTION_UNSUPPORTED", "请将已冻结技能脚本绑定隔离工具后发起测试", 422
+            )
         skill, version = await self.raw(context, version_id)
         await self.require(context, "skill:manage", skill["id"])
         if version["revision"] != body.revision:

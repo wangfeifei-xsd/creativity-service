@@ -119,6 +119,8 @@ class TokenStore:
         client_id: str | None = None,
         key_id: str | None = None,
         expires_by: datetime | None = None,
+        upstream_expires_at: datetime | None = None,
+        identity_channel_id: str | None = None,
         replace: TokenRecord | None = None,
         must_change_password: bool = False,
     ) -> tuple[TokenResponse, TokenRecord]:
@@ -126,6 +128,13 @@ class TokenStore:
         now = utcnow()
         ttl = self.service_ttl if purpose == "service" else self.management_ttl
         expires_at = now + timedelta(seconds=ttl)
+        if replace and replace.upstream_expires_at:
+            upstream_expires_at = replace.upstream_expires_at
+            identity_channel_id = replace.identity_channel_id
+        if identity_channel_id and identity_channel_id != channel_id:
+            raise ServiceError("TOKEN_SCOPE_INVALID", "外部身份会话只能进入原授权渠道", 403)
+        if upstream_expires_at is not None:
+            expires_at = min(expires_at, upstream_expires_at)
         if expires_by is not None:
             expires_at = min(expires_at, expires_by)
         if expires_at <= now:
@@ -140,6 +149,8 @@ class TokenStore:
         if purpose == "management":
             indexes.append(self.index_key(channel_id, "member", principal_id))
         record = TokenRecord(
+            upstream_expires_at=upstream_expires_at,
+            identity_channel_id=identity_channel_id,
             channel_id=channel_id,
             token_digest=digest,
             session_id=new_id("session"),
@@ -168,7 +179,7 @@ class TokenStore:
                 record.model_dump_json(),
                 math.floor(expires_at.timestamp() * 1000),
                 expires_at.timestamp(),
-                replace.model_dump_json() if replace else "",
+                (replace._stored_json or replace.model_dump_json()) if replace else "",
             )
         except RedisError as exc:
             raise unavailable("认证存储") from exc
@@ -205,6 +216,8 @@ class TokenStore:
             raise ServiceError("UNAUTHENTICATED", "请重新登录", 401)
         if record.purpose not in purposes:
             raise ServiceError("TOKEN_PURPOSE_INVALID", "凭据用途不符", 401)
+        # 保留 Redis 原串进行原子比较，兼容新增可选字段前签发的既有会话。
+        record._stored_json = raw.decode() if isinstance(raw, bytes) else raw
         return record
 
     async def revoke(self, revocation: Revocation) -> None:

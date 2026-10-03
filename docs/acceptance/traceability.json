@@ -1,8 +1,7 @@
 {
   "schema_version": 1,
   "summary": {
-    "关联用例通过": 297,
-    "用例失败": 3,
+    "关联用例通过": 300,
     "真实连接阻断": 1,
     "后续阶段": 4
   },
@@ -11,7 +10,7 @@
       "id": "GLO-A01",
       "source": "../需求文档/00-需求总纲.md",
       "line": 178,
-      "description": "两渠道存在相同资源编码、用户编号与会话名称",
+      "description": "两渠道存在相同资源编码、用户编号与会话名称；任一方不能获取另一渠道的数据、记忆、报告或日志",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -19,10 +18,16 @@
         "tests/integration/memory/test_memory.py::test_mem_a03_a08_identical_subjects_do_not_cross_scopes_or_clear",
         "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
         "tests/test_tools.py::test_tol_a03_full_authorization_cache_isolation_and_revocation",
-        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject"
+        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject",
+        "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency"
       ],
       "status": "关联用例通过",
       "evidence": [
+        {
+          "node": "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency[agent_env0]",
+          "state": "passed",
+          "evidence": "logs/domains.xml"
+        },
         {
           "node": "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
           "state": "passed",
@@ -50,7 +55,7 @@
       "id": "GLO-A02",
       "source": "../需求文档/00-需求总纲.md",
       "line": 179,
-      "description": "同渠道不同数据域请求相同外部资源标识",
+      "description": "同渠道不同数据域请求相同外部资源标识；依据受信数据域校验，不接受用户或模型替换主体或域参数",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -58,10 +63,16 @@
         "tests/integration/memory/test_memory.py::test_mem_a03_a08_identical_subjects_do_not_cross_scopes_or_clear",
         "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
         "tests/test_tools.py::test_tol_a03_full_authorization_cache_isolation_and_revocation",
-        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject"
+        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject",
+        "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency"
       ],
       "status": "关联用例通过",
       "evidence": [
+        {
+          "node": "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency[agent_env0]",
+          "state": "passed",
+          "evidence": "logs/domains.xml"
+        },
         {
           "node": "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
           "state": "passed",
@@ -89,7 +100,7 @@
       "id": "GLO-A03",
       "source": "../需求文档/00-需求总纲.md",
       "line": 180,
-      "description": "发布新提示词时旧请求仍在排队",
+      "description": "发布新提示词时旧请求仍在排队；旧 run 使用受理时固定的版本，新 run 使用新的发布映射",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -116,7 +127,7 @@
       "id": "GLO-A04",
       "source": "../需求文档/00-需求总纲.md",
       "line": 181,
-      "description": "模型超时后自动重试，客户端也重发请求",
+      "description": "模型超时后自动重试，客户端也重发请求；同一幂等键仅一个 run；不同供应商尝试分别记录真实用量",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -155,7 +166,7 @@
       "id": "GLO-A05",
       "source": "../需求文档/00-需求总纲.md",
       "line": 182,
-      "description": "用户撤回记忆并删除会话",
+      "description": "用户撤回记忆并删除会话；新调用无法通过原文、摘要、checkpoint 或检索重获已删除内容",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -194,7 +205,7 @@
       "id": "GLO-A06",
       "source": "../需求文档/00-需求总纲.md",
       "line": 183,
-      "description": "工具返回内容与发布 schema 不符或引用越出授权范围",
+      "description": "工具返回内容与发布 schema 不符或引用越出授权范围；通用工具层拒绝并记录来源；领域对象的有效性由业务 MCP 校验",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -241,7 +252,7 @@
       "id": "GLO-A07",
       "source": "../需求文档/00-需求总纲.md",
       "line": 184,
-      "description": "MCP 返回证据缺失、无权限或无数据",
+      "description": "MCP 返回证据缺失、无权限或无数据；按契约分别反馈；模型不伪造来源或把缺失当零",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -274,7 +285,7 @@
       "id": "GLO-A08",
       "source": "../需求文档/00-需求总纲.md",
       "line": 185,
-      "description": "用量上报重复、流中断或缺少价格配置",
+      "description": "用量上报重复、流中断或缺少价格配置；去重有效，缺失用量与未定价可见，费用不被默认为零",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -301,18 +312,18 @@
       "id": "GLO-A09",
       "source": "../需求文档/00-需求总纲.md",
       "line": 186,
-      "description": "接入第三个测试业务系统",
+      "description": "接入第三个测试业务系统；通过渠道、MCP、Skills 和 Agent 配置完成调用，不修改平台源码、构建或迁移",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
       "tests": [
         "tests/e2e/test_acceptance.py::test_current_build_three_channels_complete_management_flow"
       ],
-      "status": "用例失败",
+      "status": "关联用例通过",
       "evidence": [
         {
           "node": "tests/e2e/test_acceptance.py::test_current_build_three_channels_complete_management_flow",
-          "state": "failed",
+          "state": "passed",
           "evidence": "logs/onboarding.xml"
         }
       ],
@@ -322,7 +333,7 @@
       "id": "GLO-A10",
       "source": "../需求文档/00-需求总纲.md",
       "line": 187,
-      "description": "发布任意 Agent 前运行其配置的回归集",
+      "description": "发布任意 Agent 前运行其配置的回归集；输出可比较报告，记录失败样本和依赖版本；通用阻断项不得被静默忽略",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -346,12 +357,12 @@
         {
           "node": "tests/integration/evaluations/test_evaluations.py::test_two_shapes_full_case_matrix[text_items-agent_env0]",
           "state": "passed",
-          "evidence": "logs/integration.xml"
+          "evidence": "logs/evaluations.xml"
         },
         {
           "node": "tests/integration/evaluations/test_evaluations.py::test_two_shapes_full_case_matrix[numeric_summary-agent_env0]",
           "state": "passed",
-          "evidence": "logs/integration.xml"
+          "evidence": "logs/evaluations.xml"
         }
       ],
       "boundary": "本地受控验收；范围以关联用例断言和环境清单为准。"
@@ -360,7 +371,7 @@
       "id": "GLO-A11",
       "source": "../需求文档/00-需求总纲.md",
       "line": 188,
-      "description": "绕过页面入口直接请求受限操作",
+      "description": "绕过页面入口直接请求受限操作；服务端仍校验身份、资源与数据范围，拒绝未授权请求",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -387,7 +398,7 @@
       "id": "GLO-A12",
       "source": "../需求文档/00-需求总纲.md",
       "line": 189,
-      "description": "Token 到期、服务端删除 KV、账号停用或 Redis 不可用",
+      "description": "Token 到期、服务端删除 KV、账号停用或 Redis 不可用；前三者服务端拒绝鉴权，Redis 不可用返回 503；不通过前端状态绕过",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -420,7 +431,7 @@
       "id": "GLO-A14",
       "source": "../需求文档/00-需求总纲.md",
       "line": 190,
-      "description": "并发创建相同业务编码、提交相同幂等键、竞争预算",
+      "description": "并发创建相同业务编码、提交相同幂等键、竞争预算；服务层维持正确结果；重复请求不产生重复任务，冲突明确返回，不发生超额预占",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -453,7 +464,7 @@
       "id": "GLO-A20",
       "source": "../需求文档/00-需求总纲.md",
       "line": 191,
-      "description": "两个独立渠道各用 Key 调用，并伪造请求中的 channel_id",
+      "description": "两个独立渠道各用 Key 调用，并伪造请求中的 channel_id；运行和数据只归 Key 确定的渠道，伪造参数不能越过租户边界",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -521,7 +532,7 @@
       "id": "GLO-A21",
       "source": "../需求文档/00-需求总纲.md",
       "line": 192,
-      "description": "两渠道并行执行、轮换 Key、查看记忆和费用",
+      "description": "两渠道并行执行、轮换 Key、查看记忆和费用；记忆与缓存互不命中，用量按原渠道连续归集，Key 轮换不造成重复任务或重复费用",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -554,7 +565,7 @@
       "id": "GLO-A22",
       "source": "../需求文档/00-需求总纲.md",
       "line": 193,
-      "description": "普通请求缺少渠道，或用系统渠道请求业务数据",
+      "description": "普通请求缺少渠道，或用系统渠道请求业务数据；服务端拒绝；平台治理与跨渠道汇总通过单独授权接口执行",
       "source_sha256": "1ee9a640e97449da907e29fef728cfa9045484cfbe90b15231eb6a93440c4861",
       "plans": "03、11、17、23–26",
       "priority": "P0",
@@ -893,10 +904,16 @@
         "tests/integration/memory/test_memory.py::test_mem_a03_a08_identical_subjects_do_not_cross_scopes_or_clear",
         "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
         "tests/test_tools.py::test_tol_a03_full_authorization_cache_isolation_and_revocation",
-        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject"
+        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject",
+        "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency"
       ],
       "status": "关联用例通过",
       "evidence": [
+        {
+          "node": "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency[agent_env0]",
+          "state": "passed",
+          "evidence": "logs/domains.xml"
+        },
         {
           "node": "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
           "state": "passed",
@@ -1321,10 +1338,16 @@
         "tests/integration/memory/test_memory.py::test_mem_a03_a08_identical_subjects_do_not_cross_scopes_or_clear",
         "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
         "tests/test_tools.py::test_tol_a03_full_authorization_cache_isolation_and_revocation",
-        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject"
+        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject",
+        "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency"
       ],
       "status": "关联用例通过",
       "evidence": [
+        {
+          "node": "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency[agent_env0]",
+          "state": "passed",
+          "evidence": "logs/domains.xml"
+        },
         {
           "node": "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
           "state": "passed",
@@ -2037,10 +2060,16 @@
         "tests/integration/memory/test_memory.py::test_mem_a03_a08_identical_subjects_do_not_cross_scopes_or_clear",
         "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
         "tests/test_tools.py::test_tol_a03_full_authorization_cache_isolation_and_revocation",
-        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject"
+        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject",
+        "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency"
       ],
       "status": "关联用例通过",
       "evidence": [
+        {
+          "node": "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency[agent_env0]",
+          "state": "passed",
+          "evidence": "logs/domains.xml"
+        },
         {
           "node": "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
           "state": "passed",
@@ -2360,10 +2389,16 @@
         "tests/integration/memory/test_memory.py::test_mem_a03_a08_identical_subjects_do_not_cross_scopes_or_clear",
         "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
         "tests/test_tools.py::test_tol_a03_full_authorization_cache_isolation_and_revocation",
-        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject"
+        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject",
+        "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency"
       ],
       "status": "关联用例通过",
       "evidence": [
+        {
+          "node": "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency[agent_env0]",
+          "state": "passed",
+          "evidence": "logs/domains.xml"
+        },
         {
           "node": "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
           "state": "passed",
@@ -2467,10 +2502,16 @@
         "tests/integration/memory/test_memory.py::test_mem_a03_a08_identical_subjects_do_not_cross_scopes_or_clear",
         "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
         "tests/test_tools.py::test_tol_a03_full_authorization_cache_isolation_and_revocation",
-        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject"
+        "tests/integration/core/test_content.py::test_artifacts_isolate_channel_environment_domain_and_subject",
+        "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency"
       ],
       "status": "关联用例通过",
       "evidence": [
+        {
+          "node": "tests/integration/acceptance/test_domains.py::test_same_channel_two_domains_same_subject_and_idempotency[agent_env0]",
+          "state": "passed",
+          "evidence": "logs/domains.xml"
+        },
         {
           "node": "tests/integration/conversations/test_conversations.py::test_stable_pagination_title_and_channel_subject_isolation",
           "state": "passed",
@@ -3148,7 +3189,7 @@
         {
           "node": "tests/integration/runtime/test_backend_delivery.py::test_same_client_two_configurations_sync_async_stream_and_cancel[agent_env0-business_env0]",
           "state": "passed",
-          "evidence": "logs/integration.xml"
+          "evidence": "logs/api.xml"
         }
       ],
       "boundary": "缺少两种真实模型组合及同一 Agent 的实测用量；受控用例不满足本项。"
@@ -7723,14 +7764,20 @@
       "tests": [
         "tests/integration/runtime/test_backend_delivery.py::test_same_client_two_configurations_sync_async_stream_and_cancel",
         "tests/integration/runtime/test_backend_delivery.py::test_sync_window_input_contract_and_live_stream_revocation",
-        "tests/integration/runtime/test_backend_delivery.py::test_conversation_artifact_expired_events_and_scope_rejection"
+        "tests/integration/runtime/test_backend_delivery.py::test_conversation_artifact_expired_events_and_scope_rejection",
+        "tests/integration/acceptance/test_capacity.py::test_real_fifteen_second_sync_window_retains_run"
       ],
       "status": "关联用例通过",
       "evidence": [
         {
+          "node": "tests/integration/acceptance/test_capacity.py::test_real_fifteen_second_sync_window_retains_run[agent_env0]",
+          "state": "passed",
+          "evidence": "logs/cross-module.xml"
+        },
+        {
           "node": "tests/integration/runtime/test_backend_delivery.py::test_same_client_two_configurations_sync_async_stream_and_cancel[agent_env0-business_env0]",
           "state": "passed",
-          "evidence": "logs/integration.xml"
+          "evidence": "logs/api.xml"
         },
         {
           "node": "tests/integration/runtime/test_backend_delivery.py::test_conversation_artifact_expired_events_and_scope_rejection[agent_env0-business_env0]",
@@ -7756,14 +7803,20 @@
       "tests": [
         "tests/integration/runtime/test_backend_delivery.py::test_same_client_two_configurations_sync_async_stream_and_cancel",
         "tests/integration/runtime/test_backend_delivery.py::test_sync_window_input_contract_and_live_stream_revocation",
-        "tests/integration/runtime/test_backend_delivery.py::test_conversation_artifact_expired_events_and_scope_rejection"
+        "tests/integration/runtime/test_backend_delivery.py::test_conversation_artifact_expired_events_and_scope_rejection",
+        "tests/integration/acceptance/test_capacity.py::test_real_fifteen_second_sync_window_retains_run"
       ],
       "status": "关联用例通过",
       "evidence": [
         {
+          "node": "tests/integration/acceptance/test_capacity.py::test_real_fifteen_second_sync_window_retains_run[agent_env0]",
+          "state": "passed",
+          "evidence": "logs/cross-module.xml"
+        },
+        {
           "node": "tests/integration/runtime/test_backend_delivery.py::test_same_client_two_configurations_sync_async_stream_and_cancel[agent_env0-business_env0]",
           "state": "passed",
-          "evidence": "logs/integration.xml"
+          "evidence": "logs/api.xml"
         },
         {
           "node": "tests/integration/runtime/test_backend_delivery.py::test_conversation_artifact_expired_events_and_scope_rejection[agent_env0-business_env0]",
@@ -7983,10 +8036,21 @@
       "priority": "P0",
       "tests": [
         "tests/integration/runs/test_runs.py::test_queued_deadline_rerun_and_output_validation",
-        "tests/integration/conversations/test_conversations.py::test_management_rerun_creates_new_turn_and_replays"
+        "tests/integration/conversations/test_conversations.py::test_management_rerun_creates_new_turn_and_replays",
+        "tests/integration/acceptance/test_capacity.py::test_queued_deadline_uses_configured_sixty_or_three_hundred"
       ],
       "status": "关联用例通过",
       "evidence": [
+        {
+          "node": "tests/integration/acceptance/test_capacity.py::test_queued_deadline_uses_configured_sixty_or_three_hundred[60]",
+          "state": "passed",
+          "evidence": "logs/domains-deadlines.xml"
+        },
+        {
+          "node": "tests/integration/acceptance/test_capacity.py::test_queued_deadline_uses_configured_sixty_or_three_hundred[300]",
+          "state": "passed",
+          "evidence": "logs/domains-deadlines.xml"
+        },
         {
           "node": "tests/integration/conversations/test_conversations.py::test_management_rerun_creates_new_turn_and_replays",
           "state": "passed",
@@ -8229,14 +8293,20 @@
       "tests": [
         "tests/integration/runtime/test_backend_delivery.py::test_same_client_two_configurations_sync_async_stream_and_cancel",
         "tests/integration/runtime/test_backend_delivery.py::test_sync_window_input_contract_and_live_stream_revocation",
-        "tests/integration/runtime/test_backend_delivery.py::test_conversation_artifact_expired_events_and_scope_rejection"
+        "tests/integration/runtime/test_backend_delivery.py::test_conversation_artifact_expired_events_and_scope_rejection",
+        "tests/integration/acceptance/test_capacity.py::test_real_fifteen_second_sync_window_retains_run"
       ],
       "status": "关联用例通过",
       "evidence": [
         {
+          "node": "tests/integration/acceptance/test_capacity.py::test_real_fifteen_second_sync_window_retains_run[agent_env0]",
+          "state": "passed",
+          "evidence": "logs/cross-module.xml"
+        },
+        {
           "node": "tests/integration/runtime/test_backend_delivery.py::test_same_client_two_configurations_sync_async_stream_and_cancel[agent_env0-business_env0]",
           "state": "passed",
-          "evidence": "logs/integration.xml"
+          "evidence": "logs/api.xml"
         },
         {
           "node": "tests/integration/runtime/test_backend_delivery.py::test_conversation_artifact_expired_events_and_scope_rejection[agent_env0-business_env0]",
@@ -8369,10 +8439,21 @@
       "priority": "P0",
       "tests": [
         "tests/integration/runs/test_runs.py::test_queued_deadline_rerun_and_output_validation",
-        "tests/integration/conversations/test_conversations.py::test_management_rerun_creates_new_turn_and_replays"
+        "tests/integration/conversations/test_conversations.py::test_management_rerun_creates_new_turn_and_replays",
+        "tests/integration/acceptance/test_capacity.py::test_queued_deadline_uses_configured_sixty_or_three_hundred"
       ],
       "status": "关联用例通过",
       "evidence": [
+        {
+          "node": "tests/integration/acceptance/test_capacity.py::test_queued_deadline_uses_configured_sixty_or_three_hundred[60]",
+          "state": "passed",
+          "evidence": "logs/domains-deadlines.xml"
+        },
+        {
+          "node": "tests/integration/acceptance/test_capacity.py::test_queued_deadline_uses_configured_sixty_or_three_hundred[300]",
+          "state": "passed",
+          "evidence": "logs/domains-deadlines.xml"
+        },
         {
           "node": "tests/integration/conversations/test_conversations.py::test_management_rerun_creates_new_turn_and_replays",
           "state": "passed",
@@ -8723,12 +8804,12 @@
         {
           "node": "tests/integration/evaluations/test_evaluations.py::test_two_shapes_full_case_matrix[text_items-agent_env0]",
           "state": "passed",
-          "evidence": "logs/integration.xml"
+          "evidence": "logs/evaluations.xml"
         },
         {
           "node": "tests/integration/evaluations/test_evaluations.py::test_two_shapes_full_case_matrix[numeric_summary-agent_env0]",
           "state": "passed",
-          "evidence": "logs/integration.xml"
+          "evidence": "logs/evaluations.xml"
         }
       ],
       "boundary": "本地受控验收；范围以关联用例断言和环境清单为准。"
@@ -8842,12 +8923,12 @@
         {
           "node": "tests/integration/evaluations/test_evaluations.py::test_two_shapes_full_case_matrix[text_items-agent_env0]",
           "state": "passed",
-          "evidence": "logs/integration.xml"
+          "evidence": "logs/evaluations.xml"
         },
         {
           "node": "tests/integration/evaluations/test_evaluations.py::test_two_shapes_full_case_matrix[numeric_summary-agent_env0]",
           "state": "passed",
-          "evidence": "logs/integration.xml"
+          "evidence": "logs/evaluations.xml"
         }
       ],
       "boundary": "本地受控验收；范围以关联用例断言和环境清单为准。"
@@ -9293,7 +9374,7 @@
         {
           "node": "tests/integration/runtime/test_backend_delivery.py::test_same_client_two_configurations_sync_async_stream_and_cancel[agent_env0-business_env0]",
           "state": "passed",
-          "evidence": "logs/integration.xml"
+          "evidence": "logs/api.xml"
         }
       ],
       "boundary": "本地受控验收；范围以关联用例断言和环境清单为准。"
@@ -9309,11 +9390,11 @@
       "tests": [
         "tests/e2e/test_acceptance.py::test_current_build_three_channels_complete_management_flow"
       ],
-      "status": "用例失败",
+      "status": "关联用例通过",
       "evidence": [
         {
           "node": "tests/e2e/test_acceptance.py::test_current_build_three_channels_complete_management_flow",
-          "state": "failed",
+          "state": "passed",
           "evidence": "logs/onboarding.xml"
         }
       ],
@@ -9417,7 +9498,7 @@
         {
           "node": "tests/integration/runtime/test_backend_delivery.py::test_same_client_two_configurations_sync_async_stream_and_cancel[agent_env0-business_env0]",
           "state": "passed",
-          "evidence": "logs/integration.xml"
+          "evidence": "logs/api.xml"
         },
         {
           "node": "tests/integration/runtime/test_backend_delivery.py::test_sync_window_input_contract_and_live_stream_revocation[agent_env0-business_env0]",
@@ -9635,11 +9716,11 @@
       "tests": [
         "tests/e2e/test_acceptance.py::test_current_build_three_channels_complete_management_flow"
       ],
-      "status": "用例失败",
+      "status": "关联用例通过",
       "evidence": [
         {
           "node": "tests/e2e/test_acceptance.py::test_current_build_three_channels_complete_management_flow",
-          "state": "failed",
+          "state": "passed",
           "evidence": "logs/onboarding.xml"
         }
       ],

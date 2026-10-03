@@ -18,6 +18,7 @@ from tests.integration.agents.test_agents import publish
 from tests.integration.channels.conftest import provision
 from tests.integration.channels.test_prompts_http import MemoryStore
 from tests.support.acceptance_performance import http_clients
+from tests.support.independence_evidence import ROOT, tree
 from tests.support.independence_runtime import model_config
 
 from .test_capacity import record
@@ -45,6 +46,13 @@ def statistics(values, target):
     }
 
 
+async def parallel(*operations):
+    # 一项失败时取消并等待其余请求，避免测试结束后仍有事务阻塞隔离 schema 清理。
+    async with asyncio.TaskGroup() as group:
+        tasks = [group.create_task(operation) for operation in operations]
+    return [task.result() for task in tasks]
+
+
 @pytest.mark.parametrize(
     "agent_env",
     [{"environment": "test", "independent_actions": ["release:publish", "data:read_sensitive"]}],
@@ -52,6 +60,8 @@ def statistics(values, target):
 )
 async def test_twenty_clients_management_and_admission(runtime_env):
     env = runtime_env
+    started_source = tree(ROOT, ["src", "pyproject.toml", "uv.lock", "deploy"])["sha256"]
+    initial_load = os.getloadavg()
     env.usage = build_usage_services(env.engine, env.services.channels, MemoryStore())
     env.provider = await env.models.configuration.save_provider(
         env.admin,
@@ -60,6 +70,12 @@ async def test_twenty_clients_management_and_admission(runtime_env):
     contexts = []
     tokens = []
     tenants = []
+    await env.usage.management.platform_limits(
+        env.admin,
+        PlatformLimitCreate(
+            limit_code="performance", name="平台并发二十", unit="concurrency", limit_value=20
+        ),
+    )
     for index in range(4):
         tenant = (
             env.tenant
@@ -80,6 +96,17 @@ async def test_twenty_clients_management_and_admission(runtime_env):
             )
         context = tenant.manager.context
         tenants.append(tenant)
+        # 预算属于发布快照，须在固定候选之前配置，不能在发布后修改测试条件。
+        await env.usage.management.save_budget(
+            tenant.manager,
+            BudgetCreate(
+                name="渠道并发五",
+                scope_type="channel",
+                scope_id=context.scope.channel_id,
+                unit="concurrency",
+                limit_value="5",
+            ),
+        )
         for number in range(10):
             detail = await env.agents.create(
                 context,
@@ -91,22 +118,6 @@ async def test_twenty_clients_management_and_admission(runtime_env):
                 await publish(SimpleNamespace(context=context, agents=env.agents), detail)
         contexts.append(context)
         tokens.append(tenant.token.access_token)
-        await env.usage.management.save_budget(
-            tenant.manager,
-            BudgetCreate(
-                name="渠道并发五",
-                scope_type="channel",
-                scope_id=context.scope.channel_id,
-                unit="concurrency",
-                limit_value="5",
-            ),
-        )
-    await env.usage.management.platform_limits(
-        env.admin,
-        PlatformLimitCreate(
-            limit_code="performance", name="平台并发二十", unit="concurrency", limit_value=20
-        ),
-    )
     query_times, admission_times, http_times = [], [], []
     async with http_clients(env, tenants) as clients:
         for wave in range(6):
@@ -122,7 +133,8 @@ async def test_twenty_clients_management_and_admission(runtime_env):
                 if wave:
                     query_times.append(elapsed)
 
-            await asyncio.gather(*(query(index) for index in range(20)))
+            await parallel(*(query(index) for index in range(20)))
+            print(f"第 {wave + 1} 批管理查询完成", flush=True)
 
             async def submit(index, wave=wave):
                 context = contexts[index % 4]
@@ -137,12 +149,11 @@ async def test_twenty_clients_management_and_admission(runtime_env):
                     admission_times.append(elapsed)
                 return context, receipt.run_id
 
-            accepted = await asyncio.gather(*(submit(index) for index in range(20)))
+            accepted = await parallel(*(submit(index) for index in range(20)))
             assert len({run_id for _, run_id in accepted}) == 20
             # 本批测量只受理后取消，排队二十不等于正在执行二十次外部模型调用。
-            await asyncio.gather(
-                *(env.runs.cancel(context, run_id) for context, run_id in accepted)
-            )
+            await parallel(*(env.runs.cancel(context, run_id) for context, run_id in accepted))
+            print(f"第 {wave + 1} 批服务受理完成", flush=True)
 
             async def http_submit(index, wave=wave):
                 started = perf_counter()
@@ -153,16 +164,22 @@ async def test_twenty_clients_management_and_admission(runtime_env):
                     http_times.append((perf_counter() - started) * 1000)
                 return contexts[index % 4], receipt["run_id"]
 
-            accepted = await asyncio.gather(*(http_submit(index) for index in range(20)))
+            accepted = await parallel(*(http_submit(index) for index in range(20)))
             assert len({run_id for _, run_id in accepted}) == 20
-            await asyncio.gather(
-                *(env.runs.cancel(context, run_id) for context, run_id in accepted)
-            )
+            await parallel(*(env.runs.cancel(context, run_id) for context, run_id in accepted))
+            print(f"第 {wave + 1} 批 HTTP 受理完成", flush=True)
     report = {
         "host": {
             "system": platform.system(),
             "machine": platform.machine(),
             "cpu_count": os.cpu_count(),
+            "initial_load_average": initial_load,
+            "final_load_average": os.getloadavg(),
+        },
+        "source": {
+            "service_sha256": started_source,
+            "unchanged_during_measurement": started_source
+            == tree(ROOT, ["src", "pyproject.toml", "uv.lock", "deploy"])["sha256"],
         },
         "data": {
             "channels": 4,
@@ -188,5 +205,6 @@ async def test_twenty_clients_management_and_admission(runtime_env):
         ),
     }
     record("performance.json", report)
+    assert report["source"]["unchanged_during_measurement"]
     assert report["management_query"]["passed"], report["management_query"]
     assert report["admission_service"]["passed"], report["admission_service"]

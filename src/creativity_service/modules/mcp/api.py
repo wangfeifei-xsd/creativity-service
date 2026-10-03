@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request
 
 from creativity_service.core.context import AuthContext, require_http_context
 from creativity_service.core.primitives import unavailable
+from creativity_service.modules.mcp.oauth import OAuthCallback, OAuthStart, OAuthView
 from creativity_service.modules.mcp.schemas import (
     McpCheck,
     McpConnection,
@@ -24,6 +25,7 @@ from creativity_service.modules.mcp.schemas import (
 from creativity_service.modules.mcp.services import McpService
 
 router = APIRouter(prefix="/mcp-connections", tags=["MCP 连接"])
+oauth_router = APIRouter(prefix="/mcp-connections", tags=["MCP 委托授权"])
 Context = Annotated[AuthContext, Depends(require_http_context)]
 
 
@@ -35,6 +37,43 @@ def service(request: Request) -> McpService:
 
 
 Service = Annotated[McpService, Depends(service)]
+
+
+@router.get("/{connection_id}/oauth/profiles")
+@oauth_router.get("/{connection_id}/oauth/profiles")
+async def oauth_profiles(
+    context: Context, service: Service, connection_id: str
+) -> list[dict[str, str]]:
+    await service.oauth.require(context, connection_id, "user")
+    connection = await service.get(context, "mcp_connections", connection_id)
+    return [
+        {"profile_id": p.profile_id, "name": p.name}
+        for p in service.oauth.settings.profiles
+        if context.scope.channel_id in p.channels and p.resource == connection["endpoint"]
+    ]
+
+
+@router.post("/{connection_id}/oauth/start")
+@oauth_router.post("/{connection_id}/oauth/start")
+async def oauth_start(
+    context: Context, service: Service, connection_id: str, body: OAuthStart
+) -> dict[str, str]:
+    return await service.oauth.start(context, connection_id, body)
+
+
+@router.post("/oauth/callback")
+@oauth_router.post("/oauth/callback")
+async def oauth_callback(context: Context, service: Service, body: OAuthCallback) -> OAuthView:
+    return await service.oauth.callback(context, body)
+
+
+@router.post("/{connection_id}/oauth/revoke")
+@oauth_router.post("/{connection_id}/oauth/revoke")
+async def oauth_revoke(
+    context: Context, service: Service, connection_id: str, body: OAuthStart
+) -> dict[str, bool]:
+    await service.oauth.revoke(context, connection_id, body.ownership)
+    return {"revoked": True}
 
 
 @router.get("", response_model=McpList)

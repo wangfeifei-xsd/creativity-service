@@ -1,6 +1,6 @@
 # 结构化记忆模型
 
-模型版本 1.7.0；负责方案 13；需求 [08-记忆管理.md](../../../../需求文档/08-记忆管理.md)。总索引见 [README](../README.md)。
+模型版本 1.8.0；负责方案 13；需求 [08-记忆管理.md](../../../../需求文档/08-记忆管理.md)。总索引见 [README](../README.md)。
 
 ## memories
 
@@ -172,3 +172,27 @@
 | `kind` | `varchar(16)` | 单项遗忘或主体清空 | 是 | 服务层校验后的业务输入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id, state)`。
+
+## memory_embeddings
+
+按主体和模型版本隔离的记忆向量。状态：已实现；归属：主体；迁移：0028_memory_vectors。
+
+| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
+| --- | --- | --- | --- | --- | --- |
+| `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
+| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
+| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
+| `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
+| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
+| `subject_type` | `varchar(64)` | 业务主体类型 | 是 | 受信服务上下文 | 内部 |
+| `subject_id` | `varchar(128)` | 业务主体编号 | 是 | 受信服务上下文 | 个人 |
+| `memory_id` | `varchar(64)` | 来源记忆标识 | 是 | 服务端校验后的向量结果 | 内部 |
+| `memory_version_id` | `varchar(64)` | 来源记忆版本 | 是 | 服务端校验后的向量结果 | 内部 |
+| `model_version_id` | `varchar(64)` | 向量模型版本 | 是 | 服务端校验后的向量结果 | 内部 |
+| `run_id` | `varchar(64)` | 生成向量的运行 | 是 | 服务端校验后的向量结果 | 内部 |
+| `dimensions` | `integer` | 向量维度 | 是 | 服务端校验后的向量结果 | 内部 |
+| `embedding` | `jsonb` | 记忆向量 | 是 | 服务端校验后的向量结果 | 敏感内容 |
+
+普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id, model_version_id)`；`(channel_id, memory_id)`。

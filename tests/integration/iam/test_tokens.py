@@ -154,3 +154,24 @@ async def test_pending_account_cleanup_does_not_delete_new_session(iam_env, admi
     )
     with pytest.raises(ServiceError):
         await iam.authentication.admin_session(admin[0].access_token, new_id("request"))
+
+
+async def test_existing_token_without_new_optional_fields_can_switch(iam_env, admin):
+    import json
+
+    iam, _, _, _, redis = iam_env
+    tokens = iam.authentication.tokens
+    key = tokens.token_key(tokens.digest(admin[0].access_token))
+    original = json.loads(await redis.get(key))
+    original.pop("upstream_expires_at", None)
+    original.pop("identity_channel_id", None)
+    await redis.set(key, json.dumps(original, separators=(",", ":")), keepttl=True)
+    stored = await tokens.read(admin[0].access_token, {"login"})
+    response, _ = await tokens.issue(
+        purpose="login",
+        principal_id=stored.principal_id,
+        credential_version=stored.credential_version,
+        replace=stored,
+    )
+    assert await tokens.read(response.access_token, {"login"})
+    assert not await redis.exists(key)

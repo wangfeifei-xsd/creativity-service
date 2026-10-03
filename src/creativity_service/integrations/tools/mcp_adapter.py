@@ -29,10 +29,14 @@ class McpAdapter:
         service, context = self.service, request.context
         await service.check_binding(context, request.definition)
         row, imported = await service.binding_state(context, request.definition.binding)
-        if request.definition.subject_requirements.required and not row["credential_ref"]:
+        if (
+            request.definition.subject_requirements.required
+            and not row["credential_ref"]
+            and row["transport"] != "oauth"
+        ):
             raise ToolAdapterError("MCP_AUTH_FAILED", "业务主体传递需要受控服务凭据")
-        if imported["effect_type"] != "READ_ONLY":
-            raise ToolAdapterError("TOOL_WRITE_DISABLED", "写入工具尚未启用执行")
+        if imported["effect_type"] != "READ_ONLY" and not request.operation:
+            raise ToolAdapterError("TOOL_CONFIRMATION_REQUIRED", "写入工具缺少已确认的执行意图")
         key = await service.key(context, row)
 
         class BoundCredentialAuthorization:
@@ -91,6 +95,8 @@ class McpAdapter:
             return wrap_result(result, request, imported["schema_hash"])
 
         try:
+            if row["transport"] == "oauth":
+                return await service.oauth.call(context, row, operation)
             return (
                 await bound_credentials.call(context, row["credential_ref"], "mcp", operation)
                 if row["credential_ref"]
@@ -99,7 +105,7 @@ class McpAdapter:
         except ServiceError as exc:
             if exc.code == "MCP_TOOL_CHANGED":
                 await service.invalidate_binding(context, imported["id"])
-            if exc.code == "MCP_AUTH_FAILED":
+            if exc.code == "MCP_AUTH_FAILED" and row["transport"] != "oauth":
                 await service.record_probe(context, row, None, exc, 0, False)
             raise ToolAdapterError(
                 exc.code,

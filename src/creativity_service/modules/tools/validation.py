@@ -64,6 +64,8 @@ TRUSTED_FIELDS = frozenset(
         "url",
         "sql",
         "command",
+        "idempotencykey",
+        "confirmationdigest",
     }
 )
 
@@ -117,6 +119,10 @@ def validate_schema(schema: dict[str, Any]) -> None:
 
 
 def validate_definition(definition: ToolDefinition) -> None:
+    if definition.write_policy and (
+        definition.effect_type == "READ_ONLY" or definition.idempotency_policy != "source_key"
+    ):
+        raise ServiceError("TOOL_WRITE_INVALID", "写入策略需要源幂等键和写入影响类型", 422)
     if len(canonical_json(definition.model_dump(mode="json"))) > 65536:
         raise ServiceError("TOOL_INPUT_INVALID", "工具契约不能超过 64 KiB", 422)
     for schema in (definition.input_schema, definition.output_schema):

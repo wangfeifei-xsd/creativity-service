@@ -50,7 +50,8 @@ def effective_actions(
     resource_id: str,
 ) -> frozenset[str]:
     if (
-        member.status != "ACTIVE"
+        not member.roles
+        or member.status != "ACTIVE"
         or environment not in member.environments
         or data_scope_id not in member.data_scopes
     ):
@@ -65,7 +66,7 @@ def effective_actions(
         and resource_covers(grant, member.channel_id, resource_type, resource_id)
         for action in grant.allowed_actions
     )
-    return allowed & (role_actions(member.roles) | INDEPENDENT_ACTIONS)
+    return allowed & (role_actions(member.roles) | member.custom_actions | INDEPENDENT_ACTIONS)
 
 
 def action_allowed(actions: frozenset[str], action: str) -> bool:

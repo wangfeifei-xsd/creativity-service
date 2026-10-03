@@ -18,6 +18,7 @@ from creativity_service.core.primitives import (
 )
 from creativity_service.core.versioning import validate_schema
 from creativity_service.modules.conversations import repositories as repo
+from creativity_service.modules.conversations.branches import BranchOperations
 from creativity_service.modules.conversations.contexts import ContextService
 from creativity_service.modules.conversations.deletions import DeletionOperations
 from creativity_service.modules.conversations.queries import ConversationQueries
@@ -33,7 +34,9 @@ from creativity_service.modules.conversations.schemas import (
 from creativity_service.modules.runs.schemas import AdmissionReceipt, RunRequest
 
 
-class ConversationService(ConversationQueries, ContextService, DeletionOperations):
+class ConversationService(
+    ConversationQueries, ContextService, DeletionOperations, BranchOperations
+):
     async def run_detail(
         self, context: AuthContext, conversation_id: str, run_id: str
     ) -> ResultEnvelope:

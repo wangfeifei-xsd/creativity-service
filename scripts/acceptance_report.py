@@ -56,6 +56,12 @@ def schema_evidence(output, connection):
     failures = (
         audit_definitions() + audit_sources(ROOT) + audit_catalog(ROOT) + audit_database(connection)
     )
+    implemented = {t["name"] for t in catalog["tables"] if t["status"] == "已实现"}
+    if set(tables) != implemented:
+        failures.append(
+            f"实际表与已实现归档不一致：缺少 {sorted(implemented - set(tables))}；"
+            f"多出 {sorted(set(tables) - implemented)}"
+        )
     inventory = [
         {
             "table": name,
@@ -169,6 +175,16 @@ def release_gate(output, report, failures):
         blockers.append("实际 schema 审查失败。")
     if any(f["status"] != "关联用例通过" for f in faults):
         blockers.append("故障注入矩阵存在未通过或缺记录项。")
+    environment = json.loads((output / "environment.json").read_text())
+    if not environment.get("onboarding_build_still_matches_workspace", False):
+        blockers.append(
+            "当前工作区源码与固定构建验收不一致；新改动须另行验证，见 environment.json。"
+        )
+    checks_source = output / "checks-source.json"
+    if not checks_source.exists() or not json.loads(checks_source.read_text()).get(
+        "unchanged_during_checks", False
+    ):
+        blockers.append("缺少检查期间源码未变化的记录。")
     journal = output / "commands.jsonl"
     commands = {}
     if journal.exists():
@@ -178,6 +194,9 @@ def release_gate(output, report, failures):
     for name in ("service-check", "web-check", "migrations", "storage"):
         if name not in commands or commands[name]["exit_code"] != 0:
             blockers.append(f"{name} 缺少成功的命令记录。")
+    failed_commands = sorted(
+        set(failures) | {name for name, row in commands.items() if row["exit_code"] != 0}
+    )
     outcomes = junit_outcomes(output)
     failed_tests = [node for node, row in outcomes.items() if row["status"] == "failed"]
     if failed_tests:
@@ -188,6 +207,8 @@ def release_gate(output, report, failures):
         blockers.append("缺少独立性能测量记录。")
     else:
         measured = json.loads(performance.read_text())
+        if not measured.get("source", {}).get("unchanged_during_measurement", False):
+            blockers.append("性能采样期间缺少源码未变化的证明。")
         for name in ("management_query", "admission_service"):
             if not measured[name]["passed"]:
                 blockers.append(
@@ -199,9 +220,9 @@ def release_gate(output, report, failures):
     blockers.append("真实模型执行并发、供应商等待时延及同候选真实评测尚未验收。")
     gate = {
         "recorded_at": datetime.now(UTC).isoformat(),
-        "formal_cutover_allowed": not blockers and not failures,
+        "formal_cutover_allowed": not blockers and not failed_commands,
         "blockers": blockers,
-        "failed_commands": failures,
+        "failed_commands": failed_commands,
         "test_summary": dict(Counter(row["status"] for row in outcomes.values())),
         "merge_rule": "相同测试及参数以最新 JUnit 覆盖；旧失败日志保留以追踪修复。",
     }
