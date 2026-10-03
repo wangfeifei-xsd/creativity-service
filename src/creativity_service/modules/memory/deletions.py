@@ -14,6 +14,7 @@ from creativity_service.core.database import (
 )
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
+from creativity_service.core.deletion.ledger import DeletionLedger
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.modules.memory import repositories as repo
 from creativity_service.modules.memory.base import MemoryKernel
@@ -94,6 +95,9 @@ class MemoryDeletions(MemoryKernel):
     async def forget(self, context: AuthContext, memory_id: str) -> MemoryDeletion:
         context = await self.locate(context, memory_id)
         await self.authorization.require(context, "memory:delete", memory_id)
+        await DeletionLedger().record(
+            context.scope, "memory", memory_id, "MEMORY_FORGOTTEN", context.principal_id
+        )
         async with transaction(self.engine, context.scope, repo.keys(context.scope)) as uow:
             row = await repo.required(uow.connection, "memories", context.scope, id=memory_id)
             return await self.forget_in(uow, context, [row])
@@ -101,9 +105,19 @@ class MemoryDeletions(MemoryKernel):
     async def clear(self, context: AuthContext, anchor_id: str | None = None) -> MemoryDeletion:
         context = await self.subject(context, anchor_id)
         await self.authorization.require(context, "memory:delete", "scope")
-        async with transaction(self.engine, context.scope, repo.keys(context.scope)) as uow:
-            rows = await repo.rows(uow.connection, "memories", context.scope)
-            return await self.forget_in(uow, context, rows, clear=True)
+        for _ in range(10):
+            async with self.engine.connect() as connection:
+                rows = await repo.rows(connection, "memories", context.scope)
+            for row in rows:
+                await DeletionLedger().record(
+                    context.scope, "memory", row["id"], "MEMORY_FORGOTTEN", context.principal_id
+                )
+            async with transaction(self.engine, context.scope, repo.keys(context.scope)) as uow:
+                current = await repo.rows(uow.connection, "memories", context.scope)
+                if {r["id"] for r in current} != {r["id"] for r in rows}:
+                    continue
+                return await self.forget_in(uow, context, current, clear=True)
+        raise ServiceError("MEMORY_BUSY", "记忆正在更新，请重试清空", 409)
 
     async def deletion(self, context: AuthContext, deletion_id: str) -> MemoryDeletion:
         table = metadata.tables["memory_deletion_jobs"]

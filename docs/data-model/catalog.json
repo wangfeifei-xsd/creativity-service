@@ -1,5 +1,5 @@
 {
-  "model_version": "1.6.0",
+  "model_version": "1.7.0",
   "requirements_version": "v0.7",
   "date": "2026-10-03",
   "modules": {
@@ -11567,9 +11567,15 @@
       "content": false
     },
     {
-      "module": "deletion",
       "name": "deletion_work_items",
+      "module": "deletion",
       "comment": "可重试模块清理步骤",
+      "status": "已实现",
+      "scope": "主体",
+      "revision": "0025_data_lifecycle",
+      "control_purpose": null,
+      "content": false,
+      "cleanup_type": null,
       "columns": [
         {
           "name": "id",
@@ -11648,7 +11654,7 @@
           "type": "varchar(64)",
           "comment": "删除任务",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层验证及清理状态",
           "sensitivity": "内部"
         },
         {
@@ -11656,7 +11662,7 @@
           "type": "varchar(128)",
           "comment": "登记处理器",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层验证及清理状态",
           "sensitivity": "内部"
         },
         {
@@ -11664,7 +11670,7 @@
           "type": "varchar(64)",
           "comment": "对象类型",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层验证及清理状态",
           "sensitivity": "内部"
         },
         {
@@ -11672,7 +11678,7 @@
           "type": "varchar(128)",
           "comment": "对象标识",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层验证及清理状态",
           "sensitivity": "内部"
         },
         {
@@ -11680,7 +11686,7 @@
           "type": "varchar(32)",
           "comment": "步骤状态",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层验证及清理状态",
           "sensitivity": "内部"
         },
         {
@@ -11688,7 +11694,7 @@
           "type": "integer",
           "comment": "尝试次数",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层验证及清理状态",
           "sensitivity": "内部"
         },
         {
@@ -11696,7 +11702,7 @@
           "type": "timestamptz",
           "comment": "重试时间",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层验证及清理状态",
           "sensitivity": "内部"
         },
         {
@@ -11704,7 +11710,31 @@
           "type": "varchar(64)",
           "comment": "脱敏错误类别",
           "required": false,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层验证及清理状态",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "lease_token",
+          "type": "varchar(64)",
+          "comment": "执行租约令牌",
+          "required": false,
+          "source": "服务层验证及清理状态",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "lease_until",
+          "type": "timestamptz",
+          "comment": "执行租约到期时间",
+          "required": false,
+          "source": "服务层验证及清理状态",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamptz",
+          "comment": "完成时间",
+          "required": false,
+          "source": "服务层验证及清理状态",
           "sensitivity": "内部"
         }
       ],
@@ -11718,13 +11748,13 @@
           "job_id",
           "handler_key",
           "target_id"
+        ],
+        [
+          "channel_id",
+          "state",
+          "next_attempt_at"
         ]
-      ],
-      "status": "设计基线",
-      "revision": null,
-      "scope": "主体",
-      "control_purpose": null,
-      "content": false
+      ]
     },
     {
       "module": "core",
@@ -14094,6 +14124,141 @@
         ]
       ],
       "content": false
+    },
+    {
+      "name": "deletion_receipts",
+      "module": "deletion",
+      "comment": "删除清理完成证明",
+      "status": "已实现",
+      "scope": "主体",
+      "revision": "0025_data_lifecycle",
+      "control_purpose": null,
+      "content": false,
+      "cleanup_type": null,
+      "columns": [
+        {
+          "name": "id",
+          "type": "varchar(64)",
+          "comment": "记录标识",
+          "required": true,
+          "source": "服务端随机标识",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "channel_id",
+          "type": "varchar(64)",
+          "comment": "所属渠道标识",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "comment": "创建时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "comment": "更新时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "comment": "并发修订号",
+          "required": true,
+          "source": "服务层递增",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "environment",
+          "type": "varchar(16)",
+          "comment": "所属环境",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "data_scope_id",
+          "type": "varchar(64)",
+          "comment": "业务数据域标识",
+          "required": false,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "subject_type",
+          "type": "varchar(64)",
+          "comment": "业务主体类型",
+          "required": false,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "subject_id",
+          "type": "varchar(128)",
+          "comment": "业务主体编号",
+          "required": false,
+          "source": "受信服务上下文",
+          "sensitivity": "个人"
+        },
+        {
+          "name": "job_id",
+          "type": "varchar(64)",
+          "comment": "删除任务",
+          "required": true,
+          "source": "服务层验证及清理状态",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "marker_digest",
+          "type": "varchar(64)",
+          "comment": "删除清单摘要",
+          "required": true,
+          "source": "服务层验证及清理状态",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "counts",
+          "type": "jsonb",
+          "comment": "各类已完成数量",
+          "required": true,
+          "source": "服务层验证及清理状态",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "proof_digest",
+          "type": "varchar(64)",
+          "comment": "完成证明摘要",
+          "required": true,
+          "source": "服务层验证及清理状态",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamptz",
+          "comment": "完成时间",
+          "required": true,
+          "source": "服务层验证及清理状态",
+          "sensitivity": "内部"
+        }
+      ],
+      "indexes": [
+        [
+          "channel_id",
+          "id"
+        ],
+        [
+          "channel_id",
+          "job_id"
+        ]
+      ]
     }
   ],
   "version_payloads": {

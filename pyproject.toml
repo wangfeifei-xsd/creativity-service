@@ -45,6 +45,7 @@ creativity-api = "creativity_service.cli:main"
 creativity-openapi = "creativity_service.api.openapi:main"
 creativity-iam = "creativity_service.modules.iam.cli:main"
 creativity-channels = "creativity_service.modules.channels.cli:main"
+creativity-lifecycle = "creativity_service.modules.data_lifecycle.cli:main"
 
 [build-system]
 requires = ["hatchling>=1.28,<2"]

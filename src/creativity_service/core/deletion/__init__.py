@@ -1,4 +1,4 @@
-"""删除标记、来源图和恢复屏障；最终清理调度由方案 25 接入。"""
+"""删除标记、来源图和恢复屏障的唯一公共检查协议。"""
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -15,6 +15,12 @@ from creativity_service.core.database import (
     transaction,
 )
 from creativity_service.core.database.tables import metadata
+from creativity_service.core.deletion.ledger import (
+    DeletionLedger,
+    current_manifest,
+    maintenance_mode,
+)
+from creativity_service.core.deletion.resources import CONTENT_MODELS
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import ServiceError, digest, new_id, unavailable, utcnow
 
@@ -64,54 +70,90 @@ class DeletionGuard:
         uow.require_scope(self.scope)
         uow.require_lock(content_key(self.scope))
         barrier = await self.barriers.get(uow.connection, barrier_id(self.scope))
-        if barrier is None or barrier["state"] != "READY":
+        manifest = current_manifest.get() or {}
+        if not maintenance_mode.get() and (
+            barrier is None or barrier["state"] != "READY" or manifest.get("blocked")
+        ):
             raise ServiceError("RECOVERY_BLOCKED", "内容恢复核对尚未完成", 503)
-        markers = await self.markers.find(uow.connection)
-        if any(m["target_type"] == "scope" for m in markers):
+        table = metadata.tables["deletion_markers"]
+        markers = [
+            dict(row)
+            for row in (
+                await uow.connection.execute(
+                    select(table).where(table.c.channel_id == self.scope.channel_id)
+                )
+            ).mappings()
+        ]
+        markers.extend(manifest.get("entries", []))
+        deleted_scopes = {
+            tuple((m.get("scope") or m).get(k) for k in Scope.model_fields)
+            for m in markers
+            if m["target_type"] == "scope"
+        }
+        if tuple(self.scope.model_dump().values()) in deleted_scopes:
             raise ServiceError("CONTENT_DELETED", "该范围内容已删除", 410)
-        deleted = {ContentRef(m["target_type"], m["target_id"]) for m in markers}
+        deleted = {
+            ContentRef(m["target_type"], m["target_id"])
+            for m in markers
+            if m["target_type"] != "scope"
+        }
         visited: set[ContentRef] = set()
         pending = list(refs)
         while pending:
             ref = pending.pop()
             if ref in visited:
                 continue
-            if ref.resource_type in CONFIG_CONTENT_TYPES:
-                table = metadata.tables["deletion_markers"]
-                marked = await uow.connection.scalar(
-                    select(table.c.id)
-                    .where(
-                        table.c.channel_id == self.scope.channel_id,
-                        table.c.target_type == ref.resource_type,
-                        table.c.target_id == ref.resource_id,
-                    )
-                    .limit(1)
-                )
-                if marked is not None:
-                    raise ServiceError("CONTENT_DELETED", "配置内容或来源已删除", 410)
             if ref in deleted:
                 raise ServiceError("CONTENT_DELETED", "内容或来源已删除", 410)
             visited.add(ref)
             if len(visited) > 10000:
                 raise ServiceError("SOURCE_GRAPH_LIMIT", "来源关系过多，需核对后读取", 503)
-            links = await self.sources.find(
-                uow.connection, derived_type=ref.resource_type, derived_id=ref.resource_id
-            )
-            if ref.resource_type in CONFIG_CONTENT_TYPES:
-                table = metadata.tables["source_links"]
-                links = [
-                    dict(row)
-                    for row in (
-                        await uow.connection.execute(
-                            select(table).where(
-                                table.c.channel_id == self.scope.channel_id,
-                                table.c.derived_type == ref.resource_type,
-                                table.c.derived_id == ref.resource_id,
+            # 同渠道来源可跨主体；读取来源自己的归属，不能套用调用方的主体。
+            model = CONTENT_MODELS.get(ref.resource_type)
+            if deleted_scopes and model is not None:
+                table = model
+                if "environment" in table.c:
+                    records = await uow.connection.execute(
+                        select(table).where(
+                            table.c.channel_id == self.scope.channel_id,
+                            table.c.id == ref.resource_id,
+                        )
+                    )
+                    if any(
+                        tuple(row.get(k) for k in Scope.model_fields) in deleted_scopes
+                        for row in records.mappings()
+                    ):
+                        raise ServiceError("CONTENT_DELETED", "内容或来源范围已删除", 410)
+            table = metadata.tables["source_links"]
+            links = [
+                dict(row)
+                for row in (
+                    await uow.connection.execute(
+                        select(table).where(
+                            table.c.channel_id == self.scope.channel_id,
+                            table.c.derived_type == ref.resource_type,
+                            table.c.derived_id == ref.resource_id,
+                        )
+                    )
+                ).mappings()
+            ]
+            if any(
+                tuple(link.get(k) for k in Scope.model_fields) in deleted_scopes for link in links
+            ):
+                raise ServiceError("CONTENT_DELETED", "内容或来源范围已删除", 410)
+            pending.extend(ContentRef(link["source_type"], link["source_id"]) for link in links)
+            if ref.resource_type == "run" and (deleted or deleted_scopes):
+                # 受理后的输入及工具内容先于上下文来源边出现，旧运行也须立即阻断。
+                for kind in ("message", "tool_call"):
+                    model = CONTENT_MODELS.get(kind)
+                    if model is not None:
+                        identifiers = await uow.connection.scalars(
+                            select(model.c.id).where(
+                                model.c.channel_id == self.scope.channel_id,
+                                model.c.run_id == ref.resource_id,
                             )
                         )
-                    ).mappings()
-                ]
-            pending.extend(ContentRef(link["source_type"], link["source_id"]) for link in links)
+                        pending.extend(ContentRef(kind, value) for value in identifiers)
 
     async def link(
         self,
@@ -153,6 +195,13 @@ class DeletionService:
             context, "content:delete", target.resource_id if target else "scope"
         )
         scope = context.scope
+        await DeletionLedger().record(
+            scope,
+            target.resource_type if target else "scope",
+            target.resource_id if target else "all",
+            reason_code,
+            context.principal_id,
+        )
         marker_id = digest(
             [
                 scope.model_dump(),

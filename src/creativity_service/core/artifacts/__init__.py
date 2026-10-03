@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
+    from mypy_boto3_s3.type_defs import ListObjectsV2RequestTypeDef
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.context import AuthContext, Authorization, DenyAuthorization
@@ -61,6 +62,28 @@ class S3ObjectStore:
     async def delete(self, key: str) -> None:
         assert_external_io_allowed()
         await asyncio.to_thread(self.client.delete_object, Bucket=self.bucket, Key=key)
+
+    async def list_page(
+        self, prefix: str, cursor: str | None = None
+    ) -> tuple[list[tuple[str, datetime]], str | None]:
+        assert_external_io_allowed()
+
+        def read() -> tuple[list[tuple[str, datetime]], str | None]:
+            request: ListObjectsV2RequestTypeDef = {
+                "Bucket": self.bucket,
+                "Prefix": prefix,
+                "MaxKeys": 1000,
+            }
+            if cursor:
+                request["ContinuationToken"] = cursor
+            response = self.client.list_objects_v2(**request)
+            return [
+                (item["Key"], item["LastModified"])
+                for item in response.get("Contents", [])
+                if "Key" in item and "LastModified" in item
+            ], response.get("NextContinuationToken")
+
+        return await asyncio.to_thread(read)
 
 
 class ArtifactService:
@@ -121,23 +144,31 @@ class ArtifactService:
             for link_id, source in zip(link_ids, sources, strict=True):
                 await guard.link(uow, link_id, source, ref)
         # 对象访问不占用数据库事务；失败保持暂存意图供重试清理。
-        await self.store.put(key, data, content_type)
-        await self.authorization.require(context, "artifact:upload", artifact_id)
-        async with transaction(self.engine, scope, keys) as uow:
-            await DeletionGuard(scope).check(uow, [ref])
-            current = await repo.get(uow.connection, artifact_id)
-            if (
-                current is None
-                or current["state"] != "STAGED"
-                or current["upload_expires_at"] <= utcnow()
-            ):
-                raise ServiceError("UPLOAD_EXPIRED", "文件暂存已失效", 410)
-            row = await repo.change(
-                uow,
-                artifact_id,
-                current["revision"],
-                {"state": "AVAILABLE", "registered_at": utcnow()},
-            )
+        try:
+            await self.store.put(key, data, content_type)
+            await self.authorization.require(context, "artifact:upload", artifact_id)
+            async with transaction(self.engine, scope, keys) as uow:
+                await DeletionGuard(scope).check(uow, [ref])
+                current = await repo.get(uow.connection, artifact_id)
+                if (
+                    current is None
+                    or current["state"] != "STAGED"
+                    or current["upload_expires_at"] <= utcnow()
+                ):
+                    raise ServiceError("UPLOAD_EXPIRED", "文件暂存已失效", 410)
+                row = await repo.change(
+                    uow,
+                    artifact_id,
+                    current["revision"],
+                    {"state": "AVAILABLE", "registered_at": utcnow()},
+                )
+        except BaseException:
+            # 删除与迟到上传竞争时立即回收；回收失败仍保留暂存记录供扫描重试。
+            try:
+                await self.store.delete(key)
+            except Exception:
+                pass
+            raise
         api_prefix = "admin" if context.principal_type == "management" else "api"
         return Artifact(
             artifact_id=artifact_id,

@@ -75,7 +75,7 @@ def build_tool_services(
     service = ToolService(engine, authorization, registry, runs)
     return ToolServices(
         service,
-        ToolExecutor(service, runs, RedisToolCache(redis, prefix) if redis else None),
+        ToolExecutor(service, runs, RedisToolCache(redis, prefix, engine) if redis else None),
         registry,
     )
 

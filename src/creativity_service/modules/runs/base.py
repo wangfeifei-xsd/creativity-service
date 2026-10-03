@@ -64,6 +64,7 @@ class RunKernel:
         self.boundary: Callable[[AuthContext, dict[str, Any]], Awaitable[None]] | None = None
         self.runtime_executor: Executor | None = None
         self.content_guard: Callable[[UnitOfWork, dict[str, Any]], Awaitable[None]] | None = None
+        self.content_guard_keys: Callable[[AuthContext], list[ResourceKey]] | None = None
         self.evaluation_sweep: Callable[[str], Awaitable[None]] | None = None
         self.rerun_handler: (
             Callable[[AuthContext, dict[str, Any], RunInput, str], Awaitable[AdmissionReceipt]]
@@ -111,6 +112,8 @@ class RunKernel:
             content_key(context.scope),
             *self.budgets.admission_keys(context, run_id),
         ]
+        if self.content_guard_keys:
+            keys.extend(self.content_guard_keys(context))
         if conversation_id:
             keys.append(conversation_key(context.scope, conversation_id))
             if self.turns:

@@ -12,6 +12,7 @@ from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.primitives import ServiceError, canonical_json, digest, new_id, utcnow
 from creativity_service.modules.budgets.services import BudgetService, record_cost
 from creativity_service.modules.usage.pricing import calculate, normalize
+from creativity_service.modules.usage.redaction import meter_only
 from creativity_service.modules.usage.repositories import ledger_key, one, required, rows, save
 
 
@@ -125,10 +126,10 @@ class UsageService:
                 "connection_id": event.connection_id,
                 "source_request_id": event.source_request_id,
                 "event_version": event.event_version,
-                "raw_usage": event.raw_usage or {},
+                "raw_usage": meter_only(event.raw_usage),
                 "usage_status": event.status,
                 "observed_at": event.observed_at,
-                "event_payload": payload,
+                "event_payload": {**payload, "raw_usage": meter_only(event.raw_usage)},
                 "payload_digest": digest(payload),
                 "applied": apply,
             },

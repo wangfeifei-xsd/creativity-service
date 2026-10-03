@@ -27,3 +27,6 @@ dist/
 *.log
 .idea/
 .DS_Store
+
+# 独立删除清单与本地运行状态
+.local/

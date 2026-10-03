@@ -124,9 +124,14 @@ async def test_mem_a05_deleted_source_is_unusable_before_cleanup(env):
     await DeletionService(env.engine, env.authorization).mark(
         env.context, ContentRef("message", env.source.source_id), "SOURCE_DELETED"
     )
-    assert not (await load(env, selected)).items
+    # 来源已进入原运行输入，旧运行整体阻断，不能借记忆加载继续恢复。
+    with pytest.raises(ServiceError) as failure:
+        await load(env, selected)
+    assert failure.value.code == "CONTENT_DELETED"
     detail = await env.memory.detail(env.context, saved.memory_id)
     assert detail.memory.status == "REVOKED" and detail.memory.value is None
+    env.run_id = (await env.runs.admit_run(env.context, env.request, "new-memory-read")).run_id
+    assert not (await select(env)).refs
     assert all(v["value"] is None for v in await rows(env, "memory_versions"))
 
 
@@ -146,6 +151,13 @@ async def test_independent_source_survives_without_deleted_source_or_history_con
     serialized = detail.model_dump_json()
     assert "偏好咨询" not in serialized
     assert all(v["value"] is None for v in (await rows(env, "memory_versions"))[:-1])
+    with pytest.raises(ServiceError) as failure:
+        await select(env)
+    assert failure.value.code == "CONTENT_DELETED"
+    # 独立依据由新运行读取，原来源运行仍保持不可恢复。
+    env.run_id = (
+        await env.runs.admit_run(env.context, env.request, "independent-memory-read")
+    ).run_id
     assert (await load(env, await select(env))).items[0].value == budget()
 
 
@@ -439,8 +451,12 @@ async def test_trusted_fact_value_matches_recorded_tool_result_and_requires_curr
     await DeletionService(env.engine, env.authorization).mark(
         env.context, ContentRef("tool_call", "membership_call"), "TOOL_REVOKED"
     )
-    assert (await load(env, selected)).items == []
+    with pytest.raises(ServiceError) as failure:
+        await load(env, selected)
+    assert failure.value.code == "CONTENT_DELETED"
     assert (await env.memory.detail(env.context, fact.memory_id)).memory.status == "REVOKED"
+    env.run_id = (await env.runs.admit_run(env.context, env.request, "new-fact-read")).run_id
+    assert not (await select(env, keys=["membership_level"])).refs
 
 
 async def test_queued_candidates_cannot_reintroduce_forgotten_or_cleared_content(env):

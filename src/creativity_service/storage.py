@@ -3,9 +3,11 @@
 from sqlalchemy import MetaData
 
 from creativity_service.core.database.tables import metadata as core_metadata
+from creativity_service.core.deletion.resources import register_content_models
 from creativity_service.modules.agents.tables import metadata as agent_metadata
 from creativity_service.modules.channels.tables import metadata as channel_metadata
 from creativity_service.modules.conversations.tables import metadata as conversation_metadata
+from creativity_service.modules.data_lifecycle.tables import metadata as lifecycle_metadata
 from creativity_service.modules.evaluations.tables import metadata as evaluation_metadata
 from creativity_service.modules.iam.tables import metadata as iam_metadata
 from creativity_service.modules.integrations.tables import metadata as integration_metadata
@@ -20,6 +22,7 @@ from creativity_service.modules.usage.tables import metadata as usage_metadata
 
 metadata = MetaData()
 for source in (
+    lifecycle_metadata,
     agent_metadata,
     evaluation_metadata,
     memory_metadata,
@@ -38,3 +41,5 @@ for source in (
 ):
     for table in source.tables.values():
         table.to_metadata(metadata)
+
+register_content_models(metadata)

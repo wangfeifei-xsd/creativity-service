@@ -109,10 +109,16 @@ class ToolRepository:
         error: dict[str, Any] | None,
         latency_ms: int | None,
         authorization_scope: dict[str, Any],
+        *,
+        source_run_id: str | None = None,
     ) -> None:
         scope = context.scope
         refs = [ContentRef("run", call.run_id), ContentRef("version", call.tool_version_id)]
         edges = [(ref, ContentRef("tool_call", call_id)) for ref in refs]
+        if source_run_id and source_run_id != call.run_id:
+            # 缓存复用也复制了内容，来源运行必须进入持久化图，不能只依赖可选证据。
+            refs.append(ContentRef("run", source_run_id))
+            edges.append((ContentRef("run", source_run_id), ContentRef("tool_call", call_id)))
         if result:
             for file_id in artifact_references(result.data):
                 edges.append((ContentRef("artifact", file_id), ContentRef("tool_call", call_id)))

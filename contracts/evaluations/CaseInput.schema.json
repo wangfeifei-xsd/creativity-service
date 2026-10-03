@@ -251,6 +251,15 @@
       "title": "Source Refs",
       "type": "array"
     },
+    "source_mode": {
+      "default": "all",
+      "enum": [
+        "all",
+        "independent"
+      ],
+      "title": "Source Mode",
+      "type": "string"
+    },
     "fixture": {
       "items": {
         "$ref": "#/$defs/FixtureCall"

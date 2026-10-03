@@ -312,9 +312,36 @@ class MemoryKernel:
                 raise
             marked = True
         if marked or not valid:
-            if row["status"] != "REVOKED" or row["value"] is not None:
+            # 撤销前固化记忆自身标记；来源边移除后，旧文件和快照仍不能读取旧值。
+            markers = core_metadata.tables["deletion_markers"]
+            marker_id = digest([context.scope.model_dump(), "memory", row["id"]])
+            if not await Repository(markers, context.scope).get(uow.connection, marker_id):
+                marker = {
+                    **scope_values(markers, context.scope),
+                    "id": marker_id,
+                    "created_at": utcnow(),
+                    "updated_at": utcnow(),
+                    "revision": 1,
+                    "target_type": "memory",
+                    "target_id": row["id"],
+                    "reason_code": "MEMORY_SOURCE_REVOKED",
+                    "requested_by": context.principal_id,
+                }
+                validate_row(markers, marker)
+                await uow.connection.execute(insert(markers).values(**marker))
+            if (
+                row["status"] != "REVOKED"
+                or row["value"] is not None
+                or row["subject_name"] is not None
+            ):
                 row = await self.version(
-                    uow, context, row, "SOURCE_REVOKED", status="REVOKED", value=None
+                    uow,
+                    context,
+                    row,
+                    "SOURCE_REVOKED",
+                    status="REVOKED",
+                    value=None,
+                    subject_name=None,
                 )
             await self.scrub_versions(uow, context, row["id"])
         elif changed:

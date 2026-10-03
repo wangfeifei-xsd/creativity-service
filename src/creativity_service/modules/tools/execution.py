@@ -1,12 +1,14 @@
 """固定工具版本执行管线；失败结果与外部文本均不能改变执行权限。"""
 
 import asyncio
+import json
 from time import monotonic
 from typing import TYPE_CHECKING, Any
 
 from pydantic import ValidationError
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import (
@@ -16,6 +18,8 @@ from creativity_service.core.contracts import (
     RunError,
     ToolResult,
 )
+from creativity_service.core.database import transaction
+from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.primitives import (
     ServiceError,
     canonical_json,
@@ -40,21 +44,57 @@ if TYPE_CHECKING:
 
 
 class RedisToolCache:
-    def __init__(self, redis: Redis, prefix: str) -> None:
-        self.redis, self.prefix = redis, prefix
+    def __init__(self, redis: Redis, prefix: str, engine: AsyncEngine | None = None) -> None:
+        self.redis, self.prefix, self.engine = redis, prefix, engine
 
     async def get(self, key: str) -> ToolResult | None:
+        value = await self.get_with_source(key)
+        return value[0] if value else None
+
+    async def get_with_source(self, key: str) -> tuple[ToolResult, str] | None:
         try:
             value = await self.redis.get(f"{self.prefix}:tools:{key}")
-            return ToolResult.model_validate_json(value) if value else None
-        except (RedisError, ValidationError):
+            if not value or self.engine is None:
+                return None
+            envelope = json.loads(value)
+            result = ToolResult.model_validate(envelope["result"])
+            if not isinstance(envelope["run_id"], str) or not envelope["run_id"]:
+                raise ValueError("缓存缺少来源运行")
+            async with transaction(self.engine, result.scope, [content_key(result.scope)]) as uow:
+                await DeletionGuard(result.scope).check(
+                    uow, [ContentRef("run", envelope["run_id"])]
+                )
+            return result, envelope["run_id"]
+        except (RedisError, ValidationError, KeyError, ValueError, TypeError, ServiceError):
+            await self.delete(key)
             return None
 
+    async def delete(self, key: str) -> None:
+        try:
+            await self.redis.delete(f"{self.prefix}:tools:{key}")
+        except RedisError:
+            return
+
     async def put(self, key: str, result: ToolResult, ttl_seconds: int) -> None:
+        # 缺少来源运行时不缓存内容；执行层通过带来源的入口写入。
+        return
+
+    async def put_for_run(
+        self, key: str, result: ToolResult, ttl_seconds: int, run_id: str
+    ) -> None:
+        if self.engine is None:
+            return
         try:
             await self.redis.set(
-                f"{self.prefix}:tools:{key}", result.model_dump_json(), ex=ttl_seconds
+                f"{self.prefix}:tools:{key}",
+                json.dumps({"run_id": run_id, "result": result.model_dump(mode="json")}),
+                ex=ttl_seconds,
             )
+            async with transaction(self.engine, result.scope, [content_key(result.scope)]) as uow:
+                await DeletionGuard(result.scope).check(uow, [ContentRef("run", run_id)])
+        except ServiceError:
+            await self.delete(key)
+            raise
         except RedisError:
             # 缓存失败不改变已验证业务结果，也不绕过下一次实时授权。
             return
@@ -288,7 +328,12 @@ class ToolExecutor:
             "authorization_revision": grant.authorization_revision,
         }
         if self.cache and definition.cache_policy.ttl_seconds:
-            cached = await self.cache.get(key)
+            source_run_id = None
+            if isinstance(self.cache, RedisToolCache):
+                entry = await self.cache.get_with_source(key)
+                cached, source_run_id = entry if entry else (None, None)
+            else:
+                cached = await self.cache.get(key)
             if (
                 cached
                 and cached.scope == context.scope
@@ -316,7 +361,17 @@ class ToolExecutor:
                     ):
                         raise ServiceError("TOOL_FORBIDDEN", "调用期间授权已变更", 403)
                     await self.service.repository.record(
-                        context, call, call_id, tool_id, "CACHED", None, cached, None, 0, auth_scope
+                        context,
+                        call,
+                        call_id,
+                        tool_id,
+                        "CACHED",
+                        None,
+                        cached,
+                        None,
+                        0,
+                        auth_scope,
+                        source_run_id=source_run_id,
                     )
                     return cached
         for number in range(definition.retry_policy.max_attempts):
@@ -436,6 +491,11 @@ class ToolExecutor:
                 raise failure
             assert result is not None
             if self.cache and definition.cache_policy.ttl_seconds:
-                await self.cache.put(key, result, definition.cache_policy.ttl_seconds)
+                if isinstance(self.cache, RedisToolCache):
+                    await self.cache.put_for_run(
+                        key, result, definition.cache_policy.ttl_seconds, call.run_id
+                    )
+                else:
+                    await self.cache.put(key, result, definition.cache_policy.ttl_seconds)
             return result
         raise ServiceError("TOOL_UNAVAILABLE", "工具未能返回有效结果", 503)

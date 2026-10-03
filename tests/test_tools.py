@@ -85,6 +85,8 @@ class MemoryRepository:
         error,
         latency_ms,
         authorization_scope,
+        *,
+        source_run_id=None,
     ):
         self.records[call_id] = dict(state=state, attempt=attempt, result=result, error=error)
 

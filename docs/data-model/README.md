@@ -1,6 +1,6 @@
 # Creativity P0 数据模型索引
 
-模型版本 **1.6.0**；需求基线 **v0.7**；技术基线 **v1.6**。
+模型版本 **1.7.0**；需求基线 **v0.7**；技术基线 **v1.6**。
 
 本档案覆盖全部 P0 持久化对象。机器清单为 [catalog.json](catalog.json)，字段文档由 `scripts/render_data_model.py` 生成。共享基础的代码定义位于 `core/database/baseline_v0001.json`；公共表对应 `0001_core`，账号模块对应 `0002_iam`，渠道模块对应 `0003_channels`；其余通用平台表按所属方案建库。开发规范引用 [rule.md](../../../rule.md)。
 
@@ -111,7 +111,8 @@
 | `delegation_nonces` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
 | `subject_review_bindings` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
 | `deletion_jobs` | [删除传播与保留](modules/deletion.md) | 00-需求总纲.md | 已实现 | 25 |
-| `deletion_work_items` | [删除传播与保留](modules/deletion.md) | 00-需求总纲.md | 设计基线 | 25 |
+| `deletion_work_items` | [删除传播与保留](modules/deletion.md) | 00-需求总纲.md | 已实现 | 25 |
+| `deletion_receipts` | [删除传播与保留](modules/deletion.md) | 00-需求总纲.md | 已实现 | 25 |
 
 复用映射：渠道审计与账号审计共用 `audit_events`；模型价格归用量模块 `price_versions`；资源内容、依赖、发布映射和运行快照共用公共表；会话删除任务复用方案 25；任意 Agent 的结果使用通用运行与产物模型，业务领域对象由源系统维护。前端工作区没有独立权限或导航真值表。
 

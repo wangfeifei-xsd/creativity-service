@@ -16,6 +16,11 @@ LifecycleAction = Literal["suspend", "resume", "archive"]
 
 class RetentionPolicy(Contract):
     retention_days: int = Field(default=90, ge=1, le=3650)
+    run_content_days: int = Field(default=30, ge=1, le=3650)
+    metadata_days: int = Field(default=365, ge=1, le=3650)
+    sse_hours: int = Field(default=24, ge=1, le=168)
+    temporary_hours: int = Field(default=1, ge=1, le=24)
+    export_days: int = Field(default=7, ge=1, le=90)
 
 
 class ReleasePolicy(Contract):

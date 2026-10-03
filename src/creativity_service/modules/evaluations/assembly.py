@@ -18,6 +18,7 @@ from creativity_service.modules.agents.services import AgentService
 from creativity_service.modules.evaluations.repositories import keys, repository
 from creativity_service.modules.evaluations.services import EvaluationService
 from creativity_service.modules.iam.authorization import IamAuthorization
+from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.releases.evaluation import StoredEvaluationGate
 from creativity_service.modules.runs.services import RunService
 
@@ -86,6 +87,11 @@ def build_evaluation_service(
             if not case or not await service.valid_case(uow, context, case):
                 raise ServiceError("CONTENT_DELETED", "评测来源已删除", 410)
 
+    # 来源权限检查与授权撤销共用锁；运行内容事务提前声明所需资源。
+    runs.content_guard_keys = lambda context: [
+        policy_key(context.scope.channel_id),
+        policy_key("system"),
+    ]
     runs.content_guard = guard
     if cleanup:
         for kind, table in {

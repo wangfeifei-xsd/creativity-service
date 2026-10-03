@@ -12,6 +12,7 @@ from creativity_service.core.primitives import ServiceError, digest, new_id, utc
 from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.agents.repositories import repository as agent_repository
 from creativity_service.modules.evaluations.imports import preview
+from creativity_service.modules.evaluations.independent import validate_independent
 from creativity_service.modules.evaluations.judges import MISSING, field
 from creativity_service.modules.evaluations.redaction import redact
 from creativity_service.modules.evaluations.repositories import (
@@ -188,6 +189,13 @@ class DatasetService:
             # 沿服务端已登记的来源主体复核删除；复用同一连接与渠道图锁，不开启嵌套事务。
             source_uow = UnitOfWork(uow.connection, scope, uow.keys)
             await DeletionGuard(scope).check(source_uow, [ContentRef("run", source["resource_id"])])
+            await locked_require(
+                source_uow,
+                context.model_copy(update={"scope": scope}),
+                "run:content",
+                "run",
+                source["resource_id"],
+            )
 
     async def check_sources(
         self, context: AuthContext, cases: list[CaseInput], references: list[str]
@@ -284,6 +292,12 @@ class DatasetService:
         async with transaction(
             self.engine, context.scope, keys(context, records) + link_keys(context, links)
         ) as uow:
+            independent = {
+                identifier: await validate_independent(
+                    uow, context.scope, case.model_dump(mode="json")
+                )
+                for identifier, _, case in prepared
+            }
             await locked_require(uow, context, action, "evaluation", dataset_id)
             for case in body.cases:
                 await self.source_guard(uow, context, case.model_dump(mode="json"))
@@ -374,7 +388,11 @@ class DatasetService:
             )
             for source, derived in links:
                 await DeletionGuard(context.scope).link(
-                    uow, link_id(source, derived), source, derived
+                    uow,
+                    link_id(source, derived),
+                    source,
+                    derived,
+                    independent.get(derived.resource_id) if source.resource_type == "run" else None,
                 )
         return await self.dataset(context, dataset_id)
 

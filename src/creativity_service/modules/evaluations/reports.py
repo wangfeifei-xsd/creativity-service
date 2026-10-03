@@ -45,6 +45,9 @@ async def build_report(
         latest[(row["candidate_id"], row["case_id"])] = row
     reproducible = task["execution_mode"] == "fixture"
     sources_valid = True
+    stored_report = await repository("evaluation_reports", scope).get(uow.connection, task["id"])
+    if stored_report and not stored_report["reproducible"] and not stored_report["payload"]:
+        sources_valid = reproducible = False
     try:
         await DeletionGuard(scope).check(uow, [ContentRef("evaluation", task["id"])])
     except ServiceError as exc:

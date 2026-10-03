@@ -50,6 +50,25 @@ async def transaction(
         raise ValueError("事务必须预先声明全部互斥资源")
     if any(key.channel_id not in {scope.channel_id, "system"} for key in keys):
         raise ServiceError("LOCK_SCOPE_MISMATCH", "锁渠道与上下文不符", 403)
+    from creativity_service.core.deletion.ledger import DeletionLedger, current_manifest
+
+    manifest = None
+    if isinstance(scope, Scope) and any(key.resource_type == "content-graph" for key in keys):
+        ledger = DeletionLedger()
+        manifest = await ledger.operate(scope.channel_id)
+        if "updated_at" not in manifest:
+            from creativity_service.core.database.tables import metadata
+
+            # 只有渠道首次建立空范围时可初始化独立清单；既有屏障不能掩盖清单丢失。
+            barriers = metadata.tables["recovery_barriers"]
+            async with engine.connect() as connection:
+                existing = await connection.scalar(
+                    select(barriers.c.id).where(barriers.c.channel_id == scope.channel_id).limit(1)
+                )
+            if existing is not None:
+                raise ServiceError("DELETION_LEDGER_UNAVAILABLE", "无法确认最新删除清单", 503)
+            manifest = await ledger.operate(scope.channel_id, initialize=True)
+    manifest_token = current_manifest.set(manifest)
     token = transaction_active.set(True)
     uow = None
     try:
@@ -65,6 +84,7 @@ async def transaction(
         if uow is not None:
             uow.active = False
         transaction_active.reset(token)
+        current_manifest.reset(manifest_token)
 
 
 def scope_values(table: Table, scope: Scope | ControlScope) -> dict[str, Any]:

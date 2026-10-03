@@ -74,6 +74,7 @@ class CaseInput(Contract):
     label_source: str = Field(min_length=1, max_length=256)
     human_label: HumanLabel | None = None
     source_refs: list[EvaluationSource] = Field(default_factory=list, max_length=64)
+    source_mode: Literal["all", "independent"] = "all"
     fixture: list[FixtureCall] = Field(default_factory=list, max_length=100)
 
     @model_validator(mode="after")

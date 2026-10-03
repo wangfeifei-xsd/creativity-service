@@ -62,3 +62,5 @@ Python 3.12 + FastAPI，API 与 Celery Worker 分进程运行。使用 uv 0.10.1
 23 已完成固定构建下的三渠道业务无关接入验证，见 [接入清单](docs/business-independence.md)、[三套配置与独立复现脚本](examples/onboarding/README.md)、[调用及构建验收](docs/business-independence-validation.md)。该浏览器组合用例通过复现脚本显式启动，普通 `make integration` 会跳过未准备固定构建的执行。
 
 24 已交付样本版本、JSONL/CSV 导入、统一运行批量评测、基线对比、人工复核及 prod 发布门禁；见 [评测交接](docs/evaluations.md)、[验证记录](docs/evaluations-validation.md) 与 [样本装配](examples/evaluations/README.md)。迁移为 `0024_evaluations`，真实模型与 MCP 组合证据由 26 汇总。
+
+25 已完成删除全图、分批重试、渠道保留政策与独立恢复屏障；迁移为 `0025_data_lifecycle`。启动清理前配置独立持久卷并运行 Worker/Beat，命令与证明格式见 [删除生命周期交接](docs/data-lifecycle.md)，实测结果见 [验收记录](docs/data-lifecycle-validation.md)。

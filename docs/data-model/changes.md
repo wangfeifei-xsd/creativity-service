@@ -88,3 +88,9 @@ Agent 增加通用 `workflow.v1` 配置入口，历史 `matching.v1/risk.v1/anal
 ## 1.6.0 / 2026-10-03：24 效果评测与发布门禁
 
 `0024_evaluations` 接在 `0021_mcp_subject_review` 后，新增样本集、不可变样本版本、样本、工具夹具、评测任务、历次结果及报告七表。冻结定义为 `modules/evaluations/baseline_v0024.json`，不改旧迁移，无历史数据回填。固定资料清单含版本与内容摘要；候选继续复用 `agent_candidates`，子 run、费用和工具证据继续复用既有模块。来源删除可清除正文及人工理由，保留非原文状态、摘要和用量关系。交接见 [评测模块](../evaluations.md)。
+
+## 1.7.0 / 2026-10-03：25 删除传播与数据保留
+
+`0025_data_lifecycle` 接在 `0024_evaluations` 后，新建 `deletion_work_items`、`deletion_receipts`，沿用共享 `deletion_jobs`、公共标记、来源及屏障。冻结定义为 `modules/data_lifecycle/baseline_v0025.json`；存量任务由扫描幂等生成步骤，旧标记在当前可信数据库上导出到独立卷后启用清理。
+
+渠道 `retention_policy` JSON 增加运行/元数据/SSE/暂存/导出周期，旧 JSON 通过服务默认值兼容，无列回填。评测样本增加 `source_mode`，独立依据的等价摘要使用既有来源版本字段。工具缓存增加来源运行引用；旧缓存无有效来源时失效。账本 `raw_usage` 与事件载荷收敛为计量白名单。独立删除清单不进入数据库恢复快照；恢复步骤见 [删除生命周期交接](../data-lifecycle.md)。

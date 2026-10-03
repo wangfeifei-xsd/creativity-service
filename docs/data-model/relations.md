@@ -1,6 +1,6 @@
 # 对象关系与生命周期
 
-模型版本 1.3.0；完整表及字段见 [索引](README.md)。下文为逻辑关联，实施服务对关联对象的范围、存在及状态负责。
+模型版本 1.7.0；完整表及字段见 [索引](README.md)。下文为逻辑关联，实施服务对关联对象的范围、存在及状态负责。
 
 | 来源 → 目标 | 逻辑关联键与归属 | 版本、状态与删除关系 |
 | --- | --- | --- |
@@ -27,7 +27,7 @@
 | evaluation_datasets → evaluation_dataset_versions → evaluation_cases / evaluation_fixtures | 样本修订产生新行，新版本固定 case_ids 与 fixture_ids | 人工标注不改旧基线；来源删除使原文不可见，报告注明不可复现 |
 | evaluations → evaluation_results → runs / evaluation_reports | 同渠道快照、样本和子 run；purpose=evaluation | 未完成/无效不当通过；发布门禁绑定依赖摘要 |
 | integrations → data_scopes / delegation_keys / integration_tests | 域映射引用渠道模块；适配器不复制映射真值 | 委托受众、来源、有效期和环境均须匹配；领域差异由业务 MCP 负责，旧 HTTP 协议按 19/20 兼容处理 |
-| 任意内容 → source_links → 派生内容 | 同一完整范围，source_type/id/version → derived_type/id；中间节点继续回溯 | 消息→摘要/记忆→上下文→运行/恢复点→文件/样本/报告；删除任一祖先阻断后代读写 |
+| 任意内容 → source_links → 派生内容 | 同渠道，边保存在派生范围；source_type/id/version → derived_type/id，回溯使用各来源真实范围 | 消息→摘要/记忆→上下文→运行/恢复点→文件/样本/报告；删除任一祖先阻断后代读写 |
 | deletion_markers → deletion_jobs → deletion_work_items | 标记同渠道原范围、目标类型和 id，不含原文 | 先写永久标记再清理；重试幂等；未登记处理器阻止完成；来源有独立依据的记忆由 13/25 重算 |
 | recovery_barriers → 所有恢复内容入口 | 完整内容范围 + recovery_id + 外部删除账本摘要 | 缺失/BLOCKED 拒绝；仅新空范围可初始化；已有内容导入标记并核对后 READY |
 | audit_events / usage_exports | 渠道审计归实际目标；明确平台汇总归 system 并带授权渠道集合 | 保留无原文元数据；导出生成与下载分别检查权限 |
@@ -71,3 +71,5 @@
 ## 20 当前主体复核关系
 
 `subject_review_bindings` 按渠道、环境、数据域和 client 固定 MCP connection/discovery/schema。该绑定只授权受控身份查询，不生成本地模型工具。MCP 工具导入继续复用 `mcp_imports → resource_versions(tool)`；来源、观测时间和证据复用 ToolResult、tool_calls 与 evidence_refs，不增加领域表。旧连接修订与新凭据之间不存在自动重绑定。
+
+25 实现 `deletion_jobs → deletion_work_items → deletion_receipts`：任务下按目标生成独立步骤，跨主体步骤保留目标 Scope；任务证明归原申请范围，只含数量和摘要。独立卷条目按 Scope/类型/目标去重，导入同一个 `deletion_markers`。永久来源标记与旧数据库的任务/对象重放由同一水位核对；没有第二套业务删除真值。

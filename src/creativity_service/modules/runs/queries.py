@@ -220,6 +220,12 @@ class QueryService(RunKernel):
         except ServiceError as exc:
             if exc.status not in {403, 404}:
                 raise
+        try:
+            await self.authorization.require(context, "content:delete", "scope")
+            actions.append({"action_key": "delete", "label": "删除运行内容"})
+        except ServiceError as exc:
+            if exc.status not in {403, 404}:
+                raise
         async with transaction(self.engine, context.scope, self.keys(context, run_id)) as uow:
             row = await self.locked_run(uow, run_id)
             self.owner(context, row)
@@ -305,6 +311,7 @@ class QueryService(RunKernel):
                     for a in actions
                     if (a["action_key"] == "cancel" and row["state"] not in TERMINAL)
                     or (a["action_key"] == "rerun" and row["state"] in TERMINAL and content_allowed)
+                    or a["action_key"] == "delete"
                 ],
             }
         return {

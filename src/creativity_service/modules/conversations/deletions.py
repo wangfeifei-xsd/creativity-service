@@ -8,6 +8,7 @@ from creativity_service.core.context import AuthContext
 from creativity_service.core.database import Repository, transaction
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard
+from creativity_service.core.deletion.ledger import DeletionLedger
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError, digest
 from creativity_service.modules.conversations import repositories as repo
@@ -134,6 +135,9 @@ class DeletionOperations(ConversationKernel):
     async def delete(self, context: AuthContext, conversation_id: str) -> DeletionView:
         context = await self.access(context, conversation_id, "content:delete")
         scope = context.scope
+        await DeletionLedger().record(
+            scope, "conversation", conversation_id, "CONVERSATION_DELETED", context.principal_id
+        )
         marker_id = digest([scope.model_dump(), "conversation", conversation_id])
         job_id = digest([scope.model_dump(), "conversation-deletion", conversation_id])
         for _ in range(5):

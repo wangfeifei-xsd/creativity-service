@@ -156,6 +156,11 @@ async def require_http_context(
         if delegation is None:
             raise unavailable("业务主体委托验证服务")
         context = await delegation.verify_request(context, request)
+    from creativity_service.core.deletion.ledger import DeletionLedger
+
+    manifest = await DeletionLedger().operate(context.scope.channel_id, required=True)
+    if manifest["blocked"]:
+        raise ServiceError("RECOVERY_BLOCKED", "内容恢复核对尚未完成", 503)
     with bind_context(context):
         yield context
 

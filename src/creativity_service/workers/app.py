@@ -89,3 +89,10 @@ app.conf.beat_schedule = {
     **(app.conf.beat_schedule or {}),
     "mcp-sweep": {"task": "mcp.sweep", "schedule": 30.0},
 }
+
+# 删除意图和到期内容共用可重放清理调度。
+app.conf.imports = tuple(app.conf.imports or ()) + ("creativity_service.workers.cleanup",)
+app.conf.beat_schedule = {
+    **(app.conf.beat_schedule or {}),
+    "cleanup-sweep": {"task": "cleanup.sweep", "schedule": 30.0},
+}

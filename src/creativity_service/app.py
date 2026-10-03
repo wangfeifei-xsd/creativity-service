@@ -23,6 +23,8 @@ from creativity_service.core.services import build_core_services
 from creativity_service.modules.agents.assembly import build_agent_service
 from creativity_service.modules.channels.assembly import build_channel_services
 from creativity_service.modules.conversations.assembly import build_conversation_service
+from creativity_service.modules.data_lifecycle.handlers import ContentHandlers
+from creativity_service.modules.data_lifecycle.services import DataLifecycleService
 from creativity_service.modules.evaluations.assembly import build_evaluation_service
 from creativity_service.modules.integrations.assembly import build_integration_services
 from creativity_service.modules.integrations.delegation import CurrentSubjectReader
@@ -208,6 +210,17 @@ def create_app(
             app.state.agents,
             app.state.runs,
             app.state.core.cleanup,
+        )
+        app.state.data_lifecycle = DataLifecycleService(
+            infrastructure.engine,
+            ContentHandlers(
+                infrastructure.engine,
+                S3ObjectStore(infrastructure.s3, infrastructure.bucket),
+                app.state.runs,
+                infrastructure.redis_clients["redis_cache"],
+                settings.redis_key_prefix,
+            ),
+            app.state.iam.authorization,
         )
         try:
             yield
