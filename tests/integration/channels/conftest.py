@@ -116,8 +116,11 @@ def channel_body(env, code="rental", business_type="gamerental"):
     )
 
 
-async def provision(env, code="rental", business_type="gamerental"):
-    channel = await env.services.channels.create(env.admin, channel_body(env, code, business_type))
+async def provision(env, code="rental", business_type="gamerental", *, independent_actions=None):
+    body = channel_body(env, code, business_type)
+    if independent_actions is not None:
+        body = body.model_copy(update={"independent_actions": independent_actions})
+    channel = await env.services.channels.create(env.admin, body)
     domains = await env.services.channels.data_scopes(env.admin, channel.channel_id)
     _, session = await login(env)
     response = await env.iam.sessions.enter(

@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="41.019" timestamp="2026-10-03T12:10:28.510386+08:00" hostname="MacBook-Pro-M1.local"><testcase classname="tests.integration.acceptance.test_performance" name="test_twenty_clients_management_and_admission[agent_env0]" time="40.745"><failure message="httpx.ReadTimeout">@contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+&gt;           yield
+
+.venv/lib/python3.12/site-packages/httpx/_transports/default.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/httpx/_transports/default.py:394: in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpcore/_async/connection_pool.py:256: in handle_async_request
+    raise exc from None
+.venv/lib/python3.12/site-packages/httpcore/_async/connection_pool.py:236: in handle_async_request
+    response = await connection.handle_async_request(
+.venv/lib/python3.12/site-packages/httpcore/_async/connection.py:103: in handle_async_request
+    return await self._connection.handle_async_request(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpcore/_async/http11.py:136: in handle_async_request
+    raise exc
+.venv/lib/python3.12/site-packages/httpcore/_async/http11.py:106: in handle_async_request
+    ) = await self._receive_response_headers(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpcore/_async/http11.py:177: in _receive_response_headers
+    event = await self._receive_event(timeout=timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpcore/_async/http11.py:217: in _receive_event
+    data = await self._network_stream.read(
+.venv/lib/python3.12/site-packages/httpcore/_backends/anyio.py:32: in read
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.7_1/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:158: in __exit__
+    self.gen.throw(value)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+map = {&lt;class 'TimeoutError'&gt;: &lt;class 'httpcore.ReadTimeout'&gt;, &lt;class 'anyio.BrokenResourceError'&gt;: &lt;class 'httpcore.ReadErr... 'anyio.ClosedResourceError'&gt;: &lt;class 'httpcore.ReadError'&gt;, &lt;class 'anyio.EndOfStream'&gt;: &lt;class 'httpcore.ReadError'&gt;}
+
+    @contextlib.contextmanager
+    def map_exceptions(map: ExceptionMapping) -&gt; typing.Iterator[None]:
+        try:
+            yield
+        except Exception as exc:  # noqa: PIE786
+            for from_exc, to_exc in map.items():
+                if isinstance(exc, from_exc):
+&gt;                   raise to_exc(exc) from exc
+E                   httpcore.ReadTimeout
+
+.venv/lib/python3.12/site-packages/httpcore/_exceptions.py:14: ReadTimeout
+
+The above exception was the direct cause of the following exception:
+
+runtime_env = namespace(iam=IamServices(authentication=&lt;creativity_service.core.auth.authentication.AuthenticationService object at ...de='capacity', name='性能测量替身', protocols=['chat_completions'], template_content={}, revision=1, id='provider_capacity'))
+
+    @pytest.mark.parametrize(
+        "agent_env",
+        [{"environment": "test", "independent_actions": ["release:publish", "data:read_sensitive"]}],
+        indirect=True,
+    )
+    async def test_twenty_clients_management_and_admission(runtime_env):
+        env = runtime_env
+        env.usage = build_usage_services(env.engine, env.services.channels, MemoryStore())
+        env.provider = await env.models.configuration.save_provider(
+            env.admin,
+            ProviderInput(code="capacity", name="性能测量替身", protocols=["chat_completions"]),
+        )
+        contexts = []
+        tokens = []
+        tenants = []
+        for index in range(4):
+            tenant = (
+                env.tenant
+                if index == 0
+                else await provision(
+                    env,
+                    f"perf_{index}",
+                    None,
+                    independent_actions=["release:publish", "data:read_sensitive"],
+                )
+            )
+            if index:
+                env.models.configuration.outbound.destinations += (
+                    Destination(tenant.channel.channel_id, "test", "model", "models.example"),
+                )
+                await model_config(
+                    env, SimpleNamespace(manager=tenant.manager, token=tenant.token.access_token)
+                )
+            context = tenant.manager.context
+            tenants.append(tenant)
+            for number in range(10):
+                detail = await env.agents.create(
+                    context,
+                    env.body.model_copy(
+                        update={"agent_code": f"perf_{number}", "definition": env.definition}
+                    ),
+                )
+                if number == 0:
+                    await publish(SimpleNamespace(context=context, agents=env.agents), detail)
+            contexts.append(context)
+            tokens.append(tenant.token.access_token)
+            await env.usage.management.save_budget(
+                tenant.manager,
+                BudgetCreate(
+                    name="渠道并发五",
+                    scope_type="channel",
+                    scope_id=context.scope.channel_id,
+                    unit="concurrency",
+                    limit_value="5",
+                ),
+            )
+        await env.usage.management.platform_limits(
+            env.admin,
+            PlatformLimitCreate(
+                limit_code="performance", name="平台并发二十", unit="concurrency", limit_value=20
+            ),
+        )
+        query_times, admission_times, http_times = [], [], []
+        async with http_clients(env, tenants) as clients:
+            for wave in range(6):
+    
+                async def query(index, wave=wave):
+                    started = perf_counter()
+                    response = await clients.management.get(
+                        "/admin/v1/agents", headers={"Authorization": "Bearer " + tokens[index % 4]}
+                    )
+                    elapsed = (perf_counter() - started) * 1000
+                    assert response.status_code == 200, response.text
+                    assert len(response.json()["items"]) == 10
+                    if wave:
+                        query_times.append(elapsed)
+    
+&gt;               await asyncio.gather(*(query(index) for index in range(20)))
+
+tests/integration/acceptance/test_performance.py:125: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/acceptance/test_performance.py:116: in query
+    response = await clients.management.get(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1768: in get
+    return await self.request(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_transports/default.py:393: in handle_async_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.7_1/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:158: in __exit__
+    self.gen.throw(value)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+            yield
+        except Exception as exc:
+            mapped_exc = None
+    
+            for from_exc, to_exc in HTTPCORE_EXC_MAP.items():
+                if not isinstance(exc, from_exc):
+                    continue
+                # We want to map to the most specific exception we can find.
+                # Eg if `exc` is an `httpcore.ReadTimeout`, we want to map to
+                # `httpx.ReadTimeout`, not just `httpx.TimeoutException`.
+                if mapped_exc is None or issubclass(to_exc, mapped_exc):
+                    mapped_exc = to_exc
+    
+            if mapped_exc is None:  # pragma: no cover
+                raise
+    
+            message = str(exc)
+&gt;           raise mapped_exc(message) from exc
+E           httpx.ReadTimeout
+
+.venv/lib/python3.12/site-packages/httpx/_transports/default.py:118: ReadTimeout</failure></testcase></testsuite></testsuites>

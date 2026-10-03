@@ -1,21 +1,40 @@
 """运行服务与 IAM 资源查询装配；正式解析器及执行器由方案 17 注入。"""
 
-from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy import delete, func, select
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from creativity_service.core.auth.types import ResourceState, ResourceStateReader
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.database import transaction
 from creativity_service.core.deletion import CleanupRegistry, ContentRef
+from creativity_service.core.locking import ResourceKey
 from creativity_service.core.primitives import ServiceError
 from creativity_service.core.versioning import VersionService
 from creativity_service.modules.budgets.services import BudgetService
 from creativity_service.modules.iam.services import IamServices
 from creativity_service.modules.runs.ports import DefinitionResolver, TurnHooks
 from creativity_service.modules.runs.repositories import one
+from creativity_service.modules.runs.schemas import TERMINAL
 from creativity_service.modules.runs.services import RunService
 from creativity_service.modules.runs.tables import metadata
+from creativity_service.modules.usage.repositories import ledger_key
 from creativity_service.modules.usage.services import UsageService
+
+
+class RunLifecycleGuard:
+    """归档与受理、终结共用渠道账本锁，防止检查为空后又提交新任务。"""
+
+    def keys(self, channel_id: str) -> list[ResourceKey]:
+        return [ledger_key(channel_id)]
+
+    async def unfinished(self, connection: AsyncConnection, channel_id: str) -> int:
+        table = metadata.tables["runs"]
+        value = await connection.scalar(
+            select(func.count())
+            .select_from(table)
+            .where(table.c.channel_id == channel_id, table.c.state.not_in(TERMINAL))
+        )
+        return int(value or 0)
 
 
 class RunResourceReader:

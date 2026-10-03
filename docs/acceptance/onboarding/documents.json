@@ -1,0 +1,7660 @@
+{
+  "scenario": {
+    "code": "documents",
+    "name": "文档查询验证",
+    "scope_type": "document_space",
+    "scope_id": "shared-001",
+    "profile": "archive",
+    "input": {
+      "document": "note-a"
+    },
+    "data": {
+      "notes": [
+        {
+          "heading": "文档渠道资料",
+          "text": "仅属于文档渠道"
+        }
+      ]
+    }
+  },
+  "invalid_input": {
+    "status": 422,
+    "code": "INPUT_SCHEMA_INVALID",
+    "request_id": "4fee9171cdc045d0a3ffeca009b628d6"
+  },
+  "run": {
+    "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+    "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+    "state": "SUCCEEDED",
+    "state_label": "已完成",
+    "release_snapshot_id": "a148ae20f11cf633a650dd45c690f0cda4efa71f8ca120c4ed468671b68bf067",
+    "result": {
+      "schema_version": "1.0",
+      "business_status": "COMPLETED",
+      "data": {
+        "notes": [
+          {
+            "text": "仅属于文档渠道",
+            "heading": "文档渠道资料"
+          }
+        ]
+      },
+      "warnings": [],
+      "evidence_refs": [
+        {
+          "evidence_id": "evidence_ff43f8dd16d94bb8be06a93b9130fc2b",
+          "scope": {
+            "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+            "environment": "test",
+            "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+            "subject_type": "member",
+            "subject_id": "shared-user-001"
+          },
+          "source_type": "tool_call",
+          "source_id": "tool_call_c2c195334e8b4859b8267b39e8ea14ed",
+          "source_version": "fixture-data-v1",
+          "observed_at": "2026-10-03T03:52:44.871788Z",
+          "location": {
+            "field_path": [
+              "coverage",
+              "source_evidence",
+              0
+            ],
+            "text_start": null,
+            "text_end": null
+          },
+          "title": "受控源资料",
+          "authorized_actions": [
+            "run:read"
+          ]
+        },
+        {
+          "evidence_id": "evidence_20986d8f1ff24629b52eb971bad2173a",
+          "scope": {
+            "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+            "environment": "test",
+            "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+            "subject_type": "member",
+            "subject_id": "shared-user-001"
+          },
+          "source_type": "tool_call",
+          "source_id": "tool_call_c2c195334e8b4859b8267b39e8ea14ed",
+          "source_version": "fixture-data-v1",
+          "observed_at": "2026-10-03T03:52:44.871788Z",
+          "location": {
+            "field_path": [
+              "data"
+            ],
+            "text_start": null,
+            "text_end": null
+          },
+          "title": "工具调用结果",
+          "authorized_actions": [
+            "run:read"
+          ]
+        }
+      ]
+    },
+    "partial_output": null,
+    "error": null,
+    "usage_summary": {
+      "attempt_count": 1,
+      "pending_count": 0,
+      "missing_count": 0,
+      "unpriced_count": 1,
+      "complete": true,
+      "input_tokens": 10,
+      "output_tokens": 20,
+      "currencies": [],
+      "amounts": {}
+    },
+    "artifacts": []
+  },
+  "events": [
+    {
+      "type": "accepted",
+      "sequence": 1,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_6b4e642cd83f415fbdb8eb50c20ebfc6",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 1,
+        "event_type": "accepted",
+        "payload": {
+          "state": "QUEUED",
+          "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+          "deadline": "2026-10-03T03:55:32.643739Z",
+          "created_at": "2026-10-03T03:52:32.644590Z",
+          "events_url": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377/events",
+          "status_url": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+          "state_label": "排队中"
+        },
+        "occurred_at": "2026-10-03T03:52:32.688971Z",
+        "expires_at": "2026-10-04T03:52:32.688291Z"
+      }
+    },
+    {
+      "type": "tool_status",
+      "sequence": 2,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_d4433a17ccb44ef08dcb17d54abbd784",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 2,
+        "event_type": "tool_status",
+        "payload": {
+          "state": "RUNNING",
+          "state_label": "执行中"
+        },
+        "occurred_at": "2026-10-03T03:52:33.689924Z",
+        "expires_at": "2026-10-04T03:52:33.689139Z"
+      }
+    },
+    {
+      "type": "step_started",
+      "sequence": 3,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_1b2aa699d8e34d87bd3c36f66a117b6c",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 3,
+        "event_type": "step_started",
+        "payload": {
+          "step_id": "step_3611b52a02fe4b9e9b313c3a5b6e2997",
+          "node_key": "lookup"
+        },
+        "occurred_at": "2026-10-03T03:52:37.365741Z",
+        "expires_at": "2026-10-04T03:52:37.365043Z"
+      }
+    },
+    {
+      "type": "tool_status",
+      "sequence": 4,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_c7a07c293c5341769ac90559a585d44a",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 4,
+        "event_type": "tool_status",
+        "payload": {
+          "state": "SUCCEEDED",
+          "attempt_id": "attempt_7036eacc913849dba05fd591d57a24c8"
+        },
+        "occurred_at": "2026-10-03T03:52:47.037973Z",
+        "expires_at": "2026-10-04T03:52:47.037260Z"
+      }
+    },
+    {
+      "type": "tool_status",
+      "sequence": 5,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_5f0a4ad61c8d481997ec68b4aadfa28b",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 5,
+        "event_type": "tool_status",
+        "payload": {
+          "state": "SUCCEEDED",
+          "step_id": "step_3611b52a02fe4b9e9b313c3a5b6e2997"
+        },
+        "occurred_at": "2026-10-03T03:52:47.917017Z",
+        "expires_at": "2026-10-04T03:52:47.916298Z"
+      }
+    },
+    {
+      "type": "step_started",
+      "sequence": 6,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_2e4f7cda064d463fb0e24e3b5d7d4b77",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 6,
+        "event_type": "step_started",
+        "payload": {
+          "step_id": "step_4e51cdd3cb0647e4a2f4ef03af2a8405",
+          "node_key": "answer"
+        },
+        "occurred_at": "2026-10-03T03:52:52.066157Z",
+        "expires_at": "2026-10-04T03:52:52.065331Z"
+      }
+    },
+    {
+      "type": "text_delta",
+      "sequence": 7,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_8d4f16751ad744a99b2f79dba38f339b",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 7,
+        "event_type": "text_delta",
+        "payload": {
+          "text": "{\"business_status\": \"COMPLETED\", \"schema_version\": \"1.0\", \"data\": {\"notes\": [{\"heading\": \"文档渠道资料\", \"text\": \"仅属于文档渠道\"}]}, \"warnings\": [], \"evidence_refs\": [{\"evidence_id\": \"evidence_ff43f8dd16d94bb8be06a93b9130fc2b\", \"scope\": {\"channel_id\": \"channel_16d15f4c577f4c63b4daba6b6f19d0b0\", \"environment\": \"test\", \"data_scope_id\": \"scope_b15fa129be0743719af8d1566ef2289c\", \"subject_type\": \"member\", \"subject_id\": \"shared-user-001\"}, \"source_type\": \"tool_call\", \"source_id\": \"tool_call_c2c195334e8b4859b8267b39e8ea14ed\", \"source_version\": \"fixture-data-v1\", \"observed_at\": \"2026-10-03T03:52:44.871788Z\", \"location\": {\"field_path\": [\"coverage\", \"source_evidence\", 0], \"text_start\": null, \"text_end\": null}, \"title\": \"受控源资料\", \"authorized_actions\": [\"run:read\"]}, {\"evidence_id\": \"evidence_20986d8f1ff24629b52eb971bad2173a\", \"scope\": {\"channel_id\": \"channel_16d15f4c577f4c63b4daba6b6f19d0b0\", \"environment\": \"test\", \"data_scope_id\": \"scope_b15fa129be0743719af8d1566ef2289c\", \"subject_type\": \"member\", \"subject_id\": \"shared-user-001\"}, \"source_type\": \"tool_call\", \"source_id\": \"tool_call_c2c195334e8b4859b8267b39e8ea14ed\", \"source_version\": \"fixture-data-v1\", \"observed_at\": \"2026-10-03T03:52:44.871788Z\", \"location\": {\"field_path\": [\"data\"], \"text_start\": null, \"text_end\": null}, \"title\": \"工具调用结果\", \"authorized_actions\": [\"run:read\"]}]}",
+          "label": "部分内容",
+          "validated": false,
+          "attempt_id": "attempt_39b210a9ae204de68d340ca8d9815366"
+        },
+        "occurred_at": "2026-10-03T03:52:56.950396Z",
+        "expires_at": "2026-10-04T03:52:56.949563Z"
+      }
+    },
+    {
+      "type": "tool_status",
+      "sequence": 8,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_573c7cdde5de48bba2dc8b2cf21646a3",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 8,
+        "event_type": "tool_status",
+        "payload": {
+          "state": "SUCCEEDED",
+          "attempt_id": "attempt_39b210a9ae204de68d340ca8d9815366"
+        },
+        "occurred_at": "2026-10-03T03:52:57.042196Z",
+        "expires_at": "2026-10-04T03:52:57.041464Z"
+      }
+    },
+    {
+      "type": "tool_status",
+      "sequence": 9,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_41403ef7d1c547b895396f9ae58ef1d4",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 9,
+        "event_type": "tool_status",
+        "payload": {
+          "state": "SUCCEEDED",
+          "step_id": "step_4e51cdd3cb0647e4a2f4ef03af2a8405"
+        },
+        "occurred_at": "2026-10-03T03:52:58.055920Z",
+        "expires_at": "2026-10-04T03:52:58.055285Z"
+      }
+    },
+    {
+      "type": "step_started",
+      "sequence": 10,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_2424d275950b448f92c26a908a0a7a38",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 10,
+        "event_type": "step_started",
+        "payload": {
+          "step_id": "step_2de99a1f955749b19836377251bb1a94",
+          "node_key": "deliver"
+        },
+        "occurred_at": "2026-10-03T03:52:59.804488Z",
+        "expires_at": "2026-10-04T03:52:59.803724Z"
+      }
+    },
+    {
+      "type": "tool_status",
+      "sequence": 11,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_d8bc3e59e297420889fb56654dd06841",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 11,
+        "event_type": "tool_status",
+        "payload": {
+          "state": "SUCCEEDED",
+          "attempt_id": "attempt_1cc09fd5f5c7420ebf04d28dcaf9dd00"
+        },
+        "occurred_at": "2026-10-03T03:53:00.849506Z",
+        "expires_at": "2026-10-04T03:53:00.848805Z"
+      }
+    },
+    {
+      "type": "tool_status",
+      "sequence": 12,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_c584840528ee490cb887f8cbf8a6cc39",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 12,
+        "event_type": "tool_status",
+        "payload": {
+          "state": "SUCCEEDED",
+          "step_id": "step_2de99a1f955749b19836377251bb1a94"
+        },
+        "occurred_at": "2026-10-03T03:53:01.755862Z",
+        "expires_at": "2026-10-04T03:53:01.755135Z"
+      }
+    },
+    {
+      "type": "result",
+      "sequence": 13,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_429f3ebc205848a4a03653bf5263b449",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 13,
+        "event_type": "result",
+        "payload": {
+          "data": {
+            "notes": [
+              {
+                "text": "仅属于文档渠道",
+                "heading": "文档渠道资料"
+              }
+            ]
+          },
+          "warnings": [],
+          "evidence_refs": [
+            {
+              "scope": {
+                "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+                "subject_id": "shared-user-001",
+                "environment": "test",
+                "subject_type": "member",
+                "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c"
+              },
+              "title": "受控源资料",
+              "location": {
+                "text_end": null,
+                "field_path": [
+                  "coverage",
+                  "source_evidence",
+                  0
+                ],
+                "text_start": null
+              },
+              "source_id": "tool_call_c2c195334e8b4859b8267b39e8ea14ed",
+              "evidence_id": "evidence_ff43f8dd16d94bb8be06a93b9130fc2b",
+              "observed_at": "2026-10-03T03:52:44.871788Z",
+              "source_type": "tool_call",
+              "source_version": "fixture-data-v1",
+              "authorized_actions": [
+                "run:read"
+              ]
+            },
+            {
+              "scope": {
+                "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+                "subject_id": "shared-user-001",
+                "environment": "test",
+                "subject_type": "member",
+                "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c"
+              },
+              "title": "工具调用结果",
+              "location": {
+                "text_end": null,
+                "field_path": [
+                  "data"
+                ],
+                "text_start": null
+              },
+              "source_id": "tool_call_c2c195334e8b4859b8267b39e8ea14ed",
+              "evidence_id": "evidence_20986d8f1ff24629b52eb971bad2173a",
+              "observed_at": "2026-10-03T03:52:44.871788Z",
+              "source_type": "tool_call",
+              "source_version": "fixture-data-v1",
+              "authorized_actions": [
+                "run:read"
+              ]
+            }
+          ],
+          "schema_version": "1.0",
+          "business_status": "COMPLETED"
+        },
+        "occurred_at": "2026-10-03T03:53:03.724924Z",
+        "expires_at": "2026-10-04T03:53:03.724216Z"
+      }
+    },
+    {
+      "type": "completed",
+      "sequence": 14,
+      "data": {
+        "scope": {
+          "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+          "environment": "test",
+          "data_scope_id": "scope_b15fa129be0743719af8d1566ef2289c",
+          "subject_type": "member",
+          "subject_id": "shared-user-001"
+        },
+        "event_id": "event_6180eca916a34439a4bc450433391a0d",
+        "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+        "sequence": 14,
+        "event_type": "completed",
+        "payload": {
+          "state": "SUCCEEDED",
+          "state_label": "已完成"
+        },
+        "occurred_at": "2026-10-03T03:53:03.732570Z",
+        "expires_at": "2026-10-04T03:53:03.731910Z"
+      }
+    }
+  ],
+  "resume_after": 2,
+  "resumed_sequences": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14
+  ],
+  "source_calls": [
+    {
+      "id": "tool_call_c2c195334e8b4859b8267b39e8ea14ed",
+      "run_id": "run_80093ff8de194ee095eb64dbcd5f9377",
+      "source_request_id": "fixture-source-36613e046c334bef9950f947ae7b6aa1",
+      "state": "SUCCEEDED"
+    }
+  ],
+  "protocol": [
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "tools/call",
+      "tool": "archive.find-notes"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    },
+    {
+      "method": "initialize",
+      "tool": null
+    },
+    {
+      "method": "notifications/initialized",
+      "tool": null
+    },
+    {
+      "method": "tools/list",
+      "tool": null
+    },
+    {
+      "method": "tools/call",
+      "tool": "access.review-current"
+    }
+  ],
+  "http": [
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/token",
+      "status": 200,
+      "request_id": "17e54845409849148d773218de4649cb"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/runs",
+      "status": 202,
+      "request_id": "b6776261bde742ceac0d66257a50e138"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+      "status": 200,
+      "request_id": "5633e5f555cb4b238898752319f8f0d6"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+      "status": 200,
+      "request_id": "6391b72d91e44fb2aa831b084afa96d8"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+      "status": 200,
+      "request_id": "6710167303d94b63a9e843b8aa92ba28"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+      "status": 200,
+      "request_id": "8bc93b97202946cbbd589e092644b629"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+      "status": 200,
+      "request_id": "c84a9115c76b49e6a667beff06fe34eb"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+      "status": 200,
+      "request_id": "f498b0f95094402887eb88dcd8087e1a"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+      "status": 200,
+      "request_id": "0df15526ee8f4466a2199f4af02bff8b"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+      "status": 200,
+      "request_id": "3c176a5884444ad69ac06da68309e16f"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+      "status": 200,
+      "request_id": "f9a3085c31e747f39f72704bcb2b60b7"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+      "status": 200,
+      "request_id": "ad7799613f86441499de680a4a473059"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+      "status": 200,
+      "request_id": "aa7ae021887441b49943ef705f946e6c"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+      "status": 200,
+      "request_id": "a1637b95557147dea2a6b7bac2468621"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377",
+      "status": 200,
+      "request_id": "8028f12ffe6946cabe49a73592b7a787"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377/events",
+      "status": 200,
+      "request_id": "432f97cef593442897a60db7fffa12cc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/run_80093ff8de194ee095eb64dbcd5f9377/events",
+      "status": 200,
+      "request_id": "16b7442defd949ebad661023589bf96e"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/runs",
+      "status": 422,
+      "request_id": "4fee9171cdc045d0a3ffeca009b628d6"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/runs",
+      "status": 200,
+      "request_id": "564a8885b54045f090df650570e38ddf"
+    }
+  ],
+  "configuration": {
+    "channel": {
+      "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+      "channel_code": "documents",
+      "name": "文档查询验证",
+      "owner": "接入验证人员",
+      "business_type": null,
+      "business_type_name": null,
+      "status": "ACTIVE",
+      "status_label": "启用",
+      "created_at": "2026-10-03T03:51:39.950359Z",
+      "archived_at": null,
+      "retention_policy": {
+        "retention_days": 90,
+        "run_content_days": 30,
+        "metadata_days": 365,
+        "sse_hours": 24,
+        "temporary_hours": 1,
+        "export_days": 7
+      },
+      "revision": 1,
+      "actions": [
+        {
+          "action_key": "audit:read",
+          "label": "查看操作审计"
+        },
+        {
+          "action_key": "channel:govern",
+          "label": "治理渠道"
+        }
+      ]
+    },
+    "client": {
+      "client_id": "client_cbc12378884345d5beed356270e2b6fe",
+      "name": "验证后端",
+      "environment": "test",
+      "environment_name": "测试",
+      "scopes": [
+        "run:create",
+        "run:read",
+        "run:content",
+        "data:read_sensitive"
+      ],
+      "scope_names": [
+        "执行能力",
+        "查看运行元数据",
+        "查看运行内容",
+        "读取敏感原文"
+      ],
+      "data_scopes": [
+        "scope_b15fa129be0743719af8d1566ef2289c"
+      ],
+      "data_scope_names": [
+        "文档查询验证数据域"
+      ],
+      "status": "ACTIVE",
+      "status_label": "启用",
+      "revision": 1
+    },
+    "key_id": "key_ee08e5dc6f5c4bf5929a42f86dcb502e",
+    "delegation_kid": "dk_5d4be40d25e245f4a5e45c6800065cb7",
+    "mcp": {
+      "connection_id": "mcp_efc5a6ed109a40b2b5b04b90ccc2277f",
+      "name": "验证源服务",
+      "endpoint": "http://127.0.0.1:60868/mcp",
+      "transport": "streamable_http",
+      "transport_label": "Streamable HTTP",
+      "revision": 1,
+      "configuration_revision": 1,
+      "credential_mask": null,
+      "timeouts": {
+        "connect_seconds": 10,
+        "operation_seconds": 30
+      },
+      "health_policy": {
+        "interval_seconds": 300,
+        "failure_threshold": 3
+      },
+      "status": {
+        "value": "DISABLED",
+        "label": "未启用",
+        "tone": "default"
+      },
+      "health": {
+        "value": "UNKNOWN",
+        "label": "未知",
+        "tone": "default"
+      },
+      "last_check_at": null,
+      "actions": [
+        {
+          "action_key": "edit",
+          "label": "编辑"
+        },
+        {
+          "action_key": "credential",
+          "label": "更新凭据"
+        },
+        {
+          "action_key": "test",
+          "label": "连接测试"
+        },
+        {
+          "action_key": "discover",
+          "label": "发现工具"
+        },
+        {
+          "action_key": "enable",
+          "label": "启用"
+        },
+        {
+          "action_key": "import",
+          "label": "导入草稿"
+        }
+      ]
+    },
+    "discovery": {
+      "discovery_id": "discovery_76148af8f7cb4fb8bcb3903f28fa9821",
+      "connection_revision": 2,
+      "negotiated_version": "2025-11-25",
+      "tools": [
+        {
+          "name": "archive.find-notes",
+          "title": "档案摘录",
+          "description": "查询受信范围中的受控测试数据",
+          "input_schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "document": {
+                "type": "string",
+                "title": "文档"
+              }
+            },
+            "required": [
+              "document"
+            ]
+          },
+          "output_schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "notes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "heading": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "heading",
+                    "text"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "notes"
+            ]
+          },
+          "annotations": {
+            "readOnlyHint": true
+          },
+          "schema_hash": "410bcc345d719a4b4a16b824f561d1712dd15dce02bcf6cd334569248006d463",
+          "purpose": "business"
+        },
+        {
+          "name": "access.review-current",
+          "title": "当前主体权限",
+          "description": "按服务身份查询当前主体",
+          "input_schema": {
+            "$defs": {
+              "Scope": {
+                "additionalProperties": false,
+                "properties": {
+                  "channel_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                    "title": "Channel Id",
+                    "type": "string"
+                  },
+                  "environment": {
+                    "enum": [
+                      "dev",
+                      "test",
+                      "fat",
+                      "prod"
+                    ],
+                    "title": "Environment",
+                    "type": "string"
+                  },
+                  "data_scope_id": {
+                    "anyOf": [
+                      {
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Data Scope Id"
+                  },
+                  "subject_type": {
+                    "anyOf": [
+                      {
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Subject Type"
+                  },
+                  "subject_id": {
+                    "anyOf": [
+                      {
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Subject Id"
+                  }
+                },
+                "required": [
+                  "channel_id",
+                  "environment"
+                ],
+                "title": "Scope",
+                "type": "object"
+              },
+              "SourceScope": {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "title": "Type",
+                    "type": "string"
+                  },
+                  "id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "title": "Id",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "id"
+                ],
+                "title": "SourceScope",
+                "type": "object"
+              }
+            },
+            "additionalProperties": false,
+            "properties": {
+              "protocol": {
+                "const": "creativity.subject-review.v1",
+                "default": "creativity.subject-review.v1",
+                "title": "Protocol",
+                "type": "string"
+              },
+              "scope": {
+                "$ref": "#/$defs/Scope"
+              },
+              "source_scope": {
+                "$ref": "#/$defs/SourceScope"
+              },
+              "client_id": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "title": "Client Id",
+                "type": "string"
+              },
+              "key_id": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "title": "Key Id",
+                "type": "string"
+              },
+              "request_id": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "title": "Request Id",
+                "type": "string"
+              },
+              "actions": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Actions",
+                "type": "array"
+              },
+              "resources": {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "title": "Resources",
+                "type": "object"
+              }
+            },
+            "required": [
+              "scope",
+              "source_scope",
+              "client_id",
+              "key_id",
+              "request_id",
+              "actions",
+              "resources"
+            ],
+            "title": "SubjectReviewRequest",
+            "type": "object"
+          },
+          "output_schema": {
+            "$defs": {
+              "Scope": {
+                "additionalProperties": false,
+                "properties": {
+                  "channel_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                    "title": "Channel Id",
+                    "type": "string"
+                  },
+                  "environment": {
+                    "enum": [
+                      "dev",
+                      "test",
+                      "fat",
+                      "prod"
+                    ],
+                    "title": "Environment",
+                    "type": "string"
+                  },
+                  "data_scope_id": {
+                    "anyOf": [
+                      {
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Data Scope Id"
+                  },
+                  "subject_type": {
+                    "anyOf": [
+                      {
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Subject Type"
+                  },
+                  "subject_id": {
+                    "anyOf": [
+                      {
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Subject Id"
+                  }
+                },
+                "required": [
+                  "channel_id",
+                  "environment"
+                ],
+                "title": "Scope",
+                "type": "object"
+              }
+            },
+            "additionalProperties": false,
+            "properties": {
+              "protocol": {
+                "const": "creativity.subject-review.v1",
+                "title": "Protocol",
+                "type": "string"
+              },
+              "scope": {
+                "$ref": "#/$defs/Scope"
+              },
+              "active": {
+                "title": "Active",
+                "type": "boolean"
+              },
+              "actions": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Actions",
+                "type": "array",
+                "uniqueItems": true
+              },
+              "agent_actions": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Agent Actions",
+                "type": "array",
+                "uniqueItems": true
+              },
+              "resources": {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "uniqueItems": true
+                },
+                "title": "Resources",
+                "type": "object"
+              },
+              "observed_at": {
+                "format": "date-time",
+                "title": "Observed At",
+                "type": "string"
+              },
+              "expires_at": {
+                "format": "date-time",
+                "title": "Expires At",
+                "type": "string"
+              }
+            },
+            "required": [
+              "protocol",
+              "scope",
+              "active",
+              "actions",
+              "agent_actions",
+              "resources",
+              "observed_at",
+              "expires_at"
+            ],
+            "title": "SubjectReviewResponse",
+            "type": "object"
+          },
+          "annotations": {
+            "readOnlyHint": true
+          },
+          "schema_hash": "5625898a3ee658d88765b629979d60c322f655338f60b2d3a2dfb140e81052f9",
+          "purpose": "subject_review"
+        }
+      ],
+      "discovered_at": "2026-10-03T03:52:08.728470Z"
+    },
+    "tool": {
+      "import_id": "mcp_ro_ab56fb3f1099c5887621477e22401e6a83119bddc4d5ac7b3ff2",
+      "discovery_id": "discovery_76148af8f7cb4fb8bcb3903f28fa9821",
+      "remote_tool_name": "archive.find-notes",
+      "name": "授权查询工具",
+      "local_tool_id": "82904d7fa5ffe2d09da54a9ece6fbaee42a7ecd30fa8a2231da60754eb66e3d6",
+      "imported_version": "80c591f32b3636f905a8e938bc2ec07526575ee3333f14cdcc033795f8c92fa2",
+      "schema_hash": "410bcc345d719a4b4a16b824f561d1712dd15dce02bcf6cd334569248006d463",
+      "available": true,
+      "unavailable_reason": null
+    },
+    "skill": {
+      "version_id": "version_5be48fb7dcda47b3a72dc29a8fe05ec4",
+      "version_label": "导入版本",
+      "revision": 2,
+      "status": {
+        "value": "PUBLISHED",
+        "label": "已冻结",
+        "tone": "success"
+      },
+      "settings": {
+        "change_note": "",
+        "tool_requirements": [
+          {
+            "tool_code": "archive.find-notes",
+            "version_label": "初始版本",
+            "source_type": "mcp",
+            "input_schema": {
+              "type": "object",
+              "required": [
+                "document"
+              ],
+              "properties": {
+                "document": {
+                  "type": "string",
+                  "title": "文档"
+                }
+              },
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "required": [
+                "notes"
+              ],
+              "properties": {
+                "notes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "heading",
+                      "text"
+                    ],
+                    "properties": {
+                      "text": {
+                        "type": "string"
+                      },
+                      "heading": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        ],
+        "tool_bindings": {
+          "archive.find-notes": "80c591f32b3636f905a8e938bc2ec07526575ee3333f14cdcc033795f8c92fa2"
+        },
+        "required_model_capabilities": [],
+        "input_variables": [],
+        "loading_mode": "mandatory",
+        "priority": 0,
+        "context_budget": 12000,
+        "allowed_agents": [],
+        "conflict_groups": []
+      },
+      "metadata": {
+        "name": "configured-source",
+        "description": "根据授权源结果组织输出。"
+      },
+      "files": [
+        {
+          "relative_path": "SKILL.md",
+          "content_type": "text/markdown",
+          "size_bytes": 282,
+          "sha256": "4ae37835c79785a8e454fe02c00a551fb8bfd4f467afbf012f05ad665990c490",
+          "loadable": true,
+          "unavailable_reason": null
+        },
+        {
+          "relative_path": "references/output.md",
+          "content_type": "text/markdown",
+          "size_bytes": 80,
+          "sha256": "9c78179d6d13ffd077a3e4eb3edae1412c42e3aa7a750be30a2a52e94099c769",
+          "loadable": true,
+          "unavailable_reason": null
+        }
+      ],
+      "package_hash": "b5e32bfc642518911f95f42eea70a93685d1cc2239aae536ab56769532db44c1",
+      "discovery_preview": "configured-source\n根据授权源结果组织输出。",
+      "instruction_preview": "将查询步骤的真实结构化数据写入 data，保留来源引用，不添加源端未返回的数据。空结果与错误遵守源服务契约。参考 [输出规则](references/output.md)。",
+      "actions": [
+        {
+          "action_key": "validate",
+          "label": "检查依赖"
+        },
+        {
+          "action_key": "test",
+          "label": "加载测试"
+        },
+        {
+          "action_key": "release",
+          "label": "发布到当前环境"
+        }
+      ]
+    },
+    "agent": {
+      "agent": {
+        "agent_id": "agent_d822546e94344090ba0f8ac16788d982",
+        "agent_code": "shared_agent",
+        "name": "配置接入助手",
+        "description": "处理授权源数据",
+        "owner": "接入验证人员",
+        "revision": 1,
+        "status": {
+          "value": "ACTIVE",
+          "label": "已启用",
+          "tone": "success"
+        },
+        "actions": [
+          {
+            "action_key": "edit",
+            "label": "编辑信息"
+          },
+          {
+            "action_key": "create_version",
+            "label": "新增草稿"
+          },
+          {
+            "action_key": "offline",
+            "label": "下线"
+          },
+          {
+            "action_key": "emergency_stop",
+            "label": "紧急停用"
+          },
+          {
+            "action_key": "enable",
+            "label": "启用"
+          }
+        ]
+      },
+      "versions": [
+        {
+          "version_id": "version_ac4411c7500d4929b28365c4fb692815",
+          "version_label": "初始草稿",
+          "revision": 1,
+          "status": {
+            "value": "DRAFT",
+            "label": "草稿",
+            "tone": "default"
+          },
+          "definition": {
+            "workflow_type": "template",
+            "entrypoint": "workflow.v1",
+            "input_schema": {
+              "type": "object",
+              "required": [
+                "document"
+              ],
+              "properties": {
+                "document": {
+                  "type": "string",
+                  "title": "文档"
+                }
+              },
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "required": [
+                "business_status",
+                "schema_version",
+                "data",
+                "warnings",
+                "evidence_refs"
+              ],
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "required": [
+                    "notes"
+                  ],
+                  "properties": {
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "heading",
+                          "text"
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string"
+                          },
+                          "heading": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "evidence_refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "schema_version": {
+                  "type": "string",
+                  "const": "1.0"
+                },
+                "business_status": {
+                  "enum": [
+                    "COMPLETED",
+                    "NEEDS_INPUT",
+                    "NO_MATCH",
+                    "INSUFFICIENT_DATA",
+                    "PARTIAL"
+                  ],
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "start_step": "lookup",
+            "steps": [
+              {
+                "key": "lookup",
+                "name": "查询授权源",
+                "kind": "tool",
+                "operator": null,
+                "dependency": "80c591f32b3636f905a8e938bc2ec07526575ee3333f14cdcc033795f8c92fa2",
+                "inputs": {
+                  "document": {
+                    "source": "input",
+                    "step": null,
+                    "path": "document",
+                    "value": null
+                  }
+                },
+                "input_schema": {
+                  "type": "object",
+                  "required": [
+                    "document"
+                  ],
+                  "properties": {
+                    "document": {
+                      "type": "string",
+                      "title": "文档"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "output_schema": {
+                  "type": "object",
+                  "required": [
+                    "notes"
+                  ],
+                  "properties": {
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "heading",
+                          "text"
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string"
+                          },
+                          "heading": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "timeout_seconds": 30,
+                "failure_policy": "fail",
+                "max_retries": 0
+              },
+              {
+                "key": "answer",
+                "name": "组织结构化输出",
+                "kind": "model",
+                "operator": null,
+                "dependency": null,
+                "inputs": {
+                  "notes": {
+                    "source": "step",
+                    "step": "lookup",
+                    "path": "notes",
+                    "value": null
+                  }
+                },
+                "input_schema": {
+                  "type": "object",
+                  "required": [
+                    "notes"
+                  ],
+                  "properties": {
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "heading",
+                          "text"
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string"
+                          },
+                          "heading": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "output_schema": {
+                  "type": "object",
+                  "required": [
+                    "business_status",
+                    "schema_version",
+                    "data",
+                    "warnings",
+                    "evidence_refs"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "heading",
+                              "text"
+                            ],
+                            "properties": {
+                              "text": {
+                                "type": "string"
+                              },
+                              "heading": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "evidence_refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0"
+                    },
+                    "business_status": {
+                      "enum": [
+                        "COMPLETED",
+                        "NEEDS_INPUT",
+                        "NO_MATCH",
+                        "INSUFFICIENT_DATA",
+                        "PARTIAL"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "timeout_seconds": 30,
+                "failure_policy": "fail",
+                "max_retries": 0
+              },
+              {
+                "key": "deliver",
+                "name": "组装输出",
+                "kind": "compute",
+                "operator": "object",
+                "dependency": null,
+                "inputs": {
+                  "data": {
+                    "source": "step",
+                    "step": "answer",
+                    "path": "data",
+                    "value": null
+                  },
+                  "warnings": {
+                    "source": "step",
+                    "step": "answer",
+                    "path": "warnings",
+                    "value": null
+                  },
+                  "evidence_refs": {
+                    "source": "step",
+                    "step": "answer",
+                    "path": "evidence_refs",
+                    "value": null
+                  },
+                  "schema_version": {
+                    "source": "step",
+                    "step": "answer",
+                    "path": "schema_version",
+                    "value": null
+                  },
+                  "business_status": {
+                    "source": "step",
+                    "step": "answer",
+                    "path": "business_status",
+                    "value": null
+                  }
+                },
+                "input_schema": {
+                  "type": "object",
+                  "required": [
+                    "business_status",
+                    "schema_version",
+                    "data",
+                    "warnings",
+                    "evidence_refs"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "heading",
+                              "text"
+                            ],
+                            "properties": {
+                              "text": {
+                                "type": "string"
+                              },
+                              "heading": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "evidence_refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0"
+                    },
+                    "business_status": {
+                      "enum": [
+                        "COMPLETED",
+                        "NEEDS_INPUT",
+                        "NO_MATCH",
+                        "INSUFFICIENT_DATA",
+                        "PARTIAL"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "output_schema": {
+                  "type": "object",
+                  "required": [
+                    "business_status",
+                    "schema_version",
+                    "data",
+                    "warnings",
+                    "evidence_refs"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "heading",
+                              "text"
+                            ],
+                            "properties": {
+                              "text": {
+                                "type": "string"
+                              },
+                              "heading": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "evidence_refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0"
+                    },
+                    "business_status": {
+                      "enum": [
+                        "COMPLETED",
+                        "NEEDS_INPUT",
+                        "NO_MATCH",
+                        "INSUFFICIENT_DATA",
+                        "PARTIAL"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "timeout_seconds": 30,
+                "failure_policy": "fail",
+                "max_retries": 0
+              }
+            ],
+            "edges": [
+              {
+                "source": "lookup",
+                "target": "answer",
+                "condition": null,
+                "otherwise": false
+              },
+              {
+                "source": "answer",
+                "target": "deliver",
+                "condition": null,
+                "otherwise": false
+              },
+              {
+                "source": "deliver",
+                "target": "END",
+                "condition": null,
+                "otherwise": false
+              }
+            ],
+            "bindings": {
+              "prompt_version": "version_dcfc19a6d262420b939eb10eea389f0b",
+              "model_route_version": "version_fadb72870f984364ade1f01e55784858",
+              "tool_versions": [
+                "80c591f32b3636f905a8e938bc2ec07526575ee3333f14cdcc033795f8c92fa2"
+              ],
+              "skill_versions": [
+                "version_5be48fb7dcda47b3a72dc29a8fe05ec4"
+              ],
+              "skill_loading": [
+                {
+                  "version_id": "version_5be48fb7dcda47b3a72dc29a8fe05ec4",
+                  "selected": false,
+                  "selected_files": [
+                    "references/output.md"
+                  ],
+                  "loading_mode": "mandatory",
+                  "priority": null,
+                  "trigger_reason": "配置选择"
+                }
+              ]
+            },
+            "limits": {
+              "deadline_seconds": 180,
+              "token_limit": 16000,
+              "cost_limit": null,
+              "max_model_rounds": 6,
+              "max_tool_calls": 10,
+              "max_iterations": 10,
+              "loop_timeout_seconds": 60,
+              "output_repair_attempts": 1
+            },
+            "context": {
+              "conversation_enabled": false,
+              "context_limit": 8000,
+              "summary_policy": "none",
+              "memory_policy": null
+            }
+          },
+          "content_digest": "9402b87d0789640e8cc81366c248b2c7a50d3ef70bf50deacbff247a209f1b2a",
+          "actions": [
+            {
+              "action_key": "edit",
+              "label": "编辑配置"
+            },
+            {
+              "action_key": "validate",
+              "label": "校验"
+            },
+            {
+              "action_key": "test",
+              "label": "调试"
+            },
+            {
+              "action_key": "release",
+              "label": "发布"
+            }
+          ]
+        },
+        {
+          "version_id": "version_2b5a73c2f09743a6bfeec8ead39065e2",
+          "version_label": "发布版本 1",
+          "revision": 1,
+          "status": {
+            "value": "PUBLISHED",
+            "label": "已发布",
+            "tone": "success"
+          },
+          "definition": {
+            "workflow_type": "template",
+            "entrypoint": "workflow.v1",
+            "input_schema": {
+              "type": "object",
+              "required": [
+                "document"
+              ],
+              "properties": {
+                "document": {
+                  "type": "string",
+                  "title": "文档"
+                }
+              },
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "required": [
+                "business_status",
+                "schema_version",
+                "data",
+                "warnings",
+                "evidence_refs"
+              ],
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "required": [
+                    "notes"
+                  ],
+                  "properties": {
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "heading",
+                          "text"
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string"
+                          },
+                          "heading": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "evidence_refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "schema_version": {
+                  "type": "string",
+                  "const": "1.0"
+                },
+                "business_status": {
+                  "enum": [
+                    "COMPLETED",
+                    "NEEDS_INPUT",
+                    "NO_MATCH",
+                    "INSUFFICIENT_DATA",
+                    "PARTIAL"
+                  ],
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "start_step": "lookup",
+            "steps": [
+              {
+                "key": "lookup",
+                "name": "查询授权源",
+                "kind": "tool",
+                "operator": null,
+                "dependency": "80c591f32b3636f905a8e938bc2ec07526575ee3333f14cdcc033795f8c92fa2",
+                "inputs": {
+                  "document": {
+                    "source": "input",
+                    "step": null,
+                    "path": "document",
+                    "value": null
+                  }
+                },
+                "input_schema": {
+                  "type": "object",
+                  "required": [
+                    "document"
+                  ],
+                  "properties": {
+                    "document": {
+                      "type": "string",
+                      "title": "文档"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "output_schema": {
+                  "type": "object",
+                  "required": [
+                    "notes"
+                  ],
+                  "properties": {
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "heading",
+                          "text"
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string"
+                          },
+                          "heading": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "timeout_seconds": 30,
+                "failure_policy": "fail",
+                "max_retries": 0
+              },
+              {
+                "key": "answer",
+                "name": "组织结构化输出",
+                "kind": "model",
+                "operator": null,
+                "dependency": null,
+                "inputs": {
+                  "notes": {
+                    "source": "step",
+                    "step": "lookup",
+                    "path": "notes",
+                    "value": null
+                  }
+                },
+                "input_schema": {
+                  "type": "object",
+                  "required": [
+                    "notes"
+                  ],
+                  "properties": {
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "heading",
+                          "text"
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string"
+                          },
+                          "heading": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "output_schema": {
+                  "type": "object",
+                  "required": [
+                    "business_status",
+                    "schema_version",
+                    "data",
+                    "warnings",
+                    "evidence_refs"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "heading",
+                              "text"
+                            ],
+                            "properties": {
+                              "text": {
+                                "type": "string"
+                              },
+                              "heading": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "evidence_refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0"
+                    },
+                    "business_status": {
+                      "enum": [
+                        "COMPLETED",
+                        "NEEDS_INPUT",
+                        "NO_MATCH",
+                        "INSUFFICIENT_DATA",
+                        "PARTIAL"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "timeout_seconds": 30,
+                "failure_policy": "fail",
+                "max_retries": 0
+              },
+              {
+                "key": "deliver",
+                "name": "组装输出",
+                "kind": "compute",
+                "operator": "object",
+                "dependency": null,
+                "inputs": {
+                  "data": {
+                    "source": "step",
+                    "step": "answer",
+                    "path": "data",
+                    "value": null
+                  },
+                  "warnings": {
+                    "source": "step",
+                    "step": "answer",
+                    "path": "warnings",
+                    "value": null
+                  },
+                  "evidence_refs": {
+                    "source": "step",
+                    "step": "answer",
+                    "path": "evidence_refs",
+                    "value": null
+                  },
+                  "schema_version": {
+                    "source": "step",
+                    "step": "answer",
+                    "path": "schema_version",
+                    "value": null
+                  },
+                  "business_status": {
+                    "source": "step",
+                    "step": "answer",
+                    "path": "business_status",
+                    "value": null
+                  }
+                },
+                "input_schema": {
+                  "type": "object",
+                  "required": [
+                    "business_status",
+                    "schema_version",
+                    "data",
+                    "warnings",
+                    "evidence_refs"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "heading",
+                              "text"
+                            ],
+                            "properties": {
+                              "text": {
+                                "type": "string"
+                              },
+                              "heading": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "evidence_refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0"
+                    },
+                    "business_status": {
+                      "enum": [
+                        "COMPLETED",
+                        "NEEDS_INPUT",
+                        "NO_MATCH",
+                        "INSUFFICIENT_DATA",
+                        "PARTIAL"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "output_schema": {
+                  "type": "object",
+                  "required": [
+                    "business_status",
+                    "schema_version",
+                    "data",
+                    "warnings",
+                    "evidence_refs"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "heading",
+                              "text"
+                            ],
+                            "properties": {
+                              "text": {
+                                "type": "string"
+                              },
+                              "heading": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "evidence_refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0"
+                    },
+                    "business_status": {
+                      "enum": [
+                        "COMPLETED",
+                        "NEEDS_INPUT",
+                        "NO_MATCH",
+                        "INSUFFICIENT_DATA",
+                        "PARTIAL"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "timeout_seconds": 30,
+                "failure_policy": "fail",
+                "max_retries": 0
+              }
+            ],
+            "edges": [
+              {
+                "source": "lookup",
+                "target": "answer",
+                "condition": null,
+                "otherwise": false
+              },
+              {
+                "source": "answer",
+                "target": "deliver",
+                "condition": null,
+                "otherwise": false
+              },
+              {
+                "source": "deliver",
+                "target": "END",
+                "condition": null,
+                "otherwise": false
+              }
+            ],
+            "bindings": {
+              "prompt_version": "version_dcfc19a6d262420b939eb10eea389f0b",
+              "model_route_version": "version_fadb72870f984364ade1f01e55784858",
+              "tool_versions": [
+                "80c591f32b3636f905a8e938bc2ec07526575ee3333f14cdcc033795f8c92fa2"
+              ],
+              "skill_versions": [
+                "version_5be48fb7dcda47b3a72dc29a8fe05ec4"
+              ],
+              "skill_loading": [
+                {
+                  "version_id": "version_5be48fb7dcda47b3a72dc29a8fe05ec4",
+                  "selected": false,
+                  "selected_files": [
+                    "references/output.md"
+                  ],
+                  "loading_mode": "mandatory",
+                  "priority": null,
+                  "trigger_reason": "配置选择"
+                }
+              ]
+            },
+            "limits": {
+              "deadline_seconds": 180,
+              "token_limit": 16000,
+              "cost_limit": null,
+              "max_model_rounds": 6,
+              "max_tool_calls": 10,
+              "max_iterations": 10,
+              "loop_timeout_seconds": 60,
+              "output_repair_attempts": 1
+            },
+            "context": {
+              "conversation_enabled": false,
+              "context_limit": 8000,
+              "summary_policy": "none",
+              "memory_policy": null
+            }
+          },
+          "content_digest": "9402b87d0789640e8cc81366c248b2c7a50d3ef70bf50deacbff247a209f1b2a",
+          "actions": [
+            {
+              "action_key": "validate",
+              "label": "校验"
+            },
+            {
+              "action_key": "test",
+              "label": "调试"
+            },
+            {
+              "action_key": "release",
+              "label": "发布"
+            }
+          ]
+        }
+      ],
+      "release_version_id": "version_2b5a73c2f09743a6bfeec8ead39065e2",
+      "release_revision": 1,
+      "releases": [
+        {
+          "release_id": "release_780256f928f74063b7049af32b917ec1",
+          "environment": "test",
+          "environment_label": "测试",
+          "version_id": "version_2b5a73c2f09743a6bfeec8ead39065e2",
+          "version_label": "发布版本 1",
+          "operation": "publish",
+          "operation_label": "发布",
+          "note": "23 受控测试环境配置验证",
+          "actor_name": "平台管理员",
+          "created_at": "2026-10-03T03:52:29.854960Z",
+          "evidence_refs": []
+        }
+      ],
+      "differences": []
+    },
+    "validation": {
+      "valid": true,
+      "revision": 1,
+      "content_digest": "9402b87d0789640e8cc81366c248b2c7a50d3ef70bf50deacbff247a209f1b2a",
+      "dependencies_digest": "dd80d1367f152310ce8781d3af3b57c29524044c9237a38fa04a300505e511ed",
+      "candidate_digest": "288c156c923e651aa2d9f442dde2e88995fb58c9b4df81935ddfe246874bbe80",
+      "checks": [
+        {
+          "key": "authorization",
+          "label": "当前授权与环境",
+          "passed": true,
+          "issues": []
+        },
+        {
+          "key": "flow",
+          "label": "结构与流程终止",
+          "passed": true,
+          "issues": []
+        },
+        {
+          "key": "dependencies",
+          "label": "依赖、权限与模型能力",
+          "passed": true,
+          "issues": []
+        },
+        {
+          "key": "budget",
+          "label": "可执行预算",
+          "passed": true,
+          "issues": []
+        }
+      ],
+      "dependencies": [
+        {
+          "resource_type": "tool",
+          "resource_id": "82904d7fa5ffe2d09da54a9ece6fbaee42a7ecd30fa8a2231da60754eb66e3d6",
+          "version_id": "80c591f32b3636f905a8e938bc2ec07526575ee3333f14cdcc033795f8c92fa2",
+          "name": "授权查询工具",
+          "version_label": "初始版本",
+          "revision": 2,
+          "state": {
+            "value": "PUBLISHED",
+            "label": "已发布",
+            "tone": "success"
+          },
+          "content_digest": "50f011b0fea0fa5459aba31d3a838a651f92d2eae76962e9c75ce2aa5d665574"
+        },
+        {
+          "resource_type": "skill",
+          "resource_id": "skill_05f436cf790842a5afa5b7648eff6b2c",
+          "version_id": "version_5be48fb7dcda47b3a72dc29a8fe05ec4",
+          "name": "配置接入技能",
+          "version_label": "导入版本",
+          "revision": 2,
+          "state": {
+            "value": "PUBLISHED",
+            "label": "已发布",
+            "tone": "success"
+          },
+          "content_digest": "5f3bb20c3b445c3507595f37b82ee7bfa809f292b6d3da57195dc7ace4c46272"
+        },
+        {
+          "resource_type": "model",
+          "resource_id": "model_874f3ba3812346a689e2d2e72580a95a",
+          "version_id": "version_9497d7f44d8448f68ef73523af0b4f76",
+          "name": "受控模型",
+          "version_label": "1",
+          "revision": 1,
+          "state": {
+            "value": "PUBLISHED",
+            "label": "已发布",
+            "tone": "success"
+          },
+          "content_digest": "193d5505967b49ecda406e1356200438396aa4f4b66a42706b0bb918a60d426c"
+        },
+        {
+          "resource_type": "model_connection",
+          "resource_id": "connection_0f3aa1d79e5748bfb9ec45f11fc33aae",
+          "version_id": "version_ac116406922c43a3b33e7563194fb67e",
+          "name": "受控模型连接",
+          "version_label": "1",
+          "revision": 1,
+          "state": {
+            "value": "PUBLISHED",
+            "label": "已发布",
+            "tone": "success"
+          },
+          "content_digest": "e4cc6da151a0f8826c0da74272bf71ddeabc5f7984f99fb0cb57ee442aed7f43"
+        },
+        {
+          "resource_type": "prompt",
+          "resource_id": "prompt_dedcffd644b7455f8092d4e6532b7b34",
+          "version_id": "version_dcfc19a6d262420b939eb10eea389f0b",
+          "name": "配置样例提示词",
+          "version_label": "v1",
+          "revision": 2,
+          "state": {
+            "value": "PUBLISHED",
+            "label": "已发布",
+            "tone": "success"
+          },
+          "content_digest": "62c830c2646f60eafc618a82c7dc0f30fd92298de7aa056a1f188c67184f7064"
+        },
+        {
+          "resource_type": "model_route",
+          "resource_id": "route_e2fe717768e0476497e5bad810b4ce8d",
+          "version_id": "version_fadb72870f984364ade1f01e55784858",
+          "name": "验证模型路由",
+          "version_label": "受控初版",
+          "revision": 1,
+          "state": {
+            "value": "PUBLISHED",
+            "label": "已发布",
+            "tone": "success"
+          },
+          "content_digest": "430eeb80f98e5057c1b9cbe600c1313f7b2d484dac8ed0f42812aa092ef92476"
+        }
+      ]
+    },
+    "debug": {
+      "channel_id": "channel_16d15f4c577f4c63b4daba6b6f19d0b0",
+      "run_id": "run_5e608fe9dfc2401bbfc6f12f634a2e6d",
+      "state": "FAILED",
+      "state_label": "失败",
+      "release_snapshot_id": "cf61303ae799b0757dd59bcf7c58e39ad77d42d850b2301c950a096652ca1749",
+      "result": null,
+      "partial_output": null,
+      "error": {
+        "code": "TOOL_FORBIDDEN",
+        "message": "工具缺少符合约定的受信业务主体",
+        "stage": "execution",
+        "retryable": false,
+        "request_id": "0cf3f632b5884b71930ccad7c2c71454"
+      },
+      "usage_summary": {
+        "attempt_count": 0,
+        "pending_count": 0,
+        "missing_count": 0,
+        "unpriced_count": 0,
+        "complete": true,
+        "input_tokens": null,
+        "output_tokens": null,
+        "currencies": [],
+        "amounts": {}
+      },
+      "artifacts": []
+    },
+    "navigation": [
+      {
+        "navigation_key": "models",
+        "label": "模型配置"
+      },
+      {
+        "navigation_key": "model-routes",
+        "label": "模型路由"
+      },
+      {
+        "navigation_key": "channels",
+        "label": "渠道管理"
+      },
+      {
+        "navigation_key": "members",
+        "label": "成员与权限"
+      },
+      {
+        "navigation_key": "resource-grants",
+        "label": "资源授权"
+      },
+      {
+        "navigation_key": "audit-events",
+        "label": "操作审计"
+      },
+      {
+        "navigation_key": "agents",
+        "label": "智能体"
+      },
+      {
+        "navigation_key": "evaluations",
+        "label": "效果评测"
+      },
+      {
+        "navigation_key": "prompts",
+        "label": "提示词"
+      },
+      {
+        "navigation_key": "tools",
+        "label": "工具"
+      },
+      {
+        "navigation_key": "integrations",
+        "label": "业务接入"
+      },
+      {
+        "navigation_key": "skills",
+        "label": "技能管理"
+      },
+      {
+        "navigation_key": "mcp-connections",
+        "label": "MCP 连接"
+      },
+      {
+        "navigation_key": "runs",
+        "label": "运行记录"
+      },
+      {
+        "navigation_key": "conversations",
+        "label": "会话管理"
+      },
+      {
+        "navigation_key": "memories",
+        "label": "记忆管理"
+      },
+      {
+        "navigation_key": "usage",
+        "label": "用量"
+      }
+    ],
+    "ui_requests": [
+      {
+        "method": "GET",
+        "path": "/admin/v1/auth/session",
+        "status": 401
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/auth/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/auth/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/channels",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/channel-create-options",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/channels",
+        "status": 201
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/channels",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/auth/channels",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/auth/channel-context",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/auth/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/channels/channel_16d15f4c577f4c63b4daba6b6f19d0b0/page",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/channels/channel_16d15f4c577f4c63b4daba6b6f19d0b0/clients",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/channels/channel_16d15f4c577f4c63b4daba6b6f19d0b0/environments",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/channels/channel_16d15f4c577f4c63b4daba6b6f19d0b0/data-scopes",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/channels/channel_16d15f4c577f4c63b4daba6b6f19d0b0/clients",
+        "status": 201
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/channels/channel_16d15f4c577f4c63b4daba6b6f19d0b0/clients",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/channels/channel_16d15f4c577f4c63b4daba6b6f19d0b0/keys",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/channels/channel_16d15f4c577f4c63b4daba6b6f19d0b0/environments",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/channels/channel_16d15f4c577f4c63b4daba6b6f19d0b0/clients",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/channels/channel_16d15f4c577f4c63b4daba6b6f19d0b0/keys",
+        "status": 201
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/auth/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/integrations",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/subject-review-bindings",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/delegation-keys",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/delegation-keys/options",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/delegation-keys",
+        "status": 201
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/delegation-keys",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/auth/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/auth/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/mcp-connections",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/mcp-connections",
+        "status": 201
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/mcp-connections",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f/impact",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f/credentials",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f/discover",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f/impact",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f/discoveries/discovery_76148af8f7cb4fb8bcb3903f28fa9821/diff",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f/enable",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f/impact",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f/discoveries/discovery_76148af8f7cb4fb8bcb3903f28fa9821/diff",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f/imports",
+        "status": 201
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/auth/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/tool-bindings",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/tools/82904d7fa5ffe2d09da54a9ece6fbaee42a7ecd30fa8a2231da60754eb66e3d6",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/tool-versions/80c591f32b3636f905a8e938bc2ec07526575ee3333f14cdcc033795f8c92fa2/freeze",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/tools/82904d7fa5ffe2d09da54a9ece6fbaee42a7ecd30fa8a2231da60754eb66e3d6",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/tools/82904d7fa5ffe2d09da54a9ece6fbaee42a7ecd30fa8a2231da60754eb66e3d6/releases",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/tools/82904d7fa5ffe2d09da54a9ece6fbaee42a7ecd30fa8a2231da60754eb66e3d6",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/auth/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/integrations",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/subject-review-bindings",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/subject-review-bindings/options",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/mcp-connections",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/mcp-connections/mcp_efc5a6ed109a40b2b5b04b90ccc2277f",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/subject-review-bindings",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/subject-review-bindings",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/auth/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/skills",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/skills/imports/preview",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/skills/tool-options",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/skills/imports",
+        "status": 201
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/skills/skill_05f436cf790842a5afa5b7648eff6b2c",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/skill-versions/version_5be48fb7dcda47b3a72dc29a8fe05ec4/files",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/skill-versions/version_5be48fb7dcda47b3a72dc29a8fe05ec4/freeze",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/skills/skill_05f436cf790842a5afa5b7648eff6b2c",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/skill-versions/version_5be48fb7dcda47b3a72dc29a8fe05ec4/files",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/auth/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/auth/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/agents",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/agents/options",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/skill-versions/version_5be48fb7dcda47b3a72dc29a8fe05ec4",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/agents",
+        "status": 201
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/agents/options",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/agents/agent_d822546e94344090ba0f8ac16788d982",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/agent-versions/version_ac4411c7500d4929b28365c4fb692815/validate",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/agent-versions/version_ac4411c7500d4929b28365c4fb692815/tests",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/runs/run_5e608fe9dfc2401bbfc6f12f634a2e6d/trace",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/runs/run_5e608fe9dfc2401bbfc6f12f634a2e6d/detail",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/runs/run_5e608fe9dfc2401bbfc6f12f634a2e6d/events",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/runs/run_5e608fe9dfc2401bbfc6f12f634a2e6d/trace",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/runs/run_5e608fe9dfc2401bbfc6f12f634a2e6d/detail",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/evaluations",
+        "status": 503
+      },
+      {
+        "method": "POST",
+        "path": "/admin/v1/agents/agent_d822546e94344090ba0f8ac16788d982/releases",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/agents/options",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/v1/agents/agent_d822546e94344090ba0f8ac16788d982",
+        "status": 200
+      }
+    ]
+  }
+}

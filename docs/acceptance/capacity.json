@@ -1,0 +1,10 @@
+{
+  "channel_limit": 5,
+  "platform_limit": 20,
+  "first_channel_accepted": 5,
+  "first_channel_refused": 15,
+  "other_channels_accepted": 15,
+  "platform_held": 20,
+  "replacement_after_release": true,
+  "boundary": "真实预算受理事务；没有启动外部模型请求，不代表外部并发二十"
+}

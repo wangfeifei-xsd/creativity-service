@@ -1,0 +1,148 @@
+{
+  "model_evidence": "controlled_fixture",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/v1/auth/session",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/admin/v1/model-connections",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/admin/v1/model-protocols",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/admin/v1/model-providers",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/admin/v1/model-credentials",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/admin/v1/model-connections",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/admin/v1/model-connections",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/admin/v1/models",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/admin/v1/models",
+      "status": 201
+    }
+  ],
+  "connection_id": "connection_243e6c7119cb4a13bde5ec7102f00660",
+  "model": {
+    "model_code": "controlled",
+    "name": "受控模型",
+    "connection_id": "connection_243e6c7119cb4a13bde5ec7102f00660",
+    "provider_model_name": "controlled",
+    "context_limit": 32000,
+    "status": "ACTIVE",
+    "parameters": {
+      "max_tokens": 100
+    },
+    "parameter_allowlist": [
+      "max_tokens"
+    ],
+    "revision": 1,
+    "protocol": "chat_completions",
+    "usage_subsets": {
+      "cache_read": "input"
+    },
+    "id": "model_386f51b0a6ec4bcd82dc5e583626055f",
+    "connection_name": "受控模型连接",
+    "provider_name": "受控模型替身",
+    "protocol_name": "Chat Completions 兼容",
+    "status_label": "启用",
+    "current_version_id": "version_bbb4c3eb2d9245dbad80a5b96e31d370",
+    "config_digest": "69a83926c0799e1f075c7ee905a5bcbaced86461b96cba6074acb3d75783c3a0",
+    "capabilities": [
+      {
+        "capability": "text",
+        "name": "文本生成",
+        "state": "UNVERIFIED",
+        "label": "未验证",
+        "verified_at": null,
+        "reason": "当前配置尚未通过真实验证"
+      },
+      {
+        "capability": "tools",
+        "name": "工具调用",
+        "state": "UNVERIFIED",
+        "label": "未验证",
+        "verified_at": null,
+        "reason": "当前配置尚未通过真实验证"
+      },
+      {
+        "capability": "structured_output",
+        "name": "结构化输出",
+        "state": "UNVERIFIED",
+        "label": "未验证",
+        "verified_at": null,
+        "reason": "当前配置尚未通过真实验证"
+      },
+      {
+        "capability": "streaming",
+        "name": "流式输出",
+        "state": "UNVERIFIED",
+        "label": "未验证",
+        "verified_at": null,
+        "reason": "当前配置尚未通过真实验证"
+      },
+      {
+        "capability": "vision",
+        "name": "视觉理解",
+        "state": "UNVERIFIED",
+        "label": "未验证",
+        "verified_at": null,
+        "reason": "当前配置尚未通过真实验证"
+      },
+      {
+        "capability": "embedding",
+        "name": "向量生成",
+        "state": "UNVERIFIED",
+        "label": "未验证",
+        "verified_at": null,
+        "reason": "当前配置尚未通过真实验证"
+      }
+    ],
+    "verified_at": null,
+    "parameter_reasons": {
+      "temperature": "该模型未开放此参数",
+      "top_p": "该模型未开放此参数",
+      "stop": "该模型未开放此参数",
+      "seed": "该模型未开放此参数"
+    },
+    "actions": [
+      {
+        "action_key": "edit",
+        "label": "编辑"
+      },
+      {
+        "action_key": "test",
+        "label": "能力验证"
+      },
+      {
+        "action_key": "history",
+        "label": "历史版本"
+      }
+    ]
+  }
+}

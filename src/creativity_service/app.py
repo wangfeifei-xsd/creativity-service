@@ -36,7 +36,7 @@ from creativity_service.modules.prompts.assembly import (
     build_prompt_service,
     register_prompt_cleanup,
 )
-from creativity_service.modules.runs.assembly import build_run_service
+from creativity_service.modules.runs.assembly import RunLifecycleGuard, build_run_service
 from creativity_service.modules.runtime.assembly import install_runtime
 from creativity_service.modules.runtime.registry import StepRegistry
 from creativity_service.modules.skills.assembly import build_skill_service, register_skill_cleanup
@@ -174,6 +174,7 @@ def create_app(
             app.state.usage.ledger,
             cleanup=app.state.core.cleanup,
         )
+        app.state.channels.lifecycle.register_tasks(RunLifecycleGuard())
         app.state.conversations = build_conversation_service(
             infrastructure.engine,
             app.state.iam.authorization,

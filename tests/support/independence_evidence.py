@@ -17,13 +17,23 @@ def file_digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def source_file(path):
+    """排除解释器缓存和 Finder 元数据；其余源码及资源必须参与制品核对。"""
+    return (
+        path.is_file()
+        and "__pycache__" not in path.parts
+        and path.suffix != ".pyc"
+        and path.name != ".DS_Store"
+    )
+
+
 def tree(root, paths):
     files = {}
     for name in paths:
         path = root / name
         candidates = sorted(path.rglob("*")) if path.is_dir() else [path]
         for item in candidates:
-            if item.is_file() and "__pycache__" not in item.parts and item.suffix != ".pyc":
+            if source_file(item):
                 files[item.relative_to(root).as_posix()] = file_digest(item)
     assert files, paths
     return {"sha256": digest(files), "files": files}
@@ -38,7 +48,7 @@ def digest(value):
 def wheel_matches_source():
     with zipfile.ZipFile(ROOT / "dist/creativity_service-0.1.0-py3-none-any.whl") as wheel:
         for path in (ROOT / "src").rglob("*"):
-            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
+            if source_file(path):
                 assert wheel.read(path.relative_to(ROOT / "src").as_posix()) == path.read_bytes()
     return True
 

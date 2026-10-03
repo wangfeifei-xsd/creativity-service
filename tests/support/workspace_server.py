@@ -19,6 +19,7 @@ from creativity_service.modules.channels.api import router as channels_router
 from creativity_service.modules.channels.assembly import build_channel_services
 from creativity_service.modules.iam.api import router as iam_router
 from creativity_service.modules.iam.schemas import AccountCreate
+from creativity_service.modules.runs.assembly import RunLifecycleGuard
 
 
 @asynccontextmanager
@@ -32,13 +33,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         config = Config("alembic.ini")
         config.set_main_option("version_table_schema", schema)
         config.attributes["connection"] = connection
-        command.upgrade(config, "0003_channels")
+        command.upgrade(config, "head")
     engine = create_async_engine(
         settings.database_url.get_secret_value(),
         connect_args={"options": f"-csearch_path={schema}"},
     )
     redis = Redis.from_url(settings.redis_auth_url.get_secret_value(), socket_timeout=2)
     iam, channels = build_channel_services(engine, redis, schema)
+    channels.lifecycle.register_tasks(RunLifecycleGuard())
     await channels.channels.initialize_system()
     await iam.accounts.initialize_admin(
         AccountCreate(
