@@ -4,7 +4,7 @@
 
 ## 数据库与依赖
 
-新增迁移链：`0028_memory_vectors → 0029_mcp_oauth → 0030_automation → 0031_identity_operations`。迁移仅增加本次模型，保持应用服务层校验和事务互斥；模型档案在 `docs/data-model`。本次集成验收在临时 schema 升级到 head，测试结束清理 schema，没有升级主 public schema。应用开发环境准备使用时执行 `uv run alembic upgrade head`，不要把测试临时 schema 作为应用数据库。
+新增迁移链：`0028_memory_vectors → 0029_mcp_oauth → 0030_automation → 0031_identity_operations → 0032_run_subscriptions`。迁移仅增加本次模型，保持应用服务层校验和事务互斥；模型档案在 `docs/data-model`。集成验收使用临时 schema，测试结束后清理。当前本地开发库的 public schema 已升级至 `0032_run_subscriptions` 并通过实际存储审查；其他环境启用前执行 `uv run alembic upgrade head`，不要把测试临时 schema 作为应用数据库。
 
 语义检索依赖 pgvector 0.8.2，安装/启用方法见 [向量环境](../../deploy/vector.md)。本次本地数据库已安装并启用该扩展。向量缓存保存 JSONB，先物化完整 Scope 与已复核记忆集合，再使用 pgvector 的余弦距离精确排序；当前没有 ANN 索引。Agent 的 `embedding_route_version` 绑定已通过 embedding 能力测试的单模型路由，并开启记忆策略。缺扩展、供应商失败或同模型版本的向量维度漂移按该版本的 OMIT/FAIL 策略处理，向量成本进入用量和预算。更换向量维度时须发布新模型版本，不能沿用旧版本缓存空间。
 
@@ -67,7 +67,11 @@ Agent 可视化流程的计算节点提供对象组装、等待补充和等待�
 
 请求发出后 Worker 中断也消耗本轮尝试次数；租约到期不重置计数。第六次回执未确认时停止自动发送，页面显示失败并支持人工重投，接收方仍以同一 event_id 去重。
 
-运行事件包含 run_id、state、occurred_at、status_path。status_path 是原管理身份在平台内查询用的相对路径，接收方仍需持有获授权的平台身份；事件不携带 Token 或运行原文。
+运行事件包含 run_id、state、occurred_at、status_path。业务服务运行的 status_path 为 `/api/v1/runs/{run_id}`，接收方使用相同调用服务的有效 Token 和对应主体委托查询；管理员运行使用 `/admin/v1/runs/{run_id}`。事件不携带 Token 或运行原文。
+
+事件端点和运行失败告警可分别选择当前工作区的调用服务（`client_ids`）；未选择时仅包含配置者本人、原主体范围内的运行，选择后仅包含所选服务在当前渠道、环境和数据域内的运行。创建、编辑、入队与发送分别复核配置权限、运行读取权限和服务状态，运行来源删除立即阻断其终态通知。管理页面可编辑已有配置的范围；修改告警范围会重新开始观测，旧范围的待投递告警停止发送。更新请求省略 `client_ids` 时保留原值，显式传空列表时恢复本人范围。
+
+启用此修复前需要迁移 `0032_run_subscriptions`，为端点和告警规则增加调用服务列表。迁移将已有配置显式设为空列表；需要业务通知时在“事件投递 → 编辑范围”和“外部告警 → 编辑”中选择调用服务。只新增可空 JSONB 存储列，无数据库默认值或业务约束；原迁移冻结定义保持不变。
 
 告警端点须同时订阅 `alert.triggered` 与 `alert.resolved`。可监测原有预算阈值转换、运行失败次数、清理失败、运行终态事件投递失败。非预算告警按窗口计数，每次“正常→触发→恢复”保持可追溯 generation；事件先持久化，端点停用竞态不丢待投递事件。预算告警复用预算账本已有 transitions，规则重新启用后会补齐其创建以来尚未入队的转换，不重算费用。
 

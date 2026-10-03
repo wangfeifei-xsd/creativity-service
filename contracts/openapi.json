@@ -2008,6 +2008,24 @@
             "title": "Active",
             "type": "boolean"
           },
+          "client_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Ids"
+          },
           "endpoint_id": {
             "maxLength": 128,
             "minLength": 1,
@@ -19122,6 +19140,17 @@
       "WebhookCreate": {
         "additionalProperties": false,
         "properties": {
+          "client_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Client Ids",
+            "type": "array"
+          },
           "events": {
             "default": [
               "run.terminal"
@@ -19164,6 +19193,44 @@
           "secret"
         ],
         "title": "WebhookCreate",
+        "type": "object"
+      },
+      "WebhookUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "client_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Ids"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "active"
+        ],
+        "title": "WebhookUpdate",
         "type": "object"
       },
       "WorkspaceOption": {
@@ -68957,6 +69024,225 @@
         ]
       }
     },
+    "/admin/v1/run-subscription-options": {
+      "get": {
+        "operationId": "subscription_options_admin_v1_run_subscription_options_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Subscription Options Admin V1 Run Subscription Options Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Subscription Options",
+        "tags": [
+          "定时与事件集成"
+        ]
+      }
+    },
     "/admin/v1/runs": {
       "get": {
         "operationId": "list_runs_admin_v1_runs_get",
@@ -84970,7 +85256,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Toggle"
+                "$ref": "#/components/schemas/WebhookUpdate"
               }
             }
           },

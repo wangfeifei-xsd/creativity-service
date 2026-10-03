@@ -15407,6 +15407,14 @@
           "required": true,
           "source": "受信上下文与服务层校验",
           "sensitivity": "内部"
+        },
+        {
+          "name": "client_ids",
+          "type": "jsonb",
+          "comment": "订阅的调用服务列表；空列表仅包含配置者运行",
+          "required": true,
+          "source": "管理配置",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -16064,6 +16072,14 @@
           "comment": "待生成投递事件",
           "required": true,
           "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "client_ids",
+          "type": "jsonb",
+          "comment": "订阅的调用服务列表；空列表仅包含配置者运行",
+          "required": true,
+          "source": "管理配置",
           "sensitivity": "内部"
         }
       ]

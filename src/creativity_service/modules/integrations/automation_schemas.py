@@ -92,9 +92,14 @@ class WebhookCreate(Contract):
     name: str = Field(min_length=1, max_length=128)
     url: str = Field(min_length=1, max_length=2048)
     secret: SecretStr = Field(min_length=32, max_length=256)
+    client_ids: list[Identifier] = Field(default_factory=list, max_length=100)
     events: tuple[Literal["run.terminal", "alert.triggered", "alert.resolved"], ...] = (
         "run.terminal",
     )
+
+
+class WebhookUpdate(Toggle):
+    client_ids: list[Identifier] | None = Field(default=None, max_length=100)
 
 
 class ItemView(Contract):

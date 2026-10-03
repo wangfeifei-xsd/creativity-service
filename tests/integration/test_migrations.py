@@ -80,3 +80,34 @@ def test_version_storage_has_channel_comments_and_no_unique_index(tmp_path):
         with engine.begin() as connection:
             connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         engine.dispose()
+
+
+def test_run_subscription_upgrade_preserves_existing_scope_and_is_reversible():
+    schema = f"test_subscription_migration_{uuid4().hex}"
+    config = Config("alembic.ini")
+    config.set_main_option("version_table_schema", schema)
+    engine = create_engine(Settings().database_url.get_secret_value())
+    try:
+        with engine.begin() as connection:
+            connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+            connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
+            config.attributes["connection"] = connection
+            command.upgrade(config, "0031_identity_operations")
+            for name in ("webhook_endpoints", "alert_rules"):
+                # 只验证旧存储记录的范围回填，不通过业务入口创建此迁移夹具。
+                connection.execute(
+                    text(f"INSERT INTO {name} (id, channel_id) VALUES ('legacy', 'test')")
+                )
+            command.upgrade(config, "head")
+            for name in ("webhook_endpoints", "alert_rules"):
+                assert connection.execute(text(f"SELECT client_ids FROM {name}")).scalar_one() == []
+            command.downgrade(config, "0031_identity_operations")
+            command.upgrade(config, "head")
+            assert (
+                connection.execute(text("SELECT client_ids FROM webhook_endpoints")).scalar_one()
+                == []
+            )
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        engine.dispose()

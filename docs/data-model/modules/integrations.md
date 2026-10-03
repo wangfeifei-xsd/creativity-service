@@ -229,6 +229,7 @@
 | `owner_key` | `varchar(64)` | 执行身份摘要 | 是 | 受信上下文与服务层校验 | 内部 |
 | `identity` | `jsonb` | 原执行身份快照 | 是 | 受信上下文与服务层校验 | 内部 |
 | `state` | `varchar(32)` | 当前处理状态 | 是 | 受信上下文与服务层校验 | 内部 |
+| `client_ids` | `jsonb` | 订阅的调用服务列表；空列表仅包含配置者运行 | 是 | 管理配置 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id)`。
 
@@ -290,5 +291,6 @@
 | `generation` | `bigint` | 触发周期序号 | 是 | 受信上下文与服务层校验 | 内部 |
 | `last_value` | `bigint` | 最近观察次数 | 是 | 受信上下文与服务层校验 | 内部 |
 | `pending_events` | `jsonb` | 待生成投递事件 | 是 | 受信上下文与服务层校验 | 内部 |
+| `client_ids` | `jsonb` | 订阅的调用服务列表；空列表仅包含配置者运行 | 是 | 管理配置 | 内部 |
 
 普通索引：`(channel_id, id)`。

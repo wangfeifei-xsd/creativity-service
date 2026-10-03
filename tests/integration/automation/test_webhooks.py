@@ -56,7 +56,7 @@ class Receiver:
         return HttpResponse(self.status, b"")
 
 
-async def configured(env):
+async def configured(env, *, client_ids=(), events=("run.terminal",)):
     policy = OutboundPolicy(
         (
             Destination(
@@ -74,7 +74,13 @@ async def configured(env):
     service = WebhookService(env.runs.automation, policy, Keys(), receiver)
     endpoint = await service.create(
         env.context,
-        WebhookCreate(name="本地验收接收器", url="http://127.0.0.1:4444/events", secret="s" * 32),
+        WebhookCreate(
+            name="本地验收接收器",
+            url="http://127.0.0.1:4444/events",
+            secret="s" * 32,
+            client_ids=list(client_ids),
+            events=events,
+        ),
     )
     return service, endpoint, receiver
 

@@ -16,6 +16,7 @@ from creativity_service.modules.integrations.automation_schemas import (
     ScheduleCreate,
     Toggle,
     WebhookCreate,
+    WebhookUpdate,
 )
 from creativity_service.modules.integrations.webhooks import WebhookService
 
@@ -108,9 +109,14 @@ async def create_endpoint(
 
 @router.patch("/webhooks/{identifier}")
 async def toggle_endpoint(
-    context: Context, service: Webhooks, identifier: str, body: Toggle
+    context: Context, service: Webhooks, identifier: str, body: WebhookUpdate
 ) -> dict[str, Any]:
     return await service.toggle(context, identifier, body)
+
+
+@router.get("/run-subscription-options")
+async def subscription_options(context: Context, service: Webhooks) -> list[dict[str, Any]]:
+    return await service.subscriptions.options(context)
 
 
 @router.get("/webhook-deliveries")

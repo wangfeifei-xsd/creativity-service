@@ -51,6 +51,7 @@ class AlertSave(Contract):
     threshold: int = Field(default=1, ge=1, le=10000, strict=True)
     window_seconds: int = Field(default=3600, ge=60, le=604800, strict=True)
     endpoint_id: Identifier
+    client_ids: list[Identifier] | None = Field(default=None, max_length=100)
     active: bool = True
 
 
@@ -87,6 +88,7 @@ class Alerts:
                     "threshold",
                     "window_seconds",
                     "endpoint_id",
+                    "client_ids",
                     "revision",
                     "active",
                     "generation",
@@ -110,6 +112,8 @@ class Alerts:
         self, context: AuthContext, body: AlertSave, identifier: str | None = None
     ) -> dict[str, Any]:
         await self.authorize(context, body.kind)
+        if body.client_ids and body.kind != "run_failure":
+            raise ServiceError("SUBSCRIPTION_INVALID", "只有运行失败告警可选择调用服务", 422)
         endpoint = await self.automation.get(context, "webhook_endpoints", body.endpoint_id)
         if not {"alert.triggered", "alert.resolved"} <= set(endpoint["events"]):
             raise ServiceError("ALERT_ENDPOINT_INVALID", "端点须同时订阅告警触发与解除", 422)
@@ -133,14 +137,27 @@ class Alerts:
                 raise ServiceError("NOT_FOUND", "当前身份没有此告警规则", 404)
             if bool(current) != (body.revision is not None):
                 raise ServiceError("REVISION_CONFLICT", "告警规则已经变化", 409)
+            client_ids = (
+                body.client_ids
+                if body.client_ids is not None
+                else current["client_ids"]
+                if current
+                else []
+            )
+            if not current or body.active or client_ids != current["client_ids"]:
+                await self.webhooks.subscriptions.validate(uow, context, client_ids)
             values = {
                 **body.model_dump(exclude={"revision", "active"}),
                 "state": "ACTIVE" if body.active else "PAUSED",
+                "client_ids": sorted(client_ids),
             }
             if current:
                 if body.kind != current["kind"] or body.endpoint_id != current["endpoint_id"]:
                     raise ServiceError("IMMUTABLE_FIELD", "监测类型与投递端点须新建规则修改", 422)
                 assert body.revision is not None
+                if values["client_ids"] != current["client_ids"]:
+                    # 统计范围变化后重新观测；旧范围的待投递记录在发送时再次拒绝。
+                    values.update(active=False, last_value=0, pending_events=[])
                 await self.repo(context).change(uow, identifier, body.revision, values)
             else:
                 await self.repo(context).add(
@@ -169,7 +186,9 @@ class Alerts:
             name
         ]
         conditions = [
-            Repository(table, context.scope).predicate(),
+            self.webhooks.subscriptions.predicate(context, row["client_ids"])
+            if name == "runs"
+            else Repository(table, context.scope).predicate(),
             table.c.state == "FAILED",
             table.c.updated_at >= utcnow() - timedelta(seconds=row["window_seconds"]),
         ]
@@ -181,11 +200,16 @@ class Alerts:
                 for v in (await connection.execute(select(table).where(*conditions))).mappings()
             ]
         if name == "runs":
-            rows = [
-                v
-                for v in rows
-                if owner(AuthContext.model_validate(v["identity"])) == owner(context)
-            ]
+            count = 0
+            for run in rows:
+                try:
+                    await self.webhooks.subscriptions.authorize(context, row["client_ids"], run)
+                except ServiceError as exc:
+                    if exc.status not in {401, 403, 404, 410}:
+                        raise
+                else:
+                    count += 1
+            return count
         return len(rows)
 
     async def budget_events(
@@ -231,6 +255,7 @@ class Alerts:
         if row["kind"] == "budget":
             await self.budget_events(context, row, endpoint)
             return
+        await self.webhooks.subscriptions.require_clients(context, row["client_ids"])
         value = await self.count(context, row)
         async with transaction(
             self.engine, context.scope, keys(context, ("alert_rules", row["id"]))
@@ -280,6 +305,7 @@ class Alerts:
                     "alert_rule_id": row["id"],
                     "name": row["name"],
                     "category": row["kind"],
+                    "client_ids": row["client_ids"],
                     **{k: v for k, v in event.items() if k != "kind"},
                 },
                 (ContentRef("alert_rule", row["id"]),),

@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import SecretBytes
 from sqlalchemy import select
 
-from creativity_service.core.context import AuthContext
+from creativity_service.core.context import AuthContext, TaskEnvelope
 from creativity_service.core.database import Repository, transaction
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.primitives import ServiceError, canonical_json, digest, new_id, utcnow
@@ -27,7 +27,8 @@ from creativity_service.modules.integrations.automation import (
     repo,
     worker_identity,
 )
-from creativity_service.modules.integrations.automation_schemas import Toggle, WebhookCreate
+from creativity_service.modules.integrations.automation_schemas import WebhookCreate, WebhookUpdate
+from creativity_service.modules.integrations.run_subscriptions import RunSubscriptions
 from creativity_service.modules.runs.schemas import TERMINAL
 from creativity_service.modules.runs.tables import metadata as runs_metadata
 
@@ -62,6 +63,7 @@ class WebhookService:
             provider,
         )
         self.http = http or BoundedHttp(policy)
+        self.subscriptions = RunSubscriptions(automation)
 
     def credentials(self, reference: str | None = None) -> CredentialService:
         return CredentialService(
@@ -70,9 +72,9 @@ class WebhookService:
 
     @staticmethod
     def endpoint_view(row: dict[str, Any]) -> dict[str, Any]:
-        return {k: row[k] for k in ("id", "name", "url", "events", "revision", "state")} | {
-            "state_label": "启用" if row["state"] == "ACTIVE" else "停用"
-        }
+        return {
+            k: row[k] for k in ("id", "name", "url", "events", "revision", "state", "client_ids")
+        } | {"state_label": "启用" if row["state"] == "ACTIVE" else "停用"}
 
     async def endpoints(self, context: AuthContext) -> list[dict[str, Any]]:
         await self.automation.manage(context)
@@ -96,6 +98,7 @@ class WebhookService:
             configuration_keys(context, "webhook_endpoints", identifier, event_id),
         ) as uow:
             await require_management(uow, context, "integration:manage")
+            await self.subscriptions.validate(uow, context, body.client_ids)
             await DeletionGuard(context.scope).check(uow, [])
             row = await add(
                 uow,
@@ -107,6 +110,7 @@ class WebhookService:
                     "url": body.url,
                     "secret_ref": reference,
                     "events": list(body.events),
+                    "client_ids": sorted(body.client_ids),
                     "state": "ACTIVE",
                     "owner_key": owner(context),
                     "identity": worker_identity(context).model_dump(mode="json"),
@@ -115,7 +119,9 @@ class WebhookService:
             await audit_configuration(uow, context, "webhook_endpoints", identifier, event_id)
         return self.endpoint_view(row)
 
-    async def toggle(self, context: AuthContext, identifier: str, body: Toggle) -> dict[str, Any]:
+    async def toggle(
+        self, context: AuthContext, identifier: str, body: WebhookUpdate
+    ) -> dict[str, Any]:
         await self.automation.manage(context)
         await self.automation.get(context, "webhook_endpoints", identifier)
         event_id = new_id("audit")
@@ -128,8 +134,17 @@ class WebhookService:
             await DeletionGuard(context.scope).check(
                 uow, [ContentRef("webhook_endpoint", identifier)]
             )
+            values: dict[str, Any] = {"state": "ACTIVE" if body.active else "PAUSED"}
+            current = await repo(context.scope, "webhook_endpoints").get(uow.connection, identifier)
+            if not current:
+                raise ServiceError("NOT_FOUND", "投递端点不存在", 404)
+            client_ids = getattr(body, "client_ids", None)
+            client_ids = current["client_ids"] if client_ids is None else sorted(client_ids)
+            if body.active or client_ids != current["client_ids"]:
+                await self.subscriptions.validate(uow, context, client_ids)
+            values["client_ids"] = client_ids
             row = await repo(context.scope, "webhook_endpoints").change(
-                uow, identifier, body.revision, {"state": "ACTIVE" if body.active else "PAUSED"}
+                uow, identifier, body.revision, values
             )
             await audit_configuration(uow, context, "webhook_endpoints", identifier, event_id)
         return self.endpoint_view(row)
@@ -236,7 +251,12 @@ class WebhookService:
             actual = await repo(context.scope, "webhook_endpoints").get(
                 uow.connection, endpoint["id"]
             )
-            if not actual or actual["state"] != "ACTIVE" or kind not in actual["events"]:
+            if (
+                not actual
+                or actual["state"] != "ACTIVE"
+                or actual["revision"] != endpoint["revision"]
+                or kind not in actual["events"]
+            ):
                 return False
             if await repo(context.scope, "webhook_deliveries").get(uow.connection, identifier):
                 return True
@@ -273,7 +293,7 @@ class WebhookService:
                 for r in (
                     await connection.execute(
                         select(table).where(
-                            Repository(table, context.scope).predicate(),
+                            self.subscriptions.predicate(context, endpoint["client_ids"]),
                             table.c.state.in_(TERMINAL),
                             table.c.updated_at >= endpoint["created_at"],
                         )
@@ -281,10 +301,8 @@ class WebhookService:
                 ).mappings()
             ]
         for row in rows:
-            if owner(AuthContext.model_validate(row["identity"])) != endpoint["owner_key"]:
-                continue
             try:
-                await self.automation.runs.authorization.require(context, "run:read", row["id"])
+                await self.subscriptions.authorize(context, endpoint["client_ids"], row)
                 await self.enqueue(
                     context,
                     endpoint,
@@ -294,7 +312,8 @@ class WebhookService:
                         "run_id": row["id"],
                         "state": row["state"],
                         "occurred_at": row["updated_at"].isoformat(),
-                        "status_path": "/admin/v1/runs/" + row["id"],
+                        "status_path": ("/api/v1/runs/" if row["client_id"] else "/admin/v1/runs/")
+                        + row["id"],
                     },
                     (ContentRef("run", row["id"]),),
                 )
@@ -374,8 +393,15 @@ class WebhookService:
                     from creativity_service.modules.integrations.alerts import Alerts
 
                     await Alerts(self.automation, self).authorize(context, rule["kind"])
+                    if rule["kind"] == "run_failure":
+                        if rule["client_ids"] != current["payload"].get("client_ids", []):
+                            raise ServiceError("ALERT_SCOPE_CHANGED", "告警监测范围已变化", 403)
+                        await self.subscriptions.require_clients(context, rule["client_ids"])
                 if run_id := current["payload"].get("run_id"):
-                    await self.automation.runs.authorization.require(context, "run:read", run_id)
+                    run = await self.automation.runs.load(
+                        TaskEnvelope(channel_id=context.scope.channel_id, run_id=run_id)
+                    )
+                    await self.subscriptions.authorize(context, active["client_ids"], run)
                 body = canonical_json(current["payload"])
                 timestamp = str(int(utcnow().timestamp()))
                 signature = hmac.new(
