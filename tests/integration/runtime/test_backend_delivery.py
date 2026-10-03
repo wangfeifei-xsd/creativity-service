@@ -247,9 +247,17 @@ async def test_same_client_two_configurations_sync_async_stream_and_cancel(deliv
         assert accepted.type == "accepted" and accepted.sequence == 1
         await subscription.aclose()
         await finish(env, stream, name)
+        stream_result = await env.backend.query(stream["run_id"])
+        assert stream_result["state"] == "SUCCEEDED", {
+            "configuration": name,
+            "state": stream_result["state"],
+            "error": stream_result["error"],
+        }
         events = [e async for e in env.backend.subscribe(stream["run_id"], accepted.sequence)]
         assert events[0].sequence == 2
-        assert len([e for e in events if e.type == "result"]) == 1
+        assert len([e for e in events if e.type == "result"]) == 1, [
+            (e.sequence, e.type) for e in events
+        ]
         assert events[-1].type == "completed"
         text = [e for e in events if e.type == "text_delta"]
         assert text and all(e.data["payload"]["validated"] is False for e in text)

@@ -7,7 +7,10 @@ import pytest
 
 from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.database import transaction
+from creativity_service.core.deletion import ContentRef, DeletionService
 from creativity_service.core.primitives import RunInput, ServiceError, utcnow
+from creativity_service.modules.data_lifecycle.handlers import ContentHandlers
+from creativity_service.modules.data_lifecycle.services import DataLifecycleService
 from creativity_service.modules.integrations.automation import keys, repo
 from creativity_service.modules.integrations.automation_schemas import (
     BatchCreate,
@@ -121,3 +124,45 @@ async def test_schedule_window_restart_pause_and_missed_history(runtime_env):
     )
     await service.fire(current, now + timedelta(hours=3))
     assert len(await service.channel_rows(env.context.scope.channel_id, "automation_items")) == 1
+
+
+async def test_deleted_run_keeps_batch_queryable_and_other_items_cancellable(runtime_env):
+    env = runtime_env
+    await admitted(env, purpose="production")
+    service = env.runs.automation
+    body = BatchCreate(
+        name="部分删除批次",
+        items=[BatchItem(event_id=key, request=request(env)) for key in ("deleted", "retained")],
+    )
+    batch = await service.create_batch(env.context, body, "deletion-batch")
+    await service.sweep(env.context.scope.channel_id)
+    deleted, retained = (await service.batch(env.context, batch.batch_id)).items
+    # 标记提交即不可复用；此时清理任务还没有清空批次条目。
+    await DeletionService(env.engine, env.iam.authorization).mark(
+        env.context, ContentRef("run", deleted.run_id), "TEST"
+    )
+    current = await service.batch(env.context, batch.batch_id)
+    assert current.items[0].state == "DELETED"
+    assert current.items[0].run_id is None and current.items[0].error is None
+    assert current.items[1].run_id == retained.run_id
+    assert [item.batch_id for item in await service.list_batches(env.context)] == [batch.batch_id]
+    cancelled = await service.cancel_batch(env.context, batch.batch_id, current.revision, True)
+    assert cancelled.items[0].state == "DELETED"
+    assert (await env.runs.get_run(env.context, retained.run_id)).state == "CANCELLED"
+
+    lifecycle = DataLifecycleService(
+        env.engine,
+        ContentHandlers(env.engine, env.conversations.artifacts.store, env.runs),
+        env.iam.authorization,
+    )
+    await lifecycle.prepare_channel(env.context.scope.channel_id)
+    for _ in range(10):
+        if await lifecycle.sweep(env.context.scope.channel_id, 100) == 0:
+            break
+    async with env.engine.connect() as db:
+        cleaned = await repo(env.context.scope, "automation_items").get(db, deleted.item_id)
+        assert cleaned["state"] == "DELETED" and cleaned["request"] == {}
+    assert (await service.batch(env.context, batch.batch_id)).items[0].state == "DELETED"
+    with pytest.raises(ServiceError) as denied:
+        await service.retry_item(env.context, deleted.item_id, cleaned["revision"])
+    assert denied.value.code == "CONTENT_DELETED"

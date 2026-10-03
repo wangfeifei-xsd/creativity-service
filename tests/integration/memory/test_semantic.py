@@ -18,7 +18,7 @@ from tests.models.test_protocols import fixture_config
 pytestmark = pytest.mark.integration
 
 
-async def select_semantic(env, hook=None, model_version=None):
+async def select_semantic(env, hook=None, model_version=None, dimensions=2):
     model = fixture_config().model_copy(update={"scope": env.context.scope})
     if model_version:
         model = model.model_copy(update={"model_version_id": model_version})
@@ -41,7 +41,8 @@ async def select_semantic(env, hook=None, model_version=None):
                 "request_digest": digest(request.model_dump(mode="json")),
                 "structured": {
                     "embeddings": [
-                        [1, 0] if "预算" in item["content"] else [0, 1] for item in request.messages
+                        ([1, 0] if "预算" in item["content"] else [0, 1]) + [0] * (dimensions - 2)
+                        for item in request.messages
                     ]
                 },
             }
@@ -152,3 +153,17 @@ async def test_late_embedding_cannot_restore_deleted_memory(env):
             )
             == []
         )
+
+
+async def test_embedding_dimension_drift_is_not_silent_empty_retrieval(env):
+    saved = await env.memory.create(env.context, MemoryCreate(key="usual_budget", value=budget()))
+    assert (await select_semantic(env)).refs[0].memory_id == saved.memory_id
+    with pytest.raises(ServiceError) as failed:
+        await select_semantic(env, dimensions=3)
+    assert failed.value.code == "MEMORY_EMBEDDING_DIMENSION_MISMATCH"
+    assert failed.value.status == 502
+    # 新模型版本可建立独立维度空间，旧版本的有效缓存保持可用。
+    assert (await select_semantic(env, model_version="new-dimensions", dimensions=3)).refs[
+        0
+    ].memory_id == saved.memory_id
+    assert (await select_semantic(env)).refs[0].memory_id == saved.memory_id

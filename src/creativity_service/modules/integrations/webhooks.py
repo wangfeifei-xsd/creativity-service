@@ -31,6 +31,8 @@ from creativity_service.modules.integrations.automation_schemas import Toggle, W
 from creativity_service.modules.runs.schemas import TERMINAL
 from creativity_service.modules.runs.tables import metadata as runs_metadata
 
+MAX_DELIVERY_ATTEMPTS = 6
+
 
 class SigningAuthorization:
     def __init__(self, service: AutomationService, reference: str | None = None) -> None:
@@ -317,6 +319,24 @@ class WebhookService:
             await DeletionGuard(context.scope).check(
                 uow, [ContentRef("webhook_delivery", row["id"])]
             )
+            if current["cycle_attempts"] >= MAX_DELIVERY_ATTEMPTS:
+                # 发出请求后 Worker 可能中断；租约恢复仍消耗原次数，不能额外发送第七次。
+                await delivery_repo.change(
+                    uow,
+                    row["id"],
+                    current["revision"],
+                    {
+                        "state": "FAILED",
+                        "http_status": None,
+                        "error": {
+                            "code": "DELIVERY_ATTEMPTS_EXHAUSTED",
+                            "message": "自动投递次数已达上限，最后一次结果未确认，可人工重投",
+                        },
+                        "lease_nonce": None,
+                        "lease_until": None,
+                    },
+                )
+                return
             current = await delivery_repo.change(
                 uow,
                 row["id"],
@@ -387,7 +407,7 @@ class WebhookService:
             error = {"code": exc.code, "message": exc.message}
             if exc.status in {401, 403, 404, 409, 410}:
                 state = "CANCELLED"
-        if state == "RETRY" and current["cycle_attempts"] >= 6:
+        if state == "RETRY" and current["cycle_attempts"] >= MAX_DELIVERY_ATTEMPTS:
             state = "FAILED"
         async with transaction(self.engine, context.scope, lock) as uow:
             latest = await delivery_repo.get(uow.connection, row["id"])

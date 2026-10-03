@@ -210,15 +210,59 @@ class AutomationService:
 
     async def batch(self, context: AuthContext, identifier: str) -> BatchView:
         await self.runs.authorization.require(context, "run:read", "scope")
-        row = await self.get(context, "automation_batches", identifier)
-        items = [await self.get(context, "automation_items", i) for i in row["item_ids"]]
+        async with transaction(self.engine, context.scope, keys(context)) as uow:
+            row = await repo(context.scope, "automation_batches").get(uow.connection, identifier)
+            if not row or row["owner_key"] != owner(context):
+                raise ServiceError("NOT_FOUND", "当前身份与范围没有此记录", 404)
+            await DeletionGuard(context.scope).check(uow, [ContentRef("batch", identifier)])
+            items = []
+            for item_id in row["item_ids"]:
+                item = await repo(context.scope, "automation_items").get(uow.connection, item_id)
+                if not item or item["owner_key"] != owner(context):
+                    raise ServiceError("NOT_FOUND", "当前身份与范围没有此条目", 404)
+                if await self.item_deleted(uow, context, item):
+                    item = {**item, "state": "DELETED", "run_id": None, "error": None}
+                items.append(self.item_view(item))
         return BatchView(
             batch_id=identifier,
             name=row["name"],
             state_label=LABELS[row["state"]],
             revision=row["revision"],
-            items=[self.item_view(i) for i in items],
+            items=items,
         )
+
+    async def list_batches(self, context: AuthContext) -> list[BatchView]:
+        await self.manage(context)
+        async with self.engine.connect() as connection:
+            records = await repo(context.scope, "automation_batches").find(
+                connection, owner_key=owner(context)
+            )
+        result = []
+        for row in sorted(records, key=lambda row: row["created_at"], reverse=True):
+            if row["state"] == "DELETED":
+                continue
+            try:
+                result.append(await self.batch(context, row["id"]))
+            except ServiceError as exc:
+                if exc.code != "CONTENT_DELETED":
+                    raise
+            if len(result) == 100:
+                break
+        return result
+
+    @staticmethod
+    async def item_deleted(uow: UnitOfWork, context: AuthContext, row: dict[str, Any]) -> bool:
+        refs = [ContentRef("batch_item", row["id"])]
+        if row["run_id"]:
+            # 运行删除标记先于派生清理任务，读取和取消均须立即屏蔽该条目。
+            refs.append(ContentRef("run", row["run_id"]))
+        try:
+            await DeletionGuard(context.scope).check(uow, refs)
+        except ServiceError as exc:
+            if exc.code != "CONTENT_DELETED":
+                raise
+            return True
+        return bool(row["state"] == "DELETED")
 
     @staticmethod
     def item_view(row: dict[str, Any]) -> ItemView:
@@ -361,12 +405,15 @@ class AutomationService:
                 *(("automation_items", i) for i in batch["item_ids"]),
             ),
         ) as uow:
+            await DeletionGuard(context.scope).check(uow, [ContentRef("batch", identifier)])
             await repo(context.scope, "automation_batches").change(
                 uow, identifier, revision, {"state": "CANCELLED"}
             )
             for item_id in batch["item_ids"]:
                 item = await repo(context.scope, "automation_items").get(uow.connection, item_id)
                 if not item or item["batch_id"] != identifier:
+                    continue
+                if await self.item_deleted(uow, context, item):
                     continue
                 if item["state"] in {"PENDING", "CLAIMED", "FAILED"}:
                     await repo(context.scope, "automation_items").change(
@@ -375,7 +422,12 @@ class AutomationService:
                 if item["run_id"] and cancel_runs:
                     run_ids.append(item["run_id"])
         for run_id in run_ids:
-            await self.runs.cancel(context, run_id)
+            try:
+                await self.runs.cancel(context, run_id)
+            except ServiceError as exc:
+                # 批次事务提交后仍可能收到删除标记，不阻断其他条目的取消。
+                if exc.code != "CONTENT_DELETED":
+                    raise
         return await self.batch(context, identifier)
 
     async def fire(self, row: dict[str, Any], now: datetime) -> None:

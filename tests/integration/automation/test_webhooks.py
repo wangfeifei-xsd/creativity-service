@@ -1,8 +1,10 @@
 """真实运行终态形成稳定事件，签名、重投与停用不泄露运行正文。"""
 
+import asyncio
 import hashlib
 import hmac
 import json
+from datetime import timedelta
 
 import pytest
 from pydantic import SecretBytes
@@ -10,6 +12,7 @@ from pydantic import SecretBytes
 from creativity_service.core.database import assert_external_io_allowed
 from creativity_service.core.security.outbound import Destination, OutboundPolicy
 from creativity_service.integrations.outbound import HttpResponse
+from creativity_service.modules.integrations import webhooks
 from creativity_service.modules.integrations.automation_schemas import Toggle, WebhookCreate
 from creativity_service.modules.integrations.webhooks import WebhookService
 from creativity_service.workers.executor import execute_message
@@ -53,8 +56,7 @@ class Receiver:
         return HttpResponse(self.status, b"")
 
 
-async def test_webhook_stable_event_signature_manual_retry_and_disabled(runtime_env):
-    env = runtime_env
+async def configured(env):
     policy = OutboundPolicy(
         (
             Destination(
@@ -74,6 +76,12 @@ async def test_webhook_stable_event_signature_manual_retry_and_disabled(runtime_
         env.context,
         WebhookCreate(name="本地验收接收器", url="http://127.0.0.1:4444/events", secret="s" * 32),
     )
+    return service, endpoint, receiver
+
+
+async def test_webhook_stable_event_signature_manual_retry_and_disabled(runtime_env):
+    env = runtime_env
+    service, endpoint, receiver = await configured(env)
     receipt, message = await admitted(env)
     await execute_message(env.runs, message, "webhook-worker", env.runtime)
     await service.sweep(env.context.scope.channel_id)
@@ -94,3 +102,37 @@ async def test_webhook_stable_event_signature_manual_retry_and_disabled(runtime_
     )
     assert (await service.endpoints(env.context))[0]["state"] == "PAUSED"
     assert "secret" not in json.dumps(await service.endpoints(env.context))
+
+
+async def test_webhook_retry_budget_survives_worker_crashes(runtime_env, monkeypatch):
+    env = runtime_env
+    service, _, receiver = await configured(env)
+    _, message = await admitted(env)
+    await execute_message(env.runs, message, "webhook-crash-worker", env.runtime)
+    instant = webhooks.utcnow()
+    monkeypatch.setattr(webhooks, "utcnow", lambda: instant)
+    post = receiver.post
+
+    async def interrupted(*args, **kwargs):
+        await post(*args, **kwargs)
+        # 请求已发出但 Worker 未持久化结果，恢复只能消耗同一轮剩余次数。
+        raise asyncio.CancelledError()
+
+    monkeypatch.setattr(receiver, "post", interrupted)
+    for _ in range(6):
+        with pytest.raises(asyncio.CancelledError):
+            await service.sweep(env.context.scope.channel_id)
+        instant += timedelta(seconds=61)
+    await service.sweep(env.context.scope.channel_id)
+    row = (await service.deliveries(env.context))[0]
+    assert row["state"] == "FAILED" and row["attempts"] == 6
+    assert len(receiver.calls) == 6
+    event = json.loads(receiver.calls[0][0])
+    assert all(json.loads(body) == event for body, _ in receiver.calls)
+    monkeypatch.setattr(receiver, "post", post)
+    receiver.status = 200
+    await service.retry(env.context, row["id"], row["revision"])
+    await service.sweep(env.context.scope.channel_id)
+    row = (await service.deliveries(env.context))[0]
+    assert row["state"] == "SUCCEEDED" and row["attempts"] == 7
+    assert json.loads(receiver.calls[-1][0]) == event

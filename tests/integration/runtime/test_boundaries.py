@@ -176,6 +176,39 @@ async def test_sse_auth_control_closes_but_task_survives(runtime_env, monkeypatc
     assert (await env.runs.load(message))["state"] == "SUCCEEDED"
 
 
+async def test_sse_drains_events_committed_after_empty_poll(runtime_env, monkeypatch):
+    env = runtime_env
+    receipt, message = await admitted(env)
+    original = env.runs.events
+    finished = False
+
+    async def finish_after_empty_poll(*args, **kwargs):
+        nonlocal finished
+        events = await original(*args, **kwargs)
+        if not events and not finished:
+            # 确定性模拟查事件后、读终态前提交结果，不能将旧空页当作最终进度。
+            finished = True
+            await execute_message(env.runs, message, "worker", env.runtime)
+        return events
+
+    monkeypatch.setattr(env.runs, "events", finish_after_empty_poll)
+    response = await env.client.get(f"/admin/v1/runs/{receipt.run_id}/events")
+    assert response.status_code == 200
+    value = await env.runs.get_run(env.context, receipt.run_id)
+    assert finished and value.state == "SUCCEEDED", value.error
+    assert response.text.count("event: result\n") == 1, response.text
+    assert response.text.count("event: completed\n") == 1, response.text
+    identifiers = [int(line[4:]) for line in response.text.splitlines() if line.startswith("id: ")]
+    persisted = await original(env.context, receipt.run_id)
+    assert identifiers == [event.sequence for event in persisted]
+    # 消费者已读到完成序号时仍应正常关闭，不能为补读而永远轮询。
+    resumed = await env.client.get(
+        f"/admin/v1/runs/{receipt.run_id}/events",
+        headers={"Last-Event-ID": str(identifiers[-1])},
+    )
+    assert resumed.status_code == 200 and resumed.text == ""
+
+
 async def test_unknown_sent_response_never_resends(runtime_env):
     env = runtime_env
     receipt, message = await admitted(env)

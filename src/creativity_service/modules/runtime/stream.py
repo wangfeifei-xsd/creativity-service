@@ -57,7 +57,10 @@ async def event_stream(
                     TaskEnvelope(channel_id=context.scope.channel_id, run_id=run_id)
                 )
                 if row["state"] in TERMINAL:
-                    return
+                    # 空页与终态可能分属提交前后；消费完同事务写入的最终事件才能关闭。
+                    if sequence >= row["event_sequence"]:
+                        return
+                    continue
                 if monotonic() - heartbeat >= heartbeat_seconds:
                     await runs.authorization.require(
                         await runs.access_context(context, run_id), "run:content", run_id

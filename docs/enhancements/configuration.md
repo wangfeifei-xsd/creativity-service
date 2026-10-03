@@ -6,7 +6,7 @@
 
 新增迁移链：`0028_memory_vectors → 0029_mcp_oauth → 0030_automation → 0031_identity_operations`。迁移仅增加本次模型，保持应用服务层校验和事务互斥；模型档案在 `docs/data-model`。本次集成验收在临时 schema 升级到 head，测试结束清理 schema，没有升级主 public schema。应用开发环境准备使用时执行 `uv run alembic upgrade head`，不要把测试临时 schema 作为应用数据库。
 
-语义检索依赖 pgvector 0.8.2，安装/启用方法见 [向量环境](../../deploy/vector.md)。本次本地数据库已安装并启用该扩展。向量缓存保存 JSONB，先物化完整 Scope 与已复核记忆集合，再使用 pgvector 的余弦距离精确排序；当前没有 ANN 索引。Agent 的 `embedding_route_version` 绑定已通过 embedding 能力测试的单模型路由，并开启记忆策略。缺扩展或供应商失败按该版本的 OMIT/FAIL 策略处理，向量成本进入用量和预算。
+语义检索依赖 pgvector 0.8.2，安装/启用方法见 [向量环境](../../deploy/vector.md)。本次本地数据库已安装并启用该扩展。向量缓存保存 JSONB，先物化完整 Scope 与已复核记忆集合，再使用 pgvector 的余弦距离精确排序；当前没有 ANN 索引。Agent 的 `embedding_route_version` 绑定已通过 embedding 能力测试的单模型路由，并开启记忆策略。缺扩展、供应商失败或同模型版本的向量维度漂移按该版本的 OMIT/FAIL 策略处理，向量成本进入用量和预算。更换向量维度时须发布新模型版本，不能沿用旧版本缓存空间。
 
 ## 暂停与写工具
 
@@ -55,6 +55,8 @@ Agent 可视化流程的计算节点提供对象组装、等待补充和等待�
 
 批次每次最多 100 项、总正文 1 MiB，每项包含 `event_id` 与 `request`（agent_code、input 等统一 RunInput 字段）。相同 Scope/执行身份/event_id 跨批去重，相同事件不同内容返回冲突；整体请求用 `Idempotency-Key`。单项受理失败可重试；批次取消可同时取消已关联运行。
 
+批次中的运行或条目删除后，保留条目编号与“已删除”状态，不提供运行链接或错误内容；其余条目仍可查询、取消。删除标记提交即生效，不等待后台清理完成，也不允许重试恢复已删除条目。
+
 只读分析工具须来自 MCP，设置 `analysis_policy.rows_path` 和 `max_rows`（最多 10000）。工具现有 timeout/max_result_size 同时控制时长与字节数。部分结果必须带 coverage/truncated/has_more 信息；缺失值不填零。SQL、指标定义与领域公式归业务 MCP；平台通用 Python 计算走前述隔离执行器。
 
 ## Webhook 与告警
@@ -62,6 +64,8 @@ Agent 可视化流程的计算节点提供对象组装、等待补充和等待�
 配置 `CREATIVITY_AUTOMATION_DESTINATIONS`、`CREATIVITY_AUTOMATION_KEY_VERSION`、`CREATIVITY_AUTOMATION_ENCRYPTION_KEYS`。白名单条目包含实际 channel_id、environment、purpose=`webhook`、host、port、scheme；访问内网必须显式设置 allowed_networks。主密钥格式与 MCP 相同，端点签名密钥通过管理页面录入（至少 32 字符）。
 
 正文为 UTF-8 规范 JSON，只发最小状态信息。签名验证：`HMAC-SHA256(secret, timestamp + "." + 原始正文)`；请求头为 `X-Creativity-Event-Id`、`X-Creativity-Timestamp`、`X-Creativity-Signature: v1=<hex>`。接收方校验签名和时间窗口，按 event_id 去重。每轮最多六次自动投递，指数退避；3xx 不跳转，4xx 除 408/429 外终止。人工重投保留原 event_id 和累计尝试数，每轮自动计数重新开始。
+
+请求发出后 Worker 中断也消耗本轮尝试次数；租约到期不重置计数。第六次回执未确认时停止自动发送，页面显示失败并支持人工重投，接收方仍以同一 event_id 去重。
 
 运行事件包含 run_id、state、occurred_at、status_path。status_path 是原管理身份在平台内查询用的相对路径，接收方仍需持有获授权的平台身份；事件不携带 Token 或运行原文。
 

@@ -128,18 +128,7 @@ async def retry_delivery(
 
 @router.get("/batches")
 async def batches(context: Context, service: Automation) -> list[BatchView]:
-    await service.manage(context)
-    from creativity_service.modules.integrations.automation import owner, repo
-
-    async with service.engine.connect() as connection:
-        rows = await repo(context.scope, "automation_batches").find(
-            connection, owner_key=owner(context)
-        )
-    return [
-        await service.batch(context, r["id"])
-        for r in sorted(rows, key=lambda r: r["created_at"], reverse=True)[:100]
-        if r["state"] != "DELETED"
-    ]
+    return await service.list_batches(context)
 
 
 @router.get("/alert-rules")

@@ -140,6 +140,14 @@ async def semantic_selection(
                     row, effective
                 ):
                     await DeletionGuard(context.scope).check(uow, [ContentRef("memory", row["id"])])
+                    cached = await vectors.get(uow.connection, identifier)
+                    if cached and cached["dimensions"] != len(generated[0]):
+                        # 同一模型版本的缓存与查询必须属于同一空间，供应商漂移不能当作无匹配。
+                        raise ServiceError(
+                            "MEMORY_EMBEDDING_DIMENSION_MISMATCH",
+                            "向量维度与当前模型版本的缓存不一致，请核查模型配置",
+                            502,
+                        )
                     valid[identifier] = row
         for (identifier, _), embedding in zip(missing, generated[1:], strict=True):
             if identifier not in valid or await vectors.get(uow.connection, identifier):
