@@ -1,68 +1,194 @@
-# creativity-service
+# Creativity Service
 
-Python 3.12 + FastAPI，API 与 Celery Worker 分进程运行。使用 uv 0.10.12；完整启动顺序见 [项目 README](../README.md)，开发规范见 [rule.md](../rule.md)。
+Creativity AI 能力平台的后端服务，提供模型接入、Agent 编排、MCP 工具调用、会话与记忆、用量预算和效果评测能力。业务系统通过统一 API 调用 Agent，通过 MCP 提供业务工具。
 
-08 用量与预算已接入，服务边界及运行调用顺序见 [用量交接](docs/usage.md)。异步导出由持久化任务驱动，需同时启动 Worker 与调度器。
+服务采用 Python + FastAPI，API、Celery Worker 与定时调度器分别运行。平台配置和运行管理由 [Creativity Web](../creativity-web/README.md) 提供。
 
-## 命令
+## 目录
 
-| 命令 | 用途 |
+- [主要功能](#主要功能)
+- [技术栈](#技术栈)
+- [环境要求](#环境要求)
+- [快速开始](#快速开始)
+- [配置](#配置)
+- [开发与测试](#开发与测试)
+- [项目结构](#项目结构)
+- [文档](#文档)
+- [参与开发](#参与开发)
+
+## 主要功能
+
+- **渠道与权限**：渠道隔离、账号认证、成员管理、资源授权及操作审计。
+- **模型与 Agent**：模型配置、提示词与 Skills 管理、Agent 版本发布及运行编排。
+- **工具与接入**：MCP 连接、工具发现与执行、业务身份委托及统一调用 API。
+- **任务与内容**：同步、异步和 SSE 结果交付，会话、结构化记忆、文件产物及数据清理。
+- **用量与评测**：调用计量、预算控制、样本管理、批量评测及发布门禁。
+
+## 技术栈
+
+| 用途 | 技术 |
 | --- | --- |
-| `uv sync --locked` | 按锁文件创建虚拟环境并安装依赖 |
-| `make infra-up` | 启动 PostgreSQL、Redis、MinIO，显式创建开发桶 |
-| `make dev` | 启动可热重载的 API，监听 127.0.0.1:8000 |
-| `make scheduler` | 启动 Celery Beat，定期唤醒用量导出及预占补偿 |
-| `uv run creativity-api` | 启动不热重载的 API |
-| `make worker` | 独立启动单进程开发 Worker |
-| `make format` | 格式化并修复可自动修复的 lint 问题 |
-| `make check` | 格式、lint、严格类型、单元测试与契约一致性检查 |
-| `make integration` | 真实基础设施与 Worker 冒烟验证 |
-| `uv run creativity-openapi` | 不连接基础设施，导出 contracts/openapi.json |
-| `uv run creativity-openapi --check` | 校验当前契约内容 |
-| `make migrate` | 显式升级至当前迁移 head |
-| `make contracts` | 生成公共及渠道 JSON Schema、样例与 OpenAPI |
-| `make channels-init` | 幂等初始化系统渠道，不创建业务凭据 |
-| `make model-check` | 校验全量模型档案、迁移源码及公共定义 |
-| `make storage-audit` | 核验实际 PostgreSQL schema 与框架表 |
-| `make dependency-audit` | 扫描 Python 依赖公告 |
-| `make infra-down` | 停止开发容器，保留命名卷 |
+| API 与数据校验 | FastAPI、Pydantic |
+| 数据库与迁移 | PostgreSQL 17、SQLAlchemy、Alembic |
+| 缓存与任务 | Redis 7.4、Celery |
+| 对象存储 | S3 兼容接口，本地使用 MinIO |
+| 模型与编排 | LiteLLM、LangGraph、MCP SDK |
+| 可观测性 | JSON 日志、OpenTelemetry |
+| 工程检查 | Ruff、mypy、pytest |
+
+依赖版本由 [pyproject.toml](pyproject.toml) 和 [uv.lock](uv.lock) 管理。
+
+## 环境要求
+
+| 工具 | 要求 |
+| --- | --- |
+| Python | 3.12 |
+| uv | 0.10.12 |
+| Docker | 支持 Docker Compose v2 |
+| Make | 用于执行项目开发命令 |
+
+以下命令均在 `creativity-service` 项目目录执行。开发依赖由 Docker Compose 启动，API、Worker 和调度器在本地 Python 环境运行。
+
+## 快速开始
+
+### 1. 安装依赖
+
+首次使用时复制配置模板，再安装锁定版本的依赖：
+
+```bash
+cp .env.example .env
+uv sync --locked
+```
+
+### 2. 初始化本地环境
+
+```bash
+make infra-up
+make migrate
+make channels-init
+uv run creativity-iam init-admin --login-name admin --display-name 管理员
+```
+
+上述命令依次启动 PostgreSQL、Redis 和 MinIO，创建开发存储桶，执行数据库迁移，初始化系统渠道和平台管理员。管理员初始化仅在首次安装时执行；密码通过终端交互输入，首次登录后需要修改初始密码。
+
+### 3. 启动服务
+
+在一个终端启动 API：
+
+```bash
+make dev
+```
+
+在另一个终端进入同一项目目录，启动 Worker：
+
+```bash
+make worker
+```
+
+再打开一个终端进入同一项目目录，启动定时调度器：
+
+```bash
+make scheduler
+```
+
+Worker 执行后台任务，调度器触发运行补偿、用量导出、连接检查和数据清理。需要管理页面时，继续按 [前端快速开始](../creativity-web/README.md#快速开始) 启动前端，并使用刚创建的管理员登录。
+
+### 4. 检查服务
+
+| 入口 | 地址 |
+| --- | --- |
+| API 文档 | [Swagger UI](http://127.0.0.1:8000/docs) |
+| 存活检查 | [GET /health/live](http://127.0.0.1:8000/health/live) |
+| 就绪检查 | [GET /health/ready](http://127.0.0.1:8000/health/ready) |
+
+```bash
+curl -fsS http://127.0.0.1:8000/health/ready
+```
+
+就绪检查会报告数据库、Redis 和对象存储状态，必要依赖不可用时返回 HTTP 503。管理接口使用 `/admin/v1` 前缀，业务调用接口使用 `/api/v1` 前缀；认证及调用示例见 [统一 API 接入指南](docs/unified-api.md)。
+
+结束开发时，在各终端按 `Ctrl+C` 停止进程，再执行 `make infra-down` 停止开发依赖；数据库和对象存储的命名卷会保留。
 
 ## 配置
 
-从工程当前目录读取 `.env`，进程环境变量优先。可直接通过环境注入配置而不提供 `.env`。启动前校验全部必要连接项，缺失或格式错误立即失败；外部服务断线不会伪装成配置错误，而是反映在就绪探针中。日志输出 JSON；响应头 `X-Request-ID` 与错误正文中的 `request_id` 一致。
+服务从当前目录读取 `.env`，进程环境变量优先。基础配置模板见 [.env.example](.env.example)，详细说明见 [工程配置文档](docs/bootstrap.md)。
 
-配置项清单、Redis 分库及前缀约定见 [bootstrap.md](docs/bootstrap.md)。示例凭据仅用于本地容器，生产值从部署环境注入。开启 OpenTelemetry 导出需同时配置 `CREATIVITY_OTEL_ENABLED=true` 和 `CREATIVITY_OTEL_EXPORTER_OTLP_ENDPOINT`，端点为采集器基地址（例如 `http://127.0.0.1:4318`）。API 和 Worker 使用独立的追踪服务名，进程关闭时刷新并关闭导出器。
+| 配置项 | 用途 |
+| --- | --- |
+| `CREATIVITY_DATABASE_URL` | PostgreSQL 连接地址 |
+| `CREATIVITY_REDIS_CACHE_URL`、`CREATIVITY_REDIS_AUTH_URL` | 缓存与认证 Redis 连接 |
+| `CREATIVITY_CELERY_BROKER_URL`、`CREATIVITY_CELERY_RESULT_URL` | 任务队列与结果 Redis 连接 |
+| `CREATIVITY_S3_*` | 对象存储端点、区域、凭据与存储桶 |
+| `CREATIVITY_CORS_ORIGINS` | 允许的浏览器来源，使用 JSON 数组 |
+| `CREATIVITY_DELETION_LEDGER_PATH` | 删除意图清单的持久化目录 |
+| `CREATIVITY_OTEL_ENABLED`、`CREATIVITY_OTEL_EXPORTER_OTLP_ENDPOINT` | 追踪导出开关及 OTLP HTTP 端点 |
 
-## 扩展入口
+本地默认端口为 PostgreSQL `55432`、Redis `56379`、MinIO API `59000`、MinIO 控制台 `59001`。缓存、认证、任务队列和任务结果分别使用独立的 Redis 数据库。
 
-`api/routes.py` 固定 `/admin/v1` 与 `/api/v1` 前缀。业务模块放在 `modules/<模块>/`，外部适配放在 `integrations/`，任务装配放在 `workers/`。Worker 已执行持久化运行、租约恢复和用量任务；场景计算通过受信步骤注册表接入。
+示例凭据用于本地开发，部署时通过环境注入实际凭据。删除清单的共享持久卷要求见 [数据生命周期文档](docs/data-lifecycle.md)；向量检索、MCP OAuth、脚本执行和外部身份等可选能力见 [扩展配置](docs/enhancements/configuration.md)。
 
-迁移链当前包含 `0001_core` 的 10 张公共表、`0002_iam` 的 5 张 IAM 表及 `0003_channels` 的 9 张渠道表。控制面版本表为 `creativity_alembic_version`，显式写入系统渠道 `system`，具备中文注释且不创建唯一索引；迁移命令通过事务锁串行执行。03 已完成数据模型、公共契约及设施，详见 [公共设施交接](docs/core.md) 和 [数据模型索引](docs/data-model/README.md)。
+## 开发与测试
 
-账号初始化命令为 `uv run creativity-iam init-admin --login-name admin --display-name 管理员`，通过终端隐藏输入密码。撤销补偿使用 `make iam-reconcile`。账号、登录、成员、资源授权与审计已经接通；05 已注入真实渠道、工作区及服务 Key 状态，系统渠道须先运行 `make channels-init`。完整接口及交接见 [IAM 说明](docs/iam.md)。
+| 命令 | 说明 |
+| --- | --- |
+| `make dev` | 启动支持热重载的 API |
+| `make worker` | 启动本地单进程 Worker |
+| `make scheduler` | 启动 Celery Beat 调度器 |
+| `make format` | 格式化代码并修复可自动修复的 lint 问题 |
+| `make check` | 执行格式、lint、严格类型、非集成测试、契约及存储定义检查 |
+| `make test` | 运行非集成测试 |
+| `make integration` | 运行依赖真实基础设施的集成测试 |
+| `make migrate` | 将数据库迁移至当前版本 |
+| `make openapi` | 导出完整接口和业务接口的 OpenAPI |
+| `make contracts` | 生成各模块 JSON Schema、样例及 OpenAPI |
+| `make model-check` | 校验模型档案、迁移源码及存储定义 |
+| `make storage-audit` | 检查实际数据库结构 |
+| `make dependency-audit` | 扫描 Python 依赖公告 |
+| `uv build --wheel` | 构建 Python 分发包 |
 
-渠道接口、服务凭据交换、生命周期事件和后续模块端口见 [05 交接](docs/channels.md)。
+`make check` 无需启动外部服务。执行 `make integration` 或 `make storage-audit` 前，需要准备 `.env` 并启动开发依赖；数据库结构检查还需先运行迁移。集成测试使用隔离测试环境，相关用例会启动独立 Worker。
 
-11 已交付任务受理与可靠调度基础，详见 [运行交接](docs/runs.md) 与 [故障验证](docs/runs-validation.md)。17 已开放正式运行路由、执行器与 SSE，API/Worker 使用同一装配，见 [编排交接](docs/runtime.md)、[验证记录](docs/runtime-validation.md) 和 [SSE 契约](docs/runtime-sse.md)。两个真实模型组合仍为未验证，不能把自动夹具测试作为供应商验收。
+接口变更后执行 `make openapi`，再按 [前端接口类型生成说明](../creativity-web/README.md#接口类型生成) 更新前端类型。完整命令以 [Makefile](Makefile) 为准，真实模型和组合场景的验证范围见 [验收文档](docs/acceptance/README.md)。
 
-业务接入、独立 HMAC 身份委托、源服务配置与 19/20 接口交接见 [业务接入交接](docs/integrations.md)，专项验证见 [18 验证记录](docs/integrations-validation.md)。
+## 项目结构
 
-会话生命周期、消息与运行事务、上下文来源、删除意图及页面见 [12 会话交接](docs/conversations.md)。迁移为 `0012_conversations`，17 已接入正式模型、会话目录和统一流式结果组件。
+```text
+creativity-service/
+├── src/creativity_service/
+│   ├── api/             # 路由、健康检查与 OpenAPI
+│   ├── core/            # 配置、认证、存储、契约及公共设施
+│   ├── modules/         # 平台功能模块
+│   ├── integrations/    # 模型、工具及外部系统集成
+│   ├── workers/         # Celery 装配、执行、调度及补偿
+│   ├── app.py           # FastAPI 应用工厂
+│   └── cli.py           # API 启动入口
+├── alembic/             # 数据库迁移
+├── contracts/           # OpenAPI、JSON Schema 与示例
+├── deploy/              # 开发依赖及可选能力的容器配置
+├── docs/                # 模块说明、数据模型与验证记录
+├── examples/            # 接入和配置示例
+├── scripts/             # 文档、契约及验收工具
+├── sdks/                # 调用 SDK
+├── tests/               # 单元、契约、集成及端到端测试
+├── .env.example         # 本地配置模板
+├── Makefile             # 常用开发命令
+└── pyproject.toml       # Python 依赖与工具配置
+```
 
-结构化记忆、完整 Scope 属性检索、来源重算与管理页面见 [13 记忆交接](docs/memory.md)；专项验收见 [验证记录](docs/memory-validation.md)。新增迁移 `0013_memory`；17 已接入冻结策略与当前权限取交集的运行读取，全图删除与恢复由 25 组合验收。
+## 文档
 
-16 已交付 Agent 定义、配置向导、静态校验、冻结快照与环境发布，见 [Agent 交接](docs/agents.md) 和 [验证记录](docs/agents-validation.md)。迁移为 `0016_agents`；17 接通真实运行，24 提供评测证据，未接入有效证据时 prod 发布保持阻断。
+| 主题 | 入口 |
+| --- | --- |
+| API 与客户端 | [接入指南](docs/unified-api.md) · [调用示例](examples/backend/README.md) · [SDK](sdks/README.md) |
+| 账号与渠道 | [认证与授权](docs/iam.md) · [渠道管理](docs/channels.md) |
+| 模型与配置 | [模型](docs/models.md) · [提示词](docs/prompts.md) · [Skills](docs/skills.md) · [Agent](docs/agents.md) |
+| 工具与业务接入 | [MCP](docs/mcp.md) · [工具](docs/tools.md) · [业务接入](docs/integrations.md) · [配置示例](docs/configuration-delivery.md) |
+| 运行与会话 | [任务运行](docs/runs.md) · [运行编排](docs/runtime.md) · [SSE 协议](docs/runtime-sse.md) · [会话](docs/conversations.md) |
+| 记忆与数据 | [记忆](docs/memory.md) · [数据生命周期](docs/data-lifecycle.md) · [数据模型](docs/data-model/README.md) |
+| 用量与质量 | [用量和预算](docs/usage.md) · [效果评测](docs/evaluations.md) |
+| 扩展能力 | [配置说明](docs/enhancements/configuration.md) · [向量环境](deploy/vector.md) |
+| 验证与验收 | [组合验收](docs/acceptance/README.md) · [业务接入验证](docs/business-independence-validation.md) · [扩展验证](docs/enhancements/verification.md) |
 
-20 的 MCP 配置接入、当前主体复核、两套受控测试服务和迁移 `0021_mcp_subject_review` 见 [配置交接](docs/mcp-business.md)。
+## 参与开发
 
-21 已交付可移植 Skills、显式 MCP 工具绑定、参考资料加载和两套 Agent 配置，见 [配置交接](docs/configuration-delivery.md) 与 [验证记录](docs/configuration-validation.md)。正式发布继续受评测门禁控制。
-
-22 已交付统一后端客户端、业务接口 OpenAPI 与实际 TCP MCP 调用证据，见 [接入指南](docs/unified-api.md)、[可运行样例](examples/backend/README.md) 和 [验证记录](docs/unified-api-validation.md)。
-
-23 已完成固定构建下的三渠道业务无关接入验证，见 [接入清单](docs/business-independence.md)、[三套配置与独立复现脚本](examples/onboarding/README.md)、[调用及构建验收](docs/business-independence-validation.md)。该浏览器组合用例通过复现脚本显式启动，普通 `make integration` 会跳过未准备固定构建的执行。
-
-24 已交付样本版本、JSONL/CSV 导入、统一运行批量评测、基线对比、人工复核及 prod 发布门禁；见 [评测交接](docs/evaluations.md)、[验证记录](docs/evaluations-validation.md) 与 [样本装配](examples/evaluations/README.md)。迁移为 `0024_evaluations`，真实模型与 MCP 组合证据由 26 汇总。
-
-25 已完成删除全图、分批重试、渠道保留政策与独立恢复屏障；迁移为 `0025_data_lifecycle`。启动清理前配置独立持久卷并运行 Worker/Beat，命令与证明格式见 [删除生命周期交接](docs/data-lifecycle.md)，实测结果见 [验收记录](docs/data-lifecycle-validation.md)。
-
-26 的组合回归入口为 `.venv/bin/python -m scripts.verify_acceptance --stage all`，每次生成独立证据目录。当前交付包含完整需求追踪、真实管理页面、API、双域隔离、评测、性能和故障记录；见 [验收说明与阻断范围](docs/acceptance/README.md)。退出码 2 表示汇总完成但切换关口未通过，真实模型替身不计为供应商验收。
+开发前阅读 [项目规则](../rule.md)、[技术方案](../技术方案.md) 和对应的 [模块需求](../需求文档/00-需求总纲.md)。公共设施与模块接入方式见 [开发文档](docs/core.md)。提交变更前执行 `make check`，涉及基础设施或跨模块行为时补充相应集成验证。
