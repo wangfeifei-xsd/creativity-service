@@ -85,8 +85,7 @@ export class Client {
             }
           }
         } finally { await reader.cancel(); reader.releaseLock() }
-        const snapshot = await this.run(runId)
-        if (['SUCCEEDED', 'FAILED', 'CANCELLED', 'TIMED_OUT'].includes(String(snapshot.state))) return
+        // 运行终态不能证明最终事件已交付；未收到 completed 时按已交付游标重连。
       } catch (error) { if (signal?.aborted || error instanceof ApiError || attempt === reconnects) throw error }
       if (complete) return
       if (attempt < reconnects) await delay(attempt)

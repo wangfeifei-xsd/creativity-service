@@ -48,13 +48,13 @@ for await (const event of client.events(String(response.data.run_id), lastSequen
 }
 ```
 
-中止订阅只关闭本地事件流；取消服务器运行使用 `cancel(runId)`。Python 取消读取协程也只停止订阅。需要重连时，调用方可持久化最后 `sequence` 后传给 `after`。
+中止订阅只关闭本地事件流；取消服务器运行使用 `cancel(runId)`。Python 取消读取协程也只停止订阅。需要重连时，调用方可持久化最后 `sequence` 后传给 `after`，并保存是否已处理 `completed`；已经完成的订阅无需再次建立。
 
 ## 公共行为
 
 - `create_run` / `createRun` 和 `batch` 自动最多重试两次暂时性网络/502/503/504 错误，正文与幂等键保持不变；409 冲突、401/403 不自动重试。通用 `request` 最多允许五次重试，非 GET 重试必须提供幂等键。
 - `run`、`cancel`、`batch` 复用原运行和批次接口。失败任务也是正常可查询的运行结果，需要检查 `state` 和业务结果；不会因状态为 FAILED 自动重建。
-- SSE 发送 `Last-Event-ID`，去重已收到游标、识别 completed 和 control 事件；断流后查询终态并有界重连。支持 SUCCEEDED / FAILED / CANCELLED / TIMED_OUT，单事件最大 2 MiB。
+- SSE 发送 `Last-Event-ID`，去重已收到游标、识别 completed 和 control 事件；正常结束以收到 `completed` 为准，查询到运行终态不能证明最终事件已交付。提前断流时按最后完整事件游标有界重连，补取 `result` / `error` 和 `completed`；耗尽重连次数仍未完成则报 `STREAM_INTERRUPTED`，不会静默结束。事件过期、鉴权或 control 错误直接交给调用方处理，可另行调用 `run` 查询原运行。支持 SUCCEEDED / FAILED / CANCELLED / TIMED_OUT，单事件最大 2 MiB。
 - `ApiError` 保留 HTTP 状态、平台错误码与 request_id；不要把内部错误码直接作为终端用户文案。Python `async with` 释放连接；TypeScript 使用标准 fetch，支持调用方 AbortSignal。
 - 签名头以请求上下文生成；平台 Token 用于服务器认证。业务委托证明的签发和定期 Token 更新由业务方实现，不能把浏览器缓存身份或外部系统 Token 当作平台 Token。
 

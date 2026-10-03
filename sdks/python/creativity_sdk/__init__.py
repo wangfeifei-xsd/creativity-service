@@ -201,9 +201,7 @@ class Client:
                             event = line[6:].strip()
                         elif line.startswith("data:"):
                             data.append(line[5:].lstrip(" "))
-                snapshot = await self.run(run_id)
-                if snapshot.get("state") in {"SUCCEEDED", "FAILED", "CANCELLED", "TIMED_OUT"}:
-                    return
+                # 运行终态不能证明最终事件已交付；未收到 completed 时按已交付游标重连。
             except httpx.TransportError:
                 if attempt == reconnects:
                     raise
