@@ -5,6 +5,8 @@ import hashlib
 import json
 import os
 import platform
+import shlex
+import socket
 import subprocess
 import sys
 import time
@@ -13,6 +15,7 @@ from pathlib import Path
 
 import httpx
 
+from scripts.acceptance_report import FAULTS, release_gate, schema_evidence
 from scripts.render_acceptance import render
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -87,6 +90,7 @@ def environment(output):
                 text("SELECT count(*) FROM model_connections")
             ),
         }
+        schema_evidence(output, connection)
     engine.dispose()
     trees = {}
     for name, root in (("service", ROOT), ("web", WEB)):
@@ -133,6 +137,11 @@ def environment(output):
 
 
 def browser(output, env):
+    with socket.socket() as probe:
+        try:
+            probe.bind(("127.0.0.1", 18006))
+        except OSError as exc:
+            raise RuntimeError("18006 端口已被占用，请先停止此前的临时工作区服务") from exc
     server_log = (output / "logs/workspace-server.log").open("w")
     server = subprocess.Popen(
         [sys.executable, "-m", "tests.support.workspace_server"],
@@ -176,7 +185,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--stage",
-        choices=["all", "checks", "integration", "browser", "onboarding", "performance", "report"],
+        choices=[
+            "all",
+            "checks",
+            "integration",
+            "faults",
+            "browser",
+            "onboarding",
+            "performance",
+            "report",
+        ],
         default="all",
     )
     parser.add_argument("--output", type=Path)
@@ -205,19 +223,6 @@ def main():
                     ROOT,
                 ),
                 ("service-check", ["make", "check"], ROOT),
-                (
-                    "unit",
-                    [
-                        sys.executable,
-                        "-m",
-                        "pytest",
-                        "-m",
-                        "not integration",
-                        "-q",
-                        f"--junitxml={output}/logs/unit.xml",
-                    ],
-                    ROOT,
-                ),
                 ("web-check", ["pnpm", "check"], WEB),
             ]
         elif stage == "integration":
@@ -235,8 +240,28 @@ def main():
                     ROOT,
                 )
             ]
+        elif stage == "faults":
+            commands = [
+                (
+                    "faults",
+                    [
+                        sys.executable,
+                        "-m",
+                        "pytest",
+                        *[node for nodes in FAULTS.values() for node in nodes],
+                        "-q",
+                        f"--junitxml={output}/logs/faults.xml",
+                    ],
+                    ROOT,
+                )
+            ]
         elif stage == "browser":
-            if browser(output, env):
+            try:
+                result = browser(output, env)
+            except RuntimeError as exc:
+                print(str(exc), flush=True)
+                result = 1
+            if result:
                 failures.append(stage)
         elif stage == "onboarding":
             commands = [
@@ -282,33 +307,17 @@ def main():
                 )
             environment(output)
             report = render(output)
-            blockers = ["未提供两种真实供应商/协议组合的独立运行、能力和用量证据。"]
-            pending = [
-                row["id"]
-                for row in report["requirements"]
-                if row["status"] not in {"关联用例通过", "后续阶段", "真实连接阻断"}
-            ]
-            if pending:
-                blockers.append("关联自动用例证据未齐或失败：" + "、".join(pending))
-            performance = output / "performance.json"
-            if not performance.exists():
-                blockers.append("缺少独立性能测量记录。")
-            else:
-                measured = json.loads(performance.read_text())
-                for name in ("management_query", "admission_service"):
-                    if not measured[name]["passed"]:
-                        blockers.append(f"{name} P95 超出本次约定目标。")
-                blockers.append("完整 HTTP 受理以及真实外部并发和供应商等待时延尚未验收。")
-            gate = {
-                "formal_cutover_allowed": False,
-                "blockers": blockers,
-                "failed_commands": failures,
-            }
-            (output / "release-gate.json").write_text(
-                json.dumps(gate, ensure_ascii=False, indent=2) + "\n"
-            )
+            gate = release_gate(output, report, failures)
         for name, command, cwd in commands:
-            if execute(name, command, cwd, output, env):
+            command_env = dict(env)
+            if name == "service-check":
+                command_env["PYTEST_ADDOPTS"] = shlex.join(
+                    [
+                        *shlex.split(env.get("PYTEST_ADDOPTS", "")),
+                        f"--junitxml={output}/logs/unit.xml",
+                    ]
+                )
+            if execute(name, command, cwd, output, command_env):
                 failures.append(name)
                 # 构建失败不能继续把旧制品当作本次页面验收依据。
                 if name.startswith("build-"):
@@ -316,8 +325,8 @@ def main():
     print(f"证据目录：{output}", flush=True)
     if failures:
         raise SystemExit(1)
-    if args.stage in {"all", "report"}:
-        print("本地记录已汇总，真实模型与完整性能关口仍阻断正式切换。", flush=True)
+    if args.stage in {"all", "report"} and not gate["formal_cutover_allowed"]:
+        print("记录已汇总；阻断范围见 release-gate.json。", flush=True)
         raise SystemExit(2)
 
 

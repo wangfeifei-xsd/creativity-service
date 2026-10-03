@@ -4,6 +4,7 @@ import argparse
 import ast
 import hashlib
 import json
+import os
 import re
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
@@ -164,11 +165,13 @@ def render(folder):
         "| --- | --- | --- | --- | --- |",
     ]
     for row in records:
-        source = "../../../需求文档/" + Path(row["source"]).name
+        source = Path(os.path.relpath(ROOT / row["source"], folder)).as_posix()
         references = "<br>".join(
-            f"[{node.split('::')[-1]}](../../{node.split('::')[0]})" for node in row["tests"]
+            f"[{node.split('::')[-1]}]"
+            f"({Path(os.path.relpath(ROOT / node.split('::')[0], folder)).as_posix()})"
+            for node in row["tests"]
         )
-        # Markdown 路径从验收目录回到服务端需两层；原始节点与日志保存在 JSON。
+        # 输出目录可按本轮时间分层；原始节点与日志保存在 JSON。
         description = row["description"].replace("|", "\\|")
         lines.append(
             f"| [{row['id']}]({source}) | {description} | {row['plans']} | {row['status']} | "
