@@ -25,7 +25,7 @@ from creativity_service.core.primitives import (
 from creativity_service.core.versioning import version_view
 from creativity_service.integrations.models.contracts import ModelRequest
 from creativity_service.modules.agents.runtime import AgentRunResolver
-from creativity_service.modules.agents.schemas import AgentDefinition, FrozenExecutionSpec
+from creativity_service.modules.agents.schemas import AgentDefinition, FrozenExecutionSpec, Purpose
 from creativity_service.modules.agents.services import AgentService
 from creativity_service.modules.models.schemas import FrozenModel
 from creativity_service.modules.runs.schemas import AdmissionReceipt, ResolvedDefinition
@@ -97,6 +97,10 @@ class FrozenResolver:
             return
         if (
             spec.purpose not in {"debug", "evaluation"}
+            and not (
+                spec.purpose == "production"
+                and json.loads(spec.payload_json).get("runtime", {}).get("kind") == "memory"
+            )
             or spec.versions[0].resource_type != "runtime"
         ):
             raise ServiceError("SNAPSHOT_INVALID", "测试描述用途不符", 403)
@@ -146,6 +150,10 @@ class RuntimeAdmission:
             )
         else:
             payload = json.loads(spec.payload_json)
+            if payload["runtime"].get("kind") == "memory":
+                raise ServiceError(
+                    "MEMORY_RETRY_REQUIRED", "请从后台记忆整理重试以保留来源批次", 422
+                )
             descriptor = {**payload["runtime"], "report_test": False}
             spec = await self.freeze_test(
                 context,
@@ -184,8 +192,12 @@ class RuntimeAdmission:
         versions: list[ResourceVersion],
         descriptor: dict[str, Any],
         sources: list[ContentRef],
+        *,
+        purpose: Purpose = "debug",
     ) -> FrozenExecutionSpec:
         await self.runs.authorization.require(context, "run:create", "new")
+        if purpose == "production" and descriptor.get("kind") != "memory":
+            raise ServiceError("SNAPSHOT_INVALID", "正式内部运行仅接受后台记忆整理", 403)
         identifier = digest([context.scope.model_dump(), context.principal_id, key])
         version_id = "runtime_" + identifier[:48]
         source_refs = [[s.resource_type, s.resource_id] for s in sources]
@@ -221,7 +233,7 @@ class RuntimeAdmission:
                             "resource_type": "runtime",
                             "resource_id": identifier,
                             "version_label": name,
-                            "state": "DRAFT",
+                            "state": "PUBLISHED" if purpose == "production" else "DRAFT",
                             "content": content,
                             "content_digest": digest(
                                 {"content": content, "output_schema": config.output_schema}
@@ -249,7 +261,7 @@ class RuntimeAdmission:
             agent_name=name,
             source_version_id=version_id,
             source_revision=1,
-            purpose="debug",
+            purpose=purpose,
             content_digest=root.content_digest,
             dependencies_digest=digest([v.model_dump(mode="json") for v in frozen]),
             candidate_digest=digest(content),

@@ -111,3 +111,65 @@ def test_run_subscription_upgrade_preserves_existing_scope_and_is_reversible():
         with engine.begin() as connection:
             connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
         engine.dispose()
+
+
+def test_layered_memory_migration_preserves_configured_and_implicit_legacy_attributes():
+    schema = f"test_memory_migration_{uuid4().hex}"
+    config = Config("alembic.ini")
+    config.set_main_option("version_table_schema", schema)
+    engine = create_engine(Settings().database_url.get_secret_value())
+    try:
+        with engine.begin() as connection:
+            connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+            connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
+            config.attributes["connection"] = connection
+            command.upgrade(config, "0032_run_subscriptions")
+            connection.execute(
+                text(
+                    "INSERT INTO memories (id, channel_id, key, value) "
+                    "VALUES ('legacy', 'implicit', 'play_style', '\"休闲\"'::jsonb)"
+                )
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO memory_policies (id, channel_id, agent_id, max_items) "
+                    "VALUES ('policy', 'configured', NULL, 25)"
+                )
+            )
+            command.upgrade(config, "head")
+            assert connection.execute(text("SELECT source_mode, value FROM memories")).one() == (
+                "ANY",
+                "休闲",
+            )
+            policies = connection.execute(
+                text(
+                    "SELECT channel_id, max_items, attributes FROM memory_policies "
+                    "ORDER BY channel_id"
+                )
+            ).all()
+            assert len(policies) == 2
+            assert [(p.channel_id, p.max_items) for p in policies] == [
+                ("configured", 25),
+                ("implicit", 100),
+            ]
+            assert all("play_style" in {v["key"] for v in p.attributes} for p in policies)
+            assert (
+                connection.execute(text("SELECT count(*) FROM memory_consolidations")).scalar_one()
+                == 0
+            )
+            command.downgrade(config, "0032_run_subscriptions")
+            assert connection.execute(text("SELECT value FROM memories")).scalar_one() == "休闲"
+            command.upgrade(config, "head")
+            assert (
+                connection.execute(
+                    text(
+                        "SELECT count(*) FROM memory_policies WHERE channel_id = 'implicit' "
+                        "AND agent_id IS NULL"
+                    )
+                ).scalar_one()
+                == 1
+            )
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        engine.dispose()

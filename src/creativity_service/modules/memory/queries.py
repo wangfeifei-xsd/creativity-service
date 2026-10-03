@@ -25,7 +25,7 @@ from creativity_service.modules.memory.schemas import (
     PreferenceView,
 )
 from creativity_service.modules.memory.tables import metadata
-from creativity_service.modules.memory.validation import ATTRIBUTES, value_label
+from creativity_service.modules.memory.validation import value_label
 
 
 class MemoryQueries(MemoryKernel):
@@ -41,7 +41,7 @@ class MemoryQueries(MemoryKernel):
             uow.connection, "memory_versions", context.scope, id=row["current_version_id"]
         )
         allowed = {"delete"}
-        if row["status"] in {"ACTIVE", "PROPOSED", "EXPIRED"}:
+        if row["memory_type"] != "ARCHIVE" and row["status"] in {"ACTIVE", "PROPOSED", "EXPIRED"}:
             allowed.add("edit")
         if row["status"] == "PROPOSED":
             allowed.add("confirm")
@@ -49,6 +49,8 @@ class MemoryQueries(MemoryKernel):
             allowed.clear()
         return MemoryView(
             memory_id=row["id"],
+            layer="archive" if row["memory_type"] == "ARCHIVE" else "profile",
+            layer_label="归档" if row["memory_type"] == "ARCHIVE" else "人物画像",
             key=row["key"],
             display_name=row["display_name"],
             memory_type=row["memory_type"],
@@ -154,8 +156,13 @@ class MemoryQueries(MemoryKernel):
         limit: int = 30,
         status: str | None = None,
         key: str | None = None,
+        layer: str | None = None,
     ) -> MemoryList:
-        if not 1 <= limit <= 200 or status not in {None, *STATES}:
+        if (
+            not 1 <= limit <= 200
+            or status not in {None, *STATES}
+            or layer not in {None, "archive", "profile"}
+        ):
             raise ServiceError("MEMORY_FILTER_INVALID", "记忆筛选条件不正确", 422)
         if anchor_id:
             context = await self.subject(context, anchor_id)
@@ -165,7 +172,7 @@ class MemoryQueries(MemoryKernel):
         actions = await self.actions(context)
         if await self.allowed(context, "channel:manage", context.scope.channel_id):
             actions.append(VisibleAction(action_key="policy", label="渠道策略"))
-        binding = digest([context.scope.model_dump(), context.principal_id, status, key])
+        binding = digest([context.scope.model_dump(), context.principal_id, status, key, layer])
         parsed = decode_cursor(cursor, binding)
         try:
             ceiling = datetime.fromisoformat(parsed["ceiling"]) if parsed else utcnow()
@@ -189,6 +196,12 @@ class MemoryQueries(MemoryKernel):
                         table.c.created_at < after[0],
                         and_(table.c.created_at == after[0], table.c.id < after[1]),
                     )
+                )
+            if layer:
+                predicates.append(
+                    table.c.memory_type == "ARCHIVE"
+                    if layer == "archive"
+                    else table.c.memory_type != "ARCHIVE"
                 )
             if key:
                 predicates.append(table.c.key == key)
@@ -244,10 +257,12 @@ class MemoryQueries(MemoryKernel):
             if more
             else None
         )
+        async with transaction(self.engine, context.scope, repo.keys(context.scope)) as uow:
+            attributes = await self.attributes(uow, context)
         return MemoryList(
             items=selected,
             next_cursor=next_cursor,
             has_more=more,
-            attributes=ATTRIBUTES,
+            attributes=attributes,
             actions=[a for a in actions if a.action_key in {"create", "policy"}],
         )

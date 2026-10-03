@@ -96,3 +96,10 @@ app.conf.beat_schedule = {
     **(app.conf.beat_schedule or {}),
     "cleanup-sweep": {"task": "cleanup.sweep", "schedule": 30.0},
 }
+
+# 记忆整理按已落库会话扫描，不从消息受理或终态回调触发。
+app.conf.imports = tuple(app.conf.imports or ()) + ("creativity_service.modules.memory.tasks",)
+app.conf.beat_schedule = {
+    **(app.conf.beat_schedule or {}),
+    "memory-sweep": {"task": "memory.sweep", "schedule": 60.0},
+}

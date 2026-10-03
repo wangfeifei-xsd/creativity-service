@@ -44,6 +44,7 @@ from creativity_service.modules.usage.services import UsageService
 if TYPE_CHECKING:
     from creativity_service.modules.integrations.automation import AutomationService
     from creativity_service.modules.integrations.webhooks import WebhookService
+    from creativity_service.modules.memory.consolidation import MemoryConsolidation
 
 
 class RunKernel:
@@ -71,6 +72,7 @@ class RunKernel:
         self.content_guard_keys: Callable[[AuthContext], list[ResourceKey]] | None = None
         self.automation: AutomationService | None = None
         self.webhooks: WebhookService | None = None
+        self.memory_consolidation: MemoryConsolidation | None = None
         self.integration_sweep: Callable[[str], Awaitable[None]] | None = None
         self.evaluation_sweep: Callable[[str], Awaitable[None]] | None = None
         self.rerun_handler: (

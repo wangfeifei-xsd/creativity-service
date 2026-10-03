@@ -17,7 +17,6 @@ from creativity_service.integrations.models.contracts import ModelRequest
 from creativity_service.modules.memory import repositories as repo
 from creativity_service.modules.memory.embedding_tables import metadata
 from creativity_service.modules.memory.schemas import MemoryPolicy, MemoryRef, MemorySelection
-from creativity_service.modules.memory.validation import ATTRIBUTE_MAP
 from creativity_service.modules.models.schemas import FrozenModel
 
 if TYPE_CHECKING:
@@ -58,7 +57,7 @@ async def semantic_selection(
     selection = await memory.select(
         context,
         lease.run_id,
-        list(ATTRIBUTE_MAP),
+        [],
         current_keys,
         frozen_policy=policy,
         for_embedding=True,
@@ -121,7 +120,7 @@ async def semantic_selection(
     async with transaction(memory.engine, context.scope, keys) as uow:
         run = await memory.runtime_run(uow, context, lease.run_id)
         effective = memory.intersect_policy(
-            await memory.policy(uow, context, run["agent_id"]), policy
+            await memory.effective_policy(uow, context, run["agent_id"], policy), policy
         )
         stored = await repo.required(
             uow.connection, "memory_retrievals", context.scope, id=selection.retrieval_id

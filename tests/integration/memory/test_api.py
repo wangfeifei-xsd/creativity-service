@@ -8,9 +8,10 @@ from creativity_service.core.deletion import CleanupRegistry, ContentRef, Recove
 from creativity_service.core.primitives import new_id
 from creativity_service.modules.iam.schemas import ChannelContextInput
 from creativity_service.modules.memory.assembly import build_memory_service
-from creativity_service.modules.memory.schemas import MemoryCreate
+from creativity_service.modules.memory.schemas import MemoryCreate, PolicyInput
 from tests.integration.channels.conftest import channel_body, channel_env, login
 from tests.integration.core.conftest import TestAuthorization
+from tests.integration.memory.conftest import business_attributes
 
 pytestmark = pytest.mark.integration
 __all__ = ["channel_env"]
@@ -43,6 +44,7 @@ async def test_http_real_iam_current_domain_revision_subject_and_token_revocatio
     await RecoveryService(env.engine, TestAuthorization()).initialize_fresh(subject)
     cleanup = CleanupRegistry()
     memory = build_memory_service(env.engine, env.iam.authorization, cleanup)
+    await memory.set_policy(subject, PolicyInput(revision=0, attributes=business_attributes()))
     saved = await memory.create(
         subject, MemoryCreate(key="usual_budget", value={"min": 100, "max": 200, "currency": "CNY"})
     )
@@ -62,7 +64,7 @@ async def test_http_real_iam_current_domain_revision_subject_and_token_revocatio
         assert (
             await client.post(
                 "/admin/v1/memories",
-                json={"key": "play_style", "value": "休闲", "channel_id": "other"},
+                json={"key": "communication_style", "value": "休闲", "channel_id": "other"},
             )
         ).status_code == 422
         response = await client.patch(
@@ -196,14 +198,18 @@ async def test_business_delegation_controls_own_memory_without_subject_filters(c
             },
         )
 
-    created = await request("POST", "/api/v1/memories", {"key": "play_style", "value": "休闲"})
+    created = await request(
+        "POST", "/api/v1/memories", {"key": "communication_style", "value": "休闲"}
+    )
     assert created.status_code == 201, created.text
     path = f"/api/v1/memories/{created.json()['memory_id']}"
     assert (await request("GET", path)).status_code == 200
     assert (await request("GET", path, subject="user-two")).status_code == 404
     assert not (await request("GET", "/api/v1/memories", subject="user-two")).json()["items"]
     override = await request(
-        "POST", "/api/v1/memories", {"key": "play_style", "value": "竞技", "subject_id": "user-two"}
+        "POST",
+        "/api/v1/memories",
+        {"key": "communication_style", "value": "竞技", "subject_id": "user-two"},
     )
     assert override.status_code == 422
     assert (

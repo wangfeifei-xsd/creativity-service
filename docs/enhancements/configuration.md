@@ -4,9 +4,15 @@
 
 ## 数据库与依赖
 
-新增迁移链：`0028_memory_vectors → 0029_mcp_oauth → 0030_automation → 0031_identity_operations → 0032_run_subscriptions`。迁移仅增加本次模型，保持应用服务层校验和事务互斥；模型档案在 `docs/data-model`。集成验收使用临时 schema，测试结束后清理。当前本地开发库的 public schema 已升级至 `0032_run_subscriptions` 并通过实际存储审查；其他环境启用前执行 `uv run alembic upgrade head`，不要把测试临时 schema 作为应用数据库。
+新增迁移链：`0028_memory_vectors → 0029_mcp_oauth → 0030_automation → 0031_identity_operations → 0032_run_subscriptions → 0033_layered_memory`。迁移增加模型与配置字段，并保留历史属性配置，保持应用服务层校验和事务互斥；模型档案在 `docs/data-model`。集成验收使用临时 schema，测试结束后清理。当前本地开发库的 public schema 已升级至 `0033_layered_memory` 并通过实际存储审查；其他环境启用前执行 `uv run alembic upgrade head`，不要把测试临时 schema 作为应用数据库。
 
 语义检索依赖 pgvector 0.8.2，安装/启用方法见 [向量环境](../../deploy/vector.md)。本次本地数据库已安装并启用该扩展。向量缓存保存 JSONB，先物化完整 Scope 与已复核记忆集合，再使用 pgvector 的余弦距离精确排序；当前没有 ANN 索引。Agent 的 `embedding_route_version` 绑定已通过 embedding 能力测试的单模型路由，并开启记忆策略。缺扩展、供应商失败或同模型版本的向量维度漂移按该版本的 OMIT/FAIL 策略处理，向量成本进入用量和预算。更换向量维度时须发布新模型版本，不能沿用旧版本缓存空间。
+
+## 三层记忆
+
+记忆采用会话、归档、人物画像三层。现有 Celery Beat 每 60 秒唤醒 `memory.sweep`，默认会话空闲 30 分钟后按完整轮次整理，每批 20 条消息。归档及画像生成使用独立后台运行；模型生成的画像需确认后生效。渠道在“记忆管理 → 渠道策略”配置整理开关、空闲时间、批次大小及画像属性；Agent 需显式开启记忆整理，主体长期记忆开关也须开启。
+
+`0033_layered_memory` 将旧业务属性迁移为渠道配置，已有记忆内容保持原值；新渠道使用通用属性。页面可按归档或人物画像筛选，并从“后台整理”查看生成运行及重试失败任务。完整接口、授权与删除边界见 [多层记忆交接](../memory.md)。
 
 ## 暂停与写工具
 

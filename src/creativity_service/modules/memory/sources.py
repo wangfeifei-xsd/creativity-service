@@ -16,11 +16,30 @@ class DatabaseSourceReader:
     ) -> SourceState | None:
         scope = context.scope
         await DeletionGuard(scope).check(uow, [ContentRef(source.source_type, source.source_id)])
+        if source.source_type == "memory":
+            from creativity_service.modules.memory.tables import metadata
+
+            row = await Repository(metadata.tables["memories"], scope).get(
+                uow.connection, source.source_id
+            )
+            if (
+                not row
+                or row["memory_type"] != "ARCHIVE"
+                or row["status"] != "ACTIVE"
+                or row["expires_at"] <= utcnow()
+                or row["current_version_id"] != source.source_version
+            ):
+                return None
+            return SourceState("会话归档", "ARCHIVE", 1, row["observed_at"])
         if source.source_type == "message":
             row = await Repository(conversations.tables["messages"], scope).get(
                 uow.connection, source.source_id
             )
-            if not row or row["role"] != "user" or str(row["sequence"]) != source.source_version:
+            if (
+                not row
+                or row["role"] not in {"user", "assistant"}
+                or str(row["sequence"]) != source.source_version
+            ):
                 return None
             conversation = await Repository(conversations.tables["conversations"], scope).get(
                 uow.connection, row["conversation_id"]
@@ -31,7 +50,12 @@ class DatabaseSourceReader:
                 or conversation["expires_at"] <= utcnow()
             ):
                 return None
-            return SourceState(conversation["title"], "USER", 4, row["created_at"])
+            return SourceState(
+                conversation["title"],
+                "USER" if row["role"] == "user" else "ARCHIVE",
+                4 if row["role"] == "user" else 1,
+                row["created_at"],
+            )
         row = await Repository(tools.tables["evidence_refs"], scope).get(
             uow.connection, source.source_id
         )

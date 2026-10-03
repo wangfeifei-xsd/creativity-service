@@ -257,6 +257,15 @@ class RuntimeExecutor:
             spec = await load_spec(self.runs, row)
             original = await read_input(self.runs, lease)
             descriptor = json.loads(spec.payload_json).get("runtime")
+            if descriptor and descriptor.get("kind") == "memory":
+                from creativity_service.modules.memory.generation import execute_generation
+
+                if self.runs.memory_consolidation is None:
+                    raise ServiceError("MEMORY_UNAVAILABLE", "后台记忆整理未装配", 503)
+                await execute_generation(
+                    self.runs.memory_consolidation, self, context, lease, spec, descriptor["job_id"]
+                )
+                return
             if descriptor:
                 if self.debug is None:
                     raise ServiceError("DEBUG_UNAVAILABLE", "调试执行器尚未装配", 503)

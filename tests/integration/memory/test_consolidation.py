@@ -1,0 +1,303 @@
+"""真实运行、IAM、数据库验证三层记忆；仅模型返回值使用受控夹具。"""
+
+import asyncio
+from datetime import timedelta
+
+import pytest
+from sqlalchemy import update
+
+from creativity_service.core.context import TaskEnvelope
+from creativity_service.core.database import transaction
+from creativity_service.core.deletion import RecoveryService
+from creativity_service.core.primitives import ServiceError, utcnow
+from creativity_service.modules.conversations.schemas import ConversationCreate, MessageInput
+from creativity_service.modules.conversations.tables import metadata as conversations
+from creativity_service.modules.memory import repositories as repo
+from creativity_service.modules.memory.schemas import (
+    MemoryConfirm,
+    MemoryPolicy,
+    PreferenceInput,
+)
+from creativity_service.workers.executor import execute_message
+from tests.integration.agents.test_agents import publish
+from tests.integration.runtime.conftest import agent_env, channel_env, runtime_env
+
+__all__ = ["runtime_env", "agent_env", "channel_env"]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.parametrize(
+        "agent_env",
+        [
+            {
+                "environment": "test",
+                "independent_actions": ["release:publish", "data:read_sensitive", "data:export"],
+            }
+        ],
+        indirect=True,
+    ),
+]
+
+
+async def setup(env):
+    definition = env.definition.model_copy(
+        update={
+            "context": env.definition.context.model_copy(
+                update={
+                    "conversation_enabled": True,
+                    "summary_policy": "recent",
+                    "memory_policy": MemoryPolicy(),
+                }
+            )
+        }
+    )
+    detail = await env.agents.create(
+        env.context, env.body.model_copy(update={"definition": definition})
+    )
+    await publish(env, detail)
+    env.context = env.context.model_copy(
+        update={
+            "scope": env.context.scope.model_copy(
+                update={"subject_type": "user", "subject_id": "person"}
+            )
+        }
+    )
+    await RecoveryService(env.engine, env.iam.authorization).initialize_fresh(env.context)
+    conversation = await env.conversations.create(
+        env.context, ConversationCreate(agent_code=env.body.agent_code, title="语言与行程")
+    )
+    receipt = await env.conversations.submit(
+        env.context,
+        conversation.conversation_id,
+        MessageInput(
+            client_message_id="one",
+            content="我长期习惯使用中文。这次只安排一天。",
+            input={"request": "请处理"},
+        ),
+    )
+    await execute_message(
+        env.runs,
+        TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=receipt.run.run_id),
+        "conversation",
+        env.runtime,
+    )
+    result = await env.runs.get_run(env.context, receipt.run.run_id)
+    assert result.state == "SUCCEEDED", result.error
+    env.cid = conversation.conversation_id
+    async with env.engine.begin() as connection:
+        await connection.execute(
+            update(conversations.tables["conversations"])
+            .where(conversations.tables["conversations"].c.id == env.cid)
+            .values(updated_at=utcnow() - timedelta(hours=1))
+        )
+    return env.runs.memory_consolidation
+
+
+async def jobs(env):
+    async with env.engine.connect() as connection:
+        return await repo.rows(connection, "memory_consolidations", env.context.scope)
+
+
+async def generate(env, service):
+    env.adapter.responses = [
+        {"summary": "用户长期使用中文；本次行程仅一天，属于单次条件。"},
+        {"profiles": [{"key": "preferred_language", "value": "中文"}]},
+    ]
+    await service.sweep(env.context.scope.channel_id)
+    job = (await jobs(env))[0]
+    assert job["state"] == "ADMITTED", job
+    await execute_message(
+        env.runs,
+        TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=job["generation_run_id"]),
+        "memory",
+        env.runtime,
+    )
+    result = await env.runs.get_run(env.context, job["generation_run_id"])
+    assert result.state == "SUCCEEDED", result.error
+    return (await jobs(env))[0]
+
+
+async def test_background_generates_layers_and_next_conversation_reads_confirmed_profile(
+    runtime_env,
+):
+    env = runtime_env
+    service = await setup(env)
+    assert not (await env.memory.list_memories(env.context)).items
+    job = await generate(env, service)
+    assert job["state"] == "COMPLETED"
+    all_memories = (await env.memory.list_memories(env.context)).items
+    archive = next(m for m in all_memories if m.layer == "archive")
+    profile = next(m for m in all_memories if m.layer == "profile")
+    assert archive.status == "ACTIVE" and profile.status == "PROPOSED"
+    assert len(archive.sources) == 2
+    assert [source.name for source in profile.sources] == ["会话归档"]
+    assert len(env.adapter.calls) == 3
+    await asyncio.gather(
+        service.sweep(env.context.scope.channel_id), service.sweep(env.context.scope.channel_id)
+    )
+    assert len(await jobs(env)) == 1
+    await env.memory.confirm(
+        env.context, profile.memory_id, MemoryConfirm(revision=profile.revision)
+    )
+    next_conversation = await env.conversations.create(
+        env.context, ConversationCreate(agent_code=env.body.agent_code, title="新的会话")
+    )
+    receipt = await env.conversations.submit(
+        env.context,
+        next_conversation.conversation_id,
+        MessageInput(client_message_id="next", content="你好", input={"request": "请处理"}),
+    )
+    await execute_message(
+        env.runs,
+        TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=receipt.run.run_id),
+        "next",
+        env.runtime,
+    )
+    request = env.adapter.calls[-1][1]
+    assert '"preferred_language":"中文"' in request.messages[-1]["content"]
+    assert '"archives":[' in request.messages[-1]["content"]
+    assert "本次行程仅一天" in request.messages[-1]["content"]
+    await env.memory.forget(env.context, archive.memory_id)
+    with pytest.raises(ServiceError) as blocked:
+        await env.runs.get_run(env.context, job["generation_run_id"])
+    assert blocked.value.code == "CONTENT_DELETED"
+    assert (await env.memory.detail(env.context, profile.memory_id)).memory.status == "ACTIVE"
+
+
+async def test_late_model_result_cannot_write_after_memory_disabled(runtime_env):
+    env = runtime_env
+    service = await setup(env)
+    env.adapter.responses = [{"summary": "用户长期使用中文。"}]
+    await service.sweep(env.context.scope.channel_id)
+    job = (await jobs(env))[0]
+
+    async def disable(context, attempt):
+        await env.memory.set_preferences(env.context, PreferenceInput(enabled=False, revision=0))
+
+    env.adapter.before = disable
+    await execute_message(
+        env.runs,
+        TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=job["generation_run_id"]),
+        "memory",
+        env.runtime,
+    )
+    assert not (await env.memory.list_memories(env.context)).items
+    await service.sweep(env.context.scope.channel_id)
+    assert (await jobs(env))[0]["state"] == "SKIPPED"
+
+
+async def test_removing_one_message_revokes_whole_archive_and_unconfirmed_profile(runtime_env):
+    from creativity_service.core.deletion import ContentRef, DeletionService
+    from tests.integration.core.conftest import TestAuthorization
+
+    env = runtime_env
+    service = await setup(env)
+    job = await generate(env, service)
+    await DeletionService(env.engine, TestAuthorization()).mark(
+        env.context, ContentRef("message", job["source_message_ids"][-1]), "SOURCE_DELETED"
+    )
+    for identifier in job["memory_ids"]:
+        detail = await env.memory.detail(env.context, identifier)
+        assert detail.memory.status == "REVOKED" and detail.memory.value is None
+    await service.sweep(env.context.scope.channel_id)
+    assert len(await jobs(env)) == 1
+
+
+@pytest.mark.parametrize("interruption", ["clear", "source", "permission"])
+async def test_pending_generation_rechecks_clear_source_and_permission(runtime_env, interruption):
+    from creativity_service.core.deletion import ContentRef, DeletionService
+    from creativity_service.core.primitives import ServiceError
+    from tests.integration.core.conftest import TestAuthorization
+
+    env = runtime_env
+    service = await setup(env)
+    env.adapter.responses = [
+        {"summary": "用户长期使用中文。"},
+        {"profiles": [{"key": "preferred_language", "value": "中文"}]},
+    ]
+    await service.sweep(env.context.scope.channel_id)
+    job = (await jobs(env))[0]
+    original = env.memory.authorization.require
+
+    async def deny(context, action, resource_id):
+        if action == "memory:write":
+            raise ServiceError("FORBIDDEN", "记忆授权已撤销", 403)
+        await original(context, action, resource_id)
+
+    async def interrupt(context, attempt):
+        if interruption == "clear":
+            await env.memory.clear(env.context)
+        elif interruption == "source":
+            await DeletionService(env.engine, TestAuthorization()).mark(
+                env.context, ContentRef("message", job["source_message_ids"][0]), "SOURCE_DELETED"
+            )
+        else:
+            env.memory.authorization.require = deny
+
+    env.adapter.before = interrupt
+    try:
+        await execute_message(
+            env.runs,
+            TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=job["generation_run_id"]),
+            "late",
+            env.runtime,
+        )
+        assert not (await env.memory.list_memories(env.context)).items
+    finally:
+        env.memory.authorization.require = original
+    if interruption == "clear":
+        env.adapter.before, env.adapter.responses = None, []
+        receipt = await env.conversations.submit(
+            env.context,
+            env.cid,
+            MessageInput(
+                client_message_id="after_clear", content="新的消息", input={"request": "请处理"}
+            ),
+        )
+        await execute_message(
+            env.runs,
+            TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=receipt.run.run_id),
+            "new_message",
+            env.runtime,
+        )
+        async with env.engine.begin() as connection:
+            await connection.execute(
+                update(conversations.tables["conversations"])
+                .where(conversations.tables["conversations"].c.id == env.cid)
+                .values(updated_at=utcnow() - timedelta(hours=1))
+            )
+        await service.sweep(env.context.scope.channel_id)
+        await service.sweep(env.context.scope.channel_id)
+        pending = [j for j in await jobs(env) if j["state"] == "ADMITTED"]
+        assert len(pending) == 1
+        assert not set(pending[0]["source_message_ids"]) & set(job["source_message_ids"])
+
+
+async def test_failed_background_run_retries_with_same_batch_and_no_duplicate_memories(runtime_env):
+    env = runtime_env
+    service = await setup(env)
+    await asyncio.gather(
+        service.sweep(env.context.scope.channel_id), service.sweep(env.context.scope.channel_id)
+    )
+    job = (await jobs(env))[0]
+    env.adapter.failures = ["MODEL_UNAVAILABLE"]
+    await execute_message(
+        env.runs,
+        TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=job["generation_run_id"]),
+        "failure",
+        env.runtime,
+    )
+    await service.sweep(env.context.scope.channel_id)
+    retry = (await jobs(env))[0]
+    assert retry["state"] == "PENDING" and retry["attempt"] == 2
+    async with transaction(env.engine, env.context.scope, repo.keys(env.context.scope)) as uow:
+        await repo.save(
+            uow,
+            "memory_consolidations",
+            job["id"],
+            {"next_attempt_at": utcnow() - timedelta(seconds=1)},
+        )
+    completed = await generate(env, service)
+    assert (
+        completed["id"] == job["id"] and completed["generation_run_id"] != job["generation_run_id"]
+    )
+    assert len((await env.memory.list_memories(env.context)).items) == 2

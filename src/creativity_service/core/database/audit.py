@@ -20,7 +20,7 @@ from creativity_service.modules.iam.tables import BASELINE as IAM_BASELINE
 from creativity_service.modules.integrations.review_tables import BASELINE as REVIEW_BASELINE
 from creativity_service.modules.integrations.tables import BASELINE as INTEGRATION_BASELINE
 from creativity_service.modules.mcp.tables import BASELINE as MCP_BASELINE
-from creativity_service.modules.memory.tables import BASELINE as MEMORY_BASELINE
+from creativity_service.modules.memory.tables import CURRENT as MEMORY_BASELINE
 from creativity_service.modules.runs.tables import BASELINE as RUN_BASELINE
 from creativity_service.modules.skills.tables import BASELINE as SKILL_BASELINE
 from creativity_service.modules.tools.tables import BASELINE as TOOL_BASELINE

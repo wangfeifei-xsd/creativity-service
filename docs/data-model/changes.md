@@ -96,3 +96,5 @@ Agent 增加通用 `workflow.v1` 配置入口，历史 `matching.v1/risk.v1/anal
 `0025_data_lifecycle` 接在 `0024_evaluations` 后，新建 `deletion_work_items`、`deletion_receipts`，沿用共享 `deletion_jobs`、公共标记、来源及屏障。冻结定义为 `modules/data_lifecycle/baseline_v0025.json`；存量任务由扫描幂等生成步骤，旧标记在当前可信数据库上导出到独立卷后启用清理。
 
 渠道 `retention_policy` JSON 增加运行/元数据/SSE/暂存/导出周期，旧 JSON 通过服务默认值兼容，无列回填。评测样本增加 `source_mode`，独立依据的等价摘要使用既有来源版本字段。工具缓存增加来源运行引用；旧缓存无有效来源时失效。账本 `raw_usage` 与事件载荷收敛为计量白名单。独立删除清单不进入数据库恢复快照；恢复步骤见 [删除生命周期交接](../data-lifecycle.md)。
+
+2026-10-04：新增 `0033_layered_memory`，增加 `memory_consolidations` 持久化后台批次；`memory_policies` 增加通用画像属性与整理配置，`memories` 增加联合来源有效性模式。已有业务属性迁为已有渠道的显式配置，原模型迁移函数保持冻结；数据库不承担业务默认值或约束。

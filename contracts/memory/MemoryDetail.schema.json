@@ -68,6 +68,18 @@
           "title": "Memory Id",
           "type": "string"
         },
+        "layer": {
+          "enum": [
+            "archive",
+            "profile"
+          ],
+          "title": "Layer",
+          "type": "string"
+        },
+        "layer_label": {
+          "title": "Layer Label",
+          "type": "string"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -164,6 +176,8 @@
       },
       "required": [
         "memory_id",
+        "layer",
+        "layer_label",
         "key",
         "display_name",
         "memory_type",

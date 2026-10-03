@@ -56,6 +56,9 @@ def install_runtime(
         lambda scope, binding: resolve_script(skills, sandbox, scope, binding)
     )
     admission = RuntimeAdmission(runs, agents)
+    from creativity_service.modules.memory.consolidation import MemoryConsolidation
+
+    runs.memory_consolidation = MemoryConsolidation(memory, runs, admission)
     executor = RuntimeExecutor(
         runs,
         ModelRunner(runs, models),

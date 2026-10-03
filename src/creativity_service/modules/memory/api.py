@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from creativity_service.core.context import AuthContext, require_http_context
 from creativity_service.core.primitives import unavailable
 from creativity_service.modules.memory.schemas import (
+    ConsolidationView,
     MemoryConfirm,
     MemoryCreate,
     MemoryDeletion,
@@ -46,9 +47,16 @@ async def list_memories(
     limit: Annotated[int, Query(ge=1, le=200)] = 30,
     status: str | None = None,
     key: str | None = None,
+    layer: str | None = None,
 ) -> MemoryList:
     return await memory.list_memories(
-        context, anchor_id=anchor_id, cursor=cursor, limit=limit, status=status, key=key
+        context,
+        anchor_id=anchor_id,
+        cursor=cursor,
+        limit=limit,
+        status=status,
+        key=key,
+        layer=layer,
     )
 
 
@@ -122,3 +130,17 @@ async def set_policy(
     body: PolicyInput, context: Context, memory: Memory, agent_id: str | None = None
 ) -> PolicyView:
     return await memory.set_policy(context, body, agent_id)
+
+
+@router.get("/memory-consolidations")
+async def consolidation_jobs(
+    context: Context, memory: Memory, anchor_id: str | None = None
+) -> list[ConsolidationView]:
+    return await memory.consolidation_jobs(context, anchor_id)
+
+
+@router.post("/memory-consolidations/{identifier}/retry", status_code=202)
+async def retry_consolidation(
+    identifier: str, body: MemoryConfirm, context: Context, memory: Memory
+) -> None:
+    await memory.retry_consolidation(context, identifier, body)

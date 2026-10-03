@@ -378,6 +378,7 @@ async def test_decoupling_migration_preserves_saved_identity_versions_and_runs(r
     from alembic import command
     from creativity_service.core.database.audit import audit_database
     from creativity_service.core.primitives import digest
+    from creativity_service.modules.memory.tables import build_metadata as frozen_memory_tables
     from creativity_service.modules.runtime.storage import load_spec
     from creativity_service.storage import metadata
 
@@ -407,6 +408,10 @@ async def test_decoupling_migration_preserves_saved_identity_versions_and_runs(r
                 # 兼容盘点只比较降级目标已有表；后续新增表由完整迁移往返用例核验。
                 if table.info["revision"] not in revisions:
                     continue
+                # 旧修订的数据比较使用当时的列，不能查询尚未存在的增量字段。
+                frozen = frozen_memory_tables().tables.get(table.name)
+                if frozen is not None:
+                    table = frozen
                 rows = (
                     connection.execute(
                         select(table).where(

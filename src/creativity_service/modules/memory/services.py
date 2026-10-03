@@ -5,6 +5,7 @@ from creativity_service.core.database import transaction
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.memory import repositories as repo
 from creativity_service.modules.memory.deletions import MemoryDeletions
+from creativity_service.modules.memory.jobs import MemoryJobs
 from creativity_service.modules.memory.policies import MemoryPolicies
 from creativity_service.modules.memory.runtime import MemoryRuntime
 from creativity_service.modules.memory.schemas import (
@@ -15,7 +16,7 @@ from creativity_service.modules.memory.schemas import (
 )
 
 
-class MemoryService(MemoryRuntime, MemoryDeletions, MemoryPolicies):
+class MemoryService(MemoryRuntime, MemoryDeletions, MemoryPolicies, MemoryJobs):
     async def create(
         self, context: AuthContext, body: MemoryCreate, anchor_id: str | None = None
     ) -> MemoryView:

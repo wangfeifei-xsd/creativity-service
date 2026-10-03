@@ -10,6 +10,7 @@ from creativity_service.modules.memory import repositories as repo
 from creativity_service.modules.memory.base import MemoryKernel
 from creativity_service.modules.memory.ports import SourceState
 from creativity_service.modules.memory.schemas import (
+    MemoryAttribute,
     MemoryCreate,
     MemoryPolicy,
     PreferenceInput,
@@ -32,10 +33,17 @@ class MemoryWrites(MemoryKernel):
         reason: str,
         target: dict[str, Any] | None = None,
         force: bool = False,
+        archive: bool = False,
     ) -> dict[str, Any]:
         self.require_subject(context)
         await DeletionGuard(context.scope).check(uow, [])
-        attribute = validate_value(body.key, body.memory_type, body.value, policy)
+        attribute = (
+            MemoryAttribute(key=body.key, label="会话归档", value_schema={"type": "string"})
+            if archive and body.memory_type == "ARCHIVE"
+            else validate_value(
+                body.key, body.memory_type, body.value, policy, await self.attributes(uow, context)
+            )
+        )
         if body.memory_type == "FACT" and body.key not in state.fact_keys:
             raise ServiceError(
                 "MEMORY_AUTHORITY_REQUIRED", "稳定事实必须带对应属性的权威工具证据", 422
@@ -62,7 +70,7 @@ class MemoryWrites(MemoryKernel):
         if len(same_key) > 1:
             raise ServiceError("STORAGE_INVARIANT_BROKEN", "同一属性存在多个生效值", 503)
         active = same_key[0] if same_key else None
-        activate = confirmed and (force or policy.write_mode == "EXPLICIT")
+        activate = archive or confirmed and (force or policy.write_mode == "EXPLICIT")
         if activate and active and not force:
             rank = (confirmed, state.trust_level, state.observed_at)
             old_rank = (active["confirmed"], active["trust_level"], active["observed_at"])
@@ -104,6 +112,7 @@ class MemoryWrites(MemoryKernel):
                 "memories",
                 new_id("memory"),
                 {
+                    "source_mode": "ALL" if archive else "ANY",
                     "key": body.key,
                     "display_name": attribute.label,
                     "memory_type": body.memory_type,

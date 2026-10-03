@@ -1,0 +1,76 @@
+[
+  {
+    "key": "favorite_games",
+    "label": "常玩游戏",
+    "memory_type": "PREFERENCE",
+    "value_schema": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "minItems": 1,
+      "maxItems": 20
+    }
+  },
+  {
+    "key": "play_style",
+    "label": "偏好玩法",
+    "memory_type": "PREFERENCE",
+    "value_schema": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    }
+  },
+  {
+    "key": "usual_budget",
+    "label": "通常预算",
+    "memory_type": "PREFERENCE",
+    "value_schema": {
+      "type": "object",
+      "required": [
+        "min",
+        "max",
+        "currency"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "currency": {
+          "const": "CNY"
+        }
+      }
+    }
+  },
+  {
+    "key": "preferred_hours",
+    "label": "常用时段",
+    "memory_type": "PREFERENCE",
+    "value_schema": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    }
+  },
+  {
+    "key": "membership_level",
+    "label": "会员等级",
+    "memory_type": "FACT",
+    "value_schema": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    }
+  }
+]

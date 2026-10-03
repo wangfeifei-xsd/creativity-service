@@ -15,9 +15,10 @@ STATES = {
     "EXPIRED": "已过期",
     "REVOKED": "已撤销",
 }
-TYPES = {"PREFERENCE": "明确偏好", "FACT": "稳定事实"}
+TYPES = {"PREFERENCE": "明确偏好", "FACT": "稳定事实", "ARCHIVE": "会话归档"}
 REASONS = {
     "CREATED": "明确保存",
+    "ARCHIVED": "后台归档",
     "INFERRED": "推断候选",
     "CONFIRMED": "用户确认",
     "CORRECTED": "人工修正",
@@ -28,6 +29,19 @@ REASONS = {
     "FORGOTTEN": "请求遗忘",
     "CONFLICT": "与现有依据冲突，等待确认",
 }
+
+
+class MemoryAttribute(Contract):
+    key: Identifier
+    label: str = Field(min_length=1, max_length=100)
+    memory_type: Literal["PREFERENCE", "FACT"] = "PREFERENCE"
+    value_schema: dict[str, Any]
+
+
+class ConsolidationSettings(Contract):
+    enabled: bool = True
+    idle_seconds: int = Field(default=1800, ge=60, le=604800, strict=True)
+    batch_messages: int = Field(default=20, ge=2, le=100, strict=True)
 
 
 class MemoryPolicy(Contract):
@@ -42,10 +56,14 @@ class MemoryPolicy(Contract):
 
 
 class PolicyInput(MemoryPolicy):
+    attributes: list[MemoryAttribute] | None = Field(default=None, max_length=100)
+    consolidation: ConsolidationSettings | None = None
     revision: int = Field(ge=0, strict=True)
 
 
 class PolicyView(MemoryPolicy):
+    attributes: list[MemoryAttribute]
+    consolidation: ConsolidationSettings
     revision: int
     actions: list[VisibleAction]
 
@@ -81,7 +99,7 @@ class PreferenceView(Contract):
 class SourceInput(Contract):
     """仅供受控运行端口使用，HTTP 明确保存不接收来源标识。"""
 
-    source_type: Literal["message", "evidence"]
+    source_type: Literal["message", "evidence", "memory"]
     source_id: Identifier
     source_version: str = Field(min_length=1, max_length=128)
 
@@ -107,6 +125,8 @@ class MemoryVersionView(Contract):
 
 class MemoryView(Contract):
     memory_id: str
+    layer: Literal["archive", "profile"]
+    layer_label: str
     key: str
     display_name: str
     memory_type: str
@@ -125,13 +145,6 @@ class MemoryView(Contract):
     created_at: datetime
     sources: list[MemorySourceView]
     actions: list[VisibleAction]
-
-
-class MemoryAttribute(Contract):
-    key: str
-    label: str
-    memory_type: str
-    value_schema: dict[str, Any]
 
 
 class MemorySubject(Contract):
@@ -186,3 +199,18 @@ class MemoryLoad(Contract):
     items: list[LoadedMemory]
     warnings: list[str]
     required_tool_keys: list[str]
+
+
+class ConsolidationView(Contract):
+    id: str
+    revision: int
+    conversation_name: str
+    state: str
+    state_label: str
+    attempt: int
+    generated_count: int
+    generation_run_id: str | None
+    created_at: datetime
+    updated_at: datetime
+    message: str | None
+    can_retry: bool

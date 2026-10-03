@@ -6,6 +6,7 @@ from pathlib import Path
 from sqlalchemy import Column, Index, MetaData, Table
 
 from creativity_service.core.database.tables import column_type
+from creativity_service.modules.memory.layer_tables import COLUMNS, extend
 
 BASELINE = json.loads(Path(__file__).with_name("baseline_v0013.json").read_text(encoding="utf-8"))
 
@@ -31,3 +32,10 @@ def build_metadata() -> MetaData:
 
 
 metadata = build_metadata()
+
+# 增量列仅进入当前运行模型，0013 的建表函数保持冻结。
+
+extend(metadata)
+CURRENT = [
+    {**table, "columns": [*table["columns"], *COLUMNS.get(table["name"], [])]} for table in BASELINE
+]

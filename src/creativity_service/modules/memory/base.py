@@ -15,6 +15,8 @@ from creativity_service.modules.conversations.tables import metadata as conversa
 from creativity_service.modules.memory import repositories as repo
 from creativity_service.modules.memory.ports import MemorySourceReader, SourceState
 from creativity_service.modules.memory.schemas import (
+    ConsolidationSettings,
+    MemoryAttribute,
     MemoryPolicy,
     MemorySourceView,
     PreferenceView,
@@ -165,6 +167,34 @@ class MemoryKernel:
             failure_mode=agent.failure_mode,
         )
 
+    @staticmethod
+    async def attributes(uow: UnitOfWork, context: AuthContext) -> list[MemoryAttribute]:
+        from creativity_service.modules.memory.validation import ATTRIBUTES
+
+        row = await repo.one(uow.connection, "memory_policies", context.scope, agent_id=None)
+        values = row.get("attributes") if row else None
+        return (
+            [MemoryAttribute.model_validate(v) for v in values]
+            if values is not None
+            else list(ATTRIBUTES)
+        )
+
+    @staticmethod
+    async def consolidation_settings(
+        uow: UnitOfWork, context: AuthContext
+    ) -> ConsolidationSettings:
+        row = await repo.one(uow.connection, "memory_policies", context.scope, agent_id=None)
+        return ConsolidationSettings.model_validate((row or {}).get("consolidation") or {})
+
+    async def effective_policy(
+        self, uow: UnitOfWork, context: AuthContext, agent_id: str, frozen: MemoryPolicy | None
+    ) -> MemoryPolicy:
+        # 发布快照本身即为 Agent 的显式声明；未单独保存覆盖策略时使用渠道上限。
+        override = await repo.one(
+            uow.connection, "memory_policies", context.scope, agent_id=agent_id
+        )
+        return await self.policy(uow, context, agent_id if override or frozen is None else None)
+
     async def version(
         self,
         uow: UnitOfWork,
@@ -304,7 +334,7 @@ class MemoryKernel:
                     links.c.source_id == source["source_id"],
                 )
             )
-        marked = False
+        marked = changed and row.get("source_mode") == "ALL"
         try:
             await DeletionGuard(context.scope).check(uow, [ContentRef("memory", row["id"])])
         except ServiceError as exc:
@@ -384,6 +414,7 @@ class MemoryKernel:
                             "USER": "用户输入",
                             "ADMIN": "人工修正",
                             "TOOL": "业务工具",
+                            "ARCHIVE": "会话归档",
                         }[state.authority],
                         source_version=source["source_version"],
                         observed_at=state.observed_at,
@@ -415,6 +446,8 @@ class MemoryKernel:
                     )
                     if row:
                         action, resource_id = "conversation:read", row["conversation_id"]
+                elif source["source_type"] == "memory":
+                    action, resource_id = "memory:read", source["source_id"]
                 elif source["source_type"] == "evidence":
                     evidence = await Repository(tools.tables["evidence_refs"], context.scope).get(
                         connection, source["source_id"]

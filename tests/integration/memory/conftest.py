@@ -1,12 +1,15 @@
 """真实 PostgreSQL 与会话来源；授权替身只用于模块独立验收。"""
 
+import json
+from pathlib import Path
+
 import pytest
 
 from creativity_service.core.artifacts import ArtifactService
 from creativity_service.core.deletion import RecoveryService
 from creativity_service.modules.conversations.schemas import ConversationCreate, MessageInput
 from creativity_service.modules.conversations.services import ConversationService
-from creativity_service.modules.memory.schemas import PolicyInput, SourceInput
+from creativity_service.modules.memory.schemas import MemoryAttribute, PolicyInput, SourceInput
 from creativity_service.modules.memory.services import MemoryService
 from tests.integration.conversations.conftest import Store
 from tests.integration.core.conftest import (
@@ -37,6 +40,9 @@ async def env(run_env):
     )
     await RecoveryService(env.engine, env.authorization).initialize_fresh(env.context)
     env.memory = MemoryService(env.engine, env.authorization)
+    await env.memory.set_policy(
+        env.context, PolicyInput(revision=0, attributes=business_attributes())
+    )
     await env.memory.set_policy(env.context, PolicyInput(revision=0), "agent_one")
     env.conversations = ConversationService(
         env.engine,
@@ -61,3 +67,10 @@ async def env(run_env):
         source_type="message", source_id=receipt.user_message_id, source_version="1"
     )
     return env
+
+
+def business_attributes():
+    return [
+        MemoryAttribute.model_validate(v)
+        for v in json.loads(Path(__file__).with_name("attributes.json").read_text())
+    ]

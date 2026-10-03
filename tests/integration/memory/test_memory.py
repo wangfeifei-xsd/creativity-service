@@ -91,6 +91,12 @@ async def test_mem_a03_a08_identical_subjects_do_not_cross_scopes_or_clear(env):
             update={"scope": env.context.scope.model_copy(update=changed)}
         )
         await RecoveryService(env.engine, env.authorization).initialize_fresh(foreign)
+        if changed.get("channel_id"):
+            from tests.integration.memory.conftest import business_attributes
+
+            await env.memory.set_policy(
+                foreign, PolicyInput(revision=0, attributes=business_attributes())
+            )
         own = await env.memory.create(foreign, MemoryCreate(key="usual_budget", value=budget(900)))
         assert (
             env.memory.reference_cache_key(foreign, "agent_one", ["usual_budget"]) != original_key
@@ -214,7 +220,7 @@ async def test_concurrent_corrections_conflict_and_one_active_attribute(env):
 
 async def test_capacity_is_atomic_and_agent_cannot_enlarge_policy(env):
     await env.memory.set_policy(
-        env.context, PolicyInput(revision=0, max_items=1, retrieval_limit=1)
+        env.context, PolicyInput(revision=1, max_items=1, retrieval_limit=1)
     )
     outcomes = await asyncio.gather(
         *(
@@ -332,7 +338,7 @@ async def test_management_scope_restore_and_cursor_binding(env):
 async def test_unconfigured_agent_and_policy_reduction_disable_queued_reads(env):
     await env.memory.create(env.context, MemoryCreate(key="usual_budget", value=budget()))
     selected = await select(env)
-    await env.memory.set_policy(env.context, PolicyInput(revision=0, read_enabled=False))
+    await env.memory.set_policy(env.context, PolicyInput(revision=1, read_enabled=False))
     assert not (await load(env, selected)).items
     with pytest.raises(ServiceError) as error:
         await env.memory.set_policy(env.context, PolicyInput(revision=1), "agent_one")
@@ -505,3 +511,45 @@ async def test_new_run_cannot_relearn_from_forgotten_old_source_and_reclear_adva
         await env.memory.write_candidate(env.context, later.run_id, candidate(env, value=300))
         is None
     )
+
+
+async def test_channel_attributes_are_configured_and_not_a_platform_business_catalog(env):
+    from creativity_service.modules.memory.schemas import MemoryAttribute
+
+    custom = MemoryAttribute(
+        key="writing_format",
+        label="写作格式",
+        value_schema={"type": "string", "enum": ["条目", "段落"]},
+    )
+    policy = await env.memory.get_policy(env.context)
+    await env.memory.set_policy(
+        env.context, PolicyInput(revision=policy.revision, attributes=[custom])
+    )
+    value = await env.memory.create(env.context, MemoryCreate(key="writing_format", value="条目"))
+    assert value.display_name == "写作格式" and value.layer == "profile"
+    with pytest.raises(ServiceError, match="不属于"):
+        await env.memory.create(env.context, MemoryCreate(key="play_style", value="休闲"))
+    other = env.context.model_copy(
+        update={"scope": env.context.scope.model_copy(update={"channel_id": "new_generic_channel"})}
+    )
+    await RecoveryService(env.engine, env.authorization).initialize_fresh(other)
+    attributes = (await env.memory.get_policy(other)).attributes
+    assert {a.key for a in attributes} == {
+        "preferred_language",
+        "communication_style",
+        "interests",
+        "time_preferences",
+    }
+    assert (await env.memory.list_memories(other)).items == []
+    with pytest.raises(ServiceError):
+        await env.memory.set_policy(
+            env.context,
+            PolicyInput(
+                revision=policy.revision + 1,
+                attributes=[
+                    custom.model_copy(
+                        update={"value_schema": {"$dynamicRef": "https://invalid.example/schema"}}
+                    )
+                ],
+            ),
+        )

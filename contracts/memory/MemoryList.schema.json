@@ -5,14 +5,24 @@
       "additionalProperties": false,
       "properties": {
         "key": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
           "title": "Key",
           "type": "string"
         },
         "label": {
+          "maxLength": 100,
+          "minLength": 1,
           "title": "Label",
           "type": "string"
         },
         "memory_type": {
+          "default": "PREFERENCE",
+          "enum": [
+            "PREFERENCE",
+            "FACT"
+          ],
           "title": "Memory Type",
           "type": "string"
         },
@@ -25,7 +35,6 @@
       "required": [
         "key",
         "label",
-        "memory_type",
         "value_schema"
       ],
       "title": "MemoryAttribute",
@@ -66,6 +75,18 @@
       "properties": {
         "memory_id": {
           "title": "Memory Id",
+          "type": "string"
+        },
+        "layer": {
+          "enum": [
+            "archive",
+            "profile"
+          ],
+          "title": "Layer",
+          "type": "string"
+        },
+        "layer_label": {
+          "title": "Layer Label",
           "type": "string"
         },
         "key": {
@@ -164,6 +185,8 @@
       },
       "required": [
         "memory_id",
+        "layer",
+        "layer_label",
         "key",
         "display_name",
         "memory_type",

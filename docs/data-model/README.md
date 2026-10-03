@@ -79,6 +79,7 @@
 | `memory_retrievals` | [结构化记忆](modules/memory.md) | 08-记忆管理.md | 已实现 | 13 |
 | `memory_deletion_jobs` | [结构化记忆](modules/memory.md) | 08-记忆管理.md | 已实现 | 13 |
 | `memory_embeddings` | [结构化记忆](modules/memory.md) | 08-记忆管理.md | 已实现 | 13 |
+| `memory_consolidations` | [结构化记忆](modules/memory.md) | 08-记忆管理.md | 已实现 | 13 |
 | `mcp_connections` | [远程工具连接](modules/mcp.md) | 09-MCP配置.md | 已实现 | 14 |
 | `mcp_checks` | [远程工具连接](modules/mcp.md) | 09-MCP配置.md | 已实现 | 14 |
 | `mcp_discoveries` | [远程工具连接](modules/mcp.md) | 09-MCP配置.md | 已实现 | 14 |

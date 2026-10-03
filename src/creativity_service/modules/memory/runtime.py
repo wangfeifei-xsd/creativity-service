@@ -1,6 +1,7 @@
 """运行只缓存引用，实际使用前复核偏好、策略、来源与记忆版本。"""
 
 import logging
+import re
 from datetime import datetime
 from typing import Any
 
@@ -25,7 +26,6 @@ from creativity_service.modules.memory.schemas import (
     MemoryView,
     SourceInput,
 )
-from creativity_service.modules.memory.validation import ATTRIBUTE_MAP
 from creativity_service.modules.memory.writes import MemoryWrites
 from creativity_service.modules.runs.tables import metadata as runs
 from creativity_service.modules.tools.tables import metadata as tools
@@ -43,6 +43,12 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
         return current.model_copy(
             update={
                 "read_enabled": current.read_enabled and frozen.read_enabled,
+                "suggest_enabled": current.suggest_enabled and frozen.suggest_enabled,
+                "write_mode": min(
+                    (current.write_mode, frozen.write_mode),
+                    key=["DISABLED", "CANDIDATE", "EXPLICIT"].index,
+                ),
+                "max_items": min(current.max_items, frozen.max_items),
                 "allowed_types": [t for t in current.allowed_types if t in frozen.allowed_types],
                 "retrieval_limit": min(current.retrieval_limit, frozen.retrieval_limit),
                 "ttl_seconds": min(current.ttl_seconds, frozen.ttl_seconds),
@@ -58,7 +64,9 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
 
     @staticmethod
     def validate_keys(keys: list[str]) -> None:
-        if len(keys) > 100 or not set(keys) <= ATTRIBUTE_MAP.keys():
+        if len(keys) > 1100 or any(
+            not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", key) for key in keys
+        ):
             raise ServiceError("MEMORY_ATTRIBUTE_NOT_ALLOWED", "检索属性不属于长期记忆范围", 422)
 
     async def runtime_run(
@@ -93,8 +101,10 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
             ):
                 return None
             state = await self.sources.resolve(uow, context, body.source)
-            if state is None:
-                raise ServiceError("MEMORY_SOURCE_INVALID", "记忆来源不存在或已失效", 422)
+            if state is None or (
+                body.source.source_type == "message" and state.authority != "USER"
+            ):
+                raise ServiceError("MEMORY_SOURCE_INVALID", "记忆来源不存在或不是用户输入", 422)
             if not await self.automatic_allowed(uow, context, run, body.key, state.observed_at):
                 return None
             source = {
@@ -261,9 +271,19 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
             async with transaction(self.engine, context.scope, repo.keys(context.scope)) as uow:
                 run = await self.runtime_run(uow, context, run_id)
                 policy = self.intersect_policy(
-                    await self.policy(uow, context, run["agent_id"]), frozen_policy
+                    await self.effective_policy(uow, context, run["agent_id"], frozen_policy),
+                    frozen_policy,
                 )
                 refs: list[MemoryRef] = []
+                if not keys:
+                    items = await repo.rows(
+                        uow.connection, "memories", context.scope, status="ACTIVE"
+                    )
+                    items.sort(
+                        key=lambda row: (row["memory_type"] != "ARCHIVE", row["observed_at"]),
+                        reverse=True,
+                    )
+                    keys = list(dict.fromkeys(r["key"] for r in items))[:1100]
                 if policy.read_enabled and (await self.preference(uow, context, [])).enabled:
                     for key in dict.fromkeys(keys):
                         if key in current_keys:
@@ -319,7 +339,7 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
         return bool(
             row["status"] == "ACTIVE"
             and row["value"] is not None
-            and row["memory_type"] in policy.allowed_types
+            and (row["memory_type"] == "ARCHIVE" or row["memory_type"] in policy.allowed_types)
             and row["expires_at"] > utcnow()
             and (utcnow() - row["observed_at"]).total_seconds() < policy.ttl_seconds
         )
@@ -343,7 +363,8 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
             async with transaction(self.engine, context.scope, repo.keys(context.scope)) as uow:
                 run = await self.runtime_run(uow, context, run_id)
                 policy = self.intersect_policy(
-                    await self.policy(uow, context, run["agent_id"]), frozen_policy
+                    await self.effective_policy(uow, context, run["agent_id"], frozen_policy),
+                    frozen_policy,
                 )
                 stored = await repo.one(
                     uow.connection, "memory_retrievals", context.scope, id=selection.retrieval_id
@@ -434,7 +455,8 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
         """旧运行不得在重新开启或遗忘后把已排队候选重新写回。"""
         preference = await repo.one(uow.connection, "memory_preferences", context.scope)
         if preference and (
-            not preference["enabled"] or preference["updated_at"] >= run["created_at"]
+            not preference["enabled"]
+            or preference["updated_at"] >= min(run["created_at"], observed_at or run["created_at"])
         ):
             return False
         for job in await repo.rows(uow.connection, "memory_deletion_jobs", context.scope):
