@@ -23,7 +23,7 @@ FAULTS = {
     ],
     "取消、删除后的迟到响应": [
         "tests/integration/runtime/test_boundaries.py::test_deletion_drops_late_text_but_settles_usage",
-        "tests/integration/runtime/test_boundaries.py::test_cancel_inflight_preserves_usage_without_success",
+        "tests/integration/runtime/test_execution.py::test_cancel_inflight_preserves_usage_without_success",
     ],
     "旧备份恢复与独立删除清单": [
         "tests/integration/data_lifecycle/test_lifecycle.py::test_restore_old_database_and_objects_replays_latest_manifest",
