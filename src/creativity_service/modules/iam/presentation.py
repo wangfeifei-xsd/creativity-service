@@ -94,6 +94,7 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
                     )
                 )
     resource_types = {
+        "evaluation": ("评测资源", "evaluation:manage"),
         "model": ("模型", "model:manage"),
         "prompt": ("提示词", "prompt:manage"),
         "tool": ("工具", "tool:manage"),

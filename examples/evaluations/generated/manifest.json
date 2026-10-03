@@ -1,0 +1,11 @@
+{
+  "sample_count": 12,
+  "agents": [
+    "text_items",
+    "numeric_summary"
+  ],
+  "label_source": "平台通用夹具及技术审阅",
+  "applicability": "验证通用框架与阻断行为，不作为业务渠道生产效果标签",
+  "model_evidence": "fixture",
+  "mcp_evidence": "方案 26 单独补齐真实 MCP 运行"
+}

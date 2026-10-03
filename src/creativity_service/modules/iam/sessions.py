@@ -35,6 +35,7 @@ NAVIGATION = (
     ("resource-grants", "资源授权", "grant:read"),
     ("audit-events", "操作审计", "audit:read"),
     ("agents", "智能体", "agent:manage"),
+    ("evaluations", "效果评测", "evaluation:read"),
     ("prompts", "提示词", "prompt:manage"),
     ("tools", "工具", "tool:manage"),
     ("integrations", "业务接入", "integration:manage"),

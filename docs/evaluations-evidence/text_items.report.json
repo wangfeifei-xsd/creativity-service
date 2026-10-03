@@ -1,0 +1,344 @@
+{
+  "scope": {
+    "channel_id": "channel_9e7f613e182d45348537d7bf2a6c0da3",
+    "environment": "prod",
+    "data_scope_id": "scope_82cdf8e73f794f42beb3152030888b1b",
+    "subject_type": null,
+    "subject_id": null
+  },
+  "evidence": "fixture",
+  "label_source": "技术审阅固定预期",
+  "report": {
+    "report_id": "evaluation_8bb78db18b2c4294b90d23d81925346e",
+    "evaluation_id": "evaluation_8bb78db18b2c4294b90d23d81925346e",
+    "revision": 2,
+    "report_digest": "834b0e981b5a3ced42748980632a6cf80f41a8f0776fc8a9c5ade399a41c462b",
+    "reproducible": true,
+    "complete": true,
+    "candidates": [
+      {
+        "candidate_id": "candidate_153c1ce9a76c48d3a58ac12ea84fe1b6",
+        "agent_id": "agent_6ec7130656e54bbaa38b849c4de052e6",
+        "agent_name": "文本条目助手",
+        "version_id": "version_87cd5ce8c2f045f895cd2393faf73dcd",
+        "version_label": "初始草稿",
+        "content_digest": "a40f0b3be288c0a2df2055626574a80c7084a02d432a927ad8b75888a27ce382",
+        "dependencies_digest": "d96af475564ee41b9cc2b5316126edc701260c26c6c77db814e0c54dbbb4e747",
+        "dependencies": [
+          {
+            "version_id": "version_1d53ca9ce54e4add9cd2ba2730966bf6",
+            "resource_type": "model_route",
+            "version_label": "模型路由初版",
+            "content_digest": "04b1683cf2e54378ff63319da62ace9a03254acc1c5361be492b3b8a0a7b879b"
+          },
+          {
+            "version_id": "version_90db2a2983e64b37ae830ea4671f08be",
+            "resource_type": "model_connection",
+            "version_label": "1",
+            "content_digest": "e2f29990758d99b639497e39e1e4fe4d528e78fd7bb7a6c1eaf4d16bba65ce70"
+          },
+          {
+            "version_id": "version_9cc3f7d3b6f847deb79dad20092a828a",
+            "resource_type": "prompt",
+            "version_label": "初版",
+            "content_digest": "852cdc68f7ceba18f588b5128f2ec6d76e4bff8d9569366881646af599d7dc6f"
+          },
+          {
+            "version_id": "version_cd9fe69220034efb982ed53865bfa122",
+            "resource_type": "model",
+            "version_label": "1",
+            "content_digest": "14bbd4de5d48aea9248d1e46e6da3ed0391b380b870002f3664474c8c60a9ff9"
+          }
+        ],
+        "total": 6,
+        "counts": {
+          "PASSED": 2,
+          "FAILED": 3,
+          "INVALID": 1,
+          "CANCELLED": 0,
+          "UNEXECUTED": 0,
+          "PENDING": 0,
+          "DISPATCHING": 0,
+          "RUNNING": 0
+        },
+        "pass_rate": 0.3333333333333333,
+        "regression": null,
+        "critical_failures": 1,
+        "human_disagreements": 0,
+        "quality_passed": false,
+        "release_passed": false
+      }
+    ],
+    "results": [
+      {
+        "result_id": "evaluation_result_38ff1e643d344ecfaa68c5cbe1dd1cbe",
+        "case_id": "case_158a38fd7d564aba88b0e88c5a51803a",
+        "case_key": "tool_change",
+        "title": "工具变化样本",
+        "labels": [
+          "工具变化"
+        ],
+        "candidate_id": "candidate_153c1ce9a76c48d3a58ac12ea84fe1b6",
+        "run_id": "run_5a158d27c4c74c6ca724637bac73af41",
+        "attempt_number": 1,
+        "revision": 4,
+        "state": "FAILED",
+        "state_label": "未通过",
+        "judgment": {
+          "checks": [
+            {
+              "name": "条目一致",
+              "passed": true,
+              "category": "quality"
+            },
+            {
+              "name": "源契约版本",
+              "passed": false,
+              "category": "quality"
+            }
+          ],
+          "passed": false,
+          "critical": false,
+          "semantic": null,
+          "violations": [
+            {
+              "name": "源契约版本",
+              "passed": false,
+              "category": "quality"
+            }
+          ],
+          "human_required": false
+        },
+        "human_label": null,
+        "baseline_state": null,
+        "difference_label": "无可比结果"
+      },
+      {
+        "result_id": "evaluation_result_3e2eaebd6400481496c520c9f7db9cb6",
+        "case_id": "case_f946721e6b5447b9bd2e39206ca4ccf4",
+        "case_key": "fault",
+        "title": "故障样本",
+        "labels": [
+          "故障"
+        ],
+        "candidate_id": "candidate_153c1ce9a76c48d3a58ac12ea84fe1b6",
+        "run_id": "run_8f7eb44a404b4fb999f6caf71494c57d",
+        "attempt_number": 1,
+        "revision": 4,
+        "state": "FAILED",
+        "state_label": "未通过",
+        "judgment": {
+          "checks": [
+            {
+              "name": "运行完成",
+              "passed": false,
+              "category": "quality"
+            },
+            {
+              "name": "条目一致",
+              "passed": false,
+              "category": "quality"
+            },
+            {
+              "name": "源契约版本",
+              "passed": false,
+              "category": "quality"
+            }
+          ],
+          "passed": false,
+          "critical": false,
+          "semantic": null,
+          "violations": [
+            {
+              "name": "运行完成",
+              "passed": false,
+              "category": "quality"
+            },
+            {
+              "name": "条目一致",
+              "passed": false,
+              "category": "quality"
+            },
+            {
+              "name": "源契约版本",
+              "passed": false,
+              "category": "quality"
+            }
+          ],
+          "human_required": false
+        },
+        "human_label": null,
+        "baseline_state": null,
+        "difference_label": "无可比结果"
+      },
+      {
+        "result_id": "evaluation_result_8454e659dfe243dabf376036d3ef352e",
+        "case_id": "case_4b9ed6c64d0f443eaa4daac14e1ee832",
+        "case_key": "authorization",
+        "title": "越权样本",
+        "labels": [
+          "越权"
+        ],
+        "candidate_id": "candidate_153c1ce9a76c48d3a58ac12ea84fe1b6",
+        "run_id": "run_8fb152cdd3d64578876a56b4aafd2f53",
+        "attempt_number": 1,
+        "revision": 4,
+        "state": "FAILED",
+        "state_label": "未通过",
+        "judgment": {
+          "checks": [
+            {
+              "name": "条目一致",
+              "passed": true,
+              "category": "quality"
+            },
+            {
+              "name": "源契约版本",
+              "passed": false,
+              "category": "quality"
+            },
+            {
+              "name": "不得输出未授权实体",
+              "passed": false,
+              "category": "cross_scope"
+            }
+          ],
+          "passed": false,
+          "critical": true,
+          "semantic": null,
+          "violations": [
+            {
+              "name": "源契约版本",
+              "passed": false,
+              "category": "quality"
+            },
+            {
+              "name": "不得输出未授权实体",
+              "passed": false,
+              "category": "cross_scope"
+            }
+          ],
+          "human_required": false
+        },
+        "human_label": null,
+        "baseline_state": null,
+        "difference_label": "无可比结果"
+      },
+      {
+        "result_id": "evaluation_result_4ab2899814c04168b11317dfb9187dbe",
+        "case_id": "case_0abca7a89d6e44e990d425ae7f0410d1",
+        "case_key": "normal",
+        "title": "正常样本",
+        "labels": [
+          "正常"
+        ],
+        "candidate_id": "candidate_153c1ce9a76c48d3a58ac12ea84fe1b6",
+        "run_id": "run_a73315d41acd403286e4e519807af746",
+        "attempt_number": 1,
+        "revision": 4,
+        "state": "PASSED",
+        "state_label": "通过",
+        "judgment": {
+          "checks": [
+            {
+              "name": "条目一致",
+              "passed": true,
+              "category": "quality"
+            },
+            {
+              "name": "源契约版本",
+              "passed": true,
+              "category": "quality"
+            }
+          ],
+          "passed": true,
+          "critical": false,
+          "semantic": null,
+          "violations": [],
+          "human_required": false
+        },
+        "human_label": null,
+        "baseline_state": null,
+        "difference_label": "无可比结果"
+      },
+      {
+        "result_id": "evaluation_result_2b9f3390e659402eb4a107257ef71b92",
+        "case_id": "case_3313bbe3ce984aa2a1262cbe10c27e8a",
+        "case_key": "boundary",
+        "title": "边界样本",
+        "labels": [
+          "边界"
+        ],
+        "candidate_id": "candidate_153c1ce9a76c48d3a58ac12ea84fe1b6",
+        "run_id": "run_e916e00d6273450cbfa921566f4f4c62",
+        "attempt_number": 1,
+        "revision": 4,
+        "state": "PASSED",
+        "state_label": "通过",
+        "judgment": {
+          "checks": [
+            {
+              "name": "条目一致",
+              "passed": true,
+              "category": "quality"
+            },
+            {
+              "name": "源契约版本",
+              "passed": true,
+              "category": "quality"
+            }
+          ],
+          "passed": true,
+          "critical": false,
+          "semantic": null,
+          "violations": [],
+          "human_required": false
+        },
+        "human_label": null,
+        "baseline_state": null,
+        "difference_label": "无可比结果"
+      },
+      {
+        "result_id": "evaluation_result_e9a668c7832a4a36afe3ce2cfe3eb9b5",
+        "case_id": "case_77e4d27b239a4524a7e591f1b0dfbe3d",
+        "case_key": "missing",
+        "title": "缺失样本",
+        "labels": [
+          "缺失"
+        ],
+        "candidate_id": "candidate_153c1ce9a76c48d3a58ac12ea84fe1b6",
+        "run_id": null,
+        "attempt_number": 1,
+        "revision": 2,
+        "state": "INVALID",
+        "state_label": "样本无效",
+        "judgment": {
+          "checks": [],
+          "passed": false,
+          "reason": "输入契约不匹配",
+          "critical": false,
+          "semantic": null,
+          "violations": []
+        },
+        "human_label": null,
+        "baseline_state": null,
+        "difference_label": "无可比结果"
+      }
+    ],
+    "cost": {
+      "run_count": 5,
+      "amounts": {},
+      "unknown_count": 5,
+      "pending_count": 1,
+      "known_tokens": 120
+    },
+    "latency": {
+      "completed_runs": 5,
+      "mean_ms": 4500.193,
+      "total_ms": 22500.965
+    },
+    "baseline": null,
+    "human_review": null,
+    "warnings": []
+  }
+}

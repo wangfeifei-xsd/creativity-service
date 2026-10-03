@@ -29,6 +29,9 @@ ACTION_NAMES = {
     "run:content": "查看运行内容",
     "feedback:manage": "处理反馈",
     "evaluation:manage": "管理评测",
+    "evaluation:read": "查看评测",
+    "evaluation:content": "读取评测原文",
+    "evaluation:review": "审核评测标签与报告",
     "metric:read": "查看指标",
     "analysis:run": "执行分析",
     "report:read": "查看报告",
@@ -85,6 +88,8 @@ BUILDER_ACTIONS = frozenset(
         "run:read",
         "run:content",
         "evaluation:manage",
+        "evaluation:read",
+        "evaluation:content",
         "artifact:upload",
         "artifact:download",
         "snapshot:read",
@@ -115,6 +120,9 @@ ROLE_ACTIONS = {
             "run:read",
             "run:content",
             "feedback:manage",
+            "evaluation:read",
+            "evaluation:content",
+            "evaluation:review",
             "conversation:read",
             "conversation:write",
             "memory:read",
@@ -126,7 +134,9 @@ ROLE_ACTIONS = {
     "analyst": frozenset(
         {"metric:read", "analysis:run", "report:read", "usage:read", "artifact:download"}
     ),
-    "auditor": frozenset({"version:read", "run:read", "usage:read", "audit:read"}),
+    "auditor": frozenset(
+        {"version:read", "run:read", "usage:read", "audit:read", "evaluation:read"}
+    ),
 }
 GOVERNANCE_ACTIONS = frozenset(
     {

@@ -2,7 +2,7 @@
 
 import asyncio
 from time import monotonic
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import ValidationError
 from redis.asyncio import Redis
@@ -35,6 +35,9 @@ from creativity_service.modules.tools.validation import (
     validate_json,
 )
 
+if TYPE_CHECKING:
+    from creativity_service.modules.evaluations.fixtures import FixtureProvider
+
 
 class RedisToolCache:
     def __init__(self, redis: Redis, prefix: str) -> None:
@@ -59,9 +62,15 @@ class RedisToolCache:
 
 class ToolExecutor:
     def __init__(
-        self, service: ToolService, runs: ToolRunPort | None = None, cache: ToolCache | None = None
+        self,
+        service: ToolService,
+        runs: ToolRunPort | None = None,
+        cache: ToolCache | None = None,
+        *,
+        fixture: "FixtureProvider | None" = None,
     ) -> None:
         self.service, self.runs, self.cache = service, runs, cache
+        self.fixture = fixture
 
     async def authorize(
         self, context: AuthContext, call: ToolExecution, *, check_binding: bool = True
@@ -74,6 +83,10 @@ class ToolExecutor:
         definition = ToolDefinition.model_validate(version["content"])
         validate_definition(definition)
         grant = await self.runs.authorize_call(context, call)
+        if self.fixture and grant.purpose != "evaluation":
+            raise ServiceError("TOOL_FORBIDDEN", "固定工具数据仅用于受控评测", 403)
+        if grant.purpose == "evaluation" and definition.effect_type != "READ_ONLY":
+            raise ServiceError("TOOL_FORBIDDEN", "评测禁止执行真实写工具", 403)
         if (
             grant.scope != context.scope
             or grant.run_id != call.run_id
@@ -154,7 +167,7 @@ class ToolExecutor:
             ) from None
         validate_json(raw.data, definition.output_schema, "TOOL_RESULT_INVALID")
         age = (utcnow() - raw.observed_at).total_seconds()
-        if age < -5 or age > definition.cache_policy.freshness_seconds:
+        if age < -5 or (self.fixture is None and age > definition.cache_policy.freshness_seconds):
             raise ServiceError("TOOL_RESULT_INVALID", "工具观测时间过期或晚于当前时间", 502)
         if raw.has_more and not raw.cursor or (raw.truncated or raw.has_more) and not raw.coverage:
             raise ServiceError("TOOL_RESULT_INVALID", "分页或截断结果须提供游标及原始范围", 502)
@@ -341,13 +354,17 @@ class ToolExecutor:
             try:
                 registration = self.service.registry.resolve(context.scope, definition.binding)
                 async with asyncio.timeout(definition.timeout_seconds):
-                    raw = await registration.adapter.invoke(
-                        AdapterRequest(
-                            context=context,
-                            arguments=call.model_copy(deep=True).arguments,
-                            attempt_id=attempt.attempt_id,
-                            definition=definition.model_copy(deep=True),
-                            run_id=call.run_id,
+                    raw = (
+                        await self.fixture.invoke(context, call)
+                        if self.fixture
+                        else await registration.adapter.invoke(
+                            AdapterRequest(
+                                context=context,
+                                arguments=call.model_copy(deep=True).arguments,
+                                attempt_id=attempt.attempt_id,
+                                definition=definition.model_copy(deep=True),
+                                run_id=call.run_id,
+                            )
                         )
                     )
                 attempt = attempt.model_copy(update={"source_request_id": raw.source_request_id})

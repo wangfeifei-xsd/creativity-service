@@ -124,6 +124,19 @@ class RuntimeAdmission:
     async def rerun(
         self, context: AuthContext, row: dict[str, Any], request: RunInput, key: str
     ) -> AdmissionReceipt:
+        if row["purpose"] == "evaluation":
+            from creativity_service.modules.evaluations.repositories import (
+                repository as evaluations,
+            )
+
+            async with self.runs.engine.connect() as connection:
+                entries = await evaluations("evaluation_results", context.scope).find(
+                    connection, run_id=row["id"]
+                )
+            if entries:
+                raise ServiceError(
+                    "EVALUATION_RERUN_REQUIRED", "请从评测报告重跑样本以保留固定数据和预算关联", 422
+                )
         spec = await load_spec(self.runs, row)
         if spec.versions[0].resource_type == "agent":
             # 保留调试/评测用途；当前依赖和授权重新冻结，原运行内容保持不变。

@@ -61,6 +61,8 @@ async def runtime() -> AsyncIterator[tuple[RunService, list[str]]]:
 async def sweep() -> None:
     async with runtime() as (runs, channel_ids):
         for channel_id in channel_ids:
+            if runs.evaluation_sweep:
+                await runs.evaluation_sweep(channel_id)
             await Recovery(runs).scan(channel_id)
             await Dispatcher(runs, CeleryPublisher()).scan(channel_id)
 

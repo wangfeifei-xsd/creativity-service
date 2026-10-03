@@ -63,6 +63,8 @@ class RunKernel:
         self.lease_seconds, self.fault = lease_seconds, fault or (lambda _point: None)
         self.boundary: Callable[[AuthContext, dict[str, Any]], Awaitable[None]] | None = None
         self.runtime_executor: Executor | None = None
+        self.content_guard: Callable[[UnitOfWork, dict[str, Any]], Awaitable[None]] | None = None
+        self.evaluation_sweep: Callable[[str], Awaitable[None]] | None = None
         self.rerun_handler: (
             Callable[[AuthContext, dict[str, Any], RunInput, str], Awaitable[AdmissionReceipt]]
             | None
@@ -127,6 +129,8 @@ class RunKernel:
         if row["conversation_id"]:
             refs.append(ContentRef("conversation", row["conversation_id"]))
         await DeletionGuard(self.context(row).scope).check(uow, refs)
+        if self.content_guard:
+            await self.content_guard(uow, row)
 
     async def snapshot(self, uow: UnitOfWork, row: dict[str, Any]) -> ReleaseSnapshot:
         await self.guard(uow, row)

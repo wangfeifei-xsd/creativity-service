@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-03",
+  "scope": "受控业务无关接入验证",
+  "files": {
+    "docs/business-independence-evidence.json": "983c92502109e294a895d84b5df8b6f1292fc79831b0bc4ff543b3012f9f2a00",
+    "docs/business-independence-builds.json": "cb406ebc28e8719882090b4b938a8f5643c699e445963725d514d53787a2e6f9",
+    "docs/business-independence/acceptance.txt": "593a7f48d7784c239147db86d9fea4fe97594ddcfef89a7374f65a26f167424a",
+    "docs/business-independence/documents-published.png": "7d0d612db145f497c99ab306f0757df88447ccffd0b56478c8f8e3347f6eaf6a",
+    "docs/business-independence/matrix-published.png": "3f612a257cf4cd09e4c14cd506e82cc982c33e0f2694092d1fb77705b9e71d4d",
+    "docs/business-independence/opt-in-check.txt": "b76c4a4232942627458f55e4ce3e2995ad2cb1cc1cc3b580704ccfe7f553fe24",
+    "docs/business-independence/regression.txt": "a6ad55faaf69ad23d99f5523e524671ac1510b407f4f8fb005faaf844752d232",
+    "docs/business-independence/service-check.txt": "cb34f14b8861b8cb74457b9166cc2a82093ad7f90beb03ffb98ce4f6cfd13aa4",
+    "docs/business-independence/third-published.png": "04843b3072ef56301208b1433262f4a48a1aa6dc8311889f93770add5bb5cdbc",
+    "docs/business-independence/web-check.txt": "596a5808b21b493192490fb1d1e01612f255e06fb50532681ada548fae709336",
+    "docs/business-independence/worker.jsonl": "cd4eb1bf60d77ef9e735b4aa4e9c937f1b06692cb0aee19d8e576aa068b127aa"
+  }
+}

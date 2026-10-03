@@ -101,7 +101,16 @@ class RuntimeExecutor:
         if step is None:
             raise ServiceError("RUN_INACTIVE", "运行已停止", 409)
         port = BoundToolPort(self.runs, lease, spec, self.authorization)
-        executor = ToolExecutor(self.tools, port)  # 每次实际执行独立计数，缓存不冒充外部尝试。
+        from creativity_service.modules.evaluations.fixtures import provider_for
+
+        fixture = (
+            await provider_for(self.runs.engine, context, lease.run_id)
+            if spec.purpose == "evaluation"
+            else None
+        )
+        executor = ToolExecutor(
+            self.tools, port, fixture=fixture
+        )  # 每次实际执行独立计数，缓存不冒充外部尝试。
         result = await executor.execute(
             context,
             ToolExecution(

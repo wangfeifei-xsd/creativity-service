@@ -1,0 +1,165 @@
+{
+  "$defs": {
+    "Assertion": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "schema",
+            "equal",
+            "numeric",
+            "one_of",
+            "subset",
+            "forbidden",
+            "citation"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "default": "",
+          "maxLength": 512,
+          "title": "Path",
+          "type": "string"
+        },
+        "expected": {
+          "default": null,
+          "title": "Expected"
+        },
+        "tolerance": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Tolerance",
+          "type": "number"
+        },
+        "category": {
+          "default": "quality",
+          "enum": [
+            "quality",
+            "schema",
+            "cross_scope",
+            "secret_leak",
+            "fabricated_entity",
+            "calculation",
+            "authorization",
+            "citation"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name"
+      ],
+      "title": "Assertion",
+      "type": "object"
+    },
+    "HumanLabel": {
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "enum": [
+            "approved",
+            "rejected",
+            "disputed"
+          ],
+          "title": "Decision",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "decision",
+        "reason"
+      ],
+      "title": "HumanLabel",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "case_key": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Case Key",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 255,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "input_paths": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 100,
+      "minItems": 1,
+      "title": "Input Paths",
+      "type": "array"
+    },
+    "assertions": {
+      "items": {
+        "$ref": "#/$defs/Assertion"
+      },
+      "maxItems": 100,
+      "minItems": 1,
+      "title": "Assertions",
+      "type": "array"
+    },
+    "label_source": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Label Source",
+      "type": "string"
+    },
+    "review": {
+      "$ref": "#/$defs/HumanLabel"
+    },
+    "version_label": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Version Label",
+      "type": "string"
+    }
+  },
+  "required": [
+    "revision",
+    "run_id",
+    "case_key",
+    "title",
+    "input_paths",
+    "assertions",
+    "label_source",
+    "review",
+    "version_label"
+  ],
+  "title": "RunCaseInput",
+  "type": "object"
+}

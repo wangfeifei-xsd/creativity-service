@@ -6,6 +6,7 @@ from creativity_service.core.services import build_core_services
 from creativity_service.modules.agents.assembly import build_agent_service
 from creativity_service.modules.budgets.services import BudgetService
 from creativity_service.modules.conversations.assembly import build_conversation_service
+from creativity_service.modules.evaluations.assembly import build_evaluation_service
 from creativity_service.modules.iam.services import IamServices
 from creativity_service.modules.integrations.assembly import build_integration_services
 from creativity_service.modules.integrations.delegation import CurrentSubjectReader
@@ -57,4 +58,6 @@ def worker_services(
         iam.authorization,
         registry=registry,
     )
+    evaluations = build_evaluation_service(engine, iam.authorization, agents, runs, core.cleanup)
+    runs.evaluation_sweep = evaluations.sweep
     return runs

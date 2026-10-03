@@ -12,9 +12,9 @@ API 的 `create_app` 和 Celery 的 `worker_services` 均调用 `install_runtime
 | --- | --- |
 | `POST /api/v1/runs` | 只接收 Agent 编码及业务输入，由 `RuntimeResolver` 解析当前环境发布映射；用途为 production |
 | Agent 版本测试 | `AgentService.freeze_candidate` 固定 revision 和依赖，`RuntimeAdmission.submit` 创建 debug |
-| 评测服务内部端口 | 将 purpose=evaluation 的受控 `FrozenExecutionSpec` 交给 `RuntimeAdmission.submit`；无公共上传执行定义的 HTTP 接口 |
+| 评测服务内部端口 | 受控 `FrozenExecutionSpec` 使用 purpose=evaluation；24 的批量派发通过冻结解析器将样本占位与统一 run 原子关联；无公共上传执行定义的 HTTP 接口 |
 | 模型验证、提示词、工具、技能测试 | 模块端口生成冻结测试描述，无需已经存在正式 Agent；统一创建 debug 及独立 Attempt/用量 |
-| 管理重新执行 | 新建 run 并记录 parent_run_id；正式运行重新解析发布，Agent 调试/评测重新冻结当前版本并保留用途；模块测试创建新冻结描述 |
+| 管理重新执行 | 新建 run 并记录 parent_run_id；正式运行重新解析发布，Agent 调试重新冻结当前版本；24 管理的评测子 run 须从评测报告重跑，保留原候选、夹具和预算关联；模块测试创建新冻结描述 |
 
 模块测试重新执行只形成新的运行记录，不改写原模块测试的能力认证结果；需要更新能力验证记录时，从模型管理重新发起测试。
 

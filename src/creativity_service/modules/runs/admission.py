@@ -32,9 +32,9 @@ from creativity_service.modules.runs.schemas import TERMINAL, AdmissionReceipt
 class AdmissionService(RunKernel):
     @staticmethod
     def identity_scope(context: AuthContext, request: RunInput) -> tuple[str, str, str]:
-        if context.principal_type == "management" and context.actor_id:
+        if context.principal_type in {"management", "worker"} and context.actor_id:
             kind, identity_id = "management", context.actor_id
-        elif context.principal_type == "service" and context.client_id:
+        elif context.principal_type in {"service", "worker"} and context.client_id:
             kind, identity_id = "service", context.client_id
         else:
             raise ServiceError("UNAUTHENTICATED", "受理必须使用已认证调用身份", 401)
@@ -272,6 +272,9 @@ class AdmissionService(RunKernel):
                         "next_attempt_at": now,
                     },
                 )
+                admitted = getattr(self.resolver, "admitted_in", None)
+                if admitted:
+                    await admitted(uow, context, definition, row)
                 await self.event(uow, row, "accepted", self.receipt(row).model_dump(mode="json"))
         if existing_run:
             return await self.replay(context, existing_run, "", "")

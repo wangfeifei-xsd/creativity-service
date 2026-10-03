@@ -1,0 +1,69 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "enum": [
+        "jsonl",
+        "csv"
+      ],
+      "title": "Format",
+      "type": "string"
+    },
+    "content": {
+      "maxLength": 2000000,
+      "minLength": 1,
+      "title": "Content",
+      "type": "string"
+    },
+    "mapping": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Mapping",
+      "type": "object"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "version_label": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Version Label",
+      "type": "string"
+    },
+    "captured_at": {
+      "format": "date-time",
+      "title": "Captured At",
+      "type": "string"
+    },
+    "commit": {
+      "default": false,
+      "title": "Commit",
+      "type": "boolean"
+    },
+    "preview_digest": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Preview Digest"
+    }
+  },
+  "required": [
+    "format",
+    "content",
+    "revision",
+    "version_label",
+    "captured_at"
+  ],
+  "title": "ImportInput",
+  "type": "object"
+}

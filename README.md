@@ -58,3 +58,7 @@ Python 3.12 + FastAPI，API 与 Celery Worker 分进程运行。使用 uv 0.10.1
 21 已交付可移植 Skills、显式 MCP 工具绑定、参考资料加载和两套 Agent 配置，见 [配置交接](docs/configuration-delivery.md) 与 [验证记录](docs/configuration-validation.md)。正式发布继续受评测门禁控制。
 
 22 已交付统一后端客户端、业务接口 OpenAPI 与实际 TCP MCP 调用证据，见 [接入指南](docs/unified-api.md)、[可运行样例](examples/backend/README.md) 和 [验证记录](docs/unified-api-validation.md)。
+
+23 已完成固定构建下的三渠道业务无关接入验证，见 [接入清单](docs/business-independence.md)、[三套配置与独立复现脚本](examples/onboarding/README.md)、[调用及构建验收](docs/business-independence-validation.md)。该浏览器组合用例通过复现脚本显式启动，普通 `make integration` 会跳过未准备固定构建的执行。
+
+24 已交付样本版本、JSONL/CSV 导入、统一运行批量评测、基线对比、人工复核及 prod 发布门禁；见 [评测交接](docs/evaluations.md)、[验证记录](docs/evaluations-validation.md) 与 [样本装配](examples/evaluations/README.md)。迁移为 `0024_evaluations`，真实模型与 MCP 组合证据由 26 汇总。

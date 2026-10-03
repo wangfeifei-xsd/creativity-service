@@ -1,7 +1,7 @@
 {
-  "model_version": "1.5.0",
+  "model_version": "1.6.0",
   "requirements_version": "v0.7",
-  "date": "2026-10-02",
+  "date": "2026-10-03",
   "modules": {
     "core": {
       "title": "公共设施",
@@ -10478,15 +10478,15 @@
           "type": "varchar(128)",
           "comment": "样本集名称",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
           "name": "scenario",
           "type": "varchar(64)",
-          "comment": "场景类别",
+          "comment": "适用能力类别",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
@@ -10494,15 +10494,23 @@
           "type": "varchar(128)",
           "comment": "负责人",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
-          "name": "status",
-          "type": "varchar(32)",
-          "comment": "状态",
+          "name": "applicability",
+          "type": "text",
+          "comment": "适用范围",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "current_version_id",
+          "type": "varchar(64)",
+          "comment": "当前样本版本",
+          "required": false,
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         }
       ],
@@ -10510,22 +10518,17 @@
         [
           "channel_id",
           "id"
-        ],
-        [
-          "channel_id",
-          "scenario"
         ]
       ],
-      "status": "设计基线",
-      "revision": null,
+      "status": "已实现",
       "scope": "主体",
-      "control_purpose": null,
-      "content": false
+      "revision": "0024_evaluations",
+      "control_purpose": null
     },
     {
       "module": "evaluation",
       "name": "evaluation_dataset_versions",
-      "comment": "不可变样本集版本",
+      "comment": "不可变评测样本及标签版本",
       "columns": [
         {
           "name": "id",
@@ -10602,9 +10605,9 @@
         {
           "name": "dataset_id",
           "type": "varchar(64)",
-          "comment": "样本集标识",
+          "comment": "所属样本集",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
@@ -10612,190 +10615,47 @@
           "type": "varchar(128)",
           "comment": "版本名称",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
           "name": "content_digest",
           "type": "varchar(64)",
-          "comment": "内容摘要",
+          "comment": "数据和标签摘要",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
           "name": "case_ids",
           "type": "jsonb",
-          "comment": "具体样本修订集合",
+          "comment": "固定样本清单",
           "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
         },
         {
-          "name": "fixture_ids",
+          "name": "reference_versions",
           "type": "jsonb",
-          "comment": "固定夹具集合",
+          "comment": "参考资料版本",
           "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        }
-      ],
-      "indexes": [
-        [
-          "channel_id",
-          "id"
-        ],
-        [
-          "channel_id",
-          "dataset_id",
-          "version_label"
-        ]
-      ],
-      "status": "设计基线",
-      "revision": null,
-      "scope": "主体",
-      "control_purpose": null,
-      "content": true
-    },
-    {
-      "module": "evaluation",
-      "name": "evaluation_cases",
-      "comment": "评测样本及人工标签",
-      "columns": [
-        {
-          "name": "id",
-          "type": "varchar(64)",
-          "comment": "记录标识",
-          "required": true,
-          "source": "服务端随机标识",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
-          "name": "channel_id",
-          "type": "varchar(64)",
-          "comment": "所属渠道标识",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "created_at",
+          "name": "captured_at",
           "type": "timestamptz",
-          "comment": "创建时间",
+          "comment": "固定数据时间",
           "required": true,
-          "source": "服务端时钟",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
-          "name": "updated_at",
-          "type": "timestamptz",
-          "comment": "更新时间",
-          "required": true,
-          "source": "服务端时钟",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "revision",
-          "type": "bigint",
-          "comment": "并发修订号",
-          "required": true,
-          "source": "服务层递增",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "environment",
-          "type": "varchar(16)",
-          "comment": "所属环境",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "subject_type",
-          "type": "varchar(64)",
-          "comment": "业务主体类型",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "subject_id",
-          "type": "varchar(128)",
-          "comment": "业务主体编号",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "个人"
-        },
-        {
-          "name": "dataset_id",
-          "type": "varchar(64)",
-          "comment": "样本集标识",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "title",
-          "type": "varchar(255)",
-          "comment": "样本标题",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "input",
+          "name": "reference_digests",
           "type": "jsonb",
-          "comment": "样本输入",
+          "comment": "参考资料版本内容摘要",
           "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "context",
-          "type": "jsonb",
-          "comment": "授权上下文",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "expected_constraints",
-          "type": "jsonb",
-          "comment": "确定性预期",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "labels",
-          "type": "jsonb",
-          "comment": "人工标签及争议",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "source_refs",
-          "type": "jsonb",
-          "comment": "真实来源引用",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "previous_case_id",
-          "type": "varchar(64)",
-          "comment": "上次样本修订",
-          "required": false,
-          "source": "服务层校验后的业务输入",
+          "source": "受信已发布版本",
           "sensitivity": "内部"
         }
       ],
@@ -10809,16 +10669,15 @@
           "dataset_id"
         ]
       ],
-      "status": "设计基线",
-      "revision": null,
+      "status": "已实现",
       "scope": "主体",
-      "control_purpose": null,
-      "content": true
+      "revision": "0024_evaluations",
+      "control_purpose": null
     },
     {
       "module": "evaluation",
-      "name": "evaluation_fixtures",
-      "comment": "固定评测数据夹具",
+      "name": "evaluation_cases",
+      "comment": "不可变评测样本",
       "columns": [
         {
           "name": "id",
@@ -10893,52 +10752,60 @@
           "sensitivity": "个人"
         },
         {
-          "name": "tool_results",
-          "type": "jsonb",
-          "comment": "工具结果",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "catalog_snapshot",
-          "type": "jsonb",
-          "comment": "候选目录",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "policy_version",
+          "name": "dataset_id",
           "type": "varchar(64)",
-          "comment": "风险政策版本",
+          "comment": "所属样本集",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
-          "name": "metric_snapshot",
-          "type": "jsonb",
-          "comment": "指标口径及值",
+          "name": "case_key",
+          "type": "varchar(128)",
+          "comment": "跨版本样本定位键",
           "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "captured_at",
-          "type": "timestamptz",
-          "comment": "捕获时间",
-          "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
-          "name": "source_refs",
-          "type": "jsonb",
-          "comment": "来源引用",
+          "name": "title",
+          "type": "varchar(255)",
+          "comment": "样本标题",
           "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "payload",
+          "type": "jsonb",
+          "comment": "输入、断言、标签、人工结论和来源",
+          "required": false,
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "敏感"
+        },
+        {
+          "name": "fixture_id",
+          "type": "varchar(64)",
+          "comment": "固定工具数据引用",
+          "required": false,
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "previous_case_id",
+          "type": "varchar(64)",
+          "comment": "修改前样本引用",
+          "required": false,
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "invalidated",
+          "type": "boolean",
+          "comment": "来源已失效",
+          "required": true,
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -10948,19 +10815,18 @@
         ],
         [
           "channel_id",
-          "created_at"
+          "dataset_id"
         ]
       ],
-      "status": "设计基线",
-      "revision": null,
+      "status": "已实现",
       "scope": "主体",
-      "control_purpose": null,
-      "content": true
+      "revision": "0024_evaluations",
+      "control_purpose": null
     },
     {
       "module": "evaluation",
-      "name": "evaluations",
-      "comment": "批量评测任务",
+      "name": "evaluation_fixtures",
+      "comment": "评测工具夹具",
       "columns": [
         {
           "name": "id",
@@ -11035,59 +10901,212 @@
           "sensitivity": "个人"
         },
         {
+          "name": "payload",
+          "type": "jsonb",
+          "comment": "按工具版本及参数匹配的固定结果",
+          "required": false,
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "敏感"
+        },
+        {
+          "name": "captured_at",
+          "type": "timestamptz",
+          "comment": "夹具采集时间",
+          "required": true,
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "invalidated",
+          "type": "boolean",
+          "comment": "夹具来源已失效",
+          "required": true,
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        }
+      ],
+      "indexes": [
+        [
+          "channel_id",
+          "id"
+        ]
+      ],
+      "status": "已实现",
+      "scope": "主体",
+      "revision": "0024_evaluations",
+      "control_purpose": null
+    },
+    {
+      "module": "evaluation",
+      "name": "evaluations",
+      "comment": "批量评测调度任务",
+      "columns": [
+        {
+          "name": "id",
+          "type": "varchar(64)",
+          "comment": "记录标识",
+          "required": true,
+          "source": "服务端随机标识",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "channel_id",
+          "type": "varchar(64)",
+          "comment": "所属渠道标识",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "comment": "创建时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "comment": "更新时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "comment": "并发修订号",
+          "required": true,
+          "source": "服务层递增",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "environment",
+          "type": "varchar(16)",
+          "comment": "所属环境",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "data_scope_id",
+          "type": "varchar(64)",
+          "comment": "业务数据域标识",
+          "required": false,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "subject_type",
+          "type": "varchar(64)",
+          "comment": "业务主体类型",
+          "required": false,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "subject_id",
+          "type": "varchar(128)",
+          "comment": "业务主体编号",
+          "required": false,
+          "source": "受信服务上下文",
+          "sensitivity": "个人"
+        },
+        {
+          "name": "name",
+          "type": "varchar(128)",
+          "comment": "任务名称",
+          "required": true,
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
           "name": "dataset_version_id",
           "type": "varchar(64)",
-          "comment": "样本集版本",
+          "comment": "固定样本版本",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "dataset_digest",
+          "type": "varchar(64)",
+          "comment": "固定数据和标签摘要",
+          "required": true,
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
           "name": "candidate_snapshots",
           "type": "jsonb",
-          "comment": "候选依赖快照",
+          "comment": "冻结候选及完整依赖清单",
           "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
         },
         {
-          "name": "baseline_snapshot_id",
+          "name": "baseline_evaluation_id",
           "type": "varchar(64)",
-          "comment": "基线快照",
+          "comment": "历史基线评测",
           "required": false,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "baseline_candidate_id",
+          "type": "varchar(64)",
+          "comment": "基线候选",
+          "required": false,
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
           "name": "execution_mode",
           "type": "varchar(32)",
-          "comment": "数据执行方式",
+          "comment": "工具数据执行模式",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
-          "name": "budget",
+          "name": "config",
           "type": "jsonb",
-          "comment": "预算上限",
+          "comment": "并发、预算、阈值和发布评测配置",
           "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "identity",
+          "type": "jsonb",
+          "comment": "原始调用身份",
+          "required": true,
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
         },
         {
           "name": "state",
           "type": "varchar(32)",
-          "comment": "任务状态",
+          "comment": "调度状态",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
-          "name": "dispatch_paused",
-          "type": "boolean",
-          "comment": "停止派发标记",
+          "name": "human_review",
+          "type": "jsonb",
+          "comment": "独立报告人工审阅",
+          "required": false,
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamptz",
+          "comment": "发布证据有效期",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         }
       ],
@@ -11098,20 +11117,18 @@
         ],
         [
           "channel_id",
-          "state",
-          "created_at"
+          "state"
         ]
       ],
-      "status": "设计基线",
-      "revision": null,
+      "status": "已实现",
       "scope": "主体",
-      "control_purpose": null,
-      "content": false
+      "revision": "0024_evaluations",
+      "control_purpose": null
     },
     {
       "module": "evaluation",
       "name": "evaluation_results",
-      "comment": "逐样本评测结果",
+      "comment": "评测单例及重跑记录",
       "columns": [
         {
           "name": "id",
@@ -11188,66 +11205,74 @@
         {
           "name": "evaluation_id",
           "type": "varchar(64)",
-          "comment": "评测任务",
+          "comment": "所属评测",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
           "name": "case_id",
           "type": "varchar(64)",
-          "comment": "样本标识",
+          "comment": "固定样本",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "candidate_id",
+          "type": "varchar(64)",
+          "comment": "冻结候选",
+          "required": true,
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "attempt_number",
+          "type": "integer",
+          "comment": "样本重跑序号",
+          "required": true,
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
           "name": "run_id",
           "type": "varchar(64)",
-          "comment": "实际运行",
-          "required": true,
-          "source": "服务层校验后的业务输入",
+          "comment": "统一运行",
+          "required": false,
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
           "name": "state",
           "type": "varchar(32)",
-          "comment": "完成状态",
+          "comment": "单例状态",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
-          "name": "scores",
+          "name": "judgment",
           "type": "jsonb",
-          "comment": "指标得分",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "violations",
-          "type": "jsonb",
-          "comment": "阻断项",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "judge_details",
-          "type": "jsonb",
-          "comment": "裁判配置与结果",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
+          "comment": "确定性与语义判定",
+          "required": false,
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "敏感"
         },
         {
           "name": "human_label",
           "type": "jsonb",
-          "comment": "人工复核",
+          "comment": "独立人工结论",
           "required": false,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "敏感"
+        },
+        {
+          "name": "claimed_at",
+          "type": "timestamptz",
+          "comment": "派发占位时间",
+          "required": false,
+          "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -11257,20 +11282,22 @@
         ],
         [
           "channel_id",
-          "evaluation_id",
-          "case_id"
+          "evaluation_id"
+        ],
+        [
+          "channel_id",
+          "run_id"
         ]
       ],
-      "status": "设计基线",
-      "revision": null,
+      "status": "已实现",
       "scope": "主体",
-      "control_purpose": null,
-      "content": true
+      "revision": "0024_evaluations",
+      "control_purpose": null
     },
     {
       "module": "evaluation",
       "name": "evaluation_reports",
-      "comment": "评测对比与发布证据",
+      "comment": "可追溯评测报告",
       "columns": [
         {
           "name": "id",
@@ -11347,65 +11374,33 @@
         {
           "name": "evaluation_id",
           "type": "varchar(64)",
-          "comment": "评测任务",
+          "comment": "所属评测",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
-          "name": "dependencies_digest",
+          "name": "report_digest",
           "type": "varchar(64)",
-          "comment": "被评测依赖摘要",
+          "comment": "报告证据摘要",
           "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
-          "name": "metrics",
+          "name": "payload",
           "type": "jsonb",
-          "comment": "比较指标",
+          "comment": "覆盖、差异、阻断、用量与耗时",
           "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "coverage",
-          "type": "jsonb",
-          "comment": "样本覆盖及无效原因",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "cost",
-          "type": "jsonb",
-          "comment": "分币种成本",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "latency",
-          "type": "jsonb",
-          "comment": "耗时统计",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "decision",
-          "type": "varchar(32)",
-          "comment": "发布判定",
-          "required": true,
-          "source": "服务层校验后的业务输入",
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         },
         {
-          "name": "artifact_id",
-          "type": "varchar(64)",
-          "comment": "报告文件",
-          "required": false,
-          "source": "服务层校验后的业务输入",
+          "name": "reproducible",
+          "type": "boolean",
+          "comment": "来源和固定数据可复现",
+          "required": true,
+          "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
         }
       ],
@@ -11419,11 +11414,10 @@
           "evaluation_id"
         ]
       ],
-      "status": "设计基线",
-      "revision": null,
+      "status": "已实现",
       "scope": "主体",
-      "control_purpose": null,
-      "content": true
+      "revision": "0024_evaluations",
+      "control_purpose": null
     },
     {
       "module": "deletion",

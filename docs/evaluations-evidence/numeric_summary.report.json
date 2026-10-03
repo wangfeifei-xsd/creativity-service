@@ -1,0 +1,344 @@
+{
+  "scope": {
+    "channel_id": "channel_d6875470d36144b2b739851f73f2a994",
+    "environment": "prod",
+    "data_scope_id": "scope_f8d329a3c535450f8bdb91c7ca27ac2f",
+    "subject_type": null,
+    "subject_id": null
+  },
+  "evidence": "fixture",
+  "label_source": "技术审阅固定预期",
+  "report": {
+    "report_id": "evaluation_13fcdb6e5b4041b9b02eb352b5f5610d",
+    "evaluation_id": "evaluation_13fcdb6e5b4041b9b02eb352b5f5610d",
+    "revision": 2,
+    "report_digest": "8345cea3a53272ea6612b8b0d47c6b4ecf49a2804d1da2ff2720ce5bdd7ef92e",
+    "reproducible": true,
+    "complete": true,
+    "candidates": [
+      {
+        "candidate_id": "candidate_758f0db70dc646c3852956d4346e60c0",
+        "agent_id": "agent_062329e8b5b64d3bbeb96f9deb01b81b",
+        "agent_name": "数列汇总助手",
+        "version_id": "version_8fd8ef60a922427d996fe41c9ad650a1",
+        "version_label": "初始草稿",
+        "content_digest": "d26d78dcf06bd0485851ae6dcfd2f28161b2b3808560c4a00a648a115e813841",
+        "dependencies_digest": "c2971930e2ca549a092b896dab7762046511d853b0f2acb8144308e3aec2d970",
+        "dependencies": [
+          {
+            "version_id": "version_225c50c9e4f54121bda26b58e235fc98",
+            "resource_type": "model",
+            "version_label": "1",
+            "content_digest": "a85c33b88d241f79d4d70b84027c1d4cd69f532d72c08de6d5750800616e8003"
+          },
+          {
+            "version_id": "version_4cbe53db678241ed9ff6f0fc11451739",
+            "resource_type": "prompt",
+            "version_label": "初版",
+            "content_digest": "852cdc68f7ceba18f588b5128f2ec6d76e4bff8d9569366881646af599d7dc6f"
+          },
+          {
+            "version_id": "version_5776852f800e4d04a9a973df8bd8f950",
+            "resource_type": "model_connection",
+            "version_label": "1",
+            "content_digest": "ccbece5bc6306b40a13795b3f2bd7bf74266c9403d56205fa80ae4179473574f"
+          },
+          {
+            "version_id": "version_b6223bafebba4121adb79121de09f7ab",
+            "resource_type": "model_route",
+            "version_label": "模型路由初版",
+            "content_digest": "a4eb7d31d7c84f297306ad4dedd6fcaa75e5b5c7eaf863c3dc48ca515aca3256"
+          }
+        ],
+        "total": 6,
+        "counts": {
+          "PASSED": 2,
+          "FAILED": 3,
+          "INVALID": 1,
+          "CANCELLED": 0,
+          "UNEXECUTED": 0,
+          "PENDING": 0,
+          "DISPATCHING": 0,
+          "RUNNING": 0
+        },
+        "pass_rate": 0.3333333333333333,
+        "regression": null,
+        "critical_failures": 2,
+        "human_disagreements": 0,
+        "quality_passed": false,
+        "release_passed": false
+      }
+    ],
+    "results": [
+      {
+        "result_id": "evaluation_result_d14e13bef44546b6b9c7cf2fc8f12b36",
+        "case_id": "case_de4d3476b2c045d0a0004ee5ecf46d96",
+        "case_key": "boundary",
+        "title": "边界样本",
+        "labels": [
+          "边界"
+        ],
+        "candidate_id": "candidate_758f0db70dc646c3852956d4346e60c0",
+        "run_id": "run_2858440b4ef64edbbab6899bc2f3af53",
+        "attempt_number": 1,
+        "revision": 4,
+        "state": "PASSED",
+        "state_label": "通过",
+        "judgment": {
+          "checks": [
+            {
+              "name": "数值精度",
+              "passed": true,
+              "category": "calculation"
+            },
+            {
+              "name": "源契约版本",
+              "passed": true,
+              "category": "quality"
+            }
+          ],
+          "passed": true,
+          "critical": false,
+          "semantic": null,
+          "violations": [],
+          "human_required": false
+        },
+        "human_label": null,
+        "baseline_state": null,
+        "difference_label": "无可比结果"
+      },
+      {
+        "result_id": "evaluation_result_d9c42e00fc6b434a887935c9536a1c1a",
+        "case_id": "case_50321b11dfed4bfcb7b4b6a1adeda6ef",
+        "case_key": "tool_change",
+        "title": "工具变化样本",
+        "labels": [
+          "工具变化"
+        ],
+        "candidate_id": "candidate_758f0db70dc646c3852956d4346e60c0",
+        "run_id": "run_47a05c8fc2dc412e82468139668f8d0c",
+        "attempt_number": 1,
+        "revision": 4,
+        "state": "FAILED",
+        "state_label": "未通过",
+        "judgment": {
+          "checks": [
+            {
+              "name": "数值精度",
+              "passed": true,
+              "category": "calculation"
+            },
+            {
+              "name": "源契约版本",
+              "passed": false,
+              "category": "quality"
+            }
+          ],
+          "passed": false,
+          "critical": false,
+          "semantic": null,
+          "violations": [
+            {
+              "name": "源契约版本",
+              "passed": false,
+              "category": "quality"
+            }
+          ],
+          "human_required": false
+        },
+        "human_label": null,
+        "baseline_state": null,
+        "difference_label": "无可比结果"
+      },
+      {
+        "result_id": "evaluation_result_feb36d17374e4698a3ac785b8b805fd6",
+        "case_id": "case_31799a41452d442c8204b4cea4f9cd4a",
+        "case_key": "fault",
+        "title": "故障样本",
+        "labels": [
+          "故障"
+        ],
+        "candidate_id": "candidate_758f0db70dc646c3852956d4346e60c0",
+        "run_id": "run_4ca7116bccda4fb7bacfd5f76559c9d6",
+        "attempt_number": 1,
+        "revision": 4,
+        "state": "FAILED",
+        "state_label": "未通过",
+        "judgment": {
+          "checks": [
+            {
+              "name": "运行完成",
+              "passed": false,
+              "category": "quality"
+            },
+            {
+              "name": "数值精度",
+              "passed": false,
+              "category": "calculation"
+            },
+            {
+              "name": "源契约版本",
+              "passed": false,
+              "category": "quality"
+            }
+          ],
+          "passed": false,
+          "critical": true,
+          "semantic": null,
+          "violations": [
+            {
+              "name": "运行完成",
+              "passed": false,
+              "category": "quality"
+            },
+            {
+              "name": "数值精度",
+              "passed": false,
+              "category": "calculation"
+            },
+            {
+              "name": "源契约版本",
+              "passed": false,
+              "category": "quality"
+            }
+          ],
+          "human_required": false
+        },
+        "human_label": null,
+        "baseline_state": null,
+        "difference_label": "无可比结果"
+      },
+      {
+        "result_id": "evaluation_result_97e2c1dacd574fe38db8b876217c017d",
+        "case_id": "case_d524ec21971f4ebbb982b5aac4f024b7",
+        "case_key": "authorization",
+        "title": "越权样本",
+        "labels": [
+          "越权"
+        ],
+        "candidate_id": "candidate_758f0db70dc646c3852956d4346e60c0",
+        "run_id": "run_505179416cdf46588dfe7ae52de8fbc7",
+        "attempt_number": 1,
+        "revision": 4,
+        "state": "FAILED",
+        "state_label": "未通过",
+        "judgment": {
+          "checks": [
+            {
+              "name": "数值精度",
+              "passed": true,
+              "category": "calculation"
+            },
+            {
+              "name": "源契约版本",
+              "passed": false,
+              "category": "quality"
+            },
+            {
+              "name": "不得输出未授权实体",
+              "passed": false,
+              "category": "cross_scope"
+            }
+          ],
+          "passed": false,
+          "critical": true,
+          "semantic": null,
+          "violations": [
+            {
+              "name": "源契约版本",
+              "passed": false,
+              "category": "quality"
+            },
+            {
+              "name": "不得输出未授权实体",
+              "passed": false,
+              "category": "cross_scope"
+            }
+          ],
+          "human_required": false
+        },
+        "human_label": null,
+        "baseline_state": null,
+        "difference_label": "无可比结果"
+      },
+      {
+        "result_id": "evaluation_result_89259d3b423049499c3300ec29cff360",
+        "case_id": "case_f0e1f59707c6475aa00d9acde0040d52",
+        "case_key": "normal",
+        "title": "正常样本",
+        "labels": [
+          "正常"
+        ],
+        "candidate_id": "candidate_758f0db70dc646c3852956d4346e60c0",
+        "run_id": "run_f535cc4893ba408288cbd215e91c4bd5",
+        "attempt_number": 1,
+        "revision": 4,
+        "state": "PASSED",
+        "state_label": "通过",
+        "judgment": {
+          "checks": [
+            {
+              "name": "数值精度",
+              "passed": true,
+              "category": "calculation"
+            },
+            {
+              "name": "源契约版本",
+              "passed": true,
+              "category": "quality"
+            }
+          ],
+          "passed": true,
+          "critical": false,
+          "semantic": null,
+          "violations": [],
+          "human_required": false
+        },
+        "human_label": null,
+        "baseline_state": null,
+        "difference_label": "无可比结果"
+      },
+      {
+        "result_id": "evaluation_result_63a875a1e0634f26a7a3c6b74caaed45",
+        "case_id": "case_885ac09b40e0487f84d41bb61feb7a94",
+        "case_key": "missing",
+        "title": "缺失样本",
+        "labels": [
+          "缺失"
+        ],
+        "candidate_id": "candidate_758f0db70dc646c3852956d4346e60c0",
+        "run_id": null,
+        "attempt_number": 1,
+        "revision": 2,
+        "state": "INVALID",
+        "state_label": "样本无效",
+        "judgment": {
+          "checks": [],
+          "passed": false,
+          "reason": "输入契约不匹配",
+          "critical": false,
+          "semantic": null,
+          "violations": []
+        },
+        "human_label": null,
+        "baseline_state": null,
+        "difference_label": "无可比结果"
+      }
+    ],
+    "cost": {
+      "run_count": 5,
+      "amounts": {},
+      "unknown_count": 5,
+      "pending_count": 1,
+      "known_tokens": 120
+    },
+    "latency": {
+      "completed_runs": 5,
+      "mean_ms": 4681.8008,
+      "total_ms": 23409.004
+    },
+    "baseline": null,
+    "human_review": null,
+    "warnings": []
+  }
+}

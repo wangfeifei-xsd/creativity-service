@@ -23,6 +23,7 @@ from creativity_service.core.services import build_core_services
 from creativity_service.modules.agents.assembly import build_agent_service
 from creativity_service.modules.channels.assembly import build_channel_services
 from creativity_service.modules.conversations.assembly import build_conversation_service
+from creativity_service.modules.evaluations.assembly import build_evaluation_service
 from creativity_service.modules.integrations.assembly import build_integration_services
 from creativity_service.modules.integrations.delegation import CurrentSubjectReader
 from creativity_service.modules.mcp.assembly import build_mcp_service
@@ -200,6 +201,13 @@ def create_app(
             app.state.memory,
             app.state.iam.authorization,
             registry=runtime_registry,
+        )
+        app.state.evaluations = build_evaluation_service(
+            infrastructure.engine,
+            app.state.iam.authorization,
+            app.state.agents,
+            app.state.runs,
+            app.state.core.cleanup,
         )
         try:
             yield

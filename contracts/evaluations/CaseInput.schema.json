@@ -1,0 +1,271 @@
+{
+  "$defs": {
+    "Assertion": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "schema",
+            "equal",
+            "numeric",
+            "one_of",
+            "subset",
+            "forbidden",
+            "citation"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "default": "",
+          "maxLength": 512,
+          "title": "Path",
+          "type": "string"
+        },
+        "expected": {
+          "default": null,
+          "title": "Expected"
+        },
+        "tolerance": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Tolerance",
+          "type": "number"
+        },
+        "category": {
+          "default": "quality",
+          "enum": [
+            "quality",
+            "schema",
+            "cross_scope",
+            "secret_leak",
+            "fabricated_entity",
+            "calculation",
+            "authorization",
+            "citation"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name"
+      ],
+      "title": "Assertion",
+      "type": "object"
+    },
+    "EvaluationSource": {
+      "additionalProperties": false,
+      "properties": {
+        "resource_type": {
+          "enum": [
+            "run",
+            "version",
+            "artifact"
+          ],
+          "title": "Resource Type",
+          "type": "string"
+        },
+        "resource_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Resource Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "resource_type",
+        "resource_id"
+      ],
+      "title": "EvaluationSource",
+      "type": "object"
+    },
+    "FixtureCall": {
+      "additionalProperties": false,
+      "properties": {
+        "tool_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Tool Version Id",
+          "type": "string"
+        },
+        "arguments": {
+          "additionalProperties": true,
+          "title": "Arguments",
+          "type": "object"
+        },
+        "data": {
+          "default": null,
+          "title": "Data"
+        },
+        "source_version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Version",
+          "type": "string"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "enum": [
+                "TOOL_TIMEOUT",
+                "TOOL_UNAVAILABLE",
+                "TOOL_RESULT_INVALID"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Code"
+        }
+      },
+      "required": [
+        "tool_version_id",
+        "arguments",
+        "source_version",
+        "observed_at"
+      ],
+      "title": "FixtureCall",
+      "type": "object"
+    },
+    "HumanLabel": {
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "enum": [
+            "approved",
+            "rejected",
+            "disputed"
+          ],
+          "title": "Decision",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "decision",
+        "reason"
+      ],
+      "title": "HumanLabel",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "case_key": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Case Key",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 255,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "input": {
+      "additionalProperties": true,
+      "title": "Input",
+      "type": "object"
+    },
+    "context": {
+      "additionalProperties": true,
+      "title": "Context",
+      "type": "object"
+    },
+    "assertions": {
+      "items": {
+        "$ref": "#/$defs/Assertion"
+      },
+      "maxItems": 100,
+      "title": "Assertions",
+      "type": "array"
+    },
+    "expected_error": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expected Error"
+    },
+    "labels": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 32,
+      "title": "Labels",
+      "type": "array"
+    },
+    "label_source": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Label Source",
+      "type": "string"
+    },
+    "human_label": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HumanLabel"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "source_refs": {
+      "items": {
+        "$ref": "#/$defs/EvaluationSource"
+      },
+      "maxItems": 64,
+      "title": "Source Refs",
+      "type": "array"
+    },
+    "fixture": {
+      "items": {
+        "$ref": "#/$defs/FixtureCall"
+      },
+      "maxItems": 100,
+      "title": "Fixture",
+      "type": "array"
+    }
+  },
+  "required": [
+    "case_key",
+    "title",
+    "input",
+    "label_source"
+  ],
+  "title": "CaseInput",
+  "type": "object"
+}

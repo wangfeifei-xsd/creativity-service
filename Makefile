@@ -29,6 +29,7 @@ check:
 	uv run python -m creativity_service.modules.conversations.export --check
 	uv run python -m creativity_service.modules.prompts.export --check
 	uv run python -m creativity_service.modules.models.export --check
+	uv run python -m creativity_service.modules.evaluations.export --check
 	uv run python scripts/render_data_model.py --check
 	uv run python -m creativity_service.core.database.audit
 
@@ -70,6 +71,7 @@ contracts:
 	uv run python -m creativity_service.modules.conversations.export
 	uv run python -m creativity_service.modules.prompts.export
 	uv run python -m creativity_service.modules.models.export
+	uv run python -m creativity_service.modules.evaluations.export
 	uv run creativity-openapi
 	uv run creativity-openapi --backend
 

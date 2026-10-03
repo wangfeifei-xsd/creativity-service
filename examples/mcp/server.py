@@ -24,6 +24,7 @@ def serve(profile="archive", port=0, token="fixture-service-only"):
         scope=None,
         permissions={},
         calls=[],
+        protocol_calls=[],
         mode="normal",
         review_mode="normal",
         review_delay=0,
@@ -103,6 +104,9 @@ def serve(profile="archive", port=0, token="fixture-service-only"):
                 self.answer(401)
                 return
             method = message["method"]
+            state.protocol_calls.append(
+                {"method": method, "tool": message.get("params", {}).get("name")}
+            )
             if "id" not in message:
                 self.answer(202)
                 return

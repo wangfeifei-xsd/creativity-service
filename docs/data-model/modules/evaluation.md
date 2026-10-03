@@ -1,10 +1,10 @@
 # 效果评测模型
 
-模型版本 1.5.0；负责方案 24；需求 [13-效果评测.md](../../../../需求文档/13-效果评测.md)。总索引见 [README](../README.md)。
+模型版本 1.6.0；负责方案 24；需求 [13-效果评测.md](../../../../需求文档/13-效果评测.md)。总索引见 [README](../README.md)。
 
 ## evaluation_datasets
 
-评测样本集。状态：设计基线；归属：主体；迁移：由所属方案新增。
+评测样本集。状态：已实现；归属：主体；迁移：0024_evaluations。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -17,16 +17,17 @@
 | `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
-| `name` | `varchar(128)` | 样本集名称 | 是 | 服务层校验后的业务输入 | 内部 |
-| `scenario` | `varchar(64)` | 场景类别 | 是 | 服务层校验后的业务输入 | 内部 |
-| `owner` | `varchar(128)` | 负责人 | 是 | 服务层校验后的业务输入 | 内部 |
-| `status` | `varchar(32)` | 状态 | 是 | 服务层校验后的业务输入 | 内部 |
+| `name` | `varchar(128)` | 样本集名称 | 是 | 服务层校验及受信上下文 | 内部 |
+| `scenario` | `varchar(64)` | 适用能力类别 | 是 | 服务层校验及受信上下文 | 内部 |
+| `owner` | `varchar(128)` | 负责人 | 是 | 服务层校验及受信上下文 | 内部 |
+| `applicability` | `text` | 适用范围 | 是 | 服务层校验及受信上下文 | 内部 |
+| `current_version_id` | `varchar(64)` | 当前样本版本 | 否 | 服务层校验及受信上下文 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, scenario)`。
+普通索引：`(channel_id, id)`。
 
 ## evaluation_dataset_versions
 
-不可变样本集版本。状态：设计基线；归属：主体；迁移：由所属方案新增。
+不可变评测样本及标签版本。状态：已实现；归属：主体；迁移：0024_evaluations。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -39,17 +40,19 @@
 | `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
-| `dataset_id` | `varchar(64)` | 样本集标识 | 是 | 服务层校验后的业务输入 | 内部 |
-| `version_label` | `varchar(128)` | 版本名称 | 是 | 服务层校验后的业务输入 | 内部 |
-| `content_digest` | `varchar(64)` | 内容摘要 | 是 | 服务层校验后的业务输入 | 内部 |
-| `case_ids` | `jsonb` | 具体样本修订集合 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `fixture_ids` | `jsonb` | 固定夹具集合 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `dataset_id` | `varchar(64)` | 所属样本集 | 是 | 服务层校验及受信上下文 | 内部 |
+| `version_label` | `varchar(128)` | 版本名称 | 是 | 服务层校验及受信上下文 | 内部 |
+| `content_digest` | `varchar(64)` | 数据和标签摘要 | 是 | 服务层校验及受信上下文 | 内部 |
+| `case_ids` | `jsonb` | 固定样本清单 | 是 | 服务层校验及受信上下文 | 内部 |
+| `reference_versions` | `jsonb` | 参考资料版本 | 是 | 服务层校验及受信上下文 | 内部 |
+| `captured_at` | `timestamptz` | 固定数据时间 | 是 | 服务层校验及受信上下文 | 内部 |
+| `reference_digests` | `jsonb` | 参考资料版本内容摘要 | 是 | 受信已发布版本 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, dataset_id, version_label)`。
+普通索引：`(channel_id, id)`；`(channel_id, dataset_id)`。
 
 ## evaluation_cases
 
-评测样本及人工标签。状态：设计基线；归属：主体；迁移：由所属方案新增。
+不可变评测样本。状态：已实现；归属：主体；迁移：0024_evaluations。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -62,20 +65,19 @@
 | `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
-| `dataset_id` | `varchar(64)` | 样本集标识 | 是 | 服务层校验后的业务输入 | 内部 |
-| `title` | `varchar(255)` | 样本标题 | 是 | 服务层校验后的业务输入 | 内部 |
-| `input` | `jsonb` | 样本输入 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `context` | `jsonb` | 授权上下文 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `expected_constraints` | `jsonb` | 确定性预期 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `labels` | `jsonb` | 人工标签及争议 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `source_refs` | `jsonb` | 真实来源引用 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `previous_case_id` | `varchar(64)` | 上次样本修订 | 否 | 服务层校验后的业务输入 | 内部 |
+| `dataset_id` | `varchar(64)` | 所属样本集 | 是 | 服务层校验及受信上下文 | 内部 |
+| `case_key` | `varchar(128)` | 跨版本样本定位键 | 是 | 服务层校验及受信上下文 | 内部 |
+| `title` | `varchar(255)` | 样本标题 | 是 | 服务层校验及受信上下文 | 内部 |
+| `payload` | `jsonb` | 输入、断言、标签、人工结论和来源 | 否 | 服务层校验及受信上下文 | 敏感 |
+| `fixture_id` | `varchar(64)` | 固定工具数据引用 | 否 | 服务层校验及受信上下文 | 内部 |
+| `previous_case_id` | `varchar(64)` | 修改前样本引用 | 否 | 服务层校验及受信上下文 | 内部 |
+| `invalidated` | `boolean` | 来源已失效 | 是 | 服务层校验及受信上下文 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, dataset_id)`。
 
 ## evaluation_fixtures
 
-固定评测数据夹具。状态：设计基线；归属：主体；迁移：由所属方案新增。
+评测工具夹具。状态：已实现；归属：主体；迁移：0024_evaluations。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -88,18 +90,15 @@
 | `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
-| `tool_results` | `jsonb` | 工具结果 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `catalog_snapshot` | `jsonb` | 候选目录 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `policy_version` | `varchar(64)` | 风险政策版本 | 是 | 服务层校验后的业务输入 | 内部 |
-| `metric_snapshot` | `jsonb` | 指标口径及值 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `captured_at` | `timestamptz` | 捕获时间 | 是 | 服务层校验后的业务输入 | 内部 |
-| `source_refs` | `jsonb` | 来源引用 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `payload` | `jsonb` | 按工具版本及参数匹配的固定结果 | 否 | 服务层校验及受信上下文 | 敏感 |
+| `captured_at` | `timestamptz` | 夹具采集时间 | 是 | 服务层校验及受信上下文 | 内部 |
+| `invalidated` | `boolean` | 夹具来源已失效 | 是 | 服务层校验及受信上下文 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, created_at)`。
+普通索引：`(channel_id, id)`。
 
 ## evaluations
 
-批量评测任务。状态：设计基线；归属：主体；迁移：由所属方案新增。
+批量评测调度任务。状态：已实现；归属：主体；迁移：0024_evaluations。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -112,19 +111,24 @@
 | `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
-| `dataset_version_id` | `varchar(64)` | 样本集版本 | 是 | 服务层校验后的业务输入 | 内部 |
-| `candidate_snapshots` | `jsonb` | 候选依赖快照 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `baseline_snapshot_id` | `varchar(64)` | 基线快照 | 否 | 服务层校验后的业务输入 | 内部 |
-| `execution_mode` | `varchar(32)` | 数据执行方式 | 是 | 服务层校验后的业务输入 | 内部 |
-| `budget` | `jsonb` | 预算上限 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `state` | `varchar(32)` | 任务状态 | 是 | 服务层校验后的业务输入 | 内部 |
-| `dispatch_paused` | `boolean` | 停止派发标记 | 是 | 服务层校验后的业务输入 | 内部 |
+| `name` | `varchar(128)` | 任务名称 | 是 | 服务层校验及受信上下文 | 内部 |
+| `dataset_version_id` | `varchar(64)` | 固定样本版本 | 是 | 服务层校验及受信上下文 | 内部 |
+| `dataset_digest` | `varchar(64)` | 固定数据和标签摘要 | 是 | 服务层校验及受信上下文 | 内部 |
+| `candidate_snapshots` | `jsonb` | 冻结候选及完整依赖清单 | 是 | 服务层校验及受信上下文 | 内部 |
+| `baseline_evaluation_id` | `varchar(64)` | 历史基线评测 | 否 | 服务层校验及受信上下文 | 内部 |
+| `baseline_candidate_id` | `varchar(64)` | 基线候选 | 否 | 服务层校验及受信上下文 | 内部 |
+| `execution_mode` | `varchar(32)` | 工具数据执行模式 | 是 | 服务层校验及受信上下文 | 内部 |
+| `config` | `jsonb` | 并发、预算、阈值和发布评测配置 | 是 | 服务层校验及受信上下文 | 内部 |
+| `identity` | `jsonb` | 原始调用身份 | 是 | 服务层校验及受信上下文 | 内部 |
+| `state` | `varchar(32)` | 调度状态 | 是 | 服务层校验及受信上下文 | 内部 |
+| `human_review` | `jsonb` | 独立报告人工审阅 | 否 | 服务层校验及受信上下文 | 内部 |
+| `expires_at` | `timestamptz` | 发布证据有效期 | 是 | 服务层校验及受信上下文 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, state, created_at)`。
+普通索引：`(channel_id, id)`；`(channel_id, state)`。
 
 ## evaluation_results
 
-逐样本评测结果。状态：设计基线；归属：主体；迁移：由所属方案新增。
+评测单例及重跑记录。状态：已实现；归属：主体；迁移：0024_evaluations。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -137,20 +141,21 @@
 | `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
-| `evaluation_id` | `varchar(64)` | 评测任务 | 是 | 服务层校验后的业务输入 | 内部 |
-| `case_id` | `varchar(64)` | 样本标识 | 是 | 服务层校验后的业务输入 | 内部 |
-| `run_id` | `varchar(64)` | 实际运行 | 是 | 服务层校验后的业务输入 | 内部 |
-| `state` | `varchar(32)` | 完成状态 | 是 | 服务层校验后的业务输入 | 内部 |
-| `scores` | `jsonb` | 指标得分 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `violations` | `jsonb` | 阻断项 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `judge_details` | `jsonb` | 裁判配置与结果 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `human_label` | `jsonb` | 人工复核 | 否 | 服务层校验后的业务输入 | 敏感内容 |
+| `evaluation_id` | `varchar(64)` | 所属评测 | 是 | 服务层校验及受信上下文 | 内部 |
+| `case_id` | `varchar(64)` | 固定样本 | 是 | 服务层校验及受信上下文 | 内部 |
+| `candidate_id` | `varchar(64)` | 冻结候选 | 是 | 服务层校验及受信上下文 | 内部 |
+| `attempt_number` | `integer` | 样本重跑序号 | 是 | 服务层校验及受信上下文 | 内部 |
+| `run_id` | `varchar(64)` | 统一运行 | 否 | 服务层校验及受信上下文 | 内部 |
+| `state` | `varchar(32)` | 单例状态 | 是 | 服务层校验及受信上下文 | 内部 |
+| `judgment` | `jsonb` | 确定性与语义判定 | 否 | 服务层校验及受信上下文 | 敏感 |
+| `human_label` | `jsonb` | 独立人工结论 | 否 | 服务层校验及受信上下文 | 敏感 |
+| `claimed_at` | `timestamptz` | 派发占位时间 | 否 | 服务层校验及受信上下文 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, evaluation_id, case_id)`。
+普通索引：`(channel_id, id)`；`(channel_id, evaluation_id)`；`(channel_id, run_id)`。
 
 ## evaluation_reports
 
-评测对比与发布证据。状态：设计基线；归属：主体；迁移：由所属方案新增。
+可追溯评测报告。状态：已实现；归属：主体；迁移：0024_evaluations。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -163,13 +168,9 @@
 | `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
-| `evaluation_id` | `varchar(64)` | 评测任务 | 是 | 服务层校验后的业务输入 | 内部 |
-| `dependencies_digest` | `varchar(64)` | 被评测依赖摘要 | 是 | 服务层校验后的业务输入 | 内部 |
-| `metrics` | `jsonb` | 比较指标 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `coverage` | `jsonb` | 样本覆盖及无效原因 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `cost` | `jsonb` | 分币种成本 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `latency` | `jsonb` | 耗时统计 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `decision` | `varchar(32)` | 发布判定 | 是 | 服务层校验后的业务输入 | 内部 |
-| `artifact_id` | `varchar(64)` | 报告文件 | 否 | 服务层校验后的业务输入 | 内部 |
+| `evaluation_id` | `varchar(64)` | 所属评测 | 是 | 服务层校验及受信上下文 | 内部 |
+| `report_digest` | `varchar(64)` | 报告证据摘要 | 是 | 服务层校验及受信上下文 | 内部 |
+| `payload` | `jsonb` | 覆盖、差异、阻断、用量与耗时 | 是 | 服务层校验及受信上下文 | 内部 |
+| `reproducible` | `boolean` | 来源和固定数据可复现 | 是 | 服务层校验及受信上下文 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, evaluation_id)`。

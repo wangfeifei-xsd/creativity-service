@@ -1,6 +1,6 @@
 # Creativity P0 数据模型索引
 
-模型版本 **1.5.0**；需求基线 **v0.7**；技术基线 **v1.6**。
+模型版本 **1.6.0**；需求基线 **v0.7**；技术基线 **v1.6**。
 
 本档案覆盖全部 P0 持久化对象。机器清单为 [catalog.json](catalog.json)，字段文档由 `scripts/render_data_model.py` 生成。共享基础的代码定义位于 `core/database/baseline_v0001.json`；公共表对应 `0001_core`，账号模块对应 `0002_iam`，渠道模块对应 `0003_channels`；其余通用平台表按所属方案建库。开发规范引用 [rule.md](../../../rule.md)。
 
@@ -98,13 +98,13 @@
 | `run_contents` | [运行受理与编排](modules/runs.md) | 12-执行记录与任务运行.md | 已实现 | 11/17 |
 | `run_recoveries` | [运行受理与编排](modules/runs.md) | 12-执行记录与任务运行.md | 已实现 | 11/17 |
 | `run_occupancies` | [运行受理与编排](modules/runs.md) | 12-执行记录与任务运行.md | 已实现 | 11/17 |
-| `evaluation_datasets` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 设计基线 | 24 |
-| `evaluation_dataset_versions` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 设计基线 | 24 |
-| `evaluation_cases` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 设计基线 | 24 |
-| `evaluation_fixtures` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 设计基线 | 24 |
-| `evaluations` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 设计基线 | 24 |
-| `evaluation_results` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 设计基线 | 24 |
-| `evaluation_reports` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 设计基线 | 24 |
+| `evaluation_datasets` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 已实现 | 24 |
+| `evaluation_dataset_versions` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 已实现 | 24 |
+| `evaluation_cases` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 已实现 | 24 |
+| `evaluation_fixtures` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 已实现 | 24 |
+| `evaluations` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 已实现 | 24 |
+| `evaluation_results` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 已实现 | 24 |
+| `evaluation_reports` | [效果评测](modules/evaluation.md) | 13-效果评测.md | 已实现 | 24 |
 | `integrations` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
 | `delegation_keys` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |
 | `integration_tests` | [业务接入与身份委托](modules/integrations.md) | 14-业务接入与适配.md | 已实现 | 18/19/20 |

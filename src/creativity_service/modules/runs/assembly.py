@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from creativity_service.core.auth.types import ResourceState, ResourceStateReader
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.database import transaction
-from creativity_service.core.deletion import CleanupRegistry, ContentRef, DeletionGuard
+from creativity_service.core.deletion import CleanupRegistry, ContentRef
 from creativity_service.core.primitives import ServiceError
 from creativity_service.core.versioning import VersionService
 from creativity_service.modules.budgets.services import BudgetService
@@ -77,7 +77,7 @@ def build_run_service(
             ) as uow:
                 row = await runs.locked_run(uow, ref.resource_id)
                 try:
-                    await DeletionGuard(context.scope).check(uow, [ref])
+                    await runs.guard(uow, row)
                 except ServiceError as exc:
                     if exc.code != "CONTENT_DELETED":
                         raise

@@ -14,7 +14,14 @@ from creativity_service.core.primitives import ServiceError, unavailable, utcnow
 from creativity_service.modules.iam.roles import INDEPENDENT_ACTIONS, role_actions
 
 SENSITIVE_ACTIONS = frozenset(
-    {"run:content", "conversation:read", "memory:read", "snapshot:read", "artifact:download"}
+    {
+        "evaluation:content",
+        "run:content",
+        "conversation:read",
+        "memory:read",
+        "snapshot:read",
+        "artifact:download",
+    }
 )
 
 

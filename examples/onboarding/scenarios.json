@@ -1,0 +1,80 @@
+[
+  {
+    "code": "documents",
+    "name": "文档查询验证",
+    "scope_type": "document_space",
+    "scope_id": "shared-001",
+    "profile": "archive",
+    "input": {
+      "document": "note-a"
+    },
+    "data": {
+      "notes": [
+        {
+          "heading": "文档渠道资料",
+          "text": "仅属于文档渠道"
+        }
+      ]
+    }
+  },
+  {
+    "code": "matrix",
+    "name": "矩阵计算验证",
+    "scope_type": "calculation_workspace",
+    "scope_id": "shared-001",
+    "profile": "matrix",
+    "input": {
+      "matrix": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          4
+        ]
+      ]
+    },
+    "data": {
+      "total": 10,
+      "unit": "分"
+    },
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "matrix": {
+          "type": "array",
+          "title": "矩阵",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "required": [
+        "matrix"
+      ]
+    }
+  },
+  {
+    "code": "third",
+    "name": "第三渠道验证",
+    "scope_type": "research_collection",
+    "scope_id": "shared-001",
+    "profile": "archive",
+    "input": {
+      "document": "note-a"
+    },
+    "data": {
+      "notes": [
+        {
+          "heading": "第三渠道资料",
+          "text": "相同用户和工具名下的独立内容"
+        }
+      ]
+    }
+  }
+]

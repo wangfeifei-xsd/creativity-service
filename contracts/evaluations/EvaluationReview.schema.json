@@ -1,0 +1,47 @@
+{
+  "$defs": {
+    "HumanLabel": {
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "enum": [
+            "approved",
+            "rejected",
+            "disputed"
+          ],
+          "title": "Decision",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "decision",
+        "reason"
+      ],
+      "title": "HumanLabel",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "label": {
+      "$ref": "#/$defs/HumanLabel"
+    }
+  },
+  "required": [
+    "revision",
+    "label"
+  ],
+  "title": "EvaluationReview",
+  "type": "object"
+}

@@ -84,3 +84,7 @@ Agent 增加通用 `workflow.v1` 配置入口，历史 `matching.v1/risk.v1/anal
 ## 2026-10-03：21 Skills 与 Agent 配置交付
 
 复用现有 JSONB 内容，无新表、列、迁移或历史数据回写。技能 `resource_versions.content` 新增可移植依赖的来源与输入输出契约、本地 `tool_bindings`；导出剥离本地映射，旧定义仅恢复原来已固定的工具引用。Agent 内容新增 `bindings.skill_loading` 和步骤 `operator`，进入既有版本摘要及 `agent_candidates.spec`。运行上下文的 JSON 内容新增 `tool_results`，保存实际查询的来源、时间和数据版本；与配置冻结时间分开。包文件 SHA-256、引用闭包、授权锁和运行来源关系沿用现有实现，详见 [21 交接](../configuration-delivery.md)。
+
+## 1.6.0 / 2026-10-03：24 效果评测与发布门禁
+
+`0024_evaluations` 接在 `0021_mcp_subject_review` 后，新增样本集、不可变样本版本、样本、工具夹具、评测任务、历次结果及报告七表。冻结定义为 `modules/evaluations/baseline_v0024.json`，不改旧迁移，无历史数据回填。固定资料清单含版本与内容摘要；候选继续复用 `agent_candidates`，子 run、费用和工具证据继续复用既有模块。来源删除可清除正文及人工理由，保留非原文状态、摘要和用量关系。交接见 [评测模块](../evaluations.md)。

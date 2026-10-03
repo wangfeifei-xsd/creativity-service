@@ -34,6 +34,8 @@
 
 公共配置版本归渠道并跨环境共享；配置类型的删除标记与来源链由专用检查器在同一渠道核对，其余个人内容按完整 Scope 过滤。内容图更新使用渠道级短事务锁，配置删除不能通过切换环境绕过。配置版本不能隐式派生自个人内容，运行快照则显式登记入口运行与各具体版本来源。方案 04/05/18 负责实时授权与目标范围，方案 25 汇总完整清理图并逐授权范围处理。
 
+24 的经审阅反馈允许同渠道、同环境、同域的主体 run 派生管理范围样本。来源边保存在派生样本范围，读取和派生检查按原 run 服务端 Scope 回溯标记。25 须按渠道与来源标识发现这种边，再切换到派生记录的真实 Scope 调用清理器，不能仅扫描原主体范围。
+
 04 关系增量：platform_accounts.credential_version 与管理 Token 的签发代次比较；channel_memberships.revision 与管理工作区 Token 的成员修订比较。资源授权从数据库实时读取，不保存在 Token 中。resource_grants 通过目标渠道关联有效成员或系统内置角色，撤销保留原对象与 revision 并清空 allowed_actions。iam_revocations 保存账号/成员/Key 索引或单 Token 摘要撤销意图，完成缓存补偿后保留元数据供后续保留策略处理。
 
 05 当前实现记录：`channels.business_type` 创建后不可更改，现有映射限定 default/default 与 club。这是待方案 19 解除的历史业务耦合，不是新业务接入约束；修改时另建兼容迁移并保留原标识。`service_clients.data_scopes` 显式列举同渠道、同环境的数据域，服务身份每次取其中仍启用的范围。`key_identity_index` 与渠道 Key 主记录同事务提交，身份索引归 system，主记录归真实渠道。`key_rotations` 保留新旧 Key 标识与重叠截止时间，不更改 client_id。

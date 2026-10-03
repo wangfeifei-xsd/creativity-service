@@ -194,7 +194,13 @@ class AgentSnapshots(AgentKernel):
             return result
 
     async def freeze_candidate(
-        self, context: AuthContext, version_id: str, revision: int, purpose: Purpose = "debug"
+        self,
+        context: AuthContext,
+        version_id: str,
+        revision: int,
+        purpose: Purpose = "debug",
+        *,
+        published_dependencies: bool = False,
     ) -> FrozenExecutionSpec:
         if purpose == "production":
             raise ServiceError("PUBLISHED_MAPPING_REQUIRED", "正式运行必须解析环境发布映射", 422)
@@ -221,7 +227,12 @@ class AgentSnapshots(AgentKernel):
             )
             await locked_require(uow, context, "run:create", "agent", agent["id"])
             validation, dependencies, manifest = await self.inspect_in(
-                uow, context, agent, version, purpose
+                uow,
+                context,
+                agent,
+                version,
+                "production" if published_dependencies else purpose,
+                require_evaluation=False,
             )
             self.require_valid(validation)
             return await self.store_candidate(
