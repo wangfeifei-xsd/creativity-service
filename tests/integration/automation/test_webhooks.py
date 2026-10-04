@@ -142,3 +142,56 @@ async def test_webhook_retry_budget_survives_worker_crashes(runtime_env, monkeyp
     row = (await service.deliveries(env.context))[0]
     assert row["state"] == "SUCCEEDED" and row["attempts"] == 7
     assert json.loads(receiver.calls[-1][0]) == event
+
+
+async def test_terminal_scan_batches_new_runs_and_skips_delivery_history(runtime_env):
+    from sqlalchemy import insert, select
+
+    from creativity_service.modules.integrations.automation_tables import metadata as automation
+    from creativity_service.modules.runs.tables import metadata
+    from tests.integration.agents.test_read_queries import statements
+
+    env = runtime_env
+    service, endpoint, _ = await configured(env)
+    _, message = await admitted(env)
+    await execute_message(env.runs, message, "webhook-batch", env.runtime)
+    row = await env.runs.load(message)
+    target = await service.automation.get(env.context, "webhook_endpoints", endpoint["id"])
+    with statements(env.engine) as single:
+        await service.terminal_events(target)
+    async with env.engine.begin() as connection:
+        await connection.execute(
+            insert(metadata.tables["runs"]),
+            [{**row, "id": f"webhook_batch_{i:03}"} for i in range(20)],
+        )
+    with statements(env.engine) as multiple:
+        await service.terminal_events(target)
+
+    # 除互斥锁外，读库次数固定，不逐运行重读身份、服务或删除状态。
+    def reads(queries):
+        return [q for q in queries if q.lstrip().startswith("SELECT") and "pg_advisory" not in q]
+
+    assert len(reads(multiple)) <= len(reads(single)) + 2
+    async with env.engine.begin() as connection:
+        await connection.execute(
+            insert(metadata.tables["runs"]),
+            [{**row, "id": f"webhook_batch_{i:03}"} for i in range(20, 225)],
+        )
+    await service.terminal_events(target)
+    with statements(env.engine) as replay:
+        await service.terminal_events(target)
+    assert not any("FROM service_clients" in q for q in replay)
+    assert sum("FROM runs" in q for q in replay) == 1
+    async with env.engine.connect() as connection:
+        deliveries = [
+            dict(r)
+            for r in (
+                await connection.execute(select(automation.tables["webhook_deliveries"]))
+            ).mappings()
+        ]
+    assert len(deliveries) == 226
+    assert len({r["event_id"] for r in deliveries}) == 226
+    assert {r["payload"]["run_id"] for r in deliveries} == {
+        row["id"],
+        *[f"webhook_batch_{i:03}" for i in range(225)],
+    }

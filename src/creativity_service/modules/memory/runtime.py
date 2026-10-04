@@ -5,6 +5,7 @@ import re
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from creativity_service.core.context import AuthContext
@@ -15,6 +16,7 @@ from creativity_service.core.primitives import ServiceError, digest, new_id, utc
 from creativity_service.core.security.keys import scoped_key
 from creativity_service.modules.memory import repositories as repo
 from creativity_service.modules.memory.queries import MemoryQueries
+from creativity_service.modules.memory.reading import MemoryReadData
 from creativity_service.modules.memory.schemas import (
     CandidateInput,
     LoadedMemory,
@@ -26,6 +28,7 @@ from creativity_service.modules.memory.schemas import (
     MemoryView,
     SourceInput,
 )
+from creativity_service.modules.memory.tables import metadata
 from creativity_service.modules.memory.writes import MemoryWrites
 from creativity_service.modules.runs.tables import metadata as runs
 from creativity_service.modules.tools.tables import metadata as tools
@@ -275,25 +278,42 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
                     frozen_policy,
                 )
                 refs: list[MemoryRef] = []
-                if not keys:
-                    items = await repo.rows(
-                        uow.connection, "memories", context.scope, status="ACTIVE"
-                    )
-                    items.sort(
-                        key=lambda row: (row["memory_type"] != "ARCHIVE", row["observed_at"]),
-                        reverse=True,
-                    )
-                    keys = list(dict.fromkeys(r["key"] for r in items))[:1100]
                 if policy.read_enabled and (await self.preference(uow, context, [])).enabled:
+                    table = metadata.tables["memories"]
+                    statement = select(table).where(
+                        Repository(table, context.scope).predicate(),
+                        table.c.status == "ACTIVE",
+                        table.c.key.not_in(current_keys),
+                    )
+                    if keys:
+                        statement = statement.where(table.c.key.in_(keys))
+                    # 主体容量上限为 1000，保留原检索的 1100 条保护边界并复用本批来源。
+                    items = [
+                        dict(row)
+                        for row in (
+                            await uow.connection.execute(
+                                statement.order_by(
+                                    (table.c.memory_type != "ARCHIVE").desc(),
+                                    table.c.observed_at.desc(),
+                                    table.c.id,
+                                ).limit(1100)
+                            )
+                        ).mappings()
+                    ]
+                    if not keys:
+                        keys = list(dict.fromkeys(r["key"] for r in items))
+                    data = await MemoryReadData.load(
+                        uow, context, [(context, r) for r in items], None
+                    )
+                    grouped: dict[str, list[dict[str, Any]]] = {}
+                    for row in items:
+                        grouped.setdefault(row["key"], []).append(row)
                     for key in dict.fromkeys(keys):
-                        if key in current_keys:
-                            continue
-                        # 仓储先限制完整 Scope，再在该范围内检索属性；不保存值缓存。
-                        rows = await repo.rows(
-                            uow.connection, "memories", context.scope, key=key, status="ACTIVE"
-                        )
-                        rows = [await self.refresh(uow, context, row) for row in rows]
-                        active = [r for r in rows if self.usable(r, policy)]
+                        active = [
+                            r
+                            for row in grouped.get(key, [])
+                            if self.usable(r := await self.refresh(uow, context, row, data), policy)
+                        ]
                         if len(active) > 1:
                             raise ServiceError("STORAGE_INVARIANT_BROKEN", "属性有效值冲突", 503)
                         if active:
@@ -452,20 +472,41 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
         key: str,
         observed_at: datetime | None = None,
     ) -> bool:
-        """旧运行不得在重新开启或遗忘后把已排队候选重新写回。"""
+        return (await MemoryRuntime.automatic_allowed_many(uow, context, run, key, [observed_at]))[
+            0
+        ]
+
+    @staticmethod
+    async def automatic_allowed_many(
+        uow: UnitOfWork,
+        context: AuthContext,
+        run: dict[str, Any],
+        key: str,
+        observed_at: list[datetime | None],
+    ) -> list[bool]:
+        """批量复核重新开启与遗忘水位，仅查询最新屏障，不展开历史删除任务。"""
         preference = await repo.one(uow.connection, "memory_preferences", context.scope)
-        if preference and (
-            not preference["enabled"]
-            or preference["updated_at"] >= min(run["created_at"], observed_at or run["created_at"])
-        ):
-            return False
-        for job in await repo.rows(uow.connection, "memory_deletion_jobs", context.scope):
-            if job["created_at"] < min(run["created_at"], observed_at or run["created_at"]):
-                continue
-            if job["kind"] == "CLEAR":
-                return False
-            for memory_id in job["memory_ids"]:
-                row = await repo.one(uow.connection, "memories", context.scope, id=memory_id)
-                if row and row["key"] == key:
-                    return False
-        return True
+        jobs, memories = metadata.tables["memory_deletion_jobs"], metadata.tables["memories"]
+        matching_key = (
+            select(memories.c.id)
+            .where(
+                Repository(memories, context.scope).predicate(),
+                memories.c.key == key,
+                jobs.c.memory_ids.op("?")(memories.c.id),
+            )
+            .exists()
+        )
+        cutoff = await uow.connection.scalar(
+            select(func.max(jobs.c.created_at)).where(
+                Repository(jobs, context.scope).predicate(),
+                or_(jobs.c.kind == "CLEAR", matching_key),
+            )
+        )
+        if preference:
+            if not preference["enabled"]:
+                return [False] * len(observed_at)
+            cutoff = max(cutoff, preference["updated_at"]) if cutoff else preference["updated_at"]
+        return [
+            cutoff is None or cutoff < min(run["created_at"], value or run["created_at"])
+            for value in observed_at
+        ]

@@ -62,6 +62,13 @@ class ExecutionService(RunKernel):
                 await save(
                     uow, "run_steps", attempt["step_id"], {"state": "UNKNOWN" if sent else "FAILED"}
                 )
+                if attempt["usage_id"]:
+                    await self.ledger.finish_attempt(
+                        self.context(row).scope,
+                        attempt["id"],
+                        "UNKNOWN" if sent else "FAILED",
+                        uow=uow,
+                    )
                 if not sent and attempt["usage_id"]:
                     usage = await usage_repo.required(
                         uow.connection,
@@ -613,6 +620,8 @@ class ExecutionService(RunKernel):
                 )
                 if state != "SUCCEEDED":
                     await save(uow, "run_steps", attempt["step_id"], {"state": state})
+                if attempt["usage_id"]:
+                    await self.ledger.finish_attempt(lease.scope, attempt_id, state, uow=uow)
                 await self.event(
                     uow, row, "tool_status", {"attempt_id": attempt_id, "state": state}
                 )

@@ -16,7 +16,9 @@ from creativity_service.core.primitives import ServiceError, digest
 from creativity_service.integrations.models.contracts import ModelRequest
 from creativity_service.modules.memory import repositories as repo
 from creativity_service.modules.memory.embedding_tables import metadata
+from creativity_service.modules.memory.reading import MemoryReadData
 from creativity_service.modules.memory.schemas import MemoryPolicy, MemoryRef, MemorySelection
+from creativity_service.modules.memory.tables import metadata as memories
 from creativity_service.modules.models.schemas import FrozenModel
 
 if TYPE_CHECKING:
@@ -69,29 +71,35 @@ async def semantic_selection(
     )
     model = FrozenModel.model_validate(cast(list[dict[str, Any]], route.content["models"])[0])
     vectors = Repository(metadata.tables["memory_embeddings"], context.scope)
+    memory_repo = Repository(memories.tables["memories"], context.scope)
     records: dict[str, dict[str, Any]] = {}
     missing: list[tuple[str, str]] = []
     async with transaction(memory.engine, context.scope, repo.keys(context.scope)) as uow:
         await memory.runtime_run(uow, context, lease.run_id)
+        loaded = await memory_repo.get_many(uow.connection, [r.memory_id for r in selection.refs])
+        data = await MemoryReadData.load(
+            uow, context, [(context, r) for r in loaded.values()], None
+        )
         for ref in selection.refs:
-            row = await repo.required(uow.connection, "memories", context.scope, id=ref.memory_id)
-            row = await memory.refresh(uow, context, row)
+            row = loaded.get(ref.memory_id)
+            if row is None:
+                continue
+            row = await memory.refresh(uow, context, row, data)
             if row["current_version_id"] != ref.version_id or not memory.usable(row, policy):
                 continue
-            await DeletionGuard(context.scope).check(uow, [ContentRef("memory", ref.memory_id)])
             identifier = digest(
                 [context.scope.model_dump(), ref.memory_id, ref.version_id, model.model_version_id]
             )
             records[identifier] = row
-            if await vectors.get(uow.connection, identifier) is None:
-                missing.append(
-                    (
-                        identifier,
-                        json.dumps(
-                            {"属性": row["display_name"], "值": row["value"]}, ensure_ascii=False
-                        ),
-                    )
-                )
+        cached = await vectors.get_many(uow.connection, records)
+        missing = [
+            (
+                identifier,
+                json.dumps({"属性": row["display_name"], "值": row["value"]}, ensure_ascii=False),
+            )
+            for identifier, row in records.items()
+            if identifier not in cached
+        ]
     request = ModelRequest(
         operation="embedding",
         messages=[
@@ -132,45 +140,51 @@ async def semantic_selection(
             and preferences.enabled
             and preferences.revision == stored["selection_reason"]["preference_revision"]
         ):
+            loaded = await memory_repo.get_many(uow.connection, [r["id"] for r in records.values()])
+            data = await MemoryReadData.load(
+                uow, context, [(context, r) for r in loaded.values()], None
+            )
+            cached = await vectors.get_many(uow.connection, records)
             for identifier, old in records.items():
-                row = await repo.required(uow.connection, "memories", context.scope, id=old["id"])
-                row = await memory.refresh(uow, context, row)
+                row = loaded.get(old["id"])
+                if row is None:
+                    continue
+                row = await memory.refresh(uow, context, row, data)
                 if row["current_version_id"] == old["current_version_id"] and memory.usable(
                     row, effective
                 ):
-                    await DeletionGuard(context.scope).check(uow, [ContentRef("memory", row["id"])])
-                    cached = await vectors.get(uow.connection, identifier)
-                    if cached and cached["dimensions"] != len(generated[0]):
-                        # 同一模型版本的缓存与查询必须属于同一空间，供应商漂移不能当作无匹配。
+                    vector = cached.get(identifier)
+                    if vector and vector["dimensions"] != len(generated[0]):
                         raise ServiceError(
                             "MEMORY_EMBEDDING_DIMENSION_MISMATCH",
                             "向量维度与当前模型版本的缓存不一致，请核查模型配置",
                             502,
                         )
                     valid[identifier] = row
+        additions = {}
+        links = []
         for (identifier, _), embedding in zip(missing, generated[1:], strict=True):
-            if identifier not in valid or await vectors.get(uow.connection, identifier):
+            if identifier not in valid or identifier in cached:
                 continue
             row = valid[identifier]
-            await vectors.add(
-                uow,
-                identifier,
-                {
-                    "memory_id": row["id"],
-                    "memory_version_id": row["current_version_id"],
-                    "model_version_id": model.model_version_id,
-                    "run_id": lease.run_id,
-                    "dimensions": len(embedding),
-                    "embedding": embedding,
-                },
+            additions[identifier] = {
+                "memory_id": row["id"],
+                "memory_version_id": row["current_version_id"],
+                "model_version_id": model.model_version_id,
+                "run_id": lease.run_id,
+                "dimensions": len(embedding),
+                "embedding": embedding,
+            }
+            links.append(
+                (
+                    digest([identifier, "source"]),
+                    ContentRef("memory", row["id"]),
+                    ContentRef("memory_embedding", identifier),
+                    row["current_version_id"],
+                )
             )
-            await DeletionGuard(context.scope).link(
-                uow,
-                digest([identifier, "source"]),
-                ContentRef("memory", row["id"]),
-                ContentRef("memory_embedding", identifier),
-                row["current_version_id"],
-            )
+        await vectors.add_many(uow, additions)
+        await DeletionGuard(context.scope).link_many(uow, links)
         selected: list[MemoryRef] = []
         if valid:
             extension_schema = await uow.connection.scalar(

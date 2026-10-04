@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from creativity_service.core.artifacts import S3ObjectStore
 from creativity_service.core.primitives import utcnow
-from creativity_service.modules.data_lifecycle.repository import rows
+from creativity_service.modules.data_lifecycle.repository import related_rows
 from creativity_service.modules.data_lifecycle.services import DataLifecycleService
 
 
@@ -23,8 +23,13 @@ async def sweep_objects(
     while True:
         objects, cursor = await store.list_page(f"channels/{channel_id}/", cursor)
         async with service.engine.connect() as connection:
-            artifacts = await rows(connection, channel_id, "artifacts")
-            exports = await rows(connection, channel_id, "usage_exports")
+            object_keys = [key for key, _ in objects]
+            artifacts = await related_rows(
+                connection, channel_id, "artifacts", "object_key", object_keys
+            )
+            exports = await related_rows(
+                connection, channel_id, "usage_exports", "object_key", object_keys
+            )
         known = {r["object_key"] for r in artifacts if r["state"] in {"STAGED", "AVAILABLE"}}
         known.update(r["object_key"] for r in exports if r["state"] == "SUCCEEDED")
         for key, modified_at in objects:

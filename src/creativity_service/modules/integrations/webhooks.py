@@ -7,7 +7,7 @@ from datetime import timedelta
 from typing import Any
 
 from pydantic import SecretBytes
-from sqlalchemy import select
+from sqlalchemy import or_, select, tuple_
 
 from creativity_service.core.context import AuthContext, TaskEnvelope
 from creativity_service.core.database import Repository, transaction
@@ -16,7 +16,12 @@ from creativity_service.core.primitives import ServiceError, canonical_json, dig
 from creativity_service.core.security.credentials import CredentialService, KeyProvider
 from creativity_service.core.security.outbound import OutboundPolicy
 from creativity_service.integrations.outbound import BoundedHttp
-from creativity_service.modules.integrations.authorization import require_management
+from creativity_service.modules.channels.repositories import required as channel_required
+from creativity_service.modules.iam.reading import resource_state
+from creativity_service.modules.integrations.authorization import (
+    management_policy,
+    require_management,
+)
 from creativity_service.modules.integrations.automation import (
     AutomationService,
     add,
@@ -25,9 +30,11 @@ from creativity_service.modules.integrations.automation import (
     keys,
     owner,
     repo,
+    scope_of,
     worker_identity,
 )
 from creativity_service.modules.integrations.automation_schemas import WebhookCreate, WebhookUpdate
+from creativity_service.modules.integrations.automation_tables import metadata
 from creativity_service.modules.integrations.run_subscriptions import RunSubscriptions
 from creativity_service.modules.runs.schemas import TERMINAL
 from creativity_service.modules.runs.tables import metadata as runs_metadata
@@ -152,13 +159,26 @@ class WebhookService:
     async def deliveries(self, context: AuthContext) -> list[dict[str, Any]]:
         await self.automation.manage(context)
         async with self.engine.connect() as connection:
-            records = await repo(context.scope, "webhook_deliveries").find(
-                connection, owner_key=owner(context)
+            table = metadata.tables["webhook_deliveries"]
+            records = [
+                dict(row)
+                for row in (
+                    await connection.execute(
+                        select(table)
+                        .where(
+                            repo(context.scope, "webhook_deliveries").predicate(),
+                            table.c.owner_key == owner(context),
+                            table.c.state != "DELETED",
+                        )
+                        .order_by(table.c.created_at.desc(), table.c.id)
+                        .limit(500)
+                    )
+                ).mappings()
+            ]
+            endpoints = await repo(context.scope, "webhook_endpoints").get_many(
+                connection, [row["endpoint_id"] for row in records]
             )
-            endpoints = await repo(context.scope, "webhook_endpoints").find(
-                connection, owner_key=owner(context)
-            )
-        names = {r["id"]: r["name"] for r in endpoints}
+        names = {identifier: row["name"] for identifier, row in endpoints.items()}
         labels = {
             "PENDING": "待投递",
             "SENDING": "投递中",
@@ -184,8 +204,7 @@ class WebhookService:
                 )
             }
             | {"endpoint_name": names.get(r["endpoint_id"]), "state_label": labels[r["state"]]}
-            for r in sorted(records, key=lambda r: r["created_at"], reverse=True)[:500]
-            if r["state"] != "DELETED"
+            for r in records
         ]
 
     async def retry(self, context: AuthContext, identifier: str, revision: int) -> None:
@@ -284,41 +303,162 @@ class WebhookService:
         return True
 
     async def terminal_events(self, endpoint: dict[str, Any]) -> None:
+        if endpoint["state"] != "ACTIVE" or "run.terminal" not in endpoint["events"]:
+            return
         context = AuthContext.model_validate(endpoint["identity"])
         await self.automation.manage(context)
-        async with self.engine.connect() as connection:
+        table, deliveries = runs_metadata.tables["runs"], metadata.tables["webhook_deliveries"]
+        existing = (
+            select(deliveries.c.id)
+            .where(
+                repo(context.scope, "webhook_deliveries").predicate(),
+                deliveries.c.endpoint_id == endpoint["id"],
+                deliveries.c.kind == "run.terminal",
+                deliveries.c.payload["run_id"].astext == table.c.id,
+            )
+            .exists()
+        )
+        after = None
+        while True:
+            statement = select(table).where(
+                self.subscriptions.predicate(context, endpoint["client_ids"]),
+                table.c.state.in_(TERMINAL),
+                table.c.updated_at >= endpoint["created_at"],
+                ~existing,
+            )
+            if after is not None:
+                statement = statement.where(tuple_(table.c.updated_at, table.c.id) > after)
+            async with self.engine.connect() as connection:
+                batch = [
+                    dict(row)
+                    for row in (
+                        await connection.execute(
+                            statement.order_by(table.c.updated_at, table.c.id).limit(100)
+                        )
+                    ).mappings()
+                ]
+            if not batch:
+                return
+            await self.enqueue_terminals(context, endpoint, batch)
+            if len(batch) < 100:
+                return
+            after = (batch[-1]["updated_at"], batch[-1]["id"])
+
+    async def enqueue_terminals(
+        self, context: AuthContext, endpoint: dict[str, Any], candidates: list[dict[str, Any]]
+    ) -> None:
+        events = {r["id"]: digest(["run.terminal", r["id"], r["state"]]) for r in candidates}
+        identifiers = {run_id: digest([endpoint["id"], event]) for run_id, event in events.items()}
+        sources = {
+            run_id: (ContentRef("webhook_endpoint", endpoint["id"]), ContentRef("run", run_id))
+            for run_id in events
+        }
+        links = [
+            (
+                digest([identifiers[run_id], ref.resource_type, ref.resource_id]),
+                ref,
+                ContentRef("webhook_delivery", identifiers[run_id]),
+                None,
+            )
+            for run_id, refs in sources.items()
+            for ref in refs
+        ]
+        async with transaction(
+            self.engine,
+            context.scope,
+            keys(
+                context,
+                ("webhook_endpoints", endpoint["id"]),
+                *(("webhook_deliveries", identifier) for identifier in identifiers.values()),
+                *(("source_links", link[0]) for link in links),
+            ),
+        ) as uow:
+            actual = await repo(context.scope, "webhook_endpoints").get(
+                uow.connection, endpoint["id"]
+            )
+            if (
+                not actual
+                or actual["state"] != "ACTIVE"
+                or actual["revision"] != endpoint["revision"]
+            ):
+                return
+            # 新写入边界内重读授权与来源；同一事务中的每条事件共用此批快照。
+            policy = await management_policy(uow, context)
+            if "integration:manage" not in policy.actions("channel", context.scope.channel_id):
+                raise ServiceError("FORBIDDEN", "无权管理此业务范围", 403)
+            domain = await channel_required(
+                uow.connection,
+                "data_scopes",
+                context.scope.channel_id,
+                id=context.scope.data_scope_id,
+                environment=context.scope.environment,
+            )
+            if domain["status"] != "ACTIVE":
+                raise ServiceError("DATA_SCOPE_DISABLED", "业务数据域不可用", 403)
+            clients = await self.subscriptions.clients(
+                uow.connection, context, actual["client_ids"]
+            )
             table = runs_metadata.tables["runs"]
-            rows = [
-                dict(r)
-                for r in (
-                    await connection.execute(
+            current = [
+                dict(row)
+                for row in (
+                    await uow.connection.execute(
                         select(table).where(
-                            self.subscriptions.predicate(context, endpoint["client_ids"]),
+                            self.subscriptions.predicate(context, actual["client_ids"]),
+                            table.c.id.in_(events),
                             table.c.state.in_(TERMINAL),
-                            table.c.updated_at >= endpoint["created_at"],
                         )
                     )
                 ).mappings()
             ]
-        for row in rows:
-            try:
-                await self.subscriptions.authorize(context, endpoint["client_ids"], row)
-                await self.enqueue(
-                    context,
-                    endpoint,
-                    digest(["run.terminal", row["id"], row["state"]]),
-                    "run.terminal",
-                    {
+            guard = DeletionGuard(context.scope)
+            await guard.check(uow, [ContentRef("webhook_endpoint", endpoint["id"])])
+            blocked = await guard.blocked_refs(
+                uow,
+                [ContentRef("run", r["id"]) for r in current],
+                scopes=[scope_of(r) for r in current],
+            )
+            repository = repo(context.scope, "webhook_deliveries")
+            stored = await repository.get_many(uow.connection, identifiers.values())
+            additions = {}
+            for row in current:
+                identifier = identifiers[row["id"]]
+                if identifier in stored or ContentRef("run", row["id"]) in blocked:
+                    continue
+                try:
+                    self.subscriptions.match(context, actual["client_ids"], row, clients)
+                    scoped = context.model_copy(update={"scope": scope_of(row)})
+                    if "run:read" not in policy.actions(
+                        "run", row["id"], resource_state(scoped, "run", row), context=scoped
+                    ):
+                        continue
+                except ServiceError:
+                    continue
+                additions[identifier] = {
+                    "endpoint_id": endpoint["id"],
+                    "event_id": events[row["id"]],
+                    "kind": "run.terminal",
+                    "payload": {
+                        "event_id": events[row["id"]],
+                        "type": "run.terminal",
                         "run_id": row["id"],
                         "state": row["state"],
                         "occurred_at": row["updated_at"].isoformat(),
                         "status_path": ("/api/v1/runs/" if row["client_id"] else "/admin/v1/runs/")
                         + row["id"],
                     },
-                    (ContentRef("run", row["id"]),),
-                )
-            except ServiceError:
-                continue
+                    "owner_key": endpoint["owner_key"],
+                    "state": "PENDING",
+                    "attempts": 0,
+                    "cycle_attempts": 0,
+                    "next_at": utcnow(),
+                    "error": None,
+                    "http_status": None,
+                    "lease_nonce": None,
+                    "lease_until": None,
+                }
+            await repository.add_many(uow, additions)
+            await guard.link_many(uow, [link for link in links if link[2].resource_id in additions])
 
     async def send(self, row: dict[str, Any], endpoint: dict[str, Any]) -> None:
         context = AuthContext.model_validate(endpoint["identity"])
@@ -454,19 +594,82 @@ class WebhookService:
                 )
 
     async def sweep(self, channel_id: str) -> None:
-        endpoints = await self.automation.channel_rows(channel_id, "webhook_endpoints")
-        for endpoint in endpoints:
-            if endpoint["state"] == "ACTIVE" and "run.terminal" in endpoint["events"]:
+        endpoints, deliveries = (
+            metadata.tables["webhook_endpoints"],
+            metadata.tables["webhook_deliveries"],
+        )
+        after = ""
+        while True:
+            async with self.engine.connect() as connection:
+                batch = [
+                    dict(row)
+                    for row in (
+                        await connection.execute(
+                            select(endpoints)
+                            .where(
+                                endpoints.c.channel_id == channel_id,
+                                endpoints.c.state == "ACTIVE",
+                                endpoints.c.events.contains(["run.terminal"]),
+                                endpoints.c.id > after,
+                            )
+                            .order_by(endpoints.c.id)
+                            .limit(100)
+                        )
+                    ).mappings()
+                ]
+            for endpoint in batch:
                 try:
                     await self.terminal_events(endpoint)
                 except ServiceError:
                     continue
-        by_id = {r["id"]: r for r in endpoints}
-        for row in await self.automation.channel_rows(channel_id, "webhook_deliveries"):
-            if row["state"] not in {"PENDING", "RETRY", "SENDING"}:
-                continue
-            if target := by_id.get(row["endpoint_id"]):
-                try:
-                    await self.send(row, target)
-                except ServiceError:
-                    continue
+            if len(batch) < 100:
+                break
+            after = batch[-1]["id"]
+        after = ""
+        now = utcnow()
+        while True:
+            async with self.engine.connect() as connection:
+                batch = [
+                    dict(row)
+                    for row in (
+                        await connection.execute(
+                            select(deliveries)
+                            .where(
+                                deliveries.c.channel_id == channel_id,
+                                deliveries.c.state.in_(["PENDING", "RETRY", "SENDING"]),
+                                deliveries.c.next_at <= now,
+                                or_(
+                                    deliveries.c.lease_until.is_(None),
+                                    deliveries.c.lease_until <= now,
+                                ),
+                                deliveries.c.id > after,
+                            )
+                            .order_by(deliveries.c.id)
+                            .limit(100)
+                        )
+                    ).mappings()
+                ]
+                targets = (
+                    {
+                        r["id"]: dict(r)
+                        for r in (
+                            await connection.execute(
+                                select(endpoints).where(
+                                    endpoints.c.channel_id == channel_id,
+                                    endpoints.c.id.in_([row["endpoint_id"] for row in batch]),
+                                )
+                            )
+                        ).mappings()
+                    }
+                    if batch
+                    else {}
+                )
+            for row in batch:
+                if target := targets.get(row["endpoint_id"]):
+                    try:
+                        await self.send(row, target)
+                    except ServiceError:
+                        continue
+            if len(batch) < 100:
+                break
+            after = batch[-1]["id"]

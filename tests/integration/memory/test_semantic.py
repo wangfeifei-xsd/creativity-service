@@ -167,3 +167,39 @@ async def test_embedding_dimension_drift_is_not_silent_empty_retrieval(env):
         0
     ].memory_id == saved.memory_id
     assert (await select_semantic(env)).refs[0].memory_id == saved.memory_id
+
+
+async def test_vector_preparation_query_count_does_not_grow_per_memory(env):
+    from creativity_service.modules.memory.schemas import MemoryAttribute, PolicyInput
+    from tests.integration.agents.test_read_queries import statements
+
+    current = await env.memory.get_policy(env.context)
+    attributes = [
+        MemoryAttribute(key=f"batch_{i}", label=f"偏好 {i}", value_schema={"type": "string"})
+        for i in range(12)
+    ]
+    await env.memory.set_policy(
+        env.context, PolicyInput(revision=current.revision, attributes=attributes)
+    )
+    await env.memory.create(env.context, MemoryCreate(key="batch_0", value="预算"))
+    with statements(env.engine) as single:
+        await select_semantic(env)
+    for index in range(1, 12):
+        await env.memory.create(env.context, MemoryCreate(key=f"batch_{index}", value="休闲"))
+    with statements(env.engine) as multiple:
+        await select_semantic(env)
+
+    def reads(queries):
+        return [q for q in queries if q.lstrip().startswith(("SELECT", "WITH"))]
+
+    assert len(reads(multiple)) <= len(reads(single)) + 2
+    assert sum("FROM memory_embeddings" in q for q in multiple) <= 4
+    async with env.engine.connect() as connection:
+        assert (
+            len(
+                await Repository(metadata.tables["memory_embeddings"], env.context.scope).find(
+                    connection
+                )
+            )
+            == 12
+        )

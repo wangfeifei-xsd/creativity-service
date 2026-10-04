@@ -645,3 +645,64 @@ async def test_model_price_port_rejects_incomplete_price_dimensions(usage_env):
         with pytest.raises(ServiceError) as rejected:
             await env.usage.prices.require_priced(uow, env.context, [candidate])
         assert rejected.value.code == "BUDGET_PRICE_REQUIRED"
+
+
+async def test_local_request_id_binds_once_and_replays_without_double_charge(usage_env):
+    env = usage_env
+    await price(env)
+    await budget(env, limit="10")
+    p = await prepare(env)
+    missing = event(env, p, status="MISSING", final=False).model_copy(
+        update={"source_request_id": p.attempt_id, "raw_usage": None}
+    )
+    await env.usage.ledger.settle(missing)
+    await env.usage.ledger.finish_attempt(env.scope, p.attempt_id, "SUCCEEDED")
+    reported = event(env, p, version=2)
+    results = await asyncio.gather(*(env.usage.ledger.settle(reported) for _ in range(3)))
+    assert {r["state"] for r in results} == {"SETTLED"}
+    replay = await env.usage.ledger.settle(missing)
+    assert replay["source_request_id"] == reported.source_request_id
+    assert replay["amount"] == Decimal("0.7")
+    assert replay["outcome"] == "SUCCEEDED"
+    assert len(await stored(env, "usage_events")) == 2
+    assert len(await stored(env, "usage_adjustments")) == 2
+    with pytest.raises(ServiceError) as changed:
+        await env.usage.ledger.settle(reported.model_copy(update={"source_request_id": "another"}))
+    assert changed.value.code == "SCOPE_MISMATCH"
+    other = await prepare(env)
+    with pytest.raises(ServiceError) as reused:
+        await env.usage.ledger.settle(
+            event(env, other, version=3).model_copy(
+                update={"source_request_id": reported.source_request_id}
+            )
+        )
+    assert reused.value.code == "USAGE_EVENT_CONFLICT"
+    # 恢复扫描的未知结果与重复迟报都不能把已确认的成功改回进行中或未知。
+    await env.usage.ledger.finish_attempt(env.scope, p.attempt_id, "UNKNOWN")
+    assert (await stored(env, "usage_records", attempt_id=p.attempt_id))[0][
+        "outcome"
+    ] == "SUCCEEDED"
+
+
+async def test_confirmed_unsent_releases_hard_budget_without_treating_unknown_as_free(usage_env):
+    env = usage_env
+    await price(env)
+    await budget(env)
+    p = await prepare(env)
+    missing = event(env, p, status="MISSING", final=False).model_copy(
+        update={"source_request_id": p.attempt_id, "raw_usage": None}
+    )
+    await env.usage.ledger.settle(missing)
+    assert await env.usage.ledger.release_unused(env.scope, p.attempt_id) == "PENDING"
+    released = await env.usage.ledger.finish_attempt(
+        env.scope, p.attempt_id, "FAILED", confirmed_unsent=True
+    )
+    assert released["state"] == "RELEASED"
+    (reservation,) = await stored(env, "budget_reservations", attempt_id=p.attempt_id)
+    assert reservation["status"] == "RELEASED" and reservation["settled_amount"] == 0
+    # 同一硬额度可立即容纳下一次预占；无发送证明的下一次尝试仍占用额度。
+    next_attempt = await prepare(env)
+    assert await env.usage.ledger.release_unused(env.scope, next_attempt.attempt_id) == "PENDING"
+    with pytest.raises(ServiceError) as blocked:
+        await prepare(env)
+    assert blocked.value.code == "BUDGET_EXCEEDED"

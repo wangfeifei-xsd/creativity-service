@@ -4,12 +4,14 @@ import logging
 from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import cast, func, select
+from sqlalchemy.dialects.postgresql import JSONB
 
 from creativity_service.core.context import AuthContext, TaskEnvelope
 from creativity_service.core.database import Repository, UnitOfWork, transaction
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.primitives import ServiceError, digest, utcnow
+from creativity_service.modules.agents.schemas import FrozenExecutionSpec
 from creativity_service.modules.conversations.tables import metadata as conversations
 from creativity_service.modules.memory import repositories as repo
 from creativity_service.modules.memory.schemas import MemoryPolicy
@@ -82,127 +84,210 @@ class MemoryConsolidation:
             or conversation["expires_at"] <= utcnow()
         ):
             raise ServiceError("NOT_FOUND", "归档来源会话已失效", 404)
+        loaded = await Repository(conversations.tables["messages"], context.scope).get_many(
+            uow.connection, job["source_message_ids"]
+        )
         messages = []
         for identifier in job["source_message_ids"]:
-            message = await Repository(conversations.tables["messages"], context.scope).get(
-                uow.connection, identifier
-            )
+            message = loaded.get(identifier)
             if (
                 not message
                 or message["conversation_id"] != conversation["id"]
                 or message["status"] != "COMPLETED"
             ):
                 raise ServiceError("MEMORY_SOURCE_INVALID", "归档消息尚未完成或已变化", 409)
-            if not await self.memory.automatic_allowed(
-                uow, context, source_run, "archive_" + job["id"][:48], message["created_at"]
-            ):
-                raise ServiceError("MEMORY_FORGOTTEN", "来源已被遗忘，不能重新整理", 409)
             messages.append(message)
+        if not all(
+            await self.memory.automatic_allowed_many(
+                uow,
+                context,
+                source_run,
+                "archive_" + job["id"][:48],
+                [m["created_at"] for m in messages],
+            )
+        ):
+            raise ServiceError("MEMORY_FORGOTTEN", "来源已被遗忘，不能重新整理", 409)
+        source_runs = await Repository(run_tables.tables["runs"], context.scope).get_many(
+            uow.connection, [m["run_id"] for m in messages]
+        )
+        if len(source_runs) != len({m["run_id"] for m in messages}):
+            raise ServiceError("MEMORY_SOURCE_INVALID", "归档来源运行已删除", 409)
         await DeletionGuard(context.scope).check(
             uow,
             [
                 ContentRef("conversation", conversation["id"]),
                 *[ContentRef("message", m["id"]) for m in messages],
                 *[ContentRef("run", m["run_id"]) for m in messages],
+                *[ContentRef("snapshot", r["release_snapshot_id"]) for r in source_runs.values()],
             ],
         )
         return policy, messages
 
     async def discover(self, conversation: dict[str, Any]) -> None:
-        table = conversations.tables["messages"]
-        async with self.engine.connect() as connection:
-            messages = [
-                dict(v)
-                for v in (
-                    await connection.execute(
-                        select(table)
-                        .where(
-                            table.c.channel_id == conversation["channel_id"],
-                            table.c.conversation_id == conversation["id"],
-                            table.c.status == "COMPLETED",
-                            table.c.role.in_(["user", "assistant"]),
-                        )
-                        .order_by(table.c.sequence)
-                    )
-                ).mappings()
-            ]
-        if len(messages) < 2:
+        if conversation["active_run_id"]:
             return
-        source_run = await self.runs.load(
-            TaskEnvelope(channel_id=conversation["channel_id"], run_id=messages[-1]["run_id"])
-        )
+        from creativity_service.core.context import Scope
+
+        scope = Scope.model_validate({key: conversation[key] for key in Scope.model_fields})
+        runs = run_tables.tables["runs"]
+        table = conversations.tables["messages"]
+        contents = run_tables.tables["run_contents"]
+        jobs = metadata.tables["memory_consolidations"]
+        async with self.engine.connect() as connection:
+            source = (
+                (
+                    await connection.execute(
+                        select(runs)
+                        .where(
+                            Repository(runs, scope).predicate(),
+                            runs.c.conversation_id == conversation["id"],
+                            runs.c.state == "SUCCEEDED",
+                            runs.c.purpose == "production",
+                        )
+                        .order_by(runs.c.created_at.desc(), runs.c.id)
+                        .limit(1)
+                    )
+                )
+                .mappings()
+                .first()
+            )
+        if source is None or not source["execution_policy"].get("frozen_spec_id"):
+            return
+        source_run = dict(source)
         context = self.runs.context(source_run)
         self.memory.require_subject(context)
-        if (
-            source_run["purpose"] != "production"
-            or source_run["state"] != "SUCCEEDED"
-            or not source_run["execution_policy"].get("frozen_spec_id")
-        ):
-            return
         spec = await load_spec(self.runs, source_run)
         frozen = spec.definition.context.memory_policy
         route = spec.definition.bindings.model_route_version
         if not frozen or not frozen.suggest_enabled or frozen.write_mode == "DISABLED" or not route:
             return
         await self.authorize(context, conversation["id"], source_run["id"])
-        eligible = set()
-        for run_id in dict.fromkeys(m["run_id"] for m in messages):
-            run = await self.runs.load(
-                TaskEnvelope(channel_id=context.scope.channel_id, run_id=run_id)
-            )
-            if (
-                run["purpose"] != "production"
-                or run["state"] != "SUCCEEDED"
-                or not run["execution_policy"].get("frozen_spec_id")
-            ):
-                continue
-            try:
-                previous = (await load_spec(self.runs, run)).definition.context.memory_policy
-            except ServiceError as exc:
-                if exc.status not in {404, 410}:
-                    raise
-                # 已删除轮次不再参与整理，也不能挡住之后产生的新消息。
-                continue
-            if previous and previous.suggest_enabled and previous.write_mode != "DISABLED":
-                eligible.add(run_id)
-                frozen = self.memory.intersect_policy(frozen, previous)
-        messages = [m for m in messages if m["run_id"] in eligible]
         async with transaction(self.engine, context.scope, repo.keys(context.scope)) as uow:
-            jobs = await repo.rows(
-                uow.connection,
-                "memory_consolidations",
-                context.scope,
-                conversation_id=conversation["id"],
-            )
-            if any(j["state"] in {"PENDING", "ADMITTED"} for j in jobs):
+            if await uow.connection.scalar(
+                select(jobs.c.id)
+                .where(
+                    Repository(jobs, context.scope).predicate(),
+                    jobs.c.conversation_id == conversation["id"],
+                    jobs.c.state.in_(["PENDING", "ADMITTED"]),
+                )
+                .limit(1)
+            ):
                 return
-            completed = {i for j in jobs for i in j["source_message_ids"]}
             settings = await self.memory.consolidation_settings(uow, context)
             current = await Repository(conversations.tables["conversations"], context.scope).get(
                 uow.connection, conversation["id"]
             )
             if (
-                not current
+                not settings.enabled
+                or not current
                 or current["active_run_id"]
                 or current["updated_at"] > utcnow() - timedelta(seconds=settings.idle_seconds)
             ):
                 return
-            available = [
-                m
-                for m in messages
-                if m["id"] not in completed
-                and await self.memory.automatic_allowed(
-                    uow, context, source_run, "", m["created_at"]
+            preference = await repo.one(uow.connection, "memory_preferences", context.scope)
+            if preference and not preference["enabled"]:
+                return
+            deletions = metadata.tables["memory_deletion_jobs"]
+            cutoff = await uow.connection.scalar(
+                select(func.max(deletions.c.created_at)).where(
+                    Repository(deletions, context.scope).predicate(),
+                    deletions.c.kind == "CLEAR",
                 )
+            )
+            if preference:
+                cutoff = (
+                    max(cutoff, preference["updated_at"]) if cutoff else preference["updated_at"]
+                )
+            used = (
+                select(jobs.c.id)
+                .where(
+                    Repository(jobs, context.scope).predicate(),
+                    jobs.c.conversation_id == conversation["id"],
+                    jobs.c.source_message_ids.op("?")(table.c.id),
+                )
+                .exists()
+            )
+            frozen_policy = cast(contents.c.payload["payload_json"].astext, JSONB)["definition"][
+                "context"
+            ]["memory_policy"]
+            peer = table.alias("turn_peer")
+            complete_turn = (
+                select(peer.c.id)
+                .where(
+                    *(peer.c[key] == value for key, value in context.scope.model_dump().items()),
+                    peer.c.conversation_id == conversation["id"],
+                    peer.c.turn_id == table.c.turn_id,
+                    peer.c.run_id == table.c.run_id,
+                    peer.c.status == "COMPLETED",
+                    peer.c.role.in_(["user", "assistant"]),
+                    peer.c.role != table.c.role,
+                )
+                .exists()
+            )
+            statement = (
+                select(table)
+                .select_from(
+                    table.join(runs, runs.c.id == table.c.run_id).join(
+                        contents,
+                        contents.c.run_id == runs.c.id,
+                    )
+                )
+                .where(
+                    Repository(table, context.scope).predicate(),
+                    Repository(runs, context.scope).predicate(),
+                    Repository(contents, context.scope).predicate(),
+                    contents.c.kind == "execution_spec",
+                    table.c.conversation_id == conversation["id"],
+                    table.c.status == "COMPLETED",
+                    table.c.role.in_(["user", "assistant"]),
+                    runs.c.state == "SUCCEEDED",
+                    runs.c.purpose == "production",
+                    complete_turn,
+                    ~used,
+                    frozen_policy["suggest_enabled"].as_boolean().is_(True),
+                    frozen_policy["write_mode"].astext != "DISABLED",
+                )
+            )
+            if cutoff:
+                statement = statement.where(table.c.created_at > cutoff, runs.c.created_at > cutoff)
+            # 每轮固定一条用户消息和一条助手消息，多取一条以保证奇数批量不拆轮次。
+            available = [
+                dict(row)
+                for row in (
+                    await uow.connection.execute(
+                        statement.order_by(table.c.sequence, table.c.id).limit(
+                            settings.batch_messages + 1
+                        )
+                    )
+                ).mappings()
             ]
             if len(available) < 2:
                 return
             selected = available[: settings.batch_messages]
-            # 批次只在完整轮次之间切分，不能把用户条件和对应结果拆开。
-            last_turn = selected[-1]["turn_id"]
-            selected += [
-                m for m in available[settings.batch_messages :] if m["turn_id"] == last_turn
-            ]
+            if (
+                len(available) > len(selected)
+                and available[-1]["turn_id"] == selected[-1]["turn_id"]
+            ):
+                selected.append(available[-1])
+            # 完整轮次与其冻结策略一起校验，已消费历史不再参与下一批策略交集。
+            run_ids = list({m["run_id"] for m in selected})
+            batch_runs = await Repository(runs, context.scope).get_many(uow.connection, run_ids)
+            specs = {
+                r["run_id"]: r
+                for r in await Repository(contents, context.scope).find_many(
+                    uow.connection, "run_id", run_ids, kind="execution_spec"
+                )
+            }
+            for run in batch_runs.values():
+                saved = specs.get(run["id"])
+                if saved is None:
+                    raise ServiceError("MEMORY_SOURCE_INVALID", "归档来源定义已删除", 409)
+                previous = FrozenExecutionSpec.model_validate(
+                    saved["payload"]
+                ).definition.context.memory_policy
+                if previous is None:
+                    return
+                frozen = self.memory.intersect_policy(frozen, previous)
             identifiers = [m["id"] for m in selected]
             identifier = digest([context.scope.model_dump(), conversation["id"], identifiers])
             policy = self.memory.intersect_policy(

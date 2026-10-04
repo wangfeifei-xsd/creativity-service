@@ -199,6 +199,7 @@ class ModelRunner:
             cancelled = False
             complete = False
             content_error: ServiceError | None = None
+            sent_confirmed = False
 
             async def consume(
                 config: FrozenModel,
@@ -218,11 +219,18 @@ class ModelRunner:
                     failure, \
                     retryable, \
                     complete, \
-                    content_error
+                    content_error, \
+                    sent_confirmed
                 async for event in self.models.adapter.events(
                     context, config, request, attempt, reservation, cancel, debug=capability_test
                 ):
                     source_id = event.source_request_id or source_id
+                    sent_confirmed = (
+                        sent_confirmed
+                        or event.request_sent is True
+                        or event.kind in {"text", "tool", "structured", "completed"}
+                        or (event.usage is not None and event.usage.status == "REPORTED")
+                    )
                     if event.kind == "usage" and event.usage is not None:
                         # 用量独立于内容提交；取消、删除和过期租约之后仍按原渠道结算。
                         await self.runs.ledger.settle(event.usage)
@@ -263,6 +271,12 @@ class ModelRunner:
                             event.error_code or "MODEL_FAILED", event.message or "模型调用失败", 502
                         )
                         retryable = event.retryable and not (request.stream and text_parts)
+                        await self.runs.ledger.finish_attempt(
+                            context.scope,
+                            attempt.attempt_id,
+                            "FAILED",
+                            confirmed_unsent=event.request_sent is False and not sent_confirmed,
+                        )
                     elif event.kind == "completed":
                         complete = True
 
@@ -279,12 +293,18 @@ class ModelRunner:
                     consumer.cancel()
                     with suppress(asyncio.CancelledError):
                         await consumer
+                await self.runs.ledger.finish_attempt(
+                    context.scope, attempt.attempt_id, "SUCCEEDED" if complete else "UNKNOWN"
+                )
                 raise
             finally:
                 watcher.cancel()
                 with suppress(asyncio.CancelledError):
                     await watcher
             if content_error:
+                await self.runs.ledger.finish_attempt(
+                    context.scope, attempt.attempt_id, "SUCCEEDED" if complete else "UNKNOWN"
+                )
                 raise content_error
             output = {
                 "request_digest": digest(request.model_dump(mode="json")),
@@ -309,6 +329,11 @@ class ModelRunner:
             ):
                 failure = ServiceError("MODEL_OUTPUT_INVALID", "模型输出未通过结构校验", 422)
             if failure and not expected_cancel:
+                await self.runs.ledger.finish_attempt(
+                    context.scope,
+                    attempt.attempt_id,
+                    "UNKNOWN" if failure.code == "MODEL_RESULT_UNKNOWN" else "FAILED",
+                )
                 repair = (
                     failure.code == "MODEL_OUTPUT_INVALID"
                     and not request.stream
@@ -341,6 +366,7 @@ class ModelRunner:
                     raise failure
                 number += 1
                 continue
+            await self.runs.ledger.finish_attempt(context.scope, attempt.attempt_id, "SUCCEEDED")
             if not await self.runs.finish_attempt(
                 lease, attempt.attempt_id, "SUCCEEDED", source_request_id=source_id, output=output
             ):

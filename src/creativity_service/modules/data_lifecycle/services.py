@@ -4,11 +4,17 @@ from collections import Counter
 from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.context import AuthContext, Authorization, Scope
-from creativity_service.core.database import Repository, UnitOfWork, transaction
+from creativity_service.core.database import (
+    Repository,
+    UnitOfWork,
+    scope_values,
+    transaction,
+    validate_row,
+)
 from creativity_service.core.deletion import ContentRef, DeletionService, content_key
 from creativity_service.core.deletion.ledger import DeletionLedger, maintenance_mode
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
@@ -90,23 +96,48 @@ class DataLifecycleService:
 
     async def import_ledger(self, channel_id: str, *, required: bool = False) -> dict[str, Any]:
         manifest = await DeletionLedger().operate(channel_id, required=required)
-        for entry in manifest["entries"]:
-            scope = Scope.model_validate(entry["scope"])
-            if scope.channel_id != channel_id:
-                raise ServiceError("DELETION_LEDGER_INVALID", "删除清单渠道不一致", 503)
-            async with transaction(self.engine, scope, [content_key(scope)]) as uow:
-                if not await Repository(metadata.tables["deletion_markers"], scope).get(
-                    uow.connection, entry["id"]
-                ):
-                    await put(
-                        uow,
-                        "deletion_markers",
-                        entry["id"],
-                        {
-                            k: entry[k]
-                            for k in ("target_type", "target_id", "reason_code", "requested_by")
+        table = metadata.tables["deletion_markers"]
+        control = Scope(channel_id=channel_id, environment="dev")
+        for start in range(0, len(manifest["entries"]), 200):
+            entries = manifest["entries"][start : start + 200]
+            async with transaction(self.engine, control, [content_key(control)]) as uow:
+                existing = {
+                    r["id"]: dict(r)
+                    for r in (
+                        await uow.connection.execute(
+                            select(table).where(
+                                table.c.channel_id == channel_id,
+                                table.c.id.in_([entry["id"] for entry in entries]),
+                            )
+                        )
+                    ).mappings()
+                }
+                additions = {}
+                for entry in entries:
+                    scope = Scope.model_validate(entry["scope"])
+                    if scope.channel_id != channel_id:
+                        raise ServiceError("DELETION_LEDGER_INVALID", "删除清单渠道不一致", 503)
+                    old = existing.get(entry["id"])
+                    if old is not None:
+                        if scope_of(old) != scope:
+                            raise ServiceError("SCOPE_MISMATCH", "清理记录归属不一致", 403)
+                        continue
+                    now = utcnow()
+                    row = {
+                        **scope_values(table, scope),
+                        "id": entry["id"],
+                        "created_at": now,
+                        "updated_at": now,
+                        "revision": 1,
+                        **{
+                            key: entry[key]
+                            for key in ("target_type", "target_id", "reason_code", "requested_by")
                         },
-                    )
+                    }
+                    validate_row(table, row)
+                    additions[entry["id"]] = row
+                if additions:
+                    await uow.connection.execute(insert(table).values(list(additions.values())))
         return manifest
 
     async def prepare_channel(self, channel_id: str, limit: int = 100) -> None:

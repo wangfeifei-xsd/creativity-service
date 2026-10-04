@@ -290,3 +290,60 @@ async def test_http_deletion_preview_progress_and_scope_rejection(evaluation_env
     progress = await env.client.get(f"/admin/v1/deletions/{deletion_id}/progress")
     assert progress.status_code == 200 and progress.json()["status"] == "COMPLETED", progress.text
     assert progress.json()["proof_digests"]
+
+
+async def test_retention_reads_only_bounded_due_candidates(evaluation_env):
+    from datetime import timedelta
+
+    from sqlalchemy import insert
+
+    from creativity_service.modules.data_lifecycle.repository import rows
+    from creativity_service.modules.data_lifecycle.retention import scan_retention
+    from creativity_service.storage import metadata
+    from tests.integration.agents.test_read_queries import statements
+
+    env = evaluation_env
+    _, _, task = await prepare(env, count=1)
+    await advance(env, task)
+    service = DataLifecycleService(
+        env.engine, ContentHandlers(env.engine, MemoryStore(), env.runs), env.iam.authorization
+    )
+    channel_id = env.context.scope.channel_id
+    async with env.engine.begin() as connection:
+        run = (await rows(connection, channel_id, "runs"))[0]
+        await connection.execute(
+            insert(metadata.tables["runs"]),
+            [
+                {
+                    **run,
+                    "id": f"retention_history_{i:04}",
+                    "created_at": utcnow() - timedelta(days=40 if i < 15 else 1),
+                }
+                for i in range(300)
+            ],
+        )
+    with statements(env.engine) as captured:
+        assert (await scan_retention(service, channel_id, limit=5))["registered"] == 5
+    async with env.engine.connect() as connection:
+        marked = await rows(connection, channel_id, "deletion_markers", target_type="run")
+    assert {r["target_id"] for r in marked} == {f"retention_history_{i:04}" for i in range(5)}
+    assert (await scan_retention(service, channel_id, limit=5))["registered"] == 5
+    async with env.engine.connect() as connection:
+        marked = await rows(connection, channel_id, "deletion_markers", target_type="run")
+    assert {r["target_id"] for r in marked} == {f"retention_history_{i:04}" for i in range(10)}
+    candidates = [
+        q
+        for q in captured
+        if q.lstrip().startswith("SELECT")
+        and any(
+            f"FROM {name}" in q
+            for name in ("runs", "memories", "conversations", "artifacts", "usage_exports")
+        )
+    ]
+    assert candidates and all("LIMIT" in q or " IN (" in q for q in candidates)
+    marker_reads = [
+        q
+        for q in captured
+        if q.lstrip().startswith("SELECT") and "FROM deletion_markers" in q and "FROM runs" not in q
+    ]
+    assert all("LIMIT" in q or " IN (" in q or "EXISTS" in q for q in marker_reads)

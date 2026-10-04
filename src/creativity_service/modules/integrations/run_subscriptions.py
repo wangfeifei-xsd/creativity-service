@@ -1,4 +1,4 @@
-"""配置者管理订阅；运行范围按显式调用服务选择并逐条复核授权。"""
+"""配置者管理订阅；批量读取复用范围判断，发送边界重新复核授权。"""
 
 from typing import Any
 
@@ -21,17 +21,16 @@ class RunSubscriptions:
         self.automation = automation
 
     async def clients(
-        self, connection: AsyncConnection, context: AuthContext
+        self, connection: AsyncConnection, context: AuthContext, client_ids: list[str] | None = None
     ) -> dict[str, dict[str, Any]]:
         table = channel_metadata.tables["service_clients"]
-        rows = (
-            await connection.execute(
-                select(table).where(
-                    table.c.channel_id == context.scope.channel_id,
-                    table.c.environment == context.scope.environment,
-                )
-            )
-        ).mappings()
+        statement = select(table).where(
+            table.c.channel_id == context.scope.channel_id,
+            table.c.environment == context.scope.environment,
+        )
+        if client_ids is not None:
+            statement = statement.where(table.c.id.in_(client_ids))
+        rows = (await connection.execute(statement)).mappings()
         return {
             row["id"]: dict(row)
             for row in rows
@@ -57,7 +56,7 @@ class RunSubscriptions:
             return
         # 订阅未来运行需要当前工作区的运行读取授权，不能由配置权限隐式扩权。
         await require_management(uow, context, "run:read")
-        clients = await self.clients(uow.connection, context)
+        clients = await self.clients(uow.connection, context, client_ids)
         if any(key not in clients or clients[key]["status"] != "ACTIVE" for key in client_ids):
             raise ServiceError("SUBSCRIPTION_INVALID", "请选择当前工作区内启用的调用服务", 422)
 
@@ -68,7 +67,7 @@ class RunSubscriptions:
             context, "run:read", "channel", context.scope.channel_id
         )
         async with self.automation.engine.connect() as connection:
-            clients = await self.clients(connection, context)
+            clients = await self.clients(connection, context, client_ids)
         if any(key not in clients or clients[key]["status"] != "ACTIVE" for key in client_ids):
             raise ServiceError("SUBSCRIPTION_UNAVAILABLE", "订阅的调用服务已停用或范围已变化", 403)
 
@@ -88,6 +87,23 @@ class RunSubscriptions:
     async def authorize(
         self, context: AuthContext, client_ids: list[str], run: dict[str, Any]
     ) -> None:
+        async with self.automation.engine.connect() as connection:
+            clients = await self.clients(connection, context, client_ids) if client_ids else {}
+        self.match(context, client_ids, run, clients)
+        actual = scope_of(run)
+        # 仅恢复数据库中的主体范围，继续以配置者身份检查当前权限。
+        scoped = context.model_copy(update={"scope": actual})
+        await self.automation.runs.authorization.require(scoped, "run:read", run["id"])
+        async with transaction(self.automation.engine, actual, [content_key(actual)]) as uow:
+            await DeletionGuard(actual).check(uow, [ContentRef("run", run["id"])])
+
+    @staticmethod
+    def match(
+        context: AuthContext,
+        client_ids: list[str],
+        run: dict[str, Any],
+        clients: dict[str, dict[str, Any]],
+    ) -> None:
         actual = scope_of(run)
         source = AuthContext.model_validate(run["identity"])
         if not context.actor_id or any(
@@ -96,8 +112,6 @@ class RunSubscriptions:
         ):
             raise ServiceError("NOT_FOUND", "运行不属于当前订阅范围", 404)
         if client_ids:
-            async with self.automation.engine.connect() as connection:
-                clients = await self.clients(connection, context)
             client = clients.get(run["client_id"])
             if (
                 run["client_id"] not in client_ids
@@ -109,8 +123,3 @@ class RunSubscriptions:
                 raise ServiceError("FORBIDDEN", "运行来源已不在有效订阅范围内", 403)
         elif actual != context.scope or owner(source) != owner(context):
             raise ServiceError("NOT_FOUND", "运行不属于当前订阅范围", 404)
-        # 仅恢复数据库中的主体范围，继续以配置者身份检查当前权限。
-        scoped = context.model_copy(update={"scope": actual})
-        await self.automation.runs.authorization.require(scoped, "run:read", run["id"])
-        async with transaction(self.automation.engine, actual, [content_key(actual)]) as uow:
-            await DeletionGuard(actual).check(uow, [ContentRef("run", run["id"])])

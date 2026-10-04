@@ -519,3 +519,109 @@ async def test_late_admission_error_cannot_overwrite_concurrent_success(runtime_
     async with env.engine.connect() as connection:
         runs = await run_repo.rows(connection, "runs", env.context.scope.channel_id)
     assert len(runs) == 2
+
+
+async def test_discovery_batches_history_and_keeps_whole_turns(runtime_env):
+    from sqlalchemy import insert, select
+
+    from creativity_service.modules.memory.schemas import ConsolidationSettings, PolicyInput
+    from creativity_service.modules.runs.tables import metadata as runs
+    from tests.integration.agents.test_read_queries import statements
+
+    env = runtime_env
+    service = await setup(env)
+    policy = await env.memory.get_policy(env.context)
+    await env.memory.set_policy(
+        env.context,
+        PolicyInput(
+            revision=policy.revision,
+            consolidation=ConsolidationSettings(batch_messages=3),
+        ),
+    )
+    async with env.engine.connect() as connection:
+        conversation = dict(
+            (
+                await connection.execute(
+                    select(conversations.tables["conversations"]).where(
+                        conversations.tables["conversations"].c.id == env.cid
+                    )
+                )
+            )
+            .mappings()
+            .one()
+        )
+        original_messages = [
+            dict(row)
+            for row in (
+                await connection.execute(
+                    select(conversations.tables["messages"])
+                    .where(conversations.tables["messages"].c.conversation_id == env.cid)
+                    .order_by(conversations.tables["messages"].c.sequence)
+                )
+            ).mappings()
+        ]
+        run = await run_repo.required(
+            connection, "runs", env.context.scope.channel_id, id=original_messages[0]["run_id"]
+        )
+        content = await run_repo.required(
+            connection,
+            "run_contents",
+            env.context.scope.channel_id,
+            run_id=run["id"],
+            kind="execution_spec",
+        )
+    with statements(env.engine) as single:
+        await service.discover(conversation)
+    first = (await jobs(env))[0]
+    async with transaction(env.engine, env.context.scope, repo.keys(env.context.scope)) as uow:
+        await repo.save(uow, "memory_consolidations", first["id"], {"state": "COMPLETED"})
+    # 旧批次已消费；加入 120 个完整轮次，扫描仍只装载下一批及关联冻结定义。
+    async with env.engine.begin() as connection:
+        await connection.execute(
+            insert(runs.tables["runs"]),
+            [
+                {
+                    **run,
+                    "id": f"batch_run_{i:03}",
+                    "created_at": run["created_at"] + timedelta(microseconds=i + 1),
+                }
+                for i in range(120)
+            ],
+        )
+        await connection.execute(
+            insert(runs.tables["run_contents"]),
+            [
+                {**content, "id": f"batch_spec_{i:03}", "run_id": f"batch_run_{i:03}"}
+                for i in range(120)
+            ],
+        )
+        await connection.execute(
+            insert(conversations.tables["messages"]),
+            [
+                {
+                    **message,
+                    "id": f"batch_message_{i:03}_{offset}",
+                    "run_id": f"batch_run_{i:03}",
+                    "turn_id": f"batch_turn_{i:03}",
+                    "sequence": 3 + i * 2 + offset,
+                }
+                for i in range(120)
+                for offset, message in enumerate(original_messages)
+            ],
+        )
+    with statements(env.engine) as multiple:
+        await service.discover(conversation)
+    second = next(row for row in await jobs(env) if row["id"] != first["id"])
+    assert second["source_message_ids"] == [
+        f"batch_message_{i:03}_{offset}" for i in range(2) for offset in range(2)
+    ]
+    assert len(multiple) <= len(single) + 2
+    message_queries = [q for q in multiple if "FROM messages" in q]
+    assert all("LIMIT" in q or " IN (" in q for q in message_queries)
+    async with transaction(env.engine, env.context.scope, repo.keys(env.context.scope)) as uow:
+        await repo.save(uow, "memory_consolidations", second["id"], {"state": "COMPLETED"})
+    await service.discover(conversation)
+    third = next(row for row in await jobs(env) if row["id"] not in {first["id"], second["id"]})
+    assert third["source_message_ids"] == [
+        f"batch_message_{i:03}_{offset}" for i in range(2, 4) for offset in range(2)
+    ]

@@ -36,7 +36,8 @@ class ModelEvent(Contract):
     error_code: str | None = None
     message: str | None = None
     retryable: bool = False
-    request_sent: bool = False
+    # 缺省表示发送状态未知，只有适配器明确返回 False 才能释放发送意图的预占。
+    request_sent: bool | None = None
 
 
 class Cancellation:

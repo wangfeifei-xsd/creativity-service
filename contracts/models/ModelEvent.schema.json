@@ -235,9 +235,16 @@
       "title": "Message"
     },
     "request_sent": {
-      "default": false,
-      "title": "Request Sent",
-      "type": "boolean"
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Request Sent"
     },
     "retryable": {
       "default": false,

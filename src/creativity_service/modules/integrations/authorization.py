@@ -6,7 +6,7 @@ from creativity_service.core.database import UnitOfWork
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.channels.repositories import required
 from creativity_service.modules.channels.state import require_available
-from creativity_service.modules.iam.authorization import effective_actions
+from creativity_service.modules.iam.authorization import ReadAuthorization, effective_actions
 from creativity_service.modules.iam.repositories import (
     membership_state,
     one,
@@ -16,13 +16,11 @@ from creativity_service.modules.iam.repositories import (
 )
 
 
-async def require_management(
-    uow: UnitOfWork, context: AuthContext, action: str, data_scopes: list[str] | None = None
-) -> None:
+async def management_policy(uow: UnitOfWork, context: AuthContext) -> ReadAuthorization:
     scope = context.scope
     uow.require_lock(policy_key(scope.channel_id))
     uow.require_lock(policy_key("system"))
-    if context.principal_type != "management" or not context.actor_id:
+    if context.principal_type not in {"management", "worker"} or not context.actor_id:
         raise ServiceError("FORBIDDEN", "此操作需要管理身份", 403)
     account = await one(uow.connection, "platform_accounts", "system", id=context.actor_id)
     member = await one(
@@ -44,10 +42,23 @@ async def require_management(
         to_state(GrantState, row)
         for row in await rows(uow.connection, "resource_grants", scope.channel_id)
     ]
+    return ReadAuthorization(
+        context, member=await membership_state(uow.connection, member), grants=tuple(grants)
+    )
+
+
+async def require_management(
+    uow: UnitOfWork, context: AuthContext, action: str, data_scopes: list[str] | None = None
+) -> None:
+    if context.principal_type != "management":
+        raise ServiceError("FORBIDDEN", "此操作需要管理身份", 403)
+    policy = await management_policy(uow, context)
+    scope = context.scope
+    assert policy.member is not None
     for domain in data_scopes or [scope.data_scope_id or ""]:
         if action not in effective_actions(
-            await membership_state(uow.connection, member),
-            grants,
+            policy.member,
+            list(policy.grants),
             scope.environment,
             domain,
             "channel",

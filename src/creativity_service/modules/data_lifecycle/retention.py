@@ -3,7 +3,7 @@
 from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import and_, delete, or_, select
 
 from creativity_service.core.context import Scope
 from creativity_service.core.database import transaction
@@ -30,18 +30,21 @@ async def scan_retention(
             raise ServiceError("NOT_FOUND", "渠道不存在", 404)
         channel = channels[0]
         policy = RetentionPolicy.model_validate(channel["retention_policy"])
-        markers = await rows(connection, channel_id, "deletion_markers")
-        marked = {(r["target_type"], r["target_id"]) for r in markers}
+        markers = metadata.tables["deletion_markers"]
         selected: list[tuple[str, dict[str, Any]]] = []
+        now = utcnow()
+        content_kinds = {"run", "conversation", "artifact", "memory", "usage_export"}
         for kind, name in TARGETS.items():
-            if (
-                kind not in {"run", "conversation", "artifact", "memory", "usage_export"}
-                and channel["status"] != "ARCHIVED"
-            ):
+            if kind not in content_kinds and channel["status"] != "ARCHIVED":
                 continue
-            for row in await rows(connection, channel_id, name):
-                if (kind, row["id"]) in marked:
+            table = metadata.tables[name]
+            if kind not in content_kinds:
+                if channel["archived_at"] + timedelta(days=policy.retention_days) > now:
                     continue
+                due = table.c.channel_id == channel_id
+            elif kind == "memory":
+                due = table.c.expires_at <= now
+            else:
                 days = (
                     policy.retention_days
                     if kind == "conversation"
@@ -49,22 +52,43 @@ async def scan_retention(
                     if kind == "usage_export"
                     else policy.run_content_days
                 )
-                deadline = (
-                    row["expires_at"]
-                    if kind == "memory"
-                    else row["created_at"] + timedelta(days=days)
-                )
-                if kind == "artifact" and row["state"] in {"STAGED", "DELETING", "DELETED"}:
-                    deadline = min(
-                        row["upload_expires_at"],
-                        row["created_at"] + timedelta(hours=policy.temporary_hours),
+                due = table.c.created_at <= now - timedelta(days=days)
+                if "expires_at" in table.c:
+                    due = or_(due, table.c.expires_at <= now)
+                if kind == "artifact":
+                    temporary = table.c.state.in_(["STAGED", "DELETING", "DELETED"])
+                    due = or_(
+                        and_(
+                            temporary,
+                            or_(
+                                table.c.upload_expires_at <= now,
+                                table.c.created_at <= now - timedelta(hours=policy.temporary_hours),
+                            ),
+                        ),
+                        and_(~temporary, due),
                     )
-                elif row.get("expires_at"):
-                    deadline = min(deadline, row["expires_at"])
-                if kind not in {"run", "conversation", "artifact", "memory", "usage_export"}:
-                    deadline = channel["archived_at"] + timedelta(days=policy.retention_days)
-                if deadline <= utcnow():
-                    selected.append((kind, row))
+            marked = (
+                select(markers.c.id)
+                .where(
+                    markers.c.channel_id == channel_id,
+                    markers.c.target_type == kind,
+                    markers.c.target_id == table.c.id,
+                    *(
+                        markers.c[key].is_not_distinct_from(table.c[key])
+                        for key in Scope.model_fields
+                        if key != "channel_id" and key in table.c
+                    ),
+                )
+                .exists()
+            )
+            # 每种资源最多返回一批，再合并为全局最早的一批，不把历史内容加载到进程。
+            found = await connection.execute(
+                select(table)
+                .where(table.c.channel_id == channel_id, due, ~marked)
+                .order_by(table.c.created_at, table.c.id)
+                .limit(limit)
+            )
+            selected.extend((kind, dict(row)) for row in found.mappings())
     selected.sort(key=lambda item: (item[1]["created_at"], item[0], item[1]["id"]))
     for kind, row in selected[:limit]:
         await DeletionLedger().record(
@@ -87,24 +111,26 @@ async def scan_retention(
             .order_by(events.c.created_at)
             .limit(limit)
         )
-        for event in old.mappings():
+        event_rows = list(old.mappings())
+        if event_rows:
             contents = metadata.tables["run_contents"]
             await uow.connection.execute(
                 delete(contents).where(
                     contents.c.channel_id == channel_id,
-                    contents.c.id == event["payload_ref"],
+                    contents.c.id.in_([event["payload_ref"] for event in event_rows]),
                     contents.c.kind == "event",
                 )
             )
             await uow.connection.execute(
-                delete(events).where(events.c.channel_id == channel_id, events.c.id == event["id"])
+                delete(events).where(
+                    events.c.channel_id == channel_id,
+                    events.c.id.in_([event["id"] for event in event_rows]),
+                )
             )
-            removed += 1
+            removed += len(event_rows)
         # 元数据账本按自身时间清理，删除标记、证明与尚待结算用量不在此范围。
         for name in ("audit_events", "usage_aggregates"):
-            table = metadata.tables.get(name)
-            if table is None:
-                continue
+            table = metadata.tables[name]
             found = await uow.connection.execute(
                 select(table.c.id)
                 .where(
@@ -133,20 +159,21 @@ async def scan_retention(
             .order_by(records.c.updated_at)
             .limit(limit)
         )
-        for record in expired.mappings():
-            for name, field, identifier in (
-                ("usage_events", "attempt_id", record["attempt_id"]),
-                ("usage_adjustments", "usage_id", record["id"]),
-                ("budget_reservations", "attempt_id", record["attempt_id"]),
-                ("usage_records", "id", record["id"]),
+        expired_rows = list(expired.mappings())
+        if expired_rows:
+            for name, field, identifiers in (
+                ("usage_events", "attempt_id", [r["attempt_id"] for r in expired_rows]),
+                ("usage_adjustments", "usage_id", [r["id"] for r in expired_rows]),
+                ("budget_reservations", "attempt_id", [r["attempt_id"] for r in expired_rows]),
+                ("usage_records", "id", [r["id"] for r in expired_rows]),
             ):
                 table = metadata.tables[name]
                 await uow.connection.execute(
                     delete(table).where(
-                        table.c.channel_id == channel_id, table.c[field] == identifier
+                        table.c.channel_id == channel_id, table.c[field].in_(identifiers)
                     )
                 )
-            removed += 1
+            removed += len(expired_rows)
     from creativity_service.modules.data_lifecycle.objects import sweep_objects
 
     objects = await sweep_objects(service, channel_id, policy.temporary_hours, limit)
