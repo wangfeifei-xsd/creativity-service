@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import BusinessResult
-from creativity_service.core.database import transaction
+from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.deletion import ContentRef
 from creativity_service.core.primitives import ServiceError, canonical_json, digest
 from creativity_service.integrations.models.contracts import ModelRequest
@@ -225,7 +225,9 @@ async def execute_generation(
     if not isinstance(values, list) or len({v["key"] for v in values}) != len(values):
         raise ServiceError("MEMORY_VALUE_INVALID", "画像候选属性无效或重复", 422)
     await service.authorize(context, job["conversation_id"], job["source_run_id"])
-    async with transaction(memory.engine, context.scope, repo.keys(context.scope)) as uow:
+
+    async def commit_memories(uow: UnitOfWork) -> BusinessResult:
+        # 与取消、租约接管及运行终态共用事务；任一写入失败时整批回滚。
         job = await repo.required(uow.connection, "memory_consolidations", context.scope, id=job_id)
         policy, messages = await service.current(uow, context, job)
         if job["state"] not in {"PENDING", "ADMITTED"} or job["generation_run_id"] not in {
@@ -323,14 +325,17 @@ async def execute_generation(
                 "error_code": None,
             },
         )
-    await engine.runs.finish_run(
-        lease,
-        "SUCCEEDED",
-        BusinessResult(
+        return BusinessResult(
             schema_version="1.0",
             business_status="COMPLETED",
             data={"memory_ids": ids},
             warnings=(),
             evidence_refs=(),
-        ),
+        )
+
+    await engine.runs.finish_run(
+        lease,
+        "SUCCEEDED",
+        commit_result=commit_memories,
+        commit_keys=repo.keys(context.scope),
     )

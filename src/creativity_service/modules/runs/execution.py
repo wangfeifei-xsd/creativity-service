@@ -1,5 +1,6 @@
 """带代次的执行租约、有限尝试及恢复判断；外部调用始终在事务外执行。"""
 
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from typing import Any, Literal, cast
 
@@ -8,6 +9,7 @@ from jsonschema import Draft202012Validator
 from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.contracts import BusinessResult
 from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.locking import ResourceKey
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.modules.budgets.services import record_cost
 from creativity_service.modules.runs.base import RunKernel
@@ -815,10 +817,16 @@ class ExecutionService(RunKernel):
         result: BusinessResult | None = None,
         *,
         failure: ServiceError | None = None,
+        commit_result: Callable[[UnitOfWork], Awaitable[BusinessResult]] | None = None,
+        commit_keys: list[ResourceKey] | None = None,
     ) -> str:
+        """成功回写与终态原子提交；回写钩子只做库内操作，所需锁须预先声明。"""
+        if commit_result is not None and (state != "SUCCEEDED" or result is not None):
+            raise ValueError("事务回写仅适用于未提供结果的成功结束")
         original = await self.before_progress(lease)
         context = self.context(original)
-        async with transaction(self.engine, lease.scope, self.keys(context, lease.run_id)) as uow:
+        keys = [*self.keys(context, lease.run_id), *(commit_keys or [])]
+        async with transaction(self.engine, lease.scope, keys) as uow:
             row = await self.locked_run(uow, lease.run_id)
             await self.valid_lease(uow, row, lease)
             if not await self.expire(uow, row):
@@ -826,6 +834,8 @@ class ExecutionService(RunKernel):
                 result_ref = None
                 error = None
                 if state == "SUCCEEDED":
+                    if commit_result is not None:
+                        result = await commit_result(uow)
                     full = "business_status" in cast(
                         dict[str, Any], snapshot.output_schema.get("properties", {})
                     )

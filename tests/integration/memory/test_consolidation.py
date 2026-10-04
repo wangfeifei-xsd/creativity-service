@@ -9,7 +9,8 @@ from sqlalchemy import update
 from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.database import transaction
 from creativity_service.core.deletion import RecoveryService
-from creativity_service.core.primitives import ServiceError, utcnow
+from creativity_service.core.primitives import ServiceError, new_id, utcnow
+from creativity_service.modules.budgets.schemas import BudgetCreate, PlatformLimitCreate
 from creativity_service.modules.conversations.schemas import ConversationCreate, MessageInput
 from creativity_service.modules.conversations.tables import metadata as conversations
 from creativity_service.modules.memory import repositories as repo
@@ -18,6 +19,8 @@ from creativity_service.modules.memory.schemas import (
     MemoryPolicy,
     PreferenceInput,
 )
+from creativity_service.modules.runs import repositories as run_repo
+from creativity_service.modules.usage.assembly import build_usage_services
 from creativity_service.workers.executor import execute_message
 from tests.integration.agents.test_agents import publish
 from tests.integration.runtime.conftest import agent_env, channel_env, runtime_env
@@ -301,3 +304,218 @@ async def test_failed_background_run_retries_with_same_batch_and_no_duplicate_me
         completed["id"] == job["id"] and completed["generation_run_id"] != job["generation_run_id"]
     )
     assert len((await env.memory.list_memories(env.context)).items) == 2
+
+
+@pytest.mark.parametrize("interruption", ["cancel", "deadline", "lease_expired", "lease_replaced"])
+async def test_generation_rechecks_run_control_before_memory_commit(
+    runtime_env, monkeypatch, interruption
+):
+    env = runtime_env
+    service = await setup(env)
+    env.adapter.responses = [
+        {"summary": "用户长期使用中文。"},
+        {"profiles": [{"key": "preferred_language", "value": "中文"}]},
+    ]
+    await service.sweep(env.context.scope.channel_id)
+    job = (await jobs(env))[0]
+    message = TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=job["generation_run_id"])
+    original = service.authorize
+    boundary_calls = 0
+    replacement = None
+
+    async def interrupt(context, conversation_id, source_run_id):
+        nonlocal boundary_calls, replacement
+        await original(context, conversation_id, source_run_id)
+        boundary_calls += 1
+        if boundary_calls != 3:
+            return
+        if interruption == "cancel":
+            await env.runs.cancel(env.context, message.run_id)
+            return
+        async with transaction(
+            env.engine, env.context.scope, env.runs.keys(env.context, message.run_id)
+        ) as uow:
+            if interruption == "deadline":
+                await run_repo.save(
+                    uow, "runs", message.run_id, {"deadline": utcnow() - timedelta(seconds=1)}
+                )
+            else:
+                lease = await run_repo.required(
+                    uow.connection, "run_leases", message.channel_id, run_id=message.run_id
+                )
+                await run_repo.save(
+                    uow, "run_leases", lease["id"], {"expires_at": utcnow() - timedelta(seconds=1)}
+                )
+        if interruption == "lease_replaced":
+            replacement = await env.runs.claim_lease(message, "replacement")
+            assert replacement is not None
+
+    monkeypatch.setattr(service, "authorize", interrupt)
+    await execute_message(env.runs, message, "memory", env.runtime)
+    assert boundary_calls == 3
+    assert not (await env.memory.list_memories(env.context)).items
+    assert (await jobs(env))[0]["state"] != "COMPLETED"
+    monkeypatch.setattr(service, "authorize", original)
+    if interruption == "cancel":
+        assert (await env.runs.load(message))["state"] == "CANCELLED"
+        await service.sweep(message.channel_id)
+        stopped = (await jobs(env))[0]
+        assert stopped["state"] == "SKIPPED"
+        assert stopped["error_code"] == "RUN_CANCELLED"
+        assert stopped["attempt"] == job["attempt"]
+        await service.sweep(message.channel_id)
+        assert (await jobs(env))[0] == stopped
+    elif interruption == "deadline":
+        assert (await env.runs.load(message))["state"] == "TIMED_OUT"
+    else:
+        # 新租约从已保存的模型结果恢复，旧执行器不能提前写回或重复调用。
+        if replacement:
+            await env.runtime.execute(env.context, replacement)
+        else:
+            await execute_message(env.runs, message, "recovered", env.runtime)
+        assert (await env.runs.load(message))["state"] == "SUCCEEDED"
+        assert (await jobs(env))[0]["state"] == "COMPLETED"
+        assert len((await env.memory.list_memories(env.context)).items) == 2
+        assert len(env.adapter.calls) == 3
+
+
+async def test_memory_write_and_run_success_rollback_together(runtime_env, monkeypatch):
+    env = runtime_env
+    service = await setup(env)
+    env.adapter.responses = [
+        {"summary": "用户长期使用中文。"},
+        {"profiles": [{"key": "preferred_language", "value": "中文"}]},
+    ]
+    await service.sweep(env.context.scope.channel_id)
+    job = (await jobs(env))[0]
+    original = env.runs.transition
+
+    async def fail_success(uow, row, state, **kwargs):
+        if state == "SUCCEEDED":
+            raise ServiceError("TEST_COMMIT_FAILED", "模拟成功终态保存失败", 503)
+        return await original(uow, row, state, **kwargs)
+
+    monkeypatch.setattr(env.runs, "transition", fail_success)
+    message = TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=job["generation_run_id"])
+    await execute_message(env.runs, message, "memory", env.runtime)
+    assert (await env.runs.load(message))["state"] == "FAILED"
+    assert (await jobs(env))[0]["state"] == "ADMITTED"
+    assert not (await env.memory.list_memories(env.context)).items
+    events = await env.runs.events(env.context, message.run_id)
+    assert [e.event_type for e in events].count("completed") == 1
+    assert "result" not in [e.event_type for e in events]
+
+
+async def test_memory_success_is_committed_before_later_cancel(runtime_env, monkeypatch):
+    env = runtime_env
+    service = await setup(env)
+    original = env.runs.after_commit
+    completed = []
+
+    async def cancel_after_commit(row):
+        if row["state"] == "SUCCEEDED" and not completed:
+            completed.append(row["id"])
+            assert (await jobs(env))[0]["state"] == "COMPLETED"
+            assert len((await env.memory.list_memories(env.context)).items) == 2
+            assert (await env.runs.cancel(env.context, row["id"])).state == "SUCCEEDED"
+        await original(row)
+
+    monkeypatch.setattr(env.runs, "after_commit", cancel_after_commit)
+    job = await generate(env, service)
+    assert completed == [job["generation_run_id"]]
+    events = await env.runs.events(env.context, job["generation_run_id"])
+    assert [e.event_type for e in events].count("completed") == 1
+    assert [e.event_type for e in events].count("result") == 1
+    run = await env.runs.load(
+        TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=job["generation_run_id"])
+    )
+    assert run["resources_released"]
+
+
+@pytest.mark.parametrize("limit_scope", ["platform", "channel"])
+async def test_transient_admission_limit_retries_same_batch_after_capacity_returns(
+    runtime_env, limit_scope
+):
+    env = runtime_env
+    service = await setup(env)
+    usage = build_usage_services(env.engine, env.services.channels)
+    if limit_scope == "platform":
+        await usage.management.platform_limits(
+            env.admin,
+            PlatformLimitCreate(
+                limit_code="parallel", name="平台并发", unit="concurrency", limit_value=1
+            ),
+        )
+    else:
+        await usage.management.save_budget(
+            env.tenant.manager,
+            BudgetCreate(
+                name="渠道并发",
+                scope_type="channel",
+                scope_id=env.context.scope.channel_id,
+                unit="concurrency",
+                limit_value="1",
+            ),
+        )
+    blocker = new_id("run")
+    async with transaction(
+        env.engine, env.context.scope, env.runs.budgets.admission_keys(env.context, blocker)
+    ) as uow:
+        await env.runs.budgets.admit(uow, env.context, blocker)
+    await service.sweep(env.context.scope.channel_id)
+    job = (await jobs(env))[0]
+    assert job["state"] == "PENDING"
+    assert job["error_code"] == (
+        "PLATFORM_LIMIT_EXCEEDED" if limit_scope == "platform" else "BUDGET_EXCEEDED"
+    )
+    assert job["attempt"] == 1 and job["generation_run_id"] is None
+    assert job["next_attempt_at"] > utcnow()
+    await env.runs.budgets.finish_admission(env.context, blocker)
+    await service.sweep(env.context.scope.channel_id)
+    assert (await jobs(env))[0] == job
+    async with transaction(env.engine, env.context.scope, repo.keys(env.context.scope)) as uow:
+        await repo.save(
+            uow,
+            "memory_consolidations",
+            job["id"],
+            {"next_attempt_at": utcnow() - timedelta(seconds=1)},
+        )
+    await asyncio.gather(
+        service.sweep(env.context.scope.channel_id), service.sweep(env.context.scope.channel_id)
+    )
+    admitted = (await jobs(env))[0]
+    assert admitted["state"] == "ADMITTED" and admitted["error_code"] is None
+    completed = await generate(env, service)
+    assert completed["id"] == job["id"] and completed["attempt"] == 1
+    assert completed["source_message_ids"] == job["source_message_ids"]
+    assert len(await jobs(env)) == 1
+    assert len((await env.memory.list_memories(env.context)).items) == 2
+
+
+async def test_late_admission_error_cannot_overwrite_concurrent_success(runtime_env, monkeypatch):
+    env = runtime_env
+    service = await setup(env)
+    original = service.admission.submit
+    waiting, resume = asyncio.Event(), asyncio.Event()
+
+    async def delayed_limit(*args, **kwargs):
+        if not waiting.is_set():
+            waiting.set()
+            await resume.wait()
+            raise ServiceError("PLATFORM_LIMIT_EXCEEDED", "平台并发暂满", 429)
+        return await original(*args, **kwargs)
+
+    monkeypatch.setattr(service.admission, "submit", delayed_limit)
+    previous = asyncio.create_task(service.sweep(env.context.scope.channel_id))
+    try:
+        await asyncio.wait_for(waiting.wait(), timeout=15)
+        await service.sweep(env.context.scope.channel_id)
+        admitted = (await jobs(env))[0]
+        assert admitted["state"] == "ADMITTED" and admitted["error_code"] is None
+    finally:
+        resume.set()
+        await asyncio.wait_for(previous, timeout=15)
+    assert (await jobs(env))[0] == admitted
+    async with env.engine.connect() as connection:
+        runs = await run_repo.rows(connection, "runs", env.context.scope.channel_id)
+    assert len(runs) == 2

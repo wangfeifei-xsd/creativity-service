@@ -262,6 +262,15 @@ class MemoryConsolidation:
                 )
                 if current["revision"] != job["revision"] or current["state"] == "COMPLETED":
                     return
+                if run["state"] == "CANCELLED":
+                    # 主动取消不消耗重试轮次，也不能由下次扫描自动重启。
+                    await repo.save(
+                        uow,
+                        "memory_consolidations",
+                        job["id"],
+                        {"state": "SKIPPED", "error_code": "RUN_CANCELLED"},
+                    )
+                    return
                 await repo.save(
                     uow,
                     "memory_consolidations",
@@ -292,7 +301,11 @@ class MemoryConsolidation:
                     uow,
                     "memory_consolidations",
                     job["id"],
-                    {"generation_run_id": receipt.run_id, "state": "ADMITTED"},
+                    {
+                        "generation_run_id": receipt.run_id,
+                        "state": "ADMITTED",
+                        "error_code": None,
+                    },
                 )
 
     async def sweep(self, channel_id: str) -> None:
@@ -363,14 +376,22 @@ class MemoryConsolidation:
                     current = await repo.required(
                         uow.connection, "memory_consolidations", context.scope, id=job["id"]
                     )
-                    if current["state"] not in {"PENDING", "ADMITTED"}:
+                    if (
+                        current["state"] not in {"PENDING", "ADMITTED"}
+                        or current["revision"] != job["revision"]
+                    ):
                         continue
+                    # 准入额度可能随占用释放而恢复，沿用原批次与幂等键等待重试。
+                    retryable = exc.status >= 500 or (
+                        exc.status == 429
+                        and exc.code in {"BUDGET_EXCEEDED", "PLATFORM_LIMIT_EXCEEDED"}
+                    )
                     await repo.save(
                         uow,
                         "memory_consolidations",
                         job["id"],
                         {
-                            "state": "SKIPPED" if exc.status < 500 else current["state"],
+                            "state": current["state"] if retryable else "SKIPPED",
                             "error_code": exc.code,
                             "next_attempt_at": utcnow() + timedelta(minutes=5),
                         },
