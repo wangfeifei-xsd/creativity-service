@@ -16,6 +16,12 @@ from creativity_service.core.primitives import (
     digest,
     utcnow,
 )
+from creativity_service.modules.iam.reading import (
+    read_actions,
+    read_policy,
+    require_action,
+    resource_state,
+)
 from creativity_service.modules.runs.execution import ExecutionService
 from creativity_service.modules.runs.repositories import one, required, save
 from creativity_service.modules.runs.schemas import AdmissionReceipt, Lease
@@ -135,16 +141,18 @@ class InterruptionOperations(ExecutionService):
 
     async def interruption(self, context: AuthContext, run_id: str) -> InterruptionView | None:
         context = await self.access_context(context, run_id)
-        await self.authorization.require(context, "run:content", run_id)
-        allowed = {}
-        for action in ("run:create", "run:approve"):
-            try:
-                await self.authorization.require(context, action, run_id)
-                allowed[action] = True
-            except ServiceError as exc:
-                if exc.status not in {403, 404}:
-                    raise
-                allowed[action] = False
+        policy = await read_policy(self.authorization, context)
+        permissions = await read_actions(
+            self.authorization,
+            context,
+            "run",
+            run_id,
+            ["run:content", "run:create", "run:approve"],
+            policy=policy,
+            state=resource_state(context, "run", {"id": run_id}),
+        )
+        require_action(permissions, "run:content")
+        allowed = {action: action in permissions for action in ("run:create", "run:approve")}
         async with transaction(self.engine, context.scope, self.keys(context, run_id)) as uow:
             row = await self.locked_run(uow, run_id)
             if context.client_id and context.client_id != row["client_id"]:

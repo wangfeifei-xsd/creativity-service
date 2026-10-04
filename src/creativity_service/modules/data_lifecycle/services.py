@@ -14,7 +14,14 @@ from creativity_service.core.deletion.ledger import DeletionLedger, maintenance_
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.modules.data_lifecycle.graph import LABELS, TARGETS, affected, locate
 from creativity_service.modules.data_lifecycle.handlers import ContentHandlers
-from creativity_service.modules.data_lifecycle.repository import put, rows, scope_of, worker_context
+from creativity_service.modules.data_lifecycle.repository import (
+    put,
+    related_rows,
+    rows,
+    scope_of,
+    worker_context,
+)
+from creativity_service.modules.iam.reading import read_actions, read_policy, require_action
 from creativity_service.storage import metadata
 
 
@@ -391,17 +398,21 @@ class DataLifecycleService:
                 if memory:
                     if not memory[0]["memory_ids"]:
                         jobs.append(memory[0])
-                    for mid in memory[0]["memory_ids"]:
-                        jobs.extend(
-                            await rows(
-                                connection,
-                                context.scope.channel_id,
-                                "deletion_jobs",
-                                marker_id=digest([scope_of(memory[0]).model_dump(), "memory", mid]),
-                            )
+                    jobs.extend(
+                        await related_rows(
+                            connection,
+                            context.scope.channel_id,
+                            "deletion_jobs",
+                            "marker_id",
+                            [
+                                digest([scope_of(memory[0]).model_dump(), "memory", mid])
+                                for mid in memory[0]["memory_ids"]
+                            ],
                         )
+                    )
         if not jobs:
             raise ServiceError("NOT_FOUND", "清理任务尚未生成或不存在", 404)
+        policy = await read_policy(self.authorization, context)
         for job in jobs:
             own = scope_of(job)
             if (
@@ -410,29 +421,27 @@ class DataLifecycleService:
                 or (context.scope.subject_id and own != context.scope)
             ):
                 raise ServiceError("NOT_FOUND", "当前范围没有此清理任务", 404)
-            await self.authorization.require(
-                context.model_copy(update={"scope": own}), "content:delete", "scope"
+            permissions = await read_actions(
+                self.authorization,
+                context.model_copy(update={"scope": own}),
+                "content",
+                "scope",
+                ["content:delete"],
+                policy=policy,
             )
+            require_action(permissions, "content:delete")
         return jobs
 
     async def progress(self, context: AuthContext, identifier: str) -> dict[str, Any]:
         jobs = await self.resolve_jobs(context, identifier)
-        items, receipts = [], []
         async with self.engine.connect() as connection:
-            for job in jobs:
-                items.extend(
-                    await rows(
-                        connection,
-                        context.scope.channel_id,
-                        "deletion_work_items",
-                        job_id=job["id"],
-                    )
-                )
-                receipts.extend(
-                    await rows(
-                        connection, context.scope.channel_id, "deletion_receipts", job_id=job["id"]
-                    )
-                )
+            identifiers = [job["id"] for job in jobs]
+            items = await related_rows(
+                connection, context.scope.channel_id, "deletion_work_items", "job_id", identifiers
+            )
+            receipts = await related_rows(
+                connection, context.scope.channel_id, "deletion_receipts", "job_id", identifiers
+            )
         state = (
             "COMPLETED"
             if all(j["state"] == "COMPLETED" for j in jobs)

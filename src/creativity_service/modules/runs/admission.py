@@ -237,10 +237,13 @@ class AdmissionService(RunKernel):
                     },
                 )
                 await self.guard(uow, row)
-                for identifier, source in input_links:
-                    await DeletionGuard(context.scope).link(
-                        uow, identifier, source, ContentRef("run", run_id)
-                    )
+                await DeletionGuard(context.scope).link_many(
+                    uow,
+                    [
+                        (identifier, source, ContentRef("run", run_id), None)
+                        for identifier, source in input_links
+                    ],
+                )
                 await save(
                     uow,
                     "run_contents",

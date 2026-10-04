@@ -367,8 +367,9 @@ class VersionService:
                 raise ServiceError("SNAPSHOT_INVALID", "冻结版本与受理范围不符", 422)
             versions = list(frozen_versions)
         else:
+            loaded = await repo.get_many(uow.connection, version_ids)
             for version_id in version_ids:
-                row = await repo.get(uow.connection, version_id)
+                row = loaded.get(version_id)
                 if row is None or row["state"] == "RETIRED":
                     raise ServiceError("VERSION_UNAVAILABLE", "快照版本不可用")
                 versions.append(version_view(row))
@@ -398,13 +399,21 @@ class VersionService:
                 "output_schema": output_schema,
             },
         )
-        for source in [ContentRef("run", run_id), *(ContentRef("version", v) for v in version_ids)]:
-            await DeletionGuard(scope).link(
-                uow,
-                digest([snapshot.snapshot_id, source.resource_type, source.resource_id]),
-                source,
-                ContentRef("snapshot", snapshot.snapshot_id),
-            )
+        await DeletionGuard(scope).link_many(
+            uow,
+            [
+                (
+                    digest([snapshot.snapshot_id, source.resource_type, source.resource_id]),
+                    source,
+                    ContentRef("snapshot", snapshot.snapshot_id),
+                    None,
+                )
+                for source in [
+                    ContentRef("run", run_id),
+                    *(ContentRef("version", v) for v in version_ids),
+                ]
+            ],
+        )
         return snapshot
 
     async def read_version(self, context: AuthContext, version_id: str) -> ResourceVersion:

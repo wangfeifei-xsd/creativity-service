@@ -18,6 +18,7 @@ from creativity_service.modules.iam.authorization import (
     effective_actions,
     require_platform,
 )
+from creativity_service.modules.iam.display import resource_names
 from creativity_service.modules.iam.repositories import (
     IdentityRepository,
     membership_state,
@@ -369,25 +370,40 @@ class AccessService:
         )
         async with self.repository.engine.connect() as connection:
             result = await rows(connection, "channel_memberships", channel_id)
+        data = await self.view_data(session.account.id, channel_id, [r["user_id"] for r in result])
         # 只暴露操作者完整可见的成员范围，避免通过授权页面获知其他数据域。
         return [
-            await self.member_view(row, session.account.id)
+            await self.member_view(row, session.account.id, data)
             for row in result
             if actor
             and set(row["environments"]) <= set(actor.environments)
             and set(row["data_scopes"]) <= set(actor.data_scopes)
         ]
 
-    async def member_view(self, row: dict[str, Any], viewer_id: str) -> MembershipView:
-        account = await self.repository.account(row["user_id"])
+    async def view_data(
+        self, viewer_id: str, channel_id: str, user_ids: list[str]
+    ) -> dict[str, Any]:
         options = await self.directory.list_for(viewer_id) if self.directory else []
+        accounts = await self.repository.accounts(user_ids)
+        async with self.repository.engine.connect() as connection:
+            catalog = await role_catalog(connection, channel_id)
+        return {"options": options, "accounts": accounts, "catalog": catalog}
+
+    async def member_view(
+        self, row: dict[str, Any], viewer_id: str, data: dict[str, Any] | None = None
+    ) -> MembershipView:
+        data = (
+            data
+            if data is not None
+            else await self.view_data(viewer_id, row["channel_id"], [row["user_id"]])
+        )
+        account = data["accounts"].get(row["user_id"])
         names = {
             option.data_scope_id: option.data_scope_name
-            for option in options
+            for option in data["options"]
             if option.channel_id == row["channel_id"]
         }
-        async with self.repository.engine.connect() as connection:
-            catalog = await role_catalog(connection, row["channel_id"])
+        catalog = data["catalog"]
         return MembershipView(
             user_id=row["user_id"],
             display_name=account.display_name if account else None,
@@ -587,26 +603,49 @@ class AccessService:
         member = await self.authentication.active_member(context)
         async with self.repository.engine.connect() as connection:
             result = await rows(connection, "resource_grants", channel_id)
+        data = await self.view_data(
+            context.principal_id,
+            channel_id,
+            [r["grantee_id"] for r in result if r["grantee_type"] == "account"],
+        )
+        async with self.repository.engine.connect() as connection:
+            data["resources"] = await resource_names(
+                connection,
+                self.authorization.resources,
+                context,
+                [
+                    (r["resource_type"], r["resource_id"])
+                    for r in result
+                    if r["resource_type"] != "channel" and r["resource_id"] != "*"
+                ],
+            )
         return [
-            await self.grant_view(row, context)
+            await self.grant_view(row, context, data)
             for row in result
             if row["allowed_actions"]
             and set(row["environments"]) <= set(member.environments)
             and set(row["data_scopes"]) <= set(member.data_scopes)
         ]
 
-    async def grant_view(self, row: dict[str, Any], context: AuthContext) -> GrantView:
-        options = await self.directory.list_for(context.principal_id) if self.directory else []
+    async def grant_view(
+        self, row: dict[str, Any], context: AuthContext, data: dict[str, Any] | None = None
+    ) -> GrantView:
+        data = (
+            data
+            if data is not None
+            else await self.view_data(
+                context.principal_id,
+                row["channel_id"],
+                [row["grantee_id"]] if row["grantee_type"] == "account" else [],
+            )
+        )
+        options = data["options"]
         scope_names = {
             o.data_scope_id: o.data_scope_name
             for o in options
             if o.channel_id == context.scope.channel_id
         }
-        account = (
-            await self.repository.account(row["grantee_id"])
-            if row["grantee_type"] == "account"
-            else None
-        )
+        account = data["accounts"].get(row["grantee_id"])
         resource_name = None
         if row["resource_type"] == "channel" and self.directory:
             resource_name = next(
@@ -614,18 +653,23 @@ class AccessService:
             )
         elif row["resource_id"] == "*":
             resource_name = "该类全部资源"
+        elif "resources" in data:
+            resource_name = data["resources"].get((row["resource_type"], row["resource_id"]))
         elif self.authorization.resources:
-            resource = await self.authorization.resources.read_current(
-                context, row["resource_type"], row["resource_id"]
-            )
-            if resource and resource.scope.channel_id == context.scope.channel_id:
-                resource_name = resource.name
+            async with self.repository.engine.connect() as connection:
+                names = await resource_names(
+                    connection,
+                    self.authorization.resources,
+                    context,
+                    [(row["resource_type"], row["resource_id"])],
+                )
+            resource_name = names.get((row["resource_type"], row["resource_id"]))
         return GrantView(
             **{key: row[key] for key in GrantInput.model_fields},
             grant_id=row["id"],
             grantee_name=account.display_name
             if account
-            else await self.role_name(row["channel_id"], row["grantee_id"]),
+            else data["catalog"].get(row["grantee_id"], {}).get("name"),
             resource_name=resource_name,
             action_names=[ACTION_NAMES[a] for a in row["allowed_actions"]],
             environment_names=[ENVIRONMENT_NAMES[e] for e in row["environments"]],

@@ -1,0 +1,85 @@
+{
+  "backend_full_before_final_supplements": {
+    "passed": 600,
+    "skipped": 13
+  },
+  "backend_boundary_supplement": {
+    "passed": 207,
+    "skipped": 0
+  },
+  "backend_batch_writes_supplement": {
+    "passed": 126,
+    "skipped": 11
+  },
+  "backend_identity_supplement": {
+    "passed": 63,
+    "skipped": 0
+  },
+  "backend_query_regression": {
+    "passed": 25,
+    "skipped": 0
+  },
+  "backend_overview_regression": {
+    "passed": 3,
+    "skipped": 0
+  },
+  "frontend_unit": {
+    "passed": 19
+  },
+  "frontend_browser_distinct_cases": {
+    "passed": 15
+  },
+  "checks": [
+    "ruff check",
+    "ruff format --check",
+    "mypy (312 source files)",
+    "frontend API consistency, typecheck, lint, build"
+  ],
+  "counting_note": "分组覆盖有重复，不将以上数字相加。后续修改以对应专项回归覆盖。浏览器用例使用路由夹具。",
+  "performance_baseline": {
+    "management_query": {
+      "p50_ms": 7092.44,
+      "p95_ms": 7317.502,
+      "target_ms": 1000,
+      "passed": false
+    },
+    "admission_service": {
+      "p50_ms": 4540.784,
+      "p95_ms": 5970.125,
+      "target_ms": 500,
+      "passed": false
+    },
+    "admission_http_including_subject_review": {
+      "p50_ms": 8342.979,
+      "p95_ms": 9784.462,
+      "target_ms": 500,
+      "passed": false
+    }
+  },
+  "performance_result": {
+    "management_query": {
+      "p50_ms": 231.207,
+      "p95_ms": 383.813,
+      "target_ms": 1000,
+      "passed": true
+    },
+    "admission_service": {
+      "p50_ms": 2825.343,
+      "p95_ms": 3562.318,
+      "target_ms": 500,
+      "passed": false
+    },
+    "admission_http_including_subject_review": {
+      "p50_ms": 6364.555,
+      "p95_ms": 7141.514,
+      "target_ms": 500,
+      "passed": false
+    }
+  },
+  "service_source": {
+    "service_sha256": "7e9a17a1bf9a9b82e8f1b951b8af235874ca45e158783f7ca4e81bdc14eb7f29",
+    "unchanged_during_measurement": true
+  },
+  "performance_command": "CREATIVITY_ACCEPTANCE_PERFORMANCE=1 CREATIVITY_ACCEPTANCE_DIR=docs/acceptance/query-fixes-20261004 .venv/bin/pytest tests/integration/acceptance/test_performance.py -q -s --tb=short",
+  "acceptance": "管理查询达标；受理时延未达标，整体性能验收未通过。"
+}

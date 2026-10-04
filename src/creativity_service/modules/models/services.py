@@ -312,9 +312,16 @@ class ModelService:
             )
         return await self.connection_view(row)
 
-    async def connection_view(self, row: dict[str, Any]) -> ConnectionView:
+    async def connection_view(
+        self, row: dict[str, Any], providers: list[dict[str, Any]] | None = None
+    ) -> ConnectionView:
         provider = next(
-            (p for p in await self.provider_rows() if p["id"] == row["provider_id"]), None
+            (
+                p
+                for p in (providers if providers is not None else await self.provider_rows())
+                if p["id"] == row["provider_id"]
+            ),
+            None,
         )
         return ConnectionView(
             **{k: row[k] for k in ConnectionInput.model_fields},
@@ -334,8 +341,9 @@ class ModelService:
         context = await self.context(session)
         async with self.engine.connect() as connection:
             rows = await repository(context.scope, "model_connections").find(connection)
+        providers = await self.provider_rows()
         return ConnectionList(
-            items=[await self.connection_view(row) for row in rows],
+            items=[await self.connection_view(row, providers) for row in rows],
             actions=[action("create", "新增连接"), action("credential", "保存凭据")],
         )
 
@@ -575,15 +583,19 @@ class ModelService:
             rows = await repository(context.scope, "resource_versions").find(
                 uow.connection, resource_type=resource_type, resource_id=identifier
             )
-            result = []
-            for row in rows:
-                if resource_type == "model_route" and any(
+            visible = [
+                row
+                for row in rows
+                if resource_type != "model_route"
+                or not any(
                     m["scope"]["environment"] != context.scope.environment
                     for m in row["content"].get("models", [])
-                ):
-                    continue
-                await DeletionGuard(context.scope).check(uow, [ContentRef("version", row["id"])])
-                result.append(version_view(row))
+                )
+            ]
+            await DeletionGuard(context.scope).check(
+                uow, [ContentRef("version", r["id"]) for r in visible]
+            )
+            result = [version_view(row) for row in visible]
             return result
 
     def snapshot(

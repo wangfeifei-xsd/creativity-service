@@ -10,6 +10,7 @@ from creativity_service.core.database.tables import metadata as core
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.primitives import ServiceError, digest
 from creativity_service.modules.mcp.bindings import require_current_binding
+from creativity_service.modules.mcp.oauth_tables import metadata as oauth_metadata
 from creativity_service.modules.mcp.repositories import repository
 from creativity_service.modules.mcp.tables import metadata
 from creativity_service.modules.tools.schemas import ToolBinding
@@ -65,9 +66,9 @@ async def import_reasons(
             for identifier in remaining
         }
         async with transaction(service.engine, scoped.scope, [content_key(scoped.scope)]) as uow:
-            tokens = await repository(scoped.scope, "mcp_oauth_tokens").get_many(
-                uow.connection, identifiers
-            )
+            tokens = await Repository(
+                oauth_metadata.tables["mcp_oauth_tokens"], scoped.scope
+            ).get_many(uow.connection, identifiers)
             blocked = (
                 await DeletionGuard(scoped.scope).blocked_refs(
                     uow, [ContentRef("oauth_token", i) for i in tokens]

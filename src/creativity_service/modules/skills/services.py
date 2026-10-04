@@ -14,7 +14,7 @@ from creativity_service.core.contracts import (
     ResourceVersion,
     VisibleAction,
 )
-from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.database import Repository, UnitOfWork, transaction
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, DeletionService, content_key
 from creativity_service.core.locking import ResourceKey, record_key
@@ -73,6 +73,7 @@ from creativity_service.modules.skills.schemas import (
 from creativity_service.modules.skills.tables import metadata
 from creativity_service.modules.tools.schemas import ToolDefinition
 from creativity_service.modules.tools.services import ToolService
+from creativity_service.modules.tools.tables import metadata as tool_metadata
 
 
 def status(value: str) -> DisplayStatus:
@@ -952,15 +953,25 @@ class SkillService:
                 "；".join(i.message for i in issues) or "工具依赖已变化",
                 409,
             )
-        for tool_id in ids:
+        if ids:
+            policy = await self.authorization.read_policy(context)
             async with self.engine.connect() as connection:
-                tool = await repository("resource_versions", context.scope).get(connection, tool_id)
-            if tool:
-                await self.authorization.boundary(
-                    context, "run:create", "tool", tool["resource_id"]
+                versions = await repository("resource_versions", context.scope).get_many(
+                    connection, ids
                 )
+                tools = await Repository(tool_metadata.tables["tools"], context.scope).get_many(
+                    connection, [v["resource_id"] for v in versions.values()]
+                )
+            if set(ids) - versions.keys():
+                raise ServiceError("SKILL_DEPENDENCY_MISSING", "工具依赖已变化", 409)
+            for tool in versions.values():
+                row = tools.get(tool["resource_id"])
+                if row is None:
+                    raise ServiceError("SKILL_DEPENDENCY_MISSING", "工具依赖已变化", 409)
+                actions = policy.actions("tool", row["id"], resource_state(context, "tool", row))
+                require_action(actions, "run:create")
                 for action in ToolDefinition.model_validate(tool["content"]).required_scopes:
-                    await self.authorization.boundary(context, action, "tool", tool["resource_id"])
+                    require_action(actions, action)
         return ResolvedSkill(
             skill["id"],
             version_id,

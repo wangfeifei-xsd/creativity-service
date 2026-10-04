@@ -208,46 +208,97 @@ class AutomationService:
             await audit_configuration(uow, context, "automation_schedules", identifier, event_id)
         return self.schedule_view(row)
 
+    async def batch_views(
+        self,
+        uow: UnitOfWork,
+        context: AuthContext,
+        records: list[dict[str, Any]],
+        *,
+        skip_deleted: bool = False,
+    ) -> list[BatchView]:
+        items = await repo(context.scope, "automation_items").get_many(
+            uow.connection, [identifier for r in records for identifier in r["item_ids"]]
+        )
+        refs = [ContentRef("batch", r["id"]) for r in records]
+        refs.extend(ContentRef("batch_item", r["id"]) for r in items.values())
+        refs.extend(ContentRef("run", r["run_id"]) for r in items.values() if r["run_id"])
+        blocked = await DeletionGuard(context.scope).blocked_refs(uow, refs)
+        result = []
+        for row in records:
+            if row["owner_key"] != owner(context):
+                raise ServiceError("NOT_FOUND", "当前身份与范围没有此记录", 404)
+            if ContentRef("batch", row["id"]) in blocked:
+                if skip_deleted:
+                    continue
+                raise ServiceError("CONTENT_DELETED", "内容或来源已删除", 410)
+            views = []
+            for identifier in row["item_ids"]:
+                item = items.get(identifier)
+                if not item or item["owner_key"] != owner(context):
+                    raise ServiceError("NOT_FOUND", "当前身份与范围没有此条目", 404)
+                if (
+                    item["state"] == "DELETED"
+                    or ContentRef("batch_item", identifier) in blocked
+                    or (item["run_id"] and ContentRef("run", item["run_id"]) in blocked)
+                ):
+                    item = {**item, "state": "DELETED", "run_id": None, "error": None}
+                views.append(self.item_view(item))
+            result.append(
+                BatchView(
+                    batch_id=row["id"],
+                    name=row["name"],
+                    state_label=LABELS[row["state"]],
+                    revision=row["revision"],
+                    items=views,
+                )
+            )
+        return result
+
     async def batch(self, context: AuthContext, identifier: str) -> BatchView:
         await self.runs.authorization.require(context, "run:read", "scope")
         async with transaction(self.engine, context.scope, keys(context)) as uow:
             row = await repo(context.scope, "automation_batches").get(uow.connection, identifier)
-            if not row or row["owner_key"] != owner(context):
+            if row is None:
                 raise ServiceError("NOT_FOUND", "当前身份与范围没有此记录", 404)
-            await DeletionGuard(context.scope).check(uow, [ContentRef("batch", identifier)])
-            items = []
-            for item_id in row["item_ids"]:
-                item = await repo(context.scope, "automation_items").get(uow.connection, item_id)
-                if not item or item["owner_key"] != owner(context):
-                    raise ServiceError("NOT_FOUND", "当前身份与范围没有此条目", 404)
-                if await self.item_deleted(uow, context, item):
-                    item = {**item, "state": "DELETED", "run_id": None, "error": None}
-                items.append(self.item_view(item))
-        return BatchView(
-            batch_id=identifier,
-            name=row["name"],
-            state_label=LABELS[row["state"]],
-            revision=row["revision"],
-            items=items,
-        )
+            return (await self.batch_views(uow, context, [row]))[0]
 
     async def list_batches(self, context: AuthContext) -> list[BatchView]:
-        await self.manage(context)
-        async with self.engine.connect() as connection:
-            records = await repo(context.scope, "automation_batches").find(
-                connection, owner_key=owner(context)
-            )
-        result = []
-        for row in sorted(records, key=lambda row: row["created_at"], reverse=True):
-            if row["state"] == "DELETED":
-                continue
-            try:
-                result.append(await self.batch(context, row["id"]))
-            except ServiceError as exc:
-                if exc.code != "CONTENT_DELETED":
-                    raise
-            if len(result) == 100:
-                break
+        from creativity_service.modules.iam.reading import require_action
+
+        if not context.actor_id:
+            raise ServiceError("FORBIDDEN", "此配置需要渠道管理身份", 403)
+        policy = await self.authorization.read_policy(context)
+        require_action(policy.actions("channel", context.scope.channel_id), "integration:manage")
+        require_action(policy.actions("run", "scope"), "run:read")
+        table = metadata.tables["automation_batches"]
+        result: list[BatchView] = []
+        after = None
+        async with transaction(self.engine, context.scope, keys(context)) as uow:
+            while len(result) < 100:
+                from sqlalchemy import tuple_
+
+                predicates = [
+                    repo(context.scope, "automation_batches").predicate(),
+                    table.c.owner_key == owner(context),
+                    table.c.state != "DELETED",
+                ]
+                if after:
+                    predicates.append(tuple_(table.c.created_at, table.c.id) < after)
+                records = [
+                    dict(r)
+                    for r in (
+                        await uow.connection.execute(
+                            select(table)
+                            .where(*predicates)
+                            .order_by(table.c.created_at.desc(), table.c.id.desc())
+                            .limit(100 - len(result))
+                        )
+                    ).mappings()
+                ]
+                if not records:
+                    break
+                result.extend(await self.batch_views(uow, context, records, skip_deleted=True))
+                after = (records[-1]["created_at"], records[-1]["id"])
         return result
 
     @staticmethod

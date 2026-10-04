@@ -10,6 +10,8 @@ from creativity_service.modules.skills.repositories import repository
 
 
 class SkillResourceReader:
+    display_tables = {"skill": ["skills"], "version": ["resource_versions"]}
+
     def __init__(self, engine: AsyncEngine, fallback: ResourceStateReader | None) -> None:
         self.engine, self.fallback = engine, fallback
 

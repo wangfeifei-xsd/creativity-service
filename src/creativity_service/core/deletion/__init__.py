@@ -238,6 +238,37 @@ class DeletionGuard:
             },
         )
 
+    async def link_many(
+        self,
+        uow: UnitOfWork,
+        links: list[tuple[str, ContentRef, ContentRef, str | None]],
+    ) -> None:
+        """同一图锁内批量复核并登记来源，不把旧事务的删除结果传入新写入。"""
+        if not links:
+            return
+        await self.check(
+            uow, list({ref for _, source, derived, _ in links for ref in (source, derived)})
+        )
+        records = {}
+        for identifier, source, derived, version in links:
+            if (
+                derived.resource_type in CONFIG_CONTENT_TYPES
+                and source.resource_type not in CONFIG_CONTENT_TYPES
+            ):
+                raise ServiceError("CONFIG_SOURCE_INVALID", "配置不能继承个人内容作为隐式来源", 422)
+            if source == derived:
+                raise ServiceError("SOURCE_CYCLE", "内容不能引用自身", 422)
+            if identifier in records:
+                raise ServiceError("DUPLICATE_ID", "来源关联标识重复")
+            records[identifier] = {
+                "source_type": source.resource_type,
+                "source_id": source.resource_id,
+                "derived_type": derived.resource_type,
+                "derived_id": derived.resource_id,
+                "source_version": version,
+            }
+        await self.sources.add_many(uow, records)
+
 
 class DeletionService:
     def __init__(self, engine: AsyncEngine, authorization: Authorization | None = None) -> None:

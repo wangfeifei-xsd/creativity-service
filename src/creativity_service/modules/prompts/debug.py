@@ -301,8 +301,6 @@ class PromptDebugService:
     async def detail(
         self, context: AuthContext, test_id: str, reveal: bool = False
     ) -> PromptTestView:
-        from creativity_service.modules.prompts.services import redacted_content
-
         service = self.service
         row = await self.row(context, test_id)
         frozen = ResourceVersion.model_validate(row["frozen_version"])
@@ -318,6 +316,15 @@ class PromptDebugService:
                 evidence = await service.evidence.read(uow, context, row)
                 if evidence:
                     verify_evidence(context, row, evidence)
+        return self.view(row, evidence, reveal)
+
+    @staticmethod
+    def view(
+        row: dict[str, Any], evidence: PromptDebugEvidence | None, reveal: bool = False
+    ) -> PromptTestView:
+        from creativity_service.modules.prompts.services import redacted_content
+
+        frozen = ResourceVersion.model_validate(row["frozen_version"])
         rendered = PromptRenderView.model_validate(row["rendered_input"])
         if not reveal:
             # 样例整体属于敏感数据，不依赖变量作者准确标注才能阻止原文外泄。
@@ -346,7 +353,7 @@ class PromptDebugService:
             )
         )
         return PromptTestView(
-            test_id=test_id,
+            test_id=row["id"],
             version_id=row["version_id"],
             version_label=frozen.version_label,
             draft_revision=row["draft_revision"],
@@ -369,8 +376,26 @@ class PromptDebugService:
             rows = await repository("prompt_tests", context.scope).find(
                 connection, version_id=version_id
             )
+        evidence: dict[str, PromptDebugEvidence | None] = {}
+        async with transaction(
+            self.service.engine, context.scope, [content_key(context.scope)]
+        ) as uow:
+            await DeletionGuard(context.scope).check(
+                uow, [ContentRef("prompt_test", r["id"]) for r in rows]
+            )
+            reader = self.service.evidence
+            if reader is not None:
+                read_many = getattr(reader, "read_many", None)
+                evidence = (
+                    await read_many(uow, context, rows)
+                    if read_many
+                    else {r["id"]: await reader.read(uow, context, r) for r in rows if r["run_id"]}
+                )
+            for row in rows:
+                if item := evidence.get(row["id"]):
+                    verify_evidence(context, row, item)
         return [
-            await self.detail(context, row["id"])
+            self.view(row, evidence.get(row["id"]))
             for row in sorted(rows, key=lambda r: r["created_at"], reverse=True)
         ]
 

@@ -167,8 +167,8 @@ class ConversationQueries(ConversationKernel):
                 for key in self.hooks.keys(item_context, row["id"])
             ]
             async with transaction(self.engine, context.scope, keys) as uow:
-                current_rows = {
-                    r["id"]: dict(r)
+                current_values = [
+                    dict(r)
                     for r in (
                         await uow.connection.execute(
                             select(table).where(
@@ -177,7 +177,10 @@ class ConversationQueries(ConversationKernel):
                             )
                         )
                     ).mappings()
-                }
+                ]
+                current_rows = {r["id"]: r for r in current_values}
+                if len(current_rows) != len(current_values):
+                    raise ServiceError("STORAGE_INVARIANT_BROKEN", "会话标识重复", 503)
                 blocked = await DeletionGuard(context.scope).blocked_refs(
                     uow,
                     [ContentRef("conversation", row["id"]) for row, _, _ in visible],

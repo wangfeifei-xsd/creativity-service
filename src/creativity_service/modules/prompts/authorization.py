@@ -10,6 +10,8 @@ from creativity_service.modules.prompts.repositories import repository
 
 
 class PromptResourceReader:
+    display_tables = {"prompt": ["prompts"], "version": ["resource_versions"]}
+
     def __init__(self, engine: AsyncEngine, fallback: ResourceStateReader | None) -> None:
         self.engine, self.fallback = engine, fallback
 

@@ -22,6 +22,8 @@ from creativity_service.modules.tools.tables import metadata
 
 
 class ToolResourceReader:
+    display_tables = {"tool": ["tools"]}
+
     def __init__(self, engine: AsyncEngine, fallback: ResourceStateReader | None) -> None:
         self.engine, self.fallback = engine, fallback
 

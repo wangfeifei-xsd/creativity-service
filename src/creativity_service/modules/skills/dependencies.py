@@ -156,11 +156,12 @@ async def resolve_dependencies(
         models = await Repository(model_metadata.tables["models"], context.scope).find(
             connection, status="ACTIVE"
         )
+        connections = await Repository(
+            model_metadata.tables["model_connections"], context.scope
+        ).get_many(connection, [model["connection_id"] for model in models])
         supported = False
         for model in models:
-            link = await Repository(model_metadata.tables["model_connections"], context.scope).get(
-                connection, model["connection_id"]
-            )
+            link = connections.get(model["connection_id"])
             if (
                 link
                 and link["status"] == "ACTIVE"

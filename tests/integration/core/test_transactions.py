@@ -3,7 +3,7 @@
 import asyncio
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import event, select, text
 
 from creativity_service.core.database import Repository, assert_external_io_allowed, transaction
 from creativity_service.core.database.tables import metadata
@@ -57,6 +57,91 @@ async def test_multiple_locks_sorted_and_scope_isolated(engine, context):
             take([first, second], "compensation"),
         )
     assert all(order[i][0] == order[i + 1][0] for i in range(0, 6, 2))
+
+
+async def test_batch_locks_use_one_roundtrip_and_release_on_rollback(engine, context):
+    keys = [ResourceKey(context.scope.channel_id, "batch-lock", (str(i),)) for i in range(10)]
+    queries = []
+
+    def record(connection, cursor, statement, parameters, execution, many):
+        if "pg_advisory_xact_lock(" in statement:
+            queries.append(statement)
+
+    event.listen(engine.sync_engine, "before_cursor_execute", record)
+    try:
+        with pytest.raises(RuntimeError, match="验证回滚"):
+            async with transaction(engine, context.scope, list(reversed(keys))):
+                async with engine.begin() as contender:
+                    for key in keys:
+                        assert not await contender.scalar(
+                            text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": key.lock_id}
+                        )
+                raise RuntimeError("验证回滚")
+        assert len(queries) == 1
+        async with engine.begin() as contender:
+            for key in keys:
+                assert await contender.scalar(
+                    text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": key.lock_id}
+                )
+    finally:
+        event.remove(engine.sync_engine, "before_cursor_execute", record)
+
+
+async def test_batch_source_links_keep_constant_queries_and_atomic_rejection(
+    engine, context, authorization
+):
+    from creativity_service.core.deletion import (
+        ContentRef,
+        DeletionGuard,
+        DeletionService,
+        content_key,
+    )
+    from creativity_service.core.locking import record_key
+    from tests.integration.agents.test_read_queries import statements
+
+    guard = DeletionGuard(context.scope)
+    counts = []
+    source = ContentRef("version", "source")
+    for size in (1, 10):
+        identifiers = [f"bulk_{size}_{i}" for i in range(size)]
+        keys = [content_key(context.scope)] + [
+            record_key(context.scope.channel_id, "source_links", identifier)
+            for identifier in identifiers
+        ]
+        with statements(engine) as queries:
+            async with transaction(engine, context.scope, keys) as uow:
+                await guard.link_many(
+                    uow,
+                    [
+                        (identifier, source, ContentRef("snapshot", identifier), None)
+                        for identifier in identifiers
+                    ],
+                )
+        counts.append(len(queries))
+    assert counts[0] == counts[1]
+
+    await DeletionService(engine, authorization).mark(context, source, "USER_REQUEST")
+    keys = [content_key(context.scope)] + [
+        record_key(context.scope.channel_id, "source_links", identifier)
+        for identifier in ("clean_link", "blocked_link")
+    ]
+    with pytest.raises(ServiceError) as rejected:
+        async with transaction(engine, context.scope, keys) as uow:
+            await guard.link_many(
+                uow,
+                [
+                    (
+                        "clean_link",
+                        ContentRef("version", "clean"),
+                        ContentRef("snapshot", "new"),
+                        None,
+                    ),
+                    ("blocked_link", source, ContentRef("snapshot", "new"), None),
+                ],
+            )
+    assert rejected.value.code == "CONTENT_DELETED"
+    async with engine.connect() as connection:
+        assert not await guard.sources.get_many(connection, ["clean_link", "blocked_link"])
 
 
 async def test_revision_conflict_and_published_content_frozen(

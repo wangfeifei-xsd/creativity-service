@@ -10,7 +10,7 @@ from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError, digest
 from creativity_service.core.versioning import version_view
-from creativity_service.modules.agents.access import locked_require
+from creativity_service.modules.agents.access import locked_policy
 from creativity_service.modules.agents.repositories import (
     RESOURCE_TABLES,
     dependency_rows,
@@ -72,6 +72,19 @@ class DependencyResolver:
         capabilities = {"text", "structured_output"}
         if bindings.tool_versions:
             capabilities.add("tools")
+        parents = {
+            kind: await repository(table, scope).get_many(
+                uow.connection, [row["resource_id"] for row in rows if row["resource_type"] == kind]
+            )
+            for kind, table in RESOURCE_TABLES.items()
+            if any(row["resource_type"] == kind for row in rows)
+        }
+        policy = await locked_policy(uow, context)
+        await DeletionGuard(scope).check(
+            uow,
+            [ContentRef("version", row["id"]) for row in rows]
+            + [ContentRef(row["resource_type"], row["resource_id"]) for row in rows],
+        )
         for row in rows:
             kind = row["resource_type"]
             if kind not in RESOURCE_TABLES or kind == "agent":
@@ -84,20 +97,17 @@ class DependencyResolver:
                 {"content": row["content"], "output_schema": row["output_schema"]}
             ):
                 raise ServiceError("DEPENDENCY_INVALID", "依赖内容摘要不一致", 409)
-            resource = await required(
-                uow.connection, scope, RESOURCE_TABLES[kind], row["resource_id"]
-            )
+            resource = parents.get(kind, {}).get(row["resource_id"])
+            if resource is None:
+                raise ServiceError("DEPENDENCY_INVALID", "当前渠道缺少所需资源或版本", 422)
             if resource.get("status", "ACTIVE") != "ACTIVE":
                 raise ServiceError(
                     "DEPENDENCY_INVALID", f"{resource.get('name', '依赖资源')}已停用", 422
                 )
-            await DeletionGuard(scope).check(
-                uow, [ContentRef(kind, resource["id"]), ContentRef("version", row["id"])]
-            )
             if kind not in {"model_connection", "model_route"}:
-                await locked_require(uow, context, "run:create", kind, resource["id"])
+                policy.require(context, "run:create", kind, resource["id"])
             if row["state"] == "DRAFT":
-                await locked_require(uow, context, "version:edit", kind, resource["id"])
+                policy.require(context, "version:edit", kind, resource["id"])
             if kind == "tool":
                 if row["id"] not in bindings.tool_versions:
                     raise ServiceError(
@@ -124,7 +134,7 @@ class DependencyResolver:
                             "DEPENDENCY_INVALID", "核查工具须只读并接受 operation_key", 422
                         )
                 for action in tool.required_scopes:
-                    await locked_require(uow, context, action, "tool", resource["id"])
+                    policy.require(context, action, "tool", resource["id"])
                 self.tools.registry.validate(scope, tool, resource["source_type"], executable=True)
                 if resource["source_type"] == "mcp":
                     await self.check_mcp(uow, context, tool)
@@ -201,6 +211,10 @@ class DependencyResolver:
                 raise ServiceError(
                     "CAPABILITY_MISMATCH", "向量路由须固定一个模型，避免混用向量空间", 422
                 )
+        credentials = await repository("credentials", scope).get_many(
+            uow.connection,
+            [row["credential_ref"] for row in parents.get("model_connection", {}).values()],
+        )
         for model_snapshot in [*snapshots, *embedding_snapshots]:
             required_capabilities = (
                 {"embedding"} if model_snapshot in embedding_snapshots else capabilities
@@ -210,10 +224,10 @@ class DependencyResolver:
                 or model_snapshot.scope.environment != scope.environment
             ):
                 raise ServiceError("DEPENDENCY_INVALID", "模型路由不属于当前渠道或环境", 422)
-            model = await required(uow.connection, scope, "models", model_snapshot.model_id)
-            connection = await required(
-                uow.connection, scope, "model_connections", model_snapshot.connection_id
-            )
+            model = parents.get("model", {}).get(model_snapshot.model_id)
+            connection = parents.get("model_connection", {}).get(model_snapshot.connection_id)
+            if model is None or connection is None:
+                raise ServiceError("DEPENDENCY_INVALID", "模型路由缺少所需模型或连接", 422)
             if (
                 not {model_snapshot.model_version_id, model_snapshot.connection_version_id}
                 <= indexed.keys()
@@ -232,10 +246,8 @@ class DependencyResolver:
                 raise ServiceError(
                     "DEPENDENCY_INVALID", "模型或凭据配置已变化，请重新冻结路由", 422
                 )
-            credential = await required(
-                uow.connection, scope, "credentials", connection["credential_ref"]
-            )
-            if credential["state"] != "ACTIVE":
+            credential = credentials.get(connection["credential_ref"])
+            if credential is None or credential["state"] != "ACTIVE":
                 raise ServiceError("DEPENDENCY_INVALID", "模型连接凭据已撤销", 422)
             if (
                 model["context_limit"] is None

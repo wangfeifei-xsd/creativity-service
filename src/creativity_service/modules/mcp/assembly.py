@@ -30,6 +30,8 @@ class McpSettings(BaseSettings):
 
 
 class McpResources:
+    display_tables = {"mcp_connection": ["mcp_connections"]}
+
     def __init__(self, engine: AsyncEngine, previous: ResourceStateReader | None) -> None:
         self.engine, self.previous = engine, previous
 

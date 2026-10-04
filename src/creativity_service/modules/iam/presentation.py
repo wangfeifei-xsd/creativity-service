@@ -5,7 +5,8 @@ from creativity_service.core.auth.types import WorkspaceOption
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import NavigationItem, VisibleAction
 from creativity_service.core.primitives import Contract, ServiceError
-from creativity_service.modules.iam.authorization import effective_actions, require_platform
+from creativity_service.modules.iam.authorization import require_platform
+from creativity_service.modules.iam.display import resource_names
 from creativity_service.modules.iam.repositories import role_catalog, rows
 from creativity_service.modules.iam.roles import ACTION_NAMES
 from creativity_service.modules.iam.schemas import RoleView
@@ -60,16 +61,25 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
     context = session.context
     if context.scope.channel_id != channel_id:
         raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
-    await iam.authentication.revalidate_admin(session)
-    member = await iam.authentication.active_member(context)
-    grants = await iam.authentication.identities.grants(channel_id)
-    scope = context.scope
-    allowed = effective_actions(
-        member, grants, scope.environment, scope.data_scope_id or "", "channel", channel_id
-    )
+    policy = await iam.authorization.read_policy(context)
+    member = policy.member
+    if member is None:
+        raise ServiceError("FORBIDDEN", "此操作需要渠道管理身份", 403)
+    allowed = policy.actions("channel", channel_id)
     if not allowed & {"membership:read", "grant:read"}:
         raise ServiceError("FORBIDDEN", "无权查看成员与授权", 403)
-    options = [o for o in await iam.sessions.channels(session) if o.channel_id == channel_id]
+    from creativity_service.modules.channels.state import ChannelDirectory
+
+    directory = iam.sessions.directory
+    options = (
+        [
+            o
+            for o in await directory.authorized_for(session.account.id)
+            if o.channel_id == channel_id
+        ]
+        if isinstance(directory, ChannelDirectory)
+        else [o for o in await iam.sessions.channels(session) if o.channel_id == channel_id]
+    )
     resources = (
         [
             ResourceOption(
@@ -79,19 +89,27 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
         if options
         else []
     )
-    # 现有明确资源经原授权读取器解析；未接入的名称不以内部标识替代。
     if "grant:read" in allowed:
-        for grant in await iam.access.list_grants(session, channel_id):
-            if grant.resource_name and not any(
-                r.resource_type == grant.resource_type and r.resource_id == grant.resource_id
-                for r in resources
-            ):
+        refs = [
+            (g.resource_type, g.resource_id)
+            for g in policy.grants
+            if g.allowed_actions
+            and set(g.environments) <= set(member.environments)
+            and set(g.data_scopes) <= set(member.data_scopes)
+            and g.resource_type != "channel"
+        ]
+        async with iam.accounts.repository.engine.connect() as connection:
+            names = await resource_names(
+                connection,
+                iam.authorization.resources,
+                context,
+                [ref for ref in refs if ref[1] != "*"],
+            )
+        for kind, identifier in dict.fromkeys(refs):
+            name = "该类全部资源" if identifier == "*" else names.get((kind, identifier))
+            if name:
                 resources.append(
-                    ResourceOption(
-                        resource_type=grant.resource_type,
-                        resource_id=grant.resource_id,
-                        label=grant.resource_name,
-                    )
+                    ResourceOption(resource_type=kind, resource_id=identifier, label=name)
                 )
     resource_types = {
         "evaluation": ("评测资源", "evaluation:manage"),
@@ -115,11 +133,12 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
     if "grant:manage" in allowed:
         async with iam.accounts.repository.engine.connect() as connection:
             members = await rows(connection, "channel_memberships", channel_id, status="ACTIVE")
+        accounts = await iam.accounts.repository.accounts([t["user_id"] for t in members])
         for target in members:
             if set(target["environments"]) <= set(member.environments) and set(
                 target["data_scopes"]
             ) <= set(member.data_scopes):
-                account = await iam.accounts.repository.account(target["user_id"])
+                account = accounts.get(target["user_id"])
                 if account and account.status == "ACTIVE":
                     member_accounts.append(
                         NamedOption(value=account.id, label=account.display_name)
@@ -138,6 +157,26 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
             )
     async with iam.accounts.repository.engine.connect() as connection:
         catalog = await role_catalog(connection, channel_id)
+        account_rows = (
+            await rows(connection, "platform_accounts", "system", status="ACTIVE")
+            if "membership:manage" in allowed
+            else []
+        )
+    role_views = [
+        RoleView(
+            role_code=code,
+            name=value["name"],
+            grant_scope="channel",
+            grant_scope_name="渠道",
+            actions=[
+                VisibleAction(action_key=a, label=ACTION_NAMES[a]) for a in value["allowed_actions"]
+            ],
+        )
+        for code, value in catalog.items()
+        if value["state"] == "ACTIVE"
+        and "membership:manage" in allowed
+        and set(value["allowed_actions"]) <= allowed
+    ]
     return AccessOptions(
         tabs=[
             NavigationItem(navigation_key=key, label=label)
@@ -148,10 +187,11 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
             if action in allowed
         ],
         member_accounts=member_accounts,
-        accounts=await account_options(iam, session, channel_id)
-        if "membership:manage" in allowed
-        else [],
-        roles=await iam.access.roles(session) if "membership:manage" in allowed else [],
+        accounts=[
+            NamedOption(value=r["id"], label=f"{r['display_name']}（{r['login_name']}）")
+            for r in sorted(account_rows, key=lambda r: r["login_name"])
+        ],
+        roles=role_views,
         grantee_roles=[
             NamedOption(value=k, label=v["name"])
             for k, v in catalog.items()

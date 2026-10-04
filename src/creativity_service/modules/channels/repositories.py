@@ -116,6 +116,37 @@ class ChannelRepository:
     def __init__(self, engine: AsyncEngine) -> None:
         self.engine = engine
 
+    async def directory_records(
+        self, connection: AsyncConnection, limit: int
+    ) -> list[dict[str, Any]]:
+        """平台治理入口先限定目录，再关联精确目标渠道，不把系统渠道当业务通配。"""
+        index = metadata.tables["channel_code_index"]
+        channel = metadata.tables["channels"]
+        directory = (
+            select(index.c.target_channel_id)
+            .where(index.c.channel_id == "system", index.c.target_channel_id != "system")
+            .order_by(index.c.created_at, index.c.id)
+            .limit(limit)
+            .subquery()
+        )
+        records = [
+            dict(row)
+            for row in (
+                await connection.execute(
+                    select(channel).select_from(
+                        directory.join(
+                            channel,
+                            (channel.c.channel_id == directory.c.target_channel_id)
+                            & (channel.c.id == directory.c.target_channel_id),
+                        )
+                    )
+                )
+            ).mappings()
+        ]
+        if len({row["id"] for row in records}) != len(records):
+            raise ServiceError("STORAGE_INVARIANT_BROKEN", "渠道记录重复，请联系管理员", 503)
+        return records
+
     async def record_use(self, uow: UnitOfWork, key_id: str) -> None:
         """使用时间是观测元数据，不递增配置修订，避免繁忙 Key 的管理操作饥饿。"""
         channel_id = uow.scope.channel_id

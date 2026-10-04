@@ -38,6 +38,8 @@ class RunLifecycleGuard:
 
 
 class RunResourceReader:
+    display_tables = {"run": ["runs"], "content": ["runs"]}
+
     def __init__(self, engine: AsyncEngine, fallback: ResourceStateReader | None) -> None:
         self.engine, self.fallback = engine, fallback
 

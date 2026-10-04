@@ -142,7 +142,9 @@ async def membership_state(
     return membership_from_catalog(row, catalog)
 
 
-def membership_from_catalog(row: dict[str, Any], catalog: dict[str, dict[str, Any]]) -> MembershipState:
+def membership_from_catalog(
+    row: dict[str, Any], catalog: dict[str, dict[str, Any]]
+) -> MembershipState:
     codes = [
         code for code in row["roles"] if code in catalog and catalog[code]["state"] == "ACTIVE"
     ]
@@ -169,6 +171,26 @@ class IdentityRepository:
         async with self.engine.connect() as connection:
             row = await one(connection, "platform_accounts", "system", id=user_id)
         return to_state(AccountState, row) if row else None
+
+    async def accounts(self, user_ids: list[str]) -> dict[str, AccountState]:
+        table = TABLES["platform_accounts"]
+        identifiers = list(dict.fromkeys(user_ids))
+        result: dict[str, AccountState] = {}
+        async with self.engine.connect() as connection:
+            for start in range(0, len(identifiers), 500):
+                found = (
+                    await connection.execute(
+                        select(table).where(
+                            table.c.channel_id == "system",
+                            table.c.id.in_(identifiers[start : start + 500]),
+                        )
+                    )
+                ).mappings()
+                for row in found:
+                    if row["id"] in result:
+                        raise ServiceError("STORAGE_INVARIANT_BROKEN", "账号标识重复", 503)
+                    result[row["id"]] = to_state(AccountState, dict(row))
+        return result
 
     async def credentials(self, login_name: str) -> dict[str, Any] | None:
         async with self.engine.connect() as connection:

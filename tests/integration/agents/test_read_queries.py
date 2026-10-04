@@ -42,11 +42,64 @@ async def test_agent_list_has_constant_query_count_and_revalidates_next_request(
     counts = Counter(
         table
         for statement in multiple
-        for table in ("platform_accounts", "custom_roles", "resource_grants")
+        for table in ("platform_accounts", "channel_memberships", "custom_roles", "resource_grants")
         if f"FROM {table}" in statement
     )
-    assert counts == {"platform_accounts": 1, "custom_roles": 1, "resource_grants": 1}
+    assert counts == {
+        "platform_accounts": 1,
+        "channel_memberships": 1,
+        "custom_roles": 1,
+        "resource_grants": 1,
+    }
     await env.iam.sessions.logout(env.tenant.manager)
     with pytest.raises(ServiceError) as denied:
         await env.agents.list_agents(env.context)
     assert denied.value.status == 401
+
+
+@pytest.mark.parametrize(
+    "agent_env",
+    [{"environment": "test", "independent_actions": ["release:publish", "data:read_sensitive"]}],
+    indirect=True,
+)
+async def test_memory_list_batches_distinct_subjects_without_leaking_them(agent_env):
+    from creativity_service.core.deletion import RecoveryService
+    from creativity_service.modules.memory.assembly import build_memory_service
+    from creativity_service.modules.memory.schemas import MemoryCreate, PolicyInput
+    from tests.integration.core.conftest import TestAuthorization
+    from tests.integration.memory.conftest import business_attributes
+
+    env = agent_env
+    memory = build_memory_service(env.engine, env.iam.authorization)
+    await memory.set_policy(env.context, PolicyInput(revision=0, attributes=business_attributes()))
+    contexts, memories = [], []
+    for index in range(10):
+        scoped = env.context.model_copy(
+            update={
+                "scope": env.context.scope.model_copy(
+                    update={"subject_type": "user", "subject_id": f"query_subject_{index}"}
+                )
+            }
+        )
+        await RecoveryService(env.engine, TestAuthorization()).initialize_fresh(scoped)
+        contexts.append(scoped)
+        memories.append(
+            await memory.create(
+                scoped,
+                MemoryCreate(
+                    key="usual_budget", value={"min": index, "max": index + 100, "currency": "CNY"}
+                ),
+            )
+        )
+        if index == 0:
+            with statements(env.engine) as single:
+                assert len((await memory.list_memories(env.context)).items) == 1
+    with statements(env.engine) as multiple:
+        listed = await memory.list_memories(env.context)
+    assert len(listed.items) == 10
+    assert len(single) == len(multiple) <= 25
+    own = await memory.list_memories(contexts[0])
+    assert [item.memory_id for item in own.items] == [memories[0].memory_id]
+    with pytest.raises(ServiceError) as denied:
+        await memory.detail(contexts[0], memories[1].memory_id)
+    assert denied.value.status in {403, 404}

@@ -152,8 +152,19 @@ class Statements:
     async def list(self, session: AdminSession) -> list[dict[str, Any]]:
         context = await self.management.context(session)
         async with self.engine.connect() as connection:
-            rows = await Repository(metadata.tables["provider_statements"], context.scope).find(
-                connection, owner_key=owner(context)
+            repo = Repository(metadata.tables["provider_statements"], context.scope)
+            table = repo.table
+            rows = (
+                (
+                    await connection.execute(
+                        select(table)
+                        .where(repo.predicate(), table.c.owner_key == owner(context))
+                        .order_by(table.c.created_at.desc(), table.c.id.desc())
+                        .limit(100)
+                    )
+                )
+                .mappings()
+                .all()
             )
         return [
             {
@@ -169,7 +180,7 @@ class Statements:
                     "source_digest",
                 )
             }
-            for row in sorted(rows, key=lambda row: row["created_at"], reverse=True)[:100]
+            for row in rows
         ]
 
     async def detail(self, session: AdminSession, identifier: str) -> dict[str, Any]:

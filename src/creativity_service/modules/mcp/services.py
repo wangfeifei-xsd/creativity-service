@@ -6,6 +6,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from pydantic import SecretBytes
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.context import AuthContext
@@ -139,10 +140,20 @@ class McpService:
             raise ServiceError("NOT_FOUND", "连接记录不存在", 404)
         return row
 
-    async def rows(self, context: AuthContext, table: str, **filters: Any) -> list[dict[str, Any]]:
+    async def rows(
+        self, context: AuthContext, table: str, *, limit: int | None = None, **filters: Any
+    ) -> list[dict[str, Any]]:
         async with self.engine.connect() as conn:
-            rows = await repository(context.scope, table).find(conn, **filters)
-        return sorted(rows, key=lambda r: (r["created_at"], r["id"]), reverse=True)
+            repo = repository(context.scope, table)
+            source = repo.table
+            statement = (
+                select(source)
+                .where(repo.predicate(), *(source.c[k] == v for k, v in filters.items()))
+                .order_by(source.c.created_at.desc(), source.c.id.desc())
+            )
+            if limit is not None:
+                statement = statement.limit(limit)
+            return [dict(r) for r in (await conn.execute(statement)).mappings()]
 
     async def credential_row(self, context: AuthContext, ref: str | None) -> dict[str, Any] | None:
         if ref is None:
@@ -619,26 +630,51 @@ class McpService:
             connection=await self.view(context, row, permissions, policy.actions("tool", "new")),
             checks=[
                 check_view(r)
-                for r in (await self.rows(context, "mcp_checks", connection_id=connection_id))[:100]
+                for r in await self.rows(
+                    context, "mcp_checks", connection_id=connection_id, limit=100
+                )
             ],
             discoveries=[
                 discovery_view(r)
-                for r in (await self.rows(context, "mcp_discoveries", connection_id=connection_id))[
-                    :20
-                ]
+                for r in await self.rows(
+                    context, "mcp_discoveries", connection_id=connection_id, limit=20
+                )
             ],
             imports=[await self.import_view(context, r, reasons) for r in imports],
         )
 
     async def diff(self, context: AuthContext, connection_id: str, discovery_id: str) -> McpDiff:
         await self.require(context, connection_id)
-        rows = await self.rows(context, "mcp_discoveries", connection_id=connection_id)
-        index = next((i for i, r in enumerate(rows) if r["id"] == discovery_id), None)
-        if index is None:
+        row = await self.get(context, "mcp_discoveries", discovery_id)
+        if row["connection_id"] != connection_id:
             raise ServiceError("NOT_FOUND", "发现快照不存在", 404)
+        repo = repository(context.scope, "mcp_discoveries")
+        table = repo.table
+        async with self.engine.connect() as connection:
+            previous = (
+                (
+                    await connection.execute(
+                        select(table)
+                        .where(
+                            repo.predicate(),
+                            table.c.connection_id == connection_id,
+                            or_(
+                                table.c.created_at < row["created_at"],
+                                and_(
+                                    table.c.created_at == row["created_at"], table.c.id < row["id"]
+                                ),
+                            ),
+                        )
+                        .order_by(table.c.created_at.desc(), table.c.id.desc())
+                        .limit(1)
+                    )
+                )
+                .mappings()
+                .first()
+            )
         return differences(
-            discovery_view(rows[index]),
-            discovery_view(rows[index + 1]) if index + 1 < len(rows) else None,
+            discovery_view(row),
+            discovery_view(dict(previous)) if previous else None,
         )
 
     async def import_tool(
@@ -791,7 +827,7 @@ class McpService:
         imported = await self.get(context, "mcp_imports", binding.adapter_key)
         row = await self.get(context, "mcp_connections", imported["connection_id"])
         original = await self.get(context, "mcp_discoveries", imported["discovery_id"])
-        discoveries = await self.rows(context, "mcp_discoveries", connection_id=row["id"])
+        discoveries = await self.rows(context, "mcp_discoveries", connection_id=row["id"], limit=1)
         require_current_binding(
             binding, row, imported, original, discoveries[0] if discoveries else None
         )

@@ -201,6 +201,13 @@ async def require_channel_state(
     if reader is None:
         raise unavailable("渠道当前状态服务")
     state = await reader.read_current(context)
+    return verify_channel_state(context, state, governance=governance)
+
+
+def verify_channel_state(
+    context: AuthContext, state: ChannelState, *, governance: bool = False
+) -> ChannelState:
+    """校验当前读取的渠道状态，允许身份验证链复用已加载身份数据。"""
     if not isinstance(state, ChannelState):
         raise unavailable("渠道当前状态对象")
     if (

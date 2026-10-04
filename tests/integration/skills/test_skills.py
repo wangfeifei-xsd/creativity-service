@@ -42,6 +42,27 @@ def body(code="rental_intent"):
     )
 
 
+async def test_version_summaries_do_not_download_historical_packages(skills_env):
+    env = skills_env
+    detail = await env.skills.create(env.context, body())
+    original = detail.versions[0]
+    for number in range(1, 5):
+        await env.skills.create_version(
+            env.context,
+            detail.skill.skill_id,
+            SkillVersionCreate(
+                base_version_id=original.version_id, version_label=f"历史版{number}"
+            ),
+        )
+    env.store.reads.clear()
+    summaries = await env.skills.detail(env.context, detail.skill.skill_id)
+    assert len(summaries.versions) == 5
+    assert not env.store.reads
+    selected = await env.skills.version(env.context, original.version_id)
+    assert selected.instruction_preview == "只提取用户已经确认的事实。"
+    assert len(env.store.reads) == 1
+
+
 async def test_create_freeze_fork_load_and_release_preserve_history(skills_env):
     env = skills_env
     detail = await env.skills.create(env.context, body())

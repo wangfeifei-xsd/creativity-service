@@ -21,6 +21,8 @@ from creativity_service.modules.runs.services import RunService
 
 
 class ConversationReader:
+    display_tables = {"conversation": ["conversations"], "artifact": ["artifacts"]}
+
     def __init__(self, engine: AsyncEngine, fallback: ResourceStateReader | None) -> None:
         self.engine, self.fallback = engine, fallback
 

@@ -509,12 +509,13 @@ class RuntimeExecutor:
                 uow.connection, run_id=lease.run_id
             )
             evidence_ids = {identifier for call in calls for identifier in call["evidence_ids"]}
+            stored_refs = await Repository(
+                metadata.tables["evidence_refs"], context.scope
+            ).get_many(uow.connection, [r.evidence_id for r in result.evidence_refs])
             for ref in result.evidence_refs:
                 if ref.scope != context.scope or ref.evidence_id not in evidence_ids:
                     raise ServiceError("EVIDENCE_INVALID", "结果证据不属于当前运行", 403)
-                stored = await Repository(metadata.tables["evidence_refs"], context.scope).get(
-                    uow.connection, ref.evidence_id
-                )
+                stored = stored_refs.get(ref.evidence_id)
                 if (
                     stored is None
                     or any(

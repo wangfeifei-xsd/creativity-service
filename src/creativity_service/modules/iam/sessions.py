@@ -150,6 +150,7 @@ class SessionService:
         if self.directory is None:
             raise unavailable("渠道工作区目录")
         from creativity_service.modules.channels.state import ChannelDirectory
+
         if isinstance(self.directory, ChannelDirectory):
             return await self.directory.authorized_for(session.account.id)
         result = []

@@ -33,18 +33,20 @@ class ToolRepository:
                     *(ContentRef("evidence", e.evidence_id) for e in raw.evidence_refs),
                 ],
             )
+            artifacts = await Repository(core_metadata.tables["artifacts"], scope).get_many(
+                uow.connection, file_ids
+            )
             for item in file_ids:
-                row = await Repository(core_metadata.tables["artifacts"], scope).get(
-                    uow.connection, item
-                )
+                row = artifacts.get(item)
                 if row is None or row["state"] != "AVAILABLE" or row["expires_at"] <= utcnow():
                     raise ServiceError(
                         "TOOL_RESULT_INVALID", "文件引用不存在、已过期或不在当前授权范围", 502
                     )
+            refs = await Repository(metadata.tables["evidence_refs"], scope).get_many(
+                uow.connection, [e.evidence_id for e in raw.evidence_refs]
+            )
             for evidence in raw.evidence_refs:
-                row = await Repository(metadata.tables["evidence_refs"], scope).get(
-                    uow.connection, evidence.evidence_id
-                )
+                row = refs.get(evidence.evidence_id)
                 if (
                     row is None
                     or row["source_id"] != evidence.source_id
@@ -87,10 +89,11 @@ class ToolRepository:
                     *(ContentRef("evidence", e.evidence_id) for e in result.evidence_refs),
                 ],
             )
+            refs = await Repository(metadata.tables["evidence_refs"], scope).get_many(
+                uow.connection, [e.evidence_id for e in result.evidence_refs]
+            )
             for evidence in result.evidence_refs:
-                row = await Repository(metadata.tables["evidence_refs"], scope).get(
-                    uow.connection, evidence.evidence_id
-                )
+                row = refs.get(evidence.evidence_id)
                 if (
                     row is None
                     or row["authorization_scope"].get("principal_id") != context.principal_id
@@ -187,29 +190,42 @@ class ToolRepository:
                 await repo.change(uow, call_id, previous["revision"], values)
             else:
                 await repo.add(uow, call_id, values)
-            for ref, derived in edges:
-                link_id = digest([call_id, ref.resource_id, derived.resource_id])
-                links = Repository(core_metadata.tables["source_links"], scope)
-                if not await links.get(uow.connection, link_id):
-                    await DeletionGuard(scope).link(uow, link_id, ref, derived)
+            links = Repository(core_metadata.tables["source_links"], scope)
+            mapped = {
+                digest([call_id, ref.resource_id, derived.resource_id]): (ref, derived)
+                for ref, derived in edges
+            }
+            existing_links = await links.get_many(uow.connection, mapped)
+            await DeletionGuard(scope).link_many(
+                uow,
+                [
+                    (identifier, ref, derived, None)
+                    for identifier, (ref, derived) in mapped.items()
+                    if identifier not in existing_links
+                ],
+            )
             if result:
                 repo = Repository(metadata.tables["evidence_refs"], scope)
-                for evidence in result.evidence_refs:
-                    if not await repo.get(uow.connection, evidence.evidence_id):
-                        await repo.add(
-                            uow,
-                            evidence.evidence_id,
-                            dict(
-                                source_type=evidence.source_type,
-                                source_id=evidence.source_id,
-                                source_version=evidence.source_version,
-                                observed_at=evidence.observed_at,
-                                location=evidence.location.model_dump(mode="json"),
-                                title=evidence.title,
-                                artifact_id=None,
-                                authorization_scope=authorization_scope,
-                            ),
+                existing_evidence = await repo.get_many(
+                    uow.connection, [e.evidence_id for e in result.evidence_refs]
+                )
+                await repo.add_many(
+                    uow,
+                    {
+                        evidence.evidence_id: dict(
+                            source_type=evidence.source_type,
+                            source_id=evidence.source_id,
+                            source_version=evidence.source_version,
+                            observed_at=evidence.observed_at,
+                            location=evidence.location.model_dump(mode="json"),
+                            title=evidence.title,
+                            artifact_id=None,
+                            authorization_scope=authorization_scope,
                         )
+                        for evidence in result.evidence_refs
+                        if evidence.evidence_id not in existing_evidence
+                    },
+                )
 
     async def rows(
         self, context: AuthContext, table_name: str, **filters: Any

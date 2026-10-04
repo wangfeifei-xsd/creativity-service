@@ -13,6 +13,8 @@ from creativity_service.modules.memory.tables import metadata
 
 
 class MemoryReader:
+    display_tables = {"memory": ["memories"]}
+
     def __init__(self, engine: AsyncEngine, fallback: ResourceStateReader | None) -> None:
         self.engine, self.fallback = engine, fallback
 

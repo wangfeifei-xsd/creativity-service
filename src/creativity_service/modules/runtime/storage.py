@@ -66,12 +66,18 @@ async def record_inputs(
         if row["state"] != "RUNNING":
             raise ServiceError("RUN_INACTIVE", "运行已停止", 409)
         guard = DeletionGuard(context.scope)
-        for identifier, ref in links:
-            await guard.check(uow, [ref])
-            if not await Repository(metadata.tables["source_links"], context.scope).get(
-                uow.connection, identifier
-            ):
-                await guard.link(uow, identifier, ref, ContentRef("run", lease.run_id))
+        await guard.check(uow, refs)
+        existing = await Repository(metadata.tables["source_links"], context.scope).get_many(
+            uow.connection, [identifier for identifier, _ in links]
+        )
+        await guard.link_many(
+            uow,
+            [
+                (identifier, ref, ContentRef("run", lease.run_id), None)
+                for identifier, ref in dict(links).items()
+                if identifier not in existing
+            ],
+        )
         # 相同实际调用只登记一次；不同轮次保留各自输入和文件加载证据。
         if (
             await one(

@@ -183,18 +183,21 @@ class ModelTesting:
 
     async def list(self, session: AdminSession, model_id: str) -> list[TestView]:
         context = await self.service.context(session)
-        await self.service.detail(session, model_id)
         async with transaction(
             self.service.engine, context.scope, [content_key(context.scope)]
         ) as uow:
+            model = await required(uow.connection, context.scope, "models", model_id)
+            await required(
+                uow.connection, context.scope, "model_connections", model["connection_id"]
+            )
+            await DeletionGuard(context.scope).check(uow, [ContentRef("model", model_id)])
             rows = await repository(context.scope, "model_tests").find(
                 uow.connection, model_id=model_id
             )
-            result = []
-            for row in rows:
-                await DeletionGuard(context.scope).check(uow, [ContentRef("model_test", row["id"])])
-                result.append(self.view(row))
-            return result
+            await DeletionGuard(context.scope).check(
+                uow, [ContentRef("model_test", r["id"]) for r in rows]
+            )
+            return [self.view(row) for row in rows]
 
     async def complete(
         self, context: AuthContext, test_id: str, completion: TestCompletion

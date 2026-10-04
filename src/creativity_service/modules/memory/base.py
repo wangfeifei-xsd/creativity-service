@@ -12,7 +12,12 @@ from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.modules.conversations.tables import metadata as conversations
-from creativity_service.modules.iam.reading import read_actions, visible_actions
+from creativity_service.modules.iam.reading import (
+    read_actions,
+    read_policy,
+    resource_state,
+    visible_actions,
+)
 from creativity_service.modules.memory import repositories as repo
 from creativity_service.modules.memory.ports import MemorySourceReader, SourceState
 from creativity_service.modules.memory.reading import MemoryReadData, scoped_id
@@ -479,10 +484,10 @@ class MemoryKernel:
     async def visible_sources(
         self, context: AuthContext, memory_id: str | None = None
     ) -> frozenset[str]:
-        """标题权限在短事务前逐资源核对，事务内再核对来源是否仍然有效。"""
+        """批量读取标题所需关系，在事务外按唯一父资源计算显示权限。"""
         from creativity_service.modules.tools.tables import metadata as tools
 
-        result = set()
+        policy = await read_policy(self.authorization, context)
         async with self.engine.connect() as connection:
             sources = await repo.rows(
                 connection,
@@ -491,27 +496,59 @@ class MemoryKernel:
                 **({"memory_id": memory_id} if memory_id else {}),
                 status="ACTIVE",
             )
+            messages = await Repository(conversations.tables["messages"], context.scope).get_many(
+                connection, [s["source_id"] for s in sources if s["source_type"] == "message"]
+            )
+            evidence = await Repository(tools.tables["evidence_refs"], context.scope).get_many(
+                connection, [s["source_id"] for s in sources if s["source_type"] == "evidence"]
+            )
+            calls = await Repository(tools.tables["tool_calls"], context.scope).get_many(
+                connection,
+                [r["source_id"] for r in evidence.values() if r["source_type"] == "tool_call"],
+            )
+            parents = {
+                "memory": await Repository(metadata.tables["memories"], context.scope).get_many(
+                    connection, [s["source_id"] for s in sources if s["source_type"] == "memory"]
+                ),
+                "conversation": await Repository(
+                    conversations.tables["conversations"], context.scope
+                ).get_many(connection, [m["conversation_id"] for m in messages.values()]),
+                "tool": await Repository(tools.tables["tools"], context.scope).get_many(
+                    connection, [c["tool_id"] for c in calls.values()]
+                ),
+            }
+        result = set()
+        permissions: dict[tuple[str, str], frozenset[str]] = {}
         for source in sources:
-            action, resource_id = "", ""
-            async with self.engine.connect() as connection:
-                if source["source_type"] == "message":
-                    row = await Repository(conversations.tables["messages"], context.scope).get(
-                        connection, source["source_id"]
-                    )
-                    if row:
-                        action, resource_id = "conversation:read", row["conversation_id"]
-                elif source["source_type"] == "memory":
-                    action, resource_id = "memory:read", source["source_id"]
-                elif source["source_type"] == "evidence":
-                    evidence = await Repository(tools.tables["evidence_refs"], context.scope).get(
-                        connection, source["source_id"]
-                    )
-                    if evidence and evidence["source_type"] == "tool_call":
-                        call = await Repository(tools.tables["tool_calls"], context.scope).get(
-                            connection, evidence["source_id"]
-                        )
-                        if call:
-                            action, resource_id = "tool:manage", call["tool_id"]
-            if action and await self.allowed(context, action, resource_id):
+            kind, identifier, action = "", "", ""
+            if source["source_type"] == "message" and (
+                message := messages.get(source["source_id"])
+            ):
+                kind, identifier, action = (
+                    "conversation",
+                    message["conversation_id"],
+                    "conversation:read",
+                )
+            elif source["source_type"] == "memory":
+                kind, identifier, action = "memory", source["source_id"], "memory:read"
+            elif source["source_type"] == "evidence" and (ref := evidence.get(source["source_id"])):
+                call = calls.get(ref["source_id"]) if ref["source_type"] == "tool_call" else None
+                if call:
+                    kind, identifier, action = "tool", call["tool_id"], "tool:manage"
+            parent = parents.get(kind, {}).get(identifier)
+            if parent is None:
+                continue
+            key = (kind, identifier)
+            if key not in permissions:
+                permissions[key] = await read_actions(
+                    self.authorization,
+                    context,
+                    kind,
+                    identifier,
+                    [action],
+                    policy=policy,
+                    state=resource_state(context, kind, parent),
+                )
+            if action in permissions[key]:
                 result.add(source["source_id"])
         return frozenset(result)

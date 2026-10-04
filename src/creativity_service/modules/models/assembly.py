@@ -69,6 +69,13 @@ class ModelCredentialAuthorization:
 
 
 class ModelResourceReader:
+    display_tables = {
+        "model": ["models"],
+        "model_route": ["model_routes"],
+        "model_connection": ["model_connections"],
+        "version": ["resource_versions"],
+    }
+
     def __init__(self, engine: AsyncEngine, previous: ResourceStateReader | None) -> None:
         self.engine, self.previous = engine, previous
 

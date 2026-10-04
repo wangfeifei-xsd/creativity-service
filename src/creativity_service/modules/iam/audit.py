@@ -10,6 +10,7 @@ from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError, new_id
 from creativity_service.modules.iam.authorization import IamAuthorization, require_platform
+from creativity_service.modules.iam.display import resource_names
 from creativity_service.modules.iam.repositories import IdentityRepository, save
 from creativity_service.modules.iam.roles import ACTION_NAMES
 from creativity_service.modules.iam.schemas import AuditView
@@ -211,19 +212,32 @@ class AuditService:
             account = await self.authorization.authentication.active_account(session.account.id)
             require_platform(account, "audit:read")
             scope = ControlScope(purpose="audit", actor_id=account.id)
-        output = []
-        for row in await self.repository.audit_rows(scope, limit):
-            actor = await self.repository.account(row["actor_id"])
-            target_name = None
-            if row["target_type"] == "account":
-                target = await self.repository.account(row["target_id"])
-                target_name = target.display_name if target else None
-            elif isinstance(context, AuthContext) and self.authorization.resources:
-                resource = await self.authorization.resources.read_current(
-                    context, row["target_type"], row["target_id"]
+        records = await self.repository.audit_rows(scope, limit)
+        accounts = await self.repository.accounts(
+            [r["actor_id"] for r in records]
+            + [r["target_id"] for r in records if r["target_type"] == "account"]
+        )
+        names = {}
+        if isinstance(context, AuthContext):
+            async with self.repository.engine.connect() as connection:
+                names = await resource_names(
+                    connection,
+                    self.authorization.resources,
+                    context,
+                    [
+                        (r["target_type"], r["target_id"])
+                        for r in records
+                        if r["target_type"] != "account"
+                    ],
                 )
-                if resource and resource.scope == context.scope:
-                    target_name = resource.name
+        output = []
+        for row in records:
+            actor = accounts.get(row["actor_id"])
+            if row["target_type"] == "account":
+                target = accounts.get(row["target_id"])
+                target_name = target.display_name if target else None
+            else:
+                target_name = names.get((row["target_type"], row["target_id"]))
             summary: dict[str, Any] = row["summary"]
             output.append(
                 AuditView(

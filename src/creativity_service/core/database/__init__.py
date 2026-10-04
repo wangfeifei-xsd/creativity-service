@@ -227,6 +227,58 @@ class Repository:
         await uow.connection.execute(insert(self.table).values(**row))
         return row
 
+    async def add_many(
+        self, uow: UnitOfWork, records: Mapping[str, Mapping[str, Any]]
+    ) -> dict[str, dict[str, Any]]:
+        """在声明的全部记录锁内批量查重和插入；任一记录无效则整批不写入。"""
+        uow.require_scope(self.scope)
+        protected = {
+            "id",
+            "channel_id",
+            "environment",
+            "data_scope_id",
+            "subject_type",
+            "subject_id",
+            "created_at",
+            "updated_at",
+            "revision",
+        }
+        prepared = {}
+        now = utcnow()
+        for identifier, values in records.items():
+            uow.require_lock(record_key(self.scope.channel_id, self.table.name, identifier))
+            if set(values) & protected:
+                raise ServiceError("CONTEXT_OVERRIDE", "不能通过正文覆盖归属或服务元数据", 422)
+            row = {
+                **values,
+                **scope_values(self.table, self.scope),
+                "id": identifier,
+                "created_at": now,
+                "updated_at": now,
+                "revision": 1,
+            }
+            for name in ("environment", "data_scope_id", "subject_type", "subject_id"):
+                if name in self.table.c and name not in row:
+                    row[name] = None
+            self._validate(row)
+            prepared[identifier] = row
+        identifiers = list(prepared)
+        for start in range(0, len(identifiers), 500):
+            existing = await uow.connection.scalar(
+                select(self.table.c.id)
+                .where(
+                    self.table.c.channel_id == self.scope.channel_id,
+                    self.table.c.id.in_(identifiers[start : start + 500]),
+                )
+                .limit(1)
+            )
+            if existing is not None:
+                raise ServiceError("DUPLICATE_ID", "记录标识已存在")
+        batch_rows = list(prepared.values())
+        for start in range(0, len(batch_rows), 100):
+            await uow.connection.execute(insert(self.table).values(batch_rows[start : start + 100]))
+        return prepared
+
     async def change(
         self, uow: UnitOfWork, record_id: str, revision: int, values: Mapping[str, Any]
     ) -> dict[str, Any]:

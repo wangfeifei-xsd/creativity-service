@@ -18,6 +18,8 @@ from creativity_service.modules.tools.services import ToolService
 
 
 class AgentResourceReader:
+    display_tables = {"agent": ["agents"], "version": ["resource_versions"]}
+
     def __init__(self, engine: AsyncEngine, fallback: ResourceStateReader | None) -> None:
         self.engine, self.fallback = engine, fallback
 

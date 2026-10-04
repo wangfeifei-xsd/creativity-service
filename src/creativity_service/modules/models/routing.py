@@ -64,20 +64,15 @@ class ModelRouting:
             releases = await repository(context.scope, "release_mappings").find(
                 uow.connection, resource_type="model_route"
             )
-            result = []
-            for row in rows:
-                try:
-                    await DeletionGuard(context.scope).check(
-                        uow, [ContentRef("model_route", row["id"])]
-                    )
-                except ServiceError as exc:
-                    if exc.code != "CONTENT_DELETED":
-                        raise
-                    continue
-                version = next(
-                    (r["version_id"] for r in releases if r["resource_id"] == row["id"]), None
-                )
-                result.append(self.view(row, version))
+            blocked = await DeletionGuard(context.scope).blocked_refs(
+                uow, [ContentRef("model_route", r["id"]) for r in rows]
+            )
+            mappings = {r["resource_id"]: r["version_id"] for r in releases}
+            result = [
+                self.view(row, mappings.get(row["id"]))
+                for row in rows
+                if ContentRef("model_route", row["id"]) not in blocked
+            ]
         return RouteList(items=result, actions=[action("create", "新增路由")])
 
     async def create_version(
@@ -92,11 +87,16 @@ class ModelRouting:
         ):
             raise ServiceError("MODEL_ROUTE_INVALID", "路由能力不能为空或重复", 422)
         async with service.engine.connect() as database:
-            models = [await required(database, context.scope, "models", i) for i in ids]
-            connections = [
-                await required(database, context.scope, "model_connections", m["connection_id"])
-                for m in models
-            ]
+            model_rows = await repository(context.scope, "models").get_many(database, ids)
+            connection_rows = await repository(context.scope, "model_connections").get_many(
+                database, [m["connection_id"] for m in model_rows.values()]
+            )
+            if set(ids) - model_rows.keys() or any(
+                m["connection_id"] not in connection_rows for m in model_rows.values()
+            ):
+                raise ServiceError("NOT_FOUND", "模型或连接不存在", 404)
+            models = [model_rows[i] for i in ids]
+            connections = [connection_rows[m["connection_id"]] for m in models]
         snapshots = [
             service.snapshot(context, m, c) for m, c in zip(models, connections, strict=True)
         ]

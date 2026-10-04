@@ -32,6 +32,14 @@ def record_key(channel_id: str, table: str, record_id: str) -> ResourceKey:
 
 
 async def acquire_locks(connection: AsyncConnection, keys: frozenset[ResourceKey]) -> None:
-    # 按有符号整数统一排序并去重；摘要碰撞仅增加互斥，不削弱隔离。
-    for lock_id in sorted({key.lock_id for key in keys}):
-        await connection.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_id})
+    # 有符号整数排序去重后，unnest 按数组存储顺序展开；一条查询沿原顺序取得全部锁。
+    # 摘要碰撞仅增加互斥，不削弱隔离；不能为减少等待而跳过任何锁。
+    identifiers = sorted({key.lock_id for key in keys})
+    if identifiers:
+        await connection.execute(
+            text(
+                "SELECT pg_advisory_xact_lock(lock_id) "
+                "FROM unnest(CAST(:keys AS bigint[])) AS locks(lock_id)"
+            ),
+            {"keys": identifiers},
+        )

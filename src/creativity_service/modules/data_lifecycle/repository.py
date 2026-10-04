@@ -1,5 +1,6 @@
 """生命周期写入复用渠道内容图锁，任务范围来自数据库记录。"""
 
+from collections.abc import Iterable
 from typing import Any
 
 from sqlalchemy import insert, select, update
@@ -42,6 +43,24 @@ async def rows(
         )
     )
     return [dict(row) for row in result.mappings()]
+
+
+async def related_rows(
+    connection: AsyncConnection, channel_id: str, name: str, field: str, identifiers: Iterable[str]
+) -> list[dict[str, Any]]:
+    """批量解析已定位任务的关联记录，继续限制在明确渠道内。"""
+    table = metadata.tables[name]
+    values = list(dict.fromkeys(identifiers))
+    result: list[dict[str, Any]] = []
+    for start in range(0, len(values), 500):
+        found = await connection.execute(
+            select(table).where(
+                table.c.channel_id == channel_id,
+                table.c[field].in_(values[start : start + 500]),
+            )
+        )
+        result.extend(dict(row) for row in found.mappings())
+    return result
 
 
 async def put(

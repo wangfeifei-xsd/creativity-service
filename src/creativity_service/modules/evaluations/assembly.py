@@ -24,6 +24,8 @@ from creativity_service.modules.runs.services import RunService
 
 
 class EvaluationResourceReader:
+    display_tables = {"evaluation": ["evaluation_datasets", "evaluations"]}
+
     def __init__(self, engine: AsyncEngine, fallback: ResourceStateReader | None) -> None:
         self.engine, self.fallback = engine, fallback
 

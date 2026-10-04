@@ -6,6 +6,7 @@ from decimal import Decimal
 from functools import wraps
 from typing import Any
 
+from sqlalchemy import or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -17,6 +18,7 @@ from creativity_service.core.primitives import Money, ServiceError, digest, new_
 from creativity_service.modules.usage.pricing import calculate, normalize, timezone
 from creativity_service.modules.usage.repositories import ledger_key, one, platform_key, rows, save
 from creativity_service.modules.usage.schemas import AttemptPlan, ReservationReceipt
+from creativity_service.modules.usage.tables import metadata
 
 
 def control_errors[**P, R](method: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
@@ -117,10 +119,58 @@ class BudgetService:
     async def policies(self, uow: UnitOfWork) -> list[dict[str, Any]]:
         return await rows(uow.connection, "budget_policies", uow.scope.channel_id, status="ACTIVE")
 
-    async def exposure(self, uow: UnitOfWork, policy: dict[str, Any], now: datetime) -> Decimal:
+    async def exposure_data(
+        self, uow: UnitOfWork, policies: list[dict[str, Any]], now: datetime
+    ) -> dict[str, list[dict[str, Any]]]:
+        uow.require_lock(ledger_key(uow.scope.channel_id))
+        result: dict[str, list[dict[str, Any]]] = {"admissions": [], "usage_records": []}
+        for name in result:
+            selected = [
+                p
+                for p in policies
+                if (p["unit"] in {"requests", "concurrency"} and p["scope_type"] != "model")
+                == (name == "admissions")
+            ]
+            if not selected:
+                continue
+            table = metadata.tables[name]
+            periods = [
+                period_start(now, p["period"], p["timezone"])
+                for p in selected
+                if p["unit"] != "concurrency"
+            ]
+            predicates = []
+            if periods:
+                predicates.append(table.c.created_at >= min(periods))
+            if any(p["unit"] == "concurrency" for p in selected):
+                predicates.append(
+                    table.c.status == "HELD"
+                    if name == "admissions"
+                    else table.c.state.in_(["HELD", "PENDING"])
+                )
+            result[name] = [
+                dict(r)
+                for r in (
+                    await uow.connection.execute(
+                        select(table).where(
+                            table.c.channel_id == uow.scope.channel_id, or_(*predicates)
+                        )
+                    )
+                ).mappings()
+            ]
+        return result
+
+    async def exposure(
+        self,
+        uow: UnitOfWork,
+        policy: dict[str, Any],
+        now: datetime,
+        data: dict[str, list[dict[str, Any]]] | None = None,
+    ) -> Decimal:
+        data = data if data is not None else await self.exposure_data(uow, [policy], now)
         start = period_start(now, policy["period"], policy["timezone"])
         if policy["unit"] in {"requests", "concurrency"} and policy["scope_type"] != "model":
-            admissions = await rows(uow.connection, "admissions", uow.scope.channel_id)
+            admissions = data["admissions"]
             return Decimal(
                 sum(
                     1
@@ -133,7 +183,7 @@ class BudgetService:
                     )
                 )
             )
-        records = await rows(uow.connection, "usage_records", uow.scope.channel_id)
+        records = data["usage_records"]
         total = Decimal(0)
         for row in records:
             if (
@@ -203,8 +253,9 @@ class BudgetService:
         snapshot, now = self.snapshot(context, plan), utcnow()
         tokens, price, upper = await self.estimate(uow, plan) if plan else ({}, None, None)
         selected = [p for p in await self.policies(uow) if matches(p, snapshot)]
+        exposure = await self.exposure_data(uow, selected, now)
         for policy in selected:
-            used = await self.exposure(uow, policy, now)
+            used = await self.exposure(uow, policy, now, exposure)
             if policy["mode"] != "HARD":
                 continue
             if policy["unit"] == "amount":
@@ -356,6 +407,7 @@ class BudgetService:
         ]
         now = utcnow()
         allocations: list[tuple[dict[str, Any], Decimal]] = []
+        exposure = await self.exposure_data(uow, policies, now)
         for policy in policies:
             quantity = (
                 Decimal(1)
@@ -376,7 +428,7 @@ class BudgetService:
                         "BUDGET_PRICE_REQUIRED", "金额硬预算要求匹配币种的有效价格与上限", 429
                     )
                 continue
-            used = await self.exposure(uow, policy, now)
+            used = await self.exposure(uow, policy, now, exposure)
             if existing and existing["created_at"] >= period_start(
                 now, policy["period"], policy["timezone"]
             ):
@@ -504,9 +556,34 @@ class BudgetService:
         await self.refresh_alerts(uow, utcnow())
 
     async def refresh_alerts(self, uow: UnitOfWork, now: datetime) -> None:
-        for policy in await self.policies(uow):
+        policies = await self.policies(uow)
+        exposure = await self.exposure_data(uow, policies, now)
+        table = metadata.tables["budget_alerts"]
+        starts = [period_start(now, p["period"], p["timezone"]) for p in policies]
+        alerts = (
+            [
+                dict(r)
+                for r in (
+                    await uow.connection.execute(
+                        select(table).where(
+                            table.c.channel_id == uow.scope.channel_id,
+                            table.c.rule_id.in_([p["id"] for p in policies]),
+                            table.c.period_start >= min(starts),
+                        )
+                    )
+                ).mappings()
+            ]
+            if starts
+            else []
+        )
+        indexed_alerts = {
+            (a["rule_id"], a["period_start"], a["threshold"], a["scope_key"]): a for a in alerts
+        }
+        if len(indexed_alerts) != len(alerts):
+            raise ServiceError("STORAGE_INVARIANT_BROKEN", "预算提醒重复，请核查", 503)
+        for policy in policies:
             try:
-                used = await self.exposure(uow, policy, now)
+                used = await self.exposure(uow, policy, now, exposure)
             except ServiceError as exc:
                 if exc.code != "BUDGET_PRICE_REQUIRED":
                     raise
@@ -516,15 +593,7 @@ class BudgetService:
             for threshold_text in policy["thresholds"]:
                 threshold = Decimal(threshold_text)
                 active = used >= policy["limit_value"] * threshold
-                alert = await one(
-                    uow.connection,
-                    "budget_alerts",
-                    uow.scope.channel_id,
-                    rule_id=policy["id"],
-                    period_start=start,
-                    threshold=threshold,
-                    scope_key=scope_key,
-                )
+                alert = indexed_alerts.get((policy["id"], start, threshold, scope_key))
                 if not alert and not active:
                     continue
                 status = "ACTIVE" if active else "RESOLVED"

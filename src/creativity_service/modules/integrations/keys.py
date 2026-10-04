@@ -16,6 +16,7 @@ from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, new_id, unavailable, utcnow
 from creativity_service.core.security.credentials import CredentialService, KeyProvider
 from creativity_service.modules.channels.repositories import required, rows
+from creativity_service.modules.channels.tables import metadata as channels
 from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.integrations.authorization import require_management
@@ -47,18 +48,25 @@ class DelegationKeys:
             context, "key:manage", "channel", context.scope.channel_id
         )
 
-    async def view(self, context: AuthContext, row: dict[str, Any]) -> DelegationKeyView:
-        async with self.engine.connect() as connection:
-            client = await required(
-                connection,
-                "service_clients",
-                context.scope.channel_id,
-                id=row["client_id"],
-                environment=context.scope.environment,
-            )
-            successors = await repository(environment_scope(context.scope), "delegation_keys").find(
-                connection, rotated_from=row["id"]
-            )
+    async def view(
+        self,
+        context: AuthContext,
+        row: dict[str, Any],
+        client: dict[str, Any] | None = None,
+        successors: list[dict[str, Any]] | None = None,
+    ) -> DelegationKeyView:
+        if client is None or successors is None:
+            async with self.engine.connect() as connection:
+                client = await required(
+                    connection,
+                    "service_clients",
+                    context.scope.channel_id,
+                    id=row["client_id"],
+                    environment=context.scope.environment,
+                )
+                successors = await repository(
+                    environment_scope(context.scope), "delegation_keys"
+                ).find(connection, rotated_from=row["id"])
         names = {"ACTIVE": "启用", "REVOKED": "已吊销"}
         return DelegationKeyView(
             **{k: row[k] for k in DelegationKeyView.model_fields if k in row},
@@ -81,18 +89,23 @@ class DelegationKeys:
         member = await self.authorization.authentication.active_member(context)
         async with self.engine.connect() as connection:
             values = await repository(scope, "delegation_keys").find(connection)
+            clients = await Repository(channels.tables["service_clients"], scope).get_many(
+                connection, [r["client_id"] for r in values]
+            )
+            successors: dict[str, list[dict[str, Any]]] = {}
+            for row in values:
+                if row["rotated_from"]:
+                    successors.setdefault(row["rotated_from"], []).append(row)
             visible = []
             for row in values:
-                client = await required(
-                    connection,
-                    "service_clients",
-                    scope.channel_id,
-                    id=row["client_id"],
-                    environment=scope.environment,
-                )
+                client = clients.get(row["client_id"])
+                if client is None:
+                    raise ServiceError("NOT_FOUND", "接入服务不存在", 404)
                 if set(client["data_scopes"]) <= set(member.data_scopes):
-                    visible.append(row)
-        return [await self.view(context, row) for row in visible]
+                    visible.append(
+                        await self.view(context, row, client, successors.get(row["id"], []))
+                    )
+        return visible
 
     async def options(self, context: AuthContext) -> DelegationKeyOptions:
         """委托凭据只依赖接入服务授权，不依赖旧 HTTP 连接或能力目录。"""

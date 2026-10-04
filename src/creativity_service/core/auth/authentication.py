@@ -19,6 +19,7 @@ from creativity_service.core.context import (
     ControlScope,
     Scope,
     require_channel_state,
+    verify_channel_state,
 )
 from creativity_service.core.primitives import ServiceError, new_id, unavailable, utcnow
 
@@ -49,6 +50,16 @@ class AuthenticationService:
     ) -> None:
         self.tokens, self.identities = tokens, identities
         self.channels, self.services = channels, services
+
+    async def validate_channel(
+        self, context: AuthContext, identity: ValidatedIdentity, *, governance: bool = False
+    ) -> None:
+        reader = getattr(self.channels, "read_validated", None)
+        if reader is None:
+            await require_channel_state(context, self.channels, governance=governance)
+        else:
+            state = await reader(context, member=identity.member, service=identity.service)
+            verify_channel_state(context, state, governance=governance)
 
     async def revalidate_admin(
         self, session: AdminSession, *, allow_initial: bool = False, governance: bool = False
@@ -142,7 +153,9 @@ class AuthenticationService:
                     raise ServiceError("UNAUTHENTICATED", "成员授权已更新，请重新登录", 401)
             else:
                 service = await self.service_identity(context)
-            await require_channel_state(context, self.channels, governance=governance)
+            await self.validate_channel(
+                context, ValidatedIdentity(account, member, service), governance=governance
+            )
         return ValidatedIdentity(account, member, service)
 
     def context(self, record: TokenRecord, request_id: str | None = None) -> AuthContext:
@@ -221,5 +234,5 @@ class AuthenticationService:
             identity = ValidatedIdentity(service=await self.service_identity(context))
         else:
             raise ServiceError("UNAUTHENTICATED", "缺少原始身份来源", 401)
-        await require_channel_state(context, self.channels)
+        await self.validate_channel(context, identity)
         return identity

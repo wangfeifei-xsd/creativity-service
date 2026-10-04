@@ -256,12 +256,44 @@ class UsageManagement:
             for domain in data.domains.values():
                 if not data.visible(domain["environment"], [domain["id"]], action="budget:manage"):
                     raise ServiceError("NOT_FOUND", "请求资源不在授权范围内", 404)
+            policies = await rows(uow.connection, "budget_policies", context.scope.channel_id)
+            now = utcnow()
+            exposure = await self.budgets.exposure_data(uow, policies, now)
+            from creativity_service.modules.channels.tables import metadata as channels
+            from creativity_service.modules.models.tables import metadata as models
+
+            names = {}
+            for kind, table in (
+                ("model", models.tables["models"]),
+                ("channel", channels.tables["channels"]),
+                ("key", channels.tables["channel_keys"]),
+            ):
+                identifiers = {p["scope_id"] for p in policies if p["scope_type"] == kind}
+                found = (
+                    [
+                        dict(r)
+                        for r in (
+                            await uow.connection.execute(
+                                select(table.c.id, table.c.name).where(
+                                    table.c.channel_id == context.scope.channel_id,
+                                    table.c.id.in_(identifiers),
+                                )
+                            )
+                        ).mappings()
+                    ]
+                    if identifiers
+                    else []
+                )
+                for r in found:
+                    names[(kind, r["id"])] = r["name"]
+                if kind == "model" and identifiers - {r["id"] for r in found}:
+                    raise ServiceError("NOT_FOUND", "请求模型不存在", 404)
             result = []
-            for row in await rows(uow.connection, "budget_policies", context.scope.channel_id):
+            for row in policies:
                 blocked_reason = None
                 used: Decimal | None = None
                 try:
-                    used = await self.budgets.exposure(uow, row, utcnow())
+                    used = await self.budgets.exposure(uow, row, now, exposure)
                 except ServiceError as exc:
                     if exc.code != "BUDGET_PRICE_REQUIRED":
                         raise
@@ -274,7 +306,7 @@ class UsageManagement:
                         revision=row["revision"],
                         mode_label="超额阻断" if row["mode"] == "HARD" else "仅提醒",
                         unit_label=UNIT_LABELS[row["unit"]],
-                        scope_name=await self.budget_name(uow.connection, row),
+                        scope_name=names.get((row["scope_type"], row["scope_id"])),
                         used=format(used, "f") if used is not None else None,
                         remaining=format(max(Decimal(0), row["limit_value"] - used), "f")
                         if used is not None

@@ -7,7 +7,7 @@ from typing import Any, cast
 from creativity_service.core.context import AuthContext, TaskEnvelope
 from creativity_service.core.contracts import BusinessResult
 from creativity_service.core.contracts.display import display_status
-from creativity_service.core.database import UnitOfWork
+from creativity_service.core.database import Repository, UnitOfWork
 from creativity_service.core.deletion import ContentRef
 from creativity_service.core.primitives import ServiceError, new_id
 from creativity_service.integrations.models.contracts import ModelRequest
@@ -208,6 +208,42 @@ class PromptDebug:
             usage_recorded=bool(usage),
             output=data.get("output"),
         )
+
+    async def read_many(
+        self, uow: UnitOfWork, context: AuthContext, tests: list[dict[str, Any]]
+    ) -> dict[str, PromptDebugEvidence | None]:
+        from creativity_service.modules.runs.tables import metadata as run_metadata
+        from creativity_service.modules.usage.tables import metadata as usage_metadata
+
+        runs = await Repository(run_metadata.tables["runs"], context.scope).get_many(
+            uow.connection, [t["run_id"] for t in tests if t["run_id"]]
+        )
+        await self.admission.runs.guard_many(uow, list(runs.values()))
+        contents = await Repository(run_metadata.tables["run_contents"], context.scope).get_many(
+            uow.connection, [r["result_ref"] for r in runs.values() if r["result_ref"]]
+        )
+        usages = await Repository(usage_metadata.tables["usage_records"], context.scope).find_many(
+            uow.connection, "run_id", runs
+        )
+        metered = {u["run_id"] for u in usages}
+        result: dict[str, PromptDebugEvidence | None] = {}
+        for test in tests:
+            row = runs.get(test["run_id"])
+            if row is None:
+                continue
+            content = contents.get(row["result_ref"])
+            data = content["payload"]["data"] if content else {}
+            result[test["id"]] = PromptDebugEvidence(
+                scope=context.scope,
+                run_id=row["id"],
+                descriptor_digest=test["descriptor_digest"],
+                model_route_version=test["model_route_version"],
+                status="RUNNING" if row["state"] == "CANCEL_REQUESTED" else row["state"],
+                constraints_passed=data.get("constraints_passed", False),
+                usage_recorded=row["id"] in metered,
+                output=data.get("output"),
+            )
+        return result
 
 
 class ToolDebug:

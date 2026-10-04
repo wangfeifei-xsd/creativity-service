@@ -7,11 +7,15 @@ from sqlalchemy import select
 
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.contracts import VisibleAction
-from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.database import Repository, UnitOfWork, transaction
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
-from creativity_service.modules.agents.access import locked_policy, locked_require
+from creativity_service.modules.agents.access import (
+    LockedAuthorization,
+    locked_policy,
+    locked_require,
+)
 from creativity_service.modules.agents.repositories import repository as agent_repository
 from creativity_service.modules.evaluations.imports import preview
 from creativity_service.modules.evaluations.independent import validate_independent
@@ -284,36 +288,119 @@ class DatasetService:
             )
 
     async def check_sources(
-        self, context: AuthContext, cases: list[CaseInput], references: list[str]
-    ) -> None:
+        self,
+        uow: UnitOfWork,
+        context: AuthContext,
+        cases: list[CaseInput],
+        references: list[str],
+        policy: LockedAuthorization,
+    ) -> dict[str, dict[str, Any]]:
+        """批量导入在同一写事务内复核所有来源；不逐样本重入完整鉴权流程。"""
+        from creativity_service.storage import metadata
+
+        refs = {(r.resource_type, r.resource_id) for case in cases for r in case.source_refs}
+        refs.update(("version", identifier) for identifier in references)
+        fixtures = {f.tool_version_id for case in cases for f in case.fixture}
+        versions = await agent_repository("resource_versions", context.scope).get_many(
+            uow.connection, fixtures | {i for kind, i in refs if kind == "version"}
+        )
+        tools = await agent_repository("tools", context.scope).get_many(
+            uow.connection,
+            [
+                v["resource_id"]
+                for identifier, v in versions.items()
+                if identifier in fixtures and v["resource_type"] == "tool"
+            ],
+        )
+        for identifier in fixtures:
+            tool = versions.get(identifier)
+            if not tool or tool["resource_type"] != "tool" or tool["resource_id"] not in tools:
+                raise ServiceError("FIXTURE_TOOL_INVALID", "夹具工具不属于当前渠道", 422)
+            policy.require(context, "run:create", "tool", tool["resource_id"])
+        artifacts = await Repository(metadata.tables["artifacts"], context.scope).get_many(
+            uow.connection, [i for kind, i in refs if kind == "artifact"]
+        )
+        run_ids = {i for kind, i in refs if kind == "run"}
+        runs = metadata.tables["runs"]
+        source_rows = (
+            [
+                dict(row)
+                for row in (
+                    await uow.connection.execute(
+                        select(runs).where(
+                            runs.c.channel_id == context.scope.channel_id, runs.c.id.in_(run_ids)
+                        )
+                    )
+                ).mappings()
+            ]
+            if run_ids
+            else []
+        )
+        source_runs = {row["id"]: row for row in source_rows}
+        if len(source_runs) != len(source_rows):
+            raise ServiceError("STORAGE_INVARIANT_BROKEN", "评测来源标识重复", 503)
+        connection_ids = {
+            v["resource_id"]
+            if v["resource_type"] == "model_connection"
+            else v["content"].get("connection_id")
+            for v in versions.values()
+            if v["resource_type"] in {"model", "model_connection"}
+        } - {None}
+        connections = await agent_repository("model_connections", context.scope).get_many(
+            uow.connection, connection_ids
+        )
+        scopes = [context.scope]
         for case in cases:
             if case.human_label:
-                await self.require(context, "evaluation:review")
-            for fixture in case.fixture:
-                async with self.engine.connect() as connection:
-                    tool = await agent_repository("resource_versions", context.scope).get(
-                        connection, fixture.tool_version_id
-                    )
-                if not tool or tool["resource_type"] != "tool":
-                    raise ServiceError("FIXTURE_TOOL_INVALID", "夹具工具不属于当前渠道", 422)
-                await self.authorization.boundary(
-                    context, "run:create", "tool", tool["resource_id"]
+                policy.require(context, "evaluation:review", "evaluation", "scope")
+        for kind, identifier in refs:
+            row = {"run": source_runs, "version": versions, "artifact": artifacts}[kind].get(
+                identifier
+            )
+            if row is None:
+                raise ServiceError("NOT_FOUND", "评测来源不存在", 404)
+            scoped = self.runs.row_context(context, row) if kind == "run" else context
+            if kind == "run":
+                scopes.append(scoped.scope)
+            if kind == "artifact" and row["state"] in {"DELETED", "DELETING"}:
+                raise ServiceError("RESOURCE_DISABLED", "资源已停用", 403)
+            if kind == "version" and row["resource_type"] in {
+                "model",
+                "model_connection",
+                "model_route",
+            }:
+                connection_id = (
+                    row["resource_id"]
+                    if row["resource_type"] == "model_connection"
+                    else row["content"].get("connection_id")
                 )
-            for ref in case.source_refs:
-                if ref.resource_type == "run":
-                    source_context = await self.runs.access_context(context, ref.resource_id)
-                    await self.runs.authorization.require(
-                        source_context, "run:content", ref.resource_id
+                if (
+                    connection_id
+                    and connection_id not in connections
+                    or (
+                        row["resource_type"] == "model_route"
+                        and any(
+                            model["scope"]["environment"] != context.scope.environment
+                            for model in row["content"].get("models", [])
+                        )
                     )
-                else:
-                    action = (
-                        "artifact:download" if ref.resource_type == "artifact" else "version:read"
-                    )
-                    await self.authorization.boundary(
-                        context, action, ref.resource_type, ref.resource_id
-                    )
-        for identifier in references:
-            await self.authorization.boundary(context, "version:read", "version", identifier)
+                ):
+                    raise ServiceError("NOT_FOUND", "评测来源不在当前环境", 404)
+                if row["state"] == "RETIRED":
+                    raise ServiceError("RESOURCE_DISABLED", "资源已停用", 403)
+            policy.require(
+                scoped,
+                {"run": "run:content", "version": "version:read", "artifact": "artifact:download"}[
+                    kind
+                ],
+                kind,
+                identifier,
+            )
+        if await DeletionGuard(context.scope).blocked_refs(
+            uow, [ContentRef(kind, identifier) for kind, identifier in refs], scopes=scopes
+        ):
+            raise ServiceError("CONTENT_DELETED", "内容或来源已删除", 410)
+        return versions
 
     async def create_version(
         self,
@@ -333,7 +420,6 @@ class DatasetService:
             fixture_keys = [(f.tool_version_id, digest(f.arguments)) for f in case.fixture]
             if len(set(fixture_keys)) != len(fixture_keys):
                 raise ServiceError("FIXTURE_AMBIGUOUS", "同一样本的工具版本和参数夹具不能重复", 422)
-        await self.check_sources(context, body.cases, body.reference_versions)
         version_id = new_id("dataset_version")
         audit_id = new_id("audit")
         prepared = [
@@ -378,68 +464,50 @@ class DatasetService:
         async with transaction(
             self.engine, context.scope, keys(context, records) + link_keys(context, links)
         ) as uow:
+            policy = await locked_policy(uow, context)
+            policy.require(context, action, "evaluation", dataset_id)
+            versions = await self.check_sources(
+                uow, context, body.cases, body.reference_versions, policy
+            )
             independent = {
                 identifier: await validate_independent(
                     uow, context.scope, case.model_dump(mode="json")
                 )
                 for identifier, _, case in prepared
             }
-            await locked_require(uow, context, action, "evaluation", dataset_id)
-            for case in body.cases:
-                await self.source_guard(uow, context, case.model_dump(mode="json"))
-                if case.human_label:
-                    await locked_require(
-                        uow, context, "evaluation:review", "evaluation", dataset_id
-                    )
-                for ref in case.source_refs:
-                    await locked_require(
-                        uow,
-                        context,
-                        {
-                            "run": "run:content",
-                            "version": "version:read",
-                            "artifact": "artifact:download",
-                        }[ref.resource_type],
-                        ref.resource_type,
-                        ref.resource_id,
-                    )
+            if any(case.human_label for case in body.cases):
+                policy.require(context, "evaluation:review", "evaluation", dataset_id)
             reference_digests = {}
             for reference in body.reference_versions:
-                row = await agent_repository("resource_versions", context.scope).get(
-                    uow.connection, reference
-                )
+                row = versions.get(reference)
                 if not row or row["state"] != "PUBLISHED":
                     raise ServiceError("REFERENCE_INVALID", "参考资料必须固定已发布版本", 422)
                 reference_digests[reference] = row["content_digest"]
             await repository("evaluation_datasets", context.scope).change(
                 uow, dataset_id, body.revision, {"current_version_id": version_id}
             )
+            fixture_values = {}
+            case_values = {}
             for identifier, fixture_id, case in prepared:
                 if fixture_id:
                     if any(f.observed_at > body.captured_at for f in case.fixture):
                         raise ServiceError("DATA_TIME_INVALID", "夹具观测时间晚于固定数据时间", 422)
-                    await repository("evaluation_fixtures", context.scope).add(
-                        uow,
-                        fixture_id,
-                        {
-                            "payload": [f.model_dump(mode="json") for f in case.fixture],
-                            "captured_at": body.captured_at,
-                            "invalidated": False,
-                        },
-                    )
-                await repository("evaluation_cases", context.scope).add(
-                    uow,
-                    identifier,
-                    {
-                        "dataset_id": dataset_id,
-                        "case_key": case.case_key,
-                        "title": case.title,
-                        "payload": case.model_dump(mode="json"),
-                        "fixture_id": fixture_id,
-                        "previous_case_id": (replacements or {}).get(case.case_key),
+                    fixture_values[fixture_id] = {
+                        "payload": [f.model_dump(mode="json") for f in case.fixture],
+                        "captured_at": body.captured_at,
                         "invalidated": False,
-                    },
-                )
+                    }
+                case_values[identifier] = {
+                    "dataset_id": dataset_id,
+                    "case_key": case.case_key,
+                    "title": case.title,
+                    "payload": case.model_dump(mode="json"),
+                    "fixture_id": fixture_id,
+                    "previous_case_id": (replacements or {}).get(case.case_key),
+                    "invalidated": False,
+                }
+            await repository("evaluation_fixtures", context.scope).add_many(uow, fixture_values)
+            await repository("evaluation_cases", context.scope).add_many(uow, case_values)
             await repository("evaluation_dataset_versions", context.scope).add(
                 uow,
                 version_id,
@@ -472,14 +540,20 @@ class DatasetService:
                     "revision": body.revision,
                 },
             )
-            for source, derived in links:
-                await DeletionGuard(context.scope).link(
-                    uow,
-                    link_id(source, derived),
-                    source,
-                    derived,
-                    independent.get(derived.resource_id) if source.resource_type == "run" else None,
-                )
+            await DeletionGuard(context.scope).link_many(
+                uow,
+                [
+                    (
+                        link_id(source, derived),
+                        source,
+                        derived,
+                        independent.get(derived.resource_id)
+                        if source.resource_type == "run"
+                        else None,
+                    )
+                    for source, derived in links
+                ],
+            )
         return await self.dataset(context, dataset_id)
 
     async def current_cases(
@@ -499,13 +573,14 @@ class DatasetService:
             await DeletionGuard(context.scope).check(
                 uow, [ContentRef("evaluation_dataset_version", version["id"])]
             )
-            cases = [
-                await required(uow.connection, context.scope, "evaluation_cases", i)
-                for i in version["case_ids"]
-            ]
-            for case in cases:
-                if not await self.valid_case(uow, context, case):
-                    raise ServiceError("CONTENT_DELETED", "当前版本包含已删除来源，不能复制", 410)
+            found = await repository("evaluation_cases", context.scope).get_many(
+                uow.connection, version["case_ids"]
+            )
+            if set(version["case_ids"]) - found.keys():
+                raise ServiceError("NOT_FOUND", "评测样本不存在", 404)
+            cases = [found[identifier] for identifier in version["case_ids"]]
+            if not all((await self.valid_cases(uow, context, cases)).values()):
+                raise ServiceError("CONTENT_DELETED", "当前版本包含已删除来源，不能复制", 410)
         return version, cases
 
     async def edit_case(self, context: AuthContext, case_id: str, body: CaseEdit) -> DatasetView:

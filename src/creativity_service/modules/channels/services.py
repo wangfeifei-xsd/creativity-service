@@ -540,10 +540,7 @@ class ChannelService:
         if not 1 <= limit <= 200:
             raise ServiceError("VALIDATION_ERROR", "查询数量须在 1 至 200 之间", 422)
         async with self.repository.engine.connect() as connection:
-            result = [
-                await required(connection, "channels", c, id=c)
-                for c in (await self.repository.directory(connection))[:limit]
-            ]
+            result = await self.repository.directory_records(connection, limit)
         return [self.channel_view(r, session) for r in result]
 
     async def update(
@@ -918,18 +915,57 @@ class ChannelService:
             return await self.client_view(uow.connection, row)
 
     async def overview(self, session: AdminSession, channel_id: str) -> OverviewView:
-        channel = await self.detail(session, channel_id)
-        envs, domains, clients = (
-            await self.environments(session, channel_id),
-            await self.data_scopes(session, channel_id),
-            await self.clients(session, channel_id),
-        )
+        await self.authorize(session, channel_id, "channel:manage")
         async with self.repository.engine.connect() as connection:
+            row = await required(connection, "channels", channel_id, id=channel_id)
+            data = await ChannelReadData.load(connection, session, channel_id)
+            allowed = None
+            if isinstance(session.context, AuthContext):
+                scope = session.context.scope
+                allowed = (
+                    set(
+                        effective_actions(
+                            data.member,
+                            data.grants,
+                            scope.environment,
+                            scope.data_scope_id or "",
+                            "channel",
+                            channel_id,
+                        )
+                    )
+                    if data.member
+                    else set()
+                )
+                if (
+                    not {
+                        "channel:manage",
+                        "environment:manage",
+                        "data_scope:manage",
+                        "client:manage",
+                    }
+                    <= allowed
+                ):
+                    raise ServiceError("FORBIDDEN", "无权查看渠道概览", 403)
+            channel = self.channel_view(row, session, allowed)
+            envs = [
+                r
+                for r in data.environments.values()
+                if data.visible(r["environment"], action="environment:manage")
+            ]
+            domains = [
+                r
+                for r in data.domains.values()
+                if data.visible(r["environment"], [r["id"]], action="data_scope:manage")
+            ]
+            clients = {
+                r["id"]
+                for r in data.clients.values()
+                if data.visible(r["environment"], r["data_scopes"], action="client:manage")
+            }
             keys = [
                 r
                 for r in await rows(connection, "channel_keys", channel_id, status="ACTIVE")
-                if r["expires_at"] > utcnow()
-                and any(c.client_id == r["client_id"] for c in clients)
+                if r["expires_at"] > utcnow() and r["client_id"] in clients
             ]
         references = None
         if self.resource_reader:
@@ -939,8 +975,8 @@ class ChannelService:
                     await self.resource_reader.references(
                         Scope(
                             channel_id=channel_id,
-                            environment=domain.environment,
-                            data_scope_id=domain.data_scope_id,
+                            environment=domain["environment"],
+                            data_scope_id=domain["id"],
                         )
                     )
                 )
@@ -963,12 +999,11 @@ class ChannelService:
             raise ServiceError("VALIDATION_ERROR", "结束时间须晚于开始时间", 422)
         async with self.repository.engine.connect() as connection:
             await required(connection, "channels", channel_id, id=channel_id)
+            data = await ChannelReadData.load(connection, session, channel_id)
             scopes = [
                 Scope(channel_id=channel_id, environment=d["environment"], data_scope_id=d["id"])
-                for d in await rows(connection, "data_scopes", channel_id)
-                if await self.visible(
-                    connection, session, d["environment"], [d["id"]], action="usage:read"
-                )
+                for d in data.domains.values()
+                if data.visible(d["environment"], [d["id"]], action="usage:read")
             ]
         if not scopes:
             raise ServiceError("FORBIDDEN", "没有可查询的用量范围", 403)
