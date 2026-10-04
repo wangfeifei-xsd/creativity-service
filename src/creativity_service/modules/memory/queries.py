@@ -301,8 +301,9 @@ class MemoryQueries(MemoryKernel):
             if not rows:
                 break
             candidates = []
-            for item in rows:
-                scoped = self.row_context(context, dict(item))
+            for record in rows:
+                item = dict(record)
+                scoped = self.row_context(context, item)
                 permissions = await read_actions(
                     self.authorization,
                     scoped,

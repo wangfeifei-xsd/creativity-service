@@ -23,10 +23,14 @@ from creativity_service.core.primitives import ServiceError, digest, new_id, utc
 from creativity_service.core.versioning import VersionService
 from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.iam.authorization import IamAuthorization
-from creativity_service.modules.iam.reading import resource_state, visible_actions
+from creativity_service.modules.iam.reading import require_action, resource_state, visible_actions
 from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.skills.authorization import PackageAuthorization, SkillAuthorization
-from creativity_service.modules.skills.dependencies import local_bindings, resolve_dependencies
+from creativity_service.modules.skills.dependencies import (
+    local_bindings,
+    local_bindings_many,
+    resolve_dependencies,
+)
 from creativity_service.modules.skills.loader import PLACEHOLDER, ResolvedSkill, SkillLoader
 from creativity_service.modules.skills.packages import (
     MAX_ARCHIVE,
@@ -62,6 +66,7 @@ from creativity_service.modules.skills.schemas import (
     SkillValidation,
     SkillVersionCreate,
     SkillVersionEdit,
+    SkillVersionSummary,
     SkillVersionView,
     SkillView,
 )
@@ -689,52 +694,97 @@ class SkillService:
         )
 
     async def detail(self, context: AuthContext, skill_id: str) -> SkillDetail:
-        await self.require(context, "skill:manage", skill_id)
+        from creativity_service.modules.agents.repositories import (
+            RESOURCE_TABLES,
+        )
+        from creativity_service.modules.agents.repositories import (
+            repository as resources,
+        )
+
+        policy = await self.authorization.read_policy(context)
         async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
-            await DeletionGuard(context.scope).check(uow, [ContentRef("skill", skill_id)])
             row = await repository("skills", context.scope).get(uow.connection, skill_id)
             if not row:
                 raise ServiceError("NOT_FOUND", "技能不存在", 404)
+            permissions = policy.actions("skill", skill_id, resource_state(context, "skill", row))
+            require_action(permissions, "skill:manage")
             versions = await repository("resource_versions", context.scope).find(
                 uow.connection, resource_type="skill", resource_id=skill_id
             )
+            await DeletionGuard(context.scope).check(
+                uow,
+                [
+                    ContentRef("skill", skill_id),
+                    *(ContentRef("version", v["id"]) for v in versions),
+                ],
+            )
+            versions.sort(key=lambda v: v["created_at"])
+            definitions = [SkillDefinition.model_validate(v["content"]) for v in versions]
+            bindings = await local_bindings_many(uow.connection, context, definitions)
             mappings = await repository("release_mappings", context.scope).find(
                 uow.connection, resource_type="skill", resource_id=skill_id
             )
-            references = []
-            for version in versions:
-                refs = await repository("resource_references", context.scope).find(
-                    uow.connection, target_version_id=version["id"]
-                )
-                for ref in refs:
-                    source = await repository("resource_versions", context.scope).get(
-                        uow.connection, ref["source_version_id"]
-                    )
-                    if source:
-                        references.append(source)
-        visible_refs = []
-        for ref in references:
-            reader = self.authorization.resources
-            resource_state = (
-                await reader.read_current(context, ref["resource_type"], ref["resource_id"])
-                if reader
-                else None
+            refs = await repository("resource_references", context.scope).find_many(
+                uow.connection, "target_version_id", [v["id"] for v in versions]
             )
-            visible_refs.append(
-                SkillReference(
-                    version_id=ref["id"],
-                    resource_name=resource_state.name if resource_state else None,
-                    version_label=ref["version_label"],
-                    status=status(ref["state"]),
+            source_rows = await repository("resource_versions", context.scope).get_many(
+                uow.connection, [r["source_version_id"] for r in refs]
+            )
+            parents = {
+                kind: await resources(table, context.scope).get_many(
+                    uow.connection,
+                    [r["resource_id"] for r in source_rows.values() if r["resource_type"] == kind],
+                )
+                for kind, table in RESOURCE_TABLES.items()
+                if any(r["resource_type"] == kind for r in source_rows.values())
+            }
+        summaries = []
+        for version, definition, local in zip(versions, definitions, bindings, strict=True):
+            actions = [
+                ("validate", "检查依赖", "skill:manage"),
+                ("test", "加载测试", "skill:manage"),
+                ("export", "导出技能包", "data:export"),
+            ]
+            if version["state"] == "DRAFT":
+                actions += [
+                    ("edit", "编辑包", "version:edit"),
+                    ("freeze", "冻结版本", "version:freeze"),
+                ]
+            elif version["state"] == "PUBLISHED":
+                actions.append(("release", "发布到当前环境", "release:publish"))
+            summaries.append(
+                SkillVersionSummary(
+                    version_id=version["id"],
+                    version_label=version["version_label"],
+                    revision=version["revision"],
+                    status=status(version["state"]),
+                    settings=SkillSettings.model_validate(
+                        {
+                            **definition.model_dump(include=set(SkillSettings.model_fields)),
+                            "tool_bindings": local,
+                        }
+                    ),
+                    metadata=definition.metadata,
+                    files=list(definition.files),
+                    package_hash=definition.package_hash,
+                    discovery_preview=f"{definition.metadata['name']}\n{definition.metadata['description']}",
+                    actions=visible_actions(permissions, actions),
                 )
             )
         return SkillDetail(
-            skill=await self.view(context, row),
-            versions=[
-                await self.version(context, v["id"])
-                for v in sorted(versions, key=lambda v: v["created_at"])
+            skill=await self.view(context, row, permissions),
+            versions=summaries,
+            references=[
+                SkillReference(
+                    version_id=r["id"],
+                    resource_name=parents.get(r["resource_type"], {})
+                    .get(r["resource_id"], {})
+                    .get("name"),
+                    version_label=r["version_label"],
+                    status=status(r["state"]),
+                )
+                for r in source_rows.values()
             ],
-            references=visible_refs,
             release_version_id=mappings[0]["version_id"] if mappings else None,
             release_revision=mappings[0]["revision"] if mappings else None,
         )
@@ -1077,55 +1127,65 @@ class SkillService:
         return result
 
     async def tool_options(self, context: AuthContext) -> list[SkillToolOption]:
-        tools = await self.tools.list_tools(context)
+        from creativity_service.modules.agents.repositories import repository as resources
+
+        policy = await self.authorization.read_policy(context)
+        async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
+            versions = await repository("resource_versions", context.scope).find(
+                uow.connection, resource_type="tool", state="PUBLISHED"
+            )
+            tools = await resources("tools", context.scope).get_many(
+                uow.connection, [v["resource_id"] for v in versions]
+            )
+            blocked = await DeletionGuard(context.scope).blocked_refs(
+                uow, [ContentRef("version", v["id"]) for v in versions]
+            )
+        permissions = {
+            identifier: policy.actions("tool", identifier, resource_state(context, "tool", row))
+            for identifier, row in tools.items()
+        }
+        versions = [
+            v
+            for v in versions
+            if {"tool:manage", "version:read"} <= permissions.get(v["resource_id"], frozenset())
+            and ContentRef("version", v["id"]) not in blocked
+        ]
+        reasons = await self.tools.binding_reasons(context, versions)
         result = []
-        for tool in tools.items:
-            detail = await self.tools.detail(context, tool.tool_id)
-            for version in detail.versions:
-                if version.version.state == "PUBLISHED":
-                    allowed = all(
-                        [
-                            (
-                                await self.authorization.check(
-                                    context, action, "tool", tool.tool_id
-                                )
-                            ).allowed
-                            for action in {"run:create", *version.definition.required_scopes}
-                        ]
-                    )
-                    result.append(
-                        SkillToolOption(
-                            version_id=version.version.version_id,
-                            tool_code=tool.tool_code,
-                            name=tool.name,
-                            version_label=version.version.version_label,
-                            source_type=tool.source_type,
-                            input_schema=version.definition.input_schema,
-                            output_schema=version.definition.output_schema,
-                            available=version.execution_enabled and allowed,
-                            reason=version.unavailable_reason
-                            if allowed
-                            else "当前成员未获工具调用权限",
-                        )
-                    )
+        for row in versions:
+            tool = tools[row["resource_id"]]
+            allowed = permissions[tool["id"]]
+            version = await self.tools.version_display(context, tool, row, allowed, reasons)
+            executable = {"run:create", *version.definition.required_scopes} <= allowed
+            result.append(
+                SkillToolOption(
+                    version_id=row["id"],
+                    tool_code=tool["tool_code"],
+                    name=tool["name"],
+                    version_label=row["version_label"],
+                    source_type=tool["source_type"],
+                    input_schema=version.definition.input_schema,
+                    output_schema=version.definition.output_schema,
+                    available=version.execution_enabled and executable,
+                    reason=version.unavailable_reason if executable else "当前成员未获工具调用权限",
+                )
+            )
         return result
 
     async def agent_options(self, context: AuthContext) -> list[SkillAgentOption]:
-        await self.authorization.authentication.revalidate(context)
+        from creativity_service.modules.agents.repositories import repository as resources
+
+        policy = await self.authorization.read_policy(context)
         async with self.engine.connect() as connection:
             versions = await repository("resource_versions", context.scope).find(
                 connection, resource_type="agent"
             )
-        result = []
-        reader = self.authorization.resources
-        for agent_id in sorted({v["resource_id"] for v in versions}):
-            state = await reader.read_current(context, "agent", agent_id) if reader else None
-            if (
-                state
-                and state.active
-                and (
-                    await self.authorization.check(context, "agent:manage", "agent", agent_id)
-                ).allowed
-            ):
-                result.append(SkillAgentOption(agent_id=agent_id, name=state.name))
-        return result
+            agents = await resources("agents", context.scope).get_many(
+                connection, [v["resource_id"] for v in versions]
+            )
+        return [
+            SkillAgentOption(agent_id=identifier, name=row["name"])
+            for identifier, row in sorted(agents.items())
+            if "agent:manage"
+            in policy.actions("agent", identifier, resource_state(context, "agent", row))
+        ]

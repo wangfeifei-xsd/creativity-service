@@ -15733,7 +15733,7 @@
           },
           "versions": {
             "items": {
-              "$ref": "#/components/schemas/SkillVersionView"
+              "$ref": "#/components/schemas/SkillVersionSummary"
             },
             "title": "Versions",
             "type": "array"
@@ -16814,6 +16814,75 @@
         "title": "SkillVersionEdit",
         "type": "object"
       },
+      "SkillVersionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/VisibleAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "discovery_preview": {
+            "title": "Discovery Preview",
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/SkillFile"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "package_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Package Hash",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/SkillSettings"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DisplayStatus"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_label": {
+            "title": "Version Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "version_label",
+          "revision",
+          "status",
+          "settings",
+          "metadata",
+          "files",
+          "package_hash",
+          "discovery_preview",
+          "actions"
+        ],
+        "title": "SkillVersionSummary",
+        "type": "object"
+      },
       "SkillVersionView": {
         "additionalProperties": false,
         "properties": {
@@ -16882,8 +16951,8 @@
           "files",
           "package_hash",
           "discovery_preview",
-          "instruction_preview",
-          "actions"
+          "actions",
+          "instruction_preview"
         ],
         "title": "SkillVersionView",
         "type": "object"

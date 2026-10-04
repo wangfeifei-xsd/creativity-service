@@ -157,7 +157,7 @@ class SkillList(Contract):
     actions: list[VisibleAction]
 
 
-class SkillVersionView(Contract):
+class SkillVersionSummary(Contract):
     version_id: Identifier
     version_label: str
     revision: Revision
@@ -167,8 +167,11 @@ class SkillVersionView(Contract):
     files: list[SkillFile]
     package_hash: Digest
     discovery_preview: str
-    instruction_preview: str
     actions: list[VisibleAction]
+
+
+class SkillVersionView(SkillVersionSummary):
+    instruction_preview: str
 
 
 class SkillReference(Contract):
@@ -180,7 +183,7 @@ class SkillReference(Contract):
 
 class SkillDetail(Contract):
     skill: SkillView
-    versions: list[SkillVersionView]
+    versions: list[SkillVersionSummary]
     references: list[SkillReference]
     release_version_id: str | None
     release_revision: int | None

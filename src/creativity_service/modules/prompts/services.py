@@ -737,23 +737,45 @@ class PromptService:
         )
 
     async def route_options(self, context: AuthContext) -> list["PromptRouteOption"]:
+        from creativity_service.core.database import Repository
+        from creativity_service.modules.models.tables import metadata as model_metadata
+
+        policy = await read_policy(self.authorization, context)
         async with self.engine.connect() as connection:
             rows = await repository("resource_versions", context.scope).find(
                 connection, resource_type="model_route", state="PUBLISHED"
             )
+            parents = (
+                await Repository(model_metadata.tables["model_routes"], context.scope).get_many(
+                    connection, [r["resource_id"] for r in rows]
+                )
+                if policy is not None
+                else {}
+            )
         result = []
         for row in rows:
-            try:
-                name = await self.require_model_route(context, row["id"])
-            except ServiceError as exc:
-                if exc.status in {403, 404}:
+            if policy is not None:
+                parent = parents.get(row["resource_id"])
+                if not parent or parent["status"] != "ACTIVE":
                     continue
-                raise
+                if "version:read" not in policy.actions(
+                    "model_route", parent["id"], resource_state(context, "model_route", parent)
+                ):
+                    continue
+                name = parent["name"]
+            else:
+                try:
+                    await self.authorization.authorization.require(
+                        context, "version:read", row["id"]
+                    )
+                except ServiceError as exc:
+                    if exc.status in {403, 404}:
+                        continue
+                    raise
+                name = row["content"].get("name")
             result.append(
                 PromptRouteOption(
-                    version_id=row["id"],
-                    name=name,
-                    version_label=row["version_label"],
+                    version_id=row["id"], name=name, version_label=row["version_label"]
                 )
             )
         return result

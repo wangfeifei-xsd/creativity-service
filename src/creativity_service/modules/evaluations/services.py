@@ -38,6 +38,7 @@ from creativity_service.modules.evaluations.schemas import (
 )
 from creativity_service.modules.evaluations.tables import metadata
 from creativity_service.modules.iam.authorization import IamAuthorization
+from creativity_service.modules.iam.reading import require_action, resource_state, visible_actions
 from creativity_service.modules.runs.schemas import TERMINAL
 from creativity_service.modules.runs.services import RunService
 from creativity_service.modules.runs.tables import metadata as run_metadata
@@ -297,8 +298,7 @@ class EvaluationService(DatasetService):
         }
 
     async def detail(self, context: AuthContext, identifier: str) -> EvaluationView:
-        await self.require(context, "evaluation:read", identifier)
-        content_allowed = await self.allowed(context, "evaluation:content", identifier)
+        policy = await self.authorization.read_policy(context)
         async with self.engine.connect() as connection:
             task = await required(connection, context.scope, "evaluations", identifier)
             version = await required(
@@ -307,10 +307,26 @@ class EvaluationService(DatasetService):
             dataset = await required(
                 connection, context.scope, "evaluation_datasets", version["dataset_id"]
             )
+        permissions = policy.actions(
+            "evaluation", identifier, resource_state(context, "evaluation", task)
+        )
+        require_action(permissions, "evaluation:read")
+        content_allowed = "evaluation:content" in permissions
         review = None
         if content_allowed and task["human_review"]:
             async with transaction(self.engine, context.scope, keys(context)) as uow:
                 review = (await build_report(self, uow, context, task))["human_review"]
+        return self.evaluation_view(task, version, dataset, permissions, review)
+
+    @staticmethod
+    def evaluation_view(
+        task: dict[str, Any],
+        version: dict[str, Any],
+        dataset: dict[str, Any],
+        permissions: frozenset[str],
+        review: dict[str, Any] | None = None,
+    ) -> EvaluationView:
+        content_allowed = "evaluation:content" in permissions
         actions = [("refresh", "更新报告", "evaluation:read")]
         if content_allowed:
             actions.append(("review_result", "复核样本结果", "evaluation:review"))
@@ -325,7 +341,7 @@ class EvaluationService(DatasetService):
         if task["state"] == "COMPLETED":
             actions.append(("review", "审阅报告", "evaluation:review"))
         return EvaluationView(
-            evaluation_id=identifier,
+            evaluation_id=task["id"],
             name=task["name"],
             dataset_name=dataset["name"],
             dataset_version_label=version["version_label"],
@@ -344,21 +360,37 @@ class EvaluationService(DatasetService):
             config=task["config"],
             human_review=review,
             created_at=task["created_at"],
-            actions=await self.actions(context, identifier, actions),
+            actions=visible_actions(permissions, actions),
         )
 
     async def list_evaluations(self, context: AuthContext) -> EvaluationList:
-        await self.require(context, "evaluation:read")
+        policy = await self.authorization.read_policy(context)
+        require_action(policy.actions("evaluation", "scope"), "evaluation:read")
         async with self.engine.connect() as connection:
             rows = await repository("evaluations", context.scope).find(connection)
-        return EvaluationList(
-            items=[
-                await self.detail(context, r["id"])
+            rows = [
+                r
                 for r in rows
-                if await self.allowed(context, "evaluation:read", r["id"])
-            ],
-            actions=await self.actions(
-                context, "new", [("create", "发起评测", "evaluation:manage")]
+                if "evaluation:read"
+                in policy.actions("evaluation", r["id"], resource_state(context, "evaluation", r))
+            ]
+            versions = await repository("evaluation_dataset_versions", context.scope).get_many(
+                connection, [r["dataset_version_id"] for r in rows]
+            )
+            datasets = await repository("evaluation_datasets", context.scope).get_many(
+                connection, [v["dataset_id"] for v in versions.values()]
+            )
+        items = []
+        for row in rows:
+            version = versions.get(row["dataset_version_id"])
+            dataset = datasets.get(version["dataset_id"]) if version else None
+            if not version or not dataset:
+                raise ServiceError("NOT_FOUND", "评测样本集不存在", 404)
+            items.append(self.evaluation_view(row, version, dataset, frozenset()))
+        return EvaluationList(
+            items=items,
+            actions=visible_actions(
+                policy.actions("evaluation", "new"), [("create", "发起评测", "evaluation:manage")]
             ),
         )
 

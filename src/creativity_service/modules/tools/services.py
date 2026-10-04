@@ -22,6 +22,7 @@ from creativity_service.modules.tools.reading import ToolReadData
 from creativity_service.modules.tools.repositories import ToolRepository
 from creativity_service.modules.tools.schemas import (
     BindingOption,
+    ExecutionOptions,
     ToolCallView,
     ToolCreate,
     ToolDefinition,
@@ -123,7 +124,10 @@ class ToolService:
         )
         self.repository = ToolRepository(engine)
         self.binding_checks = registry.binding_checks
-        self.binding_read_checks: dict[Callable[[AuthContext, ToolDefinition], Awaitable[None]], Callable[[AuthContext, dict[str, ToolDefinition]], Awaitable[dict[str, str | None]]]] = {}
+        self.binding_read_checks: dict[
+            Callable[[AuthContext, ToolDefinition], Awaitable[None]],
+            Callable[[AuthContext, dict[str, ToolDefinition]], Awaitable[dict[str, str | None]]],
+        ] = {}
         self.binding_option_providers: list[
             Callable[[AuthContext], Awaitable[list[BindingOption]]]
         ] = []
@@ -290,7 +294,9 @@ class ToolService:
                 ],
             )
         data = await ToolReadData.load(self.engine, context, [tool_id], target_versions=versions)
-        reasons = await self.binding_reasons(context, [v for v in versions if v["state"] != "RETIRED"])
+        reasons = await self.binding_reasons(
+            context, [v for v in versions if v["state"] != "RETIRED"]
+        )
         return ToolDetail(
             tool=await self.view(context, row, versions, permissions),
             versions=[
@@ -458,7 +464,9 @@ class ToolService:
         for check in self.binding_checks:
             await check(context, definition)
 
-    async def binding_reasons(self, context: AuthContext, versions: list[dict[str, Any]]) -> dict[str, str | None]:
+    async def binding_reasons(
+        self, context: AuthContext, versions: list[dict[str, Any]]
+    ) -> dict[str, str | None]:
         definitions = {r["id"]: ToolDefinition.model_validate(r["content"]) for r in versions}
         reasons: dict[str, str | None] = {}
         for check in self.binding_checks:
@@ -596,6 +604,82 @@ class ToolService:
             )
             await append_audit(uow, context, audit_id, "tool.disable", "tool", tool_id, {})
         return await self.detail(context, tool_id)
+
+    async def execution_options(
+        self, context: AuthContext, tool_id: str = "new"
+    ) -> ExecutionOptions:
+        from creativity_service.integrations.sandbox import ContainerSandbox
+        from creativity_service.modules.agents.repositories import repository
+
+        policy = await self.authorization.read_policy(context)
+        if tool_id == "new":
+            permissions = policy.actions("tool", "new")
+        else:
+            async with self.engine.connect() as connection:
+                parent = await repository("tools", context.scope).get(connection, tool_id)
+            permissions = policy.actions(
+                "tool", tool_id, resource_state(context, "tool", parent) if parent else None
+            )
+        require_action(permissions, "tool:manage")
+        profiles = [
+            {
+                "profile_id": p.profile_id,
+                "name": p.name,
+                "mode": p.mode,
+                "digest": digest(p.model_dump(mode="json")),
+                "endpoint": f"sandbox://{p.profile_id}/{digest(p.model_dump(mode='json'))}",
+            }
+            for p in ContainerSandbox().settings.profiles
+            if context.scope.channel_id in p.channels
+        ]
+        queries, scripts = [], []
+        async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
+            versions = await repository("resource_versions", context.scope).find_many(
+                uow.connection, "resource_type", ["tool", "skill"]
+            )
+            versions = [v for v in versions if v["state"] in {"DRAFT", "PUBLISHED"}]
+            parents = {
+                kind: await repository(table, context.scope).get_many(
+                    uow.connection,
+                    [v["resource_id"] for v in versions if v["resource_type"] == kind],
+                )
+                for kind, table in (("tool", "tools"), ("skill", "skills"))
+            }
+            blocked = await DeletionGuard(context.scope).blocked_refs(
+                uow, [ContentRef("version", v["id"]) for v in versions]
+            )
+        for version in versions:
+            kind = version["resource_type"]
+            parent = parents[kind].get(version["resource_id"])
+            if (
+                not parent
+                or parent["status"] != "ACTIVE"
+                or ContentRef("version", version["id"]) in blocked
+            ):
+                continue
+            if "run:create" not in policy.actions(
+                kind, parent["id"], resource_state(context, kind, parent)
+            ):
+                continue
+            item = {
+                "version_id": version["id"],
+                "name": parent["name"],
+                "version_label": version["version_label"],
+            }
+            if kind == "tool" and version["content"].get("effect_type") == "READ_ONLY":
+                queries.append(item)
+            elif kind == "skill" and version["state"] == "PUBLISHED":
+                scripts.append(
+                    {
+                        **item,
+                        "paths": [
+                            f["relative_path"]
+                            for f in version["content"]["files"]
+                            if f["relative_path"].endswith(".py")
+                        ],
+                    }
+                )
+        return ExecutionOptions(profiles=profiles, scripts=scripts, queries=queries)
 
     async def bindings(
         self, context: AuthContext, tool_id: str | None = None

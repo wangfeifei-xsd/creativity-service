@@ -10,7 +10,7 @@ from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.primitives import ServiceError, digest
 from creativity_service.modules.evaluations.repositories import repository, required
 from creativity_service.modules.runs.tables import metadata as run_metadata
-from creativity_service.modules.usage.repositories import rows as usage_rows
+from creativity_service.modules.usage.tables import metadata as usage_metadata
 
 FINAL_RESULTS = {"PASSED", "FAILED", "INVALID", "CANCELLED", "UNEXECUTED"}
 LABELS = {
@@ -54,9 +54,13 @@ async def build_report(
         if exc.code != "CONTENT_DELETED":
             raise
         sources_valid = reproducible = False
-    fixed_cases = [
-        await required(uow.connection, scope, "evaluation_cases", i) for i in version["case_ids"]
-    ]
+    case_rows = await repository("evaluation_cases", scope).get_many(
+        uow.connection, [*version["case_ids"], *(r["case_id"] for r in rows)]
+    )
+    if set(version["case_ids"]) - case_rows.keys():
+        raise ServiceError("NOT_FOUND", "评测样本不存在", 404)
+    fixed_cases = [case_rows[i] for i in version["case_ids"]]
+    validity = await service.valid_cases(uow, context, list(case_rows.values()))
     content_digest = digest(
         {
             "cases": [c["payload"] for c in fixed_cases],
@@ -72,10 +76,11 @@ async def build_report(
         sources_valid = reproducible = False
     from creativity_service.modules.agents.repositories import repository as agent_repository
 
+    references = await agent_repository("resource_versions", scope).get_many(
+        uow.connection, version["reference_digests"]
+    )
     for identifier, expected in version["reference_digests"].items():
-        reference = await agent_repository("resource_versions", scope).get(
-            uow.connection, identifier
-        )
+        reference = references.get(identifier)
         if (
             not reference
             or reference["state"] != "PUBLISHED"
@@ -84,8 +89,8 @@ async def build_report(
             sources_valid = reproducible = False
     results = []
     for row in latest.values():
-        case = await required(uow.connection, scope, "evaluation_cases", row["case_id"])
-        valid = await service.valid_case(uow, context, case)
+        case = case_rows[row["case_id"]]
+        valid = validity[case["id"]]
         if not valid:
             sources_valid = reproducible = False
         judgment = row["judgment"] if valid and sources_valid else None
@@ -200,7 +205,7 @@ async def build_report(
         )
         labels_approved = True
         for r in selected:
-            sample = await required(uow.connection, scope, "evaluation_cases", r["case_id"])
+            sample = case_rows[r["case_id"]]
             label = (sample["payload"] or {}).get("human_label")
             labels_approved = labels_approved and bool(label and label["decision"] == "approved")
         passed = (
@@ -248,20 +253,22 @@ async def build_report(
     unknown = pending = tokens = 0
     latencies = []
     run_ids = {r["run_id"] for r in rows if r["run_id"]}
-    for run_id in run_ids:
-        run = await Repository(run_metadata.tables["runs"], scope).get(uow.connection, run_id)
-        if run and run["completed_at"] and run["created_at"]:
+    runs = await Repository(run_metadata.tables["runs"], scope).get_many(uow.connection, run_ids)
+    for run in runs.values():
+        if run["completed_at"] and run["created_at"]:
             latencies.append((run["completed_at"] - run["created_at"]).total_seconds() * 1000)
-        usages = await usage_rows(uow.connection, "usage_records", scope.channel_id, run_id=run_id)
-        for usage in usages:
-            pending += usage["state"] != "SETTLED"
-            if usage["amount"] is None or usage["currency"] is None:
-                unknown += 1
-            else:
-                currency = usage["currency"]
-                costs[currency] = costs.get(currency, Decimal(0)) + usage["amount"]
-            if usage["input_tokens"] is not None and usage["output_tokens"] is not None:
-                tokens += usage["input_tokens"] + usage["output_tokens"]
+    usages = await Repository(usage_metadata.tables["usage_records"], scope).find_many(
+        uow.connection, "run_id", run_ids
+    )
+    for usage in usages:
+        pending += usage["state"] != "SETTLED"
+        if usage["amount"] is None or usage["currency"] is None:
+            unknown += 1
+        else:
+            currency = usage["currency"]
+            costs[currency] = costs.get(currency, Decimal(0)) + usage["amount"]
+        if usage["input_tokens"] is not None and usage["output_tokens"] is not None:
+            tokens += usage["input_tokens"] + usage["output_tokens"]
     warnings = []
     if task["config"].get("dispatch_error"):
         warnings.append(task["config"]["dispatch_error"]["message"])

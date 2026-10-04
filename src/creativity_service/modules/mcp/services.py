@@ -583,7 +583,12 @@ class McpService:
             await repo.change(uow, row["id"], row["revision"], values)
         return check, snapshot
 
-    async def import_view(self, context: AuthContext, row: dict[str, Any], reasons: dict[str, str | None] | None = None) -> McpImport:
+    async def import_view(
+        self,
+        context: AuthContext,
+        row: dict[str, Any],
+        reasons: dict[str, str | None] | None = None,
+    ) -> McpImport:
         if reasons is None:
             reasons = await import_reasons(self, context, [row])
         reason = reasons[row["id"]]
@@ -622,9 +627,7 @@ class McpService:
                     :20
                 ]
             ],
-            imports=[
-                await self.import_view(context, r, reasons) for r in imports
-            ],
+            imports=[await self.import_view(context, r, reasons) for r in imports],
         )
 
     async def diff(self, context: AuthContext, connection_id: str, discovery_id: str) -> McpDiff:
@@ -830,29 +833,52 @@ class McpService:
             message="停用后阻止新调用；在途调用保留已取得的结果或结果待核实记录。",
         )
 
-    async def read_bindings(self, context: AuthContext, definitions: dict[str, ToolDefinition]) -> dict[str, str | None]:
-        selected = {identifier: definition for identifier, definition in definitions.items() if definition.binding.adapter_key.startswith("mcp_")}
+    async def read_bindings(
+        self, context: AuthContext, definitions: dict[str, ToolDefinition]
+    ) -> dict[str, str | None]:
+        selected = {
+            identifier: definition
+            for identifier, definition in definitions.items()
+            if definition.binding.adapter_key.startswith("mcp_")
+        }
         async with self.engine.connect() as connection:
-            imports = await repository(context.scope, "mcp_imports").get_many(connection, [d.binding.adapter_key for d in selected.values()])
+            imports = await repository(context.scope, "mcp_imports").get_many(
+                connection, [d.binding.adapter_key for d in selected.values()]
+            )
         reasons = await import_reasons(self, context, list(imports.values()))
         result = {}
         for identifier, definition in selected.items():
             imported = imports.get(definition.binding.adapter_key)
             reason = reasons.get(definition.binding.adapter_key, "连接记录不存在")
-            if imported and (definition.binding.connection_id != imported["connection_id"] or definition.binding.implementation_version != imported["schema_hash"] or definition.input_schema != imported["input_schema"] or definition.effect_type != imported["effect_type"] or definition.cache_policy.ttl_seconds):
+            if imported and (
+                definition.binding.connection_id != imported["connection_id"]
+                or definition.binding.implementation_version != imported["schema_hash"]
+                or definition.input_schema != imported["input_schema"]
+                or definition.effect_type != imported["effect_type"]
+                or definition.cache_policy.ttl_seconds
+            ):
                 reason = "MCP 固定输入和影响类型不能改写，当前不启用结果缓存"
             result[identifier] = reason
         return result
 
     async def bindings(self, context: AuthContext) -> list[BindingOption]:
         from creativity_service.modules.tools.tables import metadata as tool_metadata
+
         result = []
         labels = {"READ_ONLY": "只读", "IDEMPOTENT_WRITE": "幂等写入", "EXTERNAL_WRITE": "外部写入"}
         policy = await self.authorization.read_policy(context)
         imports = await self.rows(context, "mcp_imports")
         async with self.engine.connect() as connection:
-            tools = await Repository(tool_metadata.tables["tools"], context.scope).get_many(connection, [r["local_tool_id"] for r in imports])
-        imports = [r for r in imports if (tool := tools.get(r["local_tool_id"])) and "tool:manage" in policy.actions("tool", tool["id"], resource_state(context, "tool", tool))]
+            tools = await Repository(tool_metadata.tables["tools"], context.scope).get_many(
+                connection, [r["local_tool_id"] for r in imports]
+            )
+        imports = [
+            r
+            for r in imports
+            if (tool := tools.get(r["local_tool_id"]))
+            and "tool:manage"
+            in policy.actions("tool", tool["id"], resource_state(context, "tool", tool))
+        ]
         reasons = await import_reasons(self, context, imports)
         for row in imports:
             view = await self.import_view(context, row, reasons)

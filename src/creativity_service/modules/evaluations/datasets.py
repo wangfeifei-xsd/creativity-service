@@ -3,13 +3,15 @@
 from datetime import UTC
 from typing import Any
 
+from sqlalchemy import select
+
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
-from creativity_service.modules.agents.access import locked_require
+from creativity_service.modules.agents.access import locked_policy, locked_require
 from creativity_service.modules.agents.repositories import repository as agent_repository
 from creativity_service.modules.evaluations.imports import preview
 from creativity_service.modules.evaluations.independent import validate_independent
@@ -35,6 +37,7 @@ from creativity_service.modules.evaluations.schemas import (
     ImportPreview,
     RunCaseInput,
 )
+from creativity_service.modules.iam.reading import require_action, resource_state, visible_actions
 
 
 class DatasetService:
@@ -53,11 +56,8 @@ class DatasetService:
     async def actions(
         self, context: AuthContext, identifier: str, values: list[tuple[str, str, str]]
     ) -> list[VisibleAction]:
-        return [
-            VisibleAction(action_key=k, label=n)
-            for k, n, action in values
-            if await self.allowed(context, action, identifier)
-        ]
+        permissions = await self.authorization.allowed_actions(context, "evaluation", identifier)
+        return visible_actions(permissions, values)
 
     async def create_dataset(self, context: AuthContext, body: DatasetCreate) -> DatasetView:
         await self.require(context, "evaluation:manage", "new")
@@ -72,28 +72,62 @@ class DatasetService:
         return await self.dataset(context, identifier)
 
     async def datasets(self, context: AuthContext) -> DatasetList:
-        await self.require(context, "evaluation:read")
+        policy = await self.authorization.read_policy(context)
+        require_action(policy.actions("evaluation", "scope"), "evaluation:read")
         async with self.engine.connect() as connection:
             rows = await repository("evaluation_datasets", context.scope).find(connection)
         items = [
-            await self.dataset(context, r["id"], versions=False)
+            self.dataset_view(r, [], frozenset())
             for r in rows
-            if await self.allowed(context, "evaluation:read", r["id"])
+            if "evaluation:read"
+            in policy.actions("evaluation", r["id"], resource_state(context, "evaluation", r))
         ]
         return DatasetList(
             items=items,
-            actions=await self.actions(
-                context, "new", [("create", "新建样本集", "evaluation:manage")]
+            actions=visible_actions(
+                policy.actions("evaluation", "new"), [("create", "新建样本集", "evaluation:manage")]
+            ),
+        )
+
+    @staticmethod
+    def dataset_view(
+        row: dict[str, Any], versions: list[DatasetVersionView], permissions: frozenset[str]
+    ) -> DatasetView:
+        return DatasetView(
+            dataset_id=row["id"],
+            **{
+                k: row[k]
+                for k in (
+                    "name",
+                    "scenario",
+                    "owner",
+                    "applicability",
+                    "revision",
+                    "current_version_id",
+                )
+            },
+            versions=versions,
+            actions=visible_actions(
+                permissions,
+                [
+                    ("version", "新建样本版本", "evaluation:manage"),
+                    ("import", "导入样本", "evaluation:manage"),
+                    ("review", "人工标注", "evaluation:review"),
+                ],
             ),
         )
 
     async def dataset(
         self, context: AuthContext, identifier: str, *, versions: bool = True
     ) -> DatasetView:
-        await self.require(context, "evaluation:read", identifier)
-        content = await self.allowed(context, "evaluation:content", identifier)
+        policy = await self.authorization.read_policy(context)
         async with transaction(self.engine, context.scope, keys(context)) as uow:
             row = await required(uow.connection, context.scope, "evaluation_datasets", identifier)
+            permissions = policy.actions(
+                "evaluation", identifier, resource_state(context, "evaluation", row)
+            )
+            require_action(permissions, "evaluation:read")
+            content = "evaluation:content" in permissions
             found = (
                 await repository("evaluation_dataset_versions", context.scope).find(
                     uow.connection, dataset_id=identifier
@@ -101,14 +135,18 @@ class DatasetService:
                 if versions
                 else []
             )
+            cases_by_id = await repository("evaluation_cases", context.scope).get_many(
+                uow.connection, [i for v in found for i in v["case_ids"]]
+            )
+            validity = await self.valid_cases(uow, context, list(cases_by_id.values()))
             views = []
             for version in sorted(found, key=lambda v: v["created_at"]):
                 cases = []
                 for case_id in version["case_ids"]:
-                    case = await required(
-                        uow.connection, context.scope, "evaluation_cases", case_id
-                    )
-                    valid = await self.valid_case(uow, context, case)
+                    case = cases_by_id.get(case_id)
+                    if case is None:
+                        raise ServiceError("NOT_FOUND", "评测样本不存在", 404)
+                    valid = validity[case_id]
                     cases.append(
                         EvaluationCaseView(
                             case_id=case_id,
@@ -130,30 +168,78 @@ class DatasetService:
                         cases=cases,
                     )
                 )
-        return DatasetView(
-            dataset_id=identifier,
-            **{
-                k: row[k]
-                for k in (
-                    "name",
-                    "scenario",
-                    "owner",
-                    "applicability",
-                    "revision",
-                    "current_version_id",
-                )
-            },
-            versions=views,
-            actions=await self.actions(
-                context,
-                identifier,
-                [
-                    ("version", "新建样本版本", "evaluation:manage"),
-                    ("import", "导入样本", "evaluation:manage"),
-                    ("review", "人工标注", "evaluation:review"),
-                ],
-            ),
+        return self.dataset_view(row, views, permissions)
+
+    @staticmethod
+    async def valid_cases(
+        uow: UnitOfWork, context: AuthContext, cases: list[dict[str, Any]]
+    ) -> dict[str, bool]:
+        from creativity_service.modules.runs.tables import metadata as runs
+
+        eligible = [c for c in cases if not c["invalidated"] and c["payload"] is not None]
+        identifiers = {
+            s["resource_id"]
+            for c in eligible
+            for s in c["payload"].get("source_refs", [])
+            if s["resource_type"] == "run"
+        }
+        table = runs.tables["runs"]
+        source_rows = (
+            [
+                dict(r)
+                for r in (
+                    await uow.connection.execute(
+                        select(table).where(
+                            table.c.channel_id == context.scope.channel_id,
+                            table.c.id.in_(identifiers),
+                        )
+                    )
+                ).mappings()
+            ]
+            if identifiers
+            else []
         )
+        sources = {r["id"]: r for r in source_rows}
+        if len(sources) != len(source_rows):
+            raise ServiceError("STORAGE_INVARIANT_BROKEN", "评测来源标识重复", 503)
+        if identifiers - sources.keys():
+            raise ServiceError("NOT_FOUND", "评测来源不存在", 404)
+        scopes = [Scope.model_validate({k: r[k] for k in Scope.model_fields}) for r in source_rows]
+        if any(
+            (s.environment, s.data_scope_id)
+            != (context.scope.environment, context.scope.data_scope_id)
+            for s in scopes
+        ):
+            raise ServiceError("SCOPE_MISMATCH", "样本来源不在当前数据域", 403)
+        refs = [ContentRef("evaluation_case", c["id"]) for c in eligible]
+        refs.extend(ContentRef("run", i) for i in identifiers)
+        blocked = await DeletionGuard(context.scope).blocked_refs(
+            uow, refs, scopes=[context.scope, *scopes]
+        )
+        policy = await locked_policy(uow, context) if identifiers else None
+        result = {c["id"]: False for c in cases}
+        for case in eligible:
+            source_ids = {
+                s["resource_id"]
+                for s in case["payload"].get("source_refs", [])
+                if s["resource_type"] == "run"
+            }
+            if ContentRef("evaluation_case", case["id"]) in blocked or any(
+                ContentRef("run", i) in blocked for i in source_ids
+            ):
+                continue
+            if policy:
+                for identifier in source_ids:
+                    scoped = context.model_copy(
+                        update={
+                            "scope": Scope.model_validate(
+                                {k: sources[identifier][k] for k in Scope.model_fields}
+                            )
+                        }
+                    )
+                    policy.require(scoped, "run:content", "run", identifier)
+            result[case["id"]] = True
+        return result
 
     @staticmethod
     async def valid_case(uow: UnitOfWork, context: AuthContext, case: dict[str, Any]) -> bool:
