@@ -24,7 +24,7 @@ from creativity_service.core.primitives import (
 )
 from creativity_service.core.versioning import version_view
 from creativity_service.integrations.models.contracts import ModelRequest
-from creativity_service.modules.agents.runtime import AgentRunResolver
+from creativity_service.modules.agents.runtime import AgentRunResolver, PreparedAgentResolver
 from creativity_service.modules.agents.schemas import AgentDefinition, FrozenExecutionSpec, Purpose
 from creativity_service.modules.agents.services import AgentService
 from creativity_service.modules.models.schemas import FrozenModel
@@ -35,6 +35,12 @@ from creativity_service.modules.runtime.storage import load_spec
 
 
 class RuntimeResolver(AgentRunResolver):
+    async def prepare(
+        self, context: AuthContext, request: RunInput
+    ) -> tuple[ResolvedDefinition, PreparedAgentResolver]:
+        definition, resolver = await super().prepare(context, request)
+        return with_estimate(definition, request.input), resolver
+
     async def resolve(self, context: AuthContext, request: RunInput) -> ResolvedDefinition:
         definition = await super().resolve(context, request)
         assert definition.frozen_spec is not None

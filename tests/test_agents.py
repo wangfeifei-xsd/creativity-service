@@ -288,16 +288,22 @@ async def test_caller_key_budget_is_enforced_without_changing_published_dependen
     class BudgetReader:
         snapshot = staticmethod(BudgetService.snapshot)
 
-        def require(self, uow, context):
+        def require(self, uow, context, *, read_only=False):
             pass
 
         async def policies(self, uow):
             return [channel_policy, key_policy]
 
-        async def estimate(self, uow, plan):
+        async def prices(self, uow, model_ids, at):
+            return {}
+
+        async def exposure_data(self, uow, policies, now):
+            return {}
+
+        async def estimate(self, uow, plan, *, prices=None):
             return {}, None, None
 
-        async def exposure(self, uow, policy, now):
+        async def exposure(self, uow, policy, now, data=None):
             return Decimal(0)
 
     service, uow = BudgetReader(), object()

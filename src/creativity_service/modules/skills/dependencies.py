@@ -1,7 +1,9 @@
 """按目标渠道的显式绑定解析依赖；可移植名称只标识契约，不授予权限。"""
 
 from collections.abc import Sequence
+from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.context import AuthContext
@@ -61,23 +63,48 @@ async def local_bindings(
 
 
 async def resolve_dependencies(
-    connection: AsyncConnection, context: AuthContext, settings: SkillSettings, tools: ToolService
+    connection: AsyncConnection,
+    context: AuthContext,
+    settings: SkillSettings,
+    tools: ToolService,
+    *,
+    loaded: dict[str, Any] | None = None,
 ) -> tuple[list[str], list[SkillDependency], list[SkillIssue]]:
     ids: list[str] = []
     views: list[SkillDependency] = []
     issues: list[SkillIssue] = []
     seen = set()
-    bindings = await local_bindings(connection, context, settings)
+    if loaded is None:
+        bindings = await local_bindings(connection, context, settings)
+    else:
+        bindings = dict(settings.tool_bindings)
+        if (
+            isinstance(settings, SkillDefinition)
+            and "tool_bindings" not in settings.model_fields_set
+        ):
+            for identifier in settings.required_tool_versions:
+                version = loaded["versions"].get(identifier)
+                tool = loaded["tools"].get(version["resource_id"]) if version else None
+                if tool:
+                    bindings[tool["tool_code"]] = identifier
     for name in bindings.keys() - {r.tool_code for r in settings.tool_requirements}:
         issues.append(
             SkillIssue(code="SKILL_DEPENDENCY_MISSING", message="绑定未声明的工具依赖", path=name)
         )
-    version_rows = await repository("resource_versions", context.scope).get_many(
-        connection, bindings.values()
+    version_rows = (
+        loaded["versions"]
+        if loaded is not None
+        else await repository("resource_versions", context.scope).get_many(
+            connection, bindings.values()
+        )
     )
-    tool_rows = await Repository(tool_metadata.tables["tools"], context.scope).get_many(
-        connection,
-        [v["resource_id"] for v in version_rows.values() if v["resource_type"] == "tool"],
+    tool_rows = (
+        loaded["tools"]
+        if loaded is not None
+        else await Repository(tool_metadata.tables["tools"], context.scope).get_many(
+            connection,
+            [v["resource_id"] for v in version_rows.values() if v["resource_type"] == "tool"],
+        )
     )
     for requirement in settings.tool_requirements:
         reason = None
@@ -139,10 +166,25 @@ async def resolve_dependencies(
                     code="SKILL_DEPENDENCY_MISSING", message=reason, path=requirement.tool_code
                 )
             )
-    agent_versions = await repository("resource_versions", context.scope).find_many(
-        connection, "resource_id", settings.allowed_agents, resource_type="agent"
-    )
-    known_agents = {v["resource_id"] for v in agent_versions}
+    if loaded is not None:
+        known_agents = loaded["agents"]
+    else:
+        table = repository("resource_versions", context.scope)
+        known_agents = (
+            set(
+                await connection.scalars(
+                    select(table.table.c.resource_id)
+                    .where(
+                        table.predicate(),
+                        table.table.c.resource_type == "agent",
+                        table.table.c.resource_id.in_(settings.allowed_agents),
+                    )
+                    .distinct()
+                )
+            )
+            if settings.allowed_agents
+            else set()
+        )
     for agent_id in settings.allowed_agents:
         if agent_id not in known_agents:
             issues.append(
@@ -153,12 +195,20 @@ async def resolve_dependencies(
         issues.append(SkillIssue(code="SKILL_VARIABLE_INVALID", message="输入变量名称不能重复"))
     capabilities = set(settings.required_model_capabilities)
     if capabilities:
-        models = await Repository(model_metadata.tables["models"], context.scope).find(
-            connection, status="ACTIVE"
+        models = (
+            loaded["models"]
+            if loaded is not None
+            else await Repository(model_metadata.tables["models"], context.scope).find(
+                connection, status="ACTIVE"
+            )
         )
-        connections = await Repository(
-            model_metadata.tables["model_connections"], context.scope
-        ).get_many(connection, [model["connection_id"] for model in models])
+        connections = (
+            loaded["connections"]
+            if loaded is not None
+            else await Repository(
+                model_metadata.tables["model_connections"], context.scope
+            ).get_many(connection, [model["connection_id"] for model in models])
+        )
         supported = False
         for model in models:
             link = connections.get(model["connection_id"])

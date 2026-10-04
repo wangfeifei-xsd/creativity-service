@@ -3,6 +3,7 @@
 from typing import Any
 
 from jsonschema import Draft202012Validator
+from sqlalchemy import select
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork
@@ -13,9 +14,9 @@ from creativity_service.core.versioning import version_view
 from creativity_service.modules.agents.access import locked_policy
 from creativity_service.modules.agents.repositories import (
     RESOURCE_TABLES,
+    TABLES,
     dependency_rows,
     repository,
-    required,
 )
 from creativity_service.modules.agents.schemas import AgentDefinition, Purpose
 from creativity_service.modules.agents.validation import compatible, schema_field
@@ -47,11 +48,18 @@ class DependencyResolver:
         agent_id: str,
         definition: AgentDefinition,
         purpose: Purpose,
+        *,
+        loaded: list[dict[str, Any]] | None = None,
+        resources: dict[str, dict[str, dict[str, Any]]] | None = None,
     ) -> tuple[list[dict[str, Any]], dict[str, Any], list[FrozenModel]]:
         bindings, scope = definition.bindings, context.scope
         if not bindings.prompt_version or not bindings.model_route_version:
             raise ServiceError("DEPENDENCY_INVALID", "请选择提示词版本和模型路由版本", 422)
-        rows = await dependency_rows(uow.connection, scope, bindings.ids())
+        rows = (
+            loaded
+            if loaded is not None
+            else await dependency_rows(uow.connection, scope, bindings.ids())
+        )
         indexed = {r["id"]: r for r in rows}
         types = {
             bindings.prompt_version: "prompt",
@@ -79,7 +87,16 @@ class DependencyResolver:
             for kind, table in RESOURCE_TABLES.items()
             if any(row["resource_type"] == kind for row in rows)
         }
+        if resources is not None:
+            resources.update(parents)
         policy = await locked_policy(uow, context)
+        mcp_tools = [
+            ToolDefinition.model_validate(row["content"])
+            for row in rows
+            if row["resource_type"] == "tool"
+            and parents.get("tool", {}).get(row["resource_id"], {}).get("source_type") == "mcp"
+        ]
+        mcp_data = await self.mcp_data(uow, context, mcp_tools)
         await DeletionGuard(scope).check(
             uow,
             [ContentRef("version", row["id"]) for row in rows]
@@ -137,7 +154,7 @@ class DependencyResolver:
                     policy.require(context, action, "tool", resource["id"])
                 self.tools.registry.validate(scope, tool, resource["source_type"], executable=True)
                 if resource["source_type"] == "mcp":
-                    await self.check_mcp(uow, context, tool)
+                    self.check_mcp(uow, context, tool, mcp_data)
                 for step in definition.steps:
                     if (
                         step.kind == "tool"
@@ -167,9 +184,6 @@ class DependencyResolver:
                     raise ServiceError("DEPENDENCY_INVALID", "技能未授权此智能体", 403)
                 if not set(skill.required_tool_versions) <= set(bindings.tool_versions):
                     raise ServiceError("DEPENDENCY_INVALID", "技能不能扩大智能体工具白名单", 422)
-                await SkillVersionValidator(self.skills).validate(
-                    uow, context, version_view(row), "release"
-                )
                 capabilities.update(skill.required_model_capabilities)
                 for variable in skill.input_variables:
                     source = schema_field(definition.input_schema, variable.name)
@@ -177,6 +191,13 @@ class DependencyResolver:
                         not source or source.get("type") != variable.value_type
                     ):
                         raise ServiceError("FLOW_INVALID", "技能必填变量缺少兼容的运行输入", 422)
+        await SkillVersionValidator(self.skills).validate_many(
+            uow,
+            context,
+            [version_view(row) for row in rows if row["resource_type"] == "skill"],
+            known_versions=indexed,
+            resources=parents,
+        )
         prompt = PromptContent.model_validate(indexed[bindings.prompt_version]["content"])
         for prompt_variable in prompt.variables:
             if prompt_variable.source == "input" and prompt_variable.required:
@@ -282,10 +303,60 @@ class DependencyResolver:
             }
         return rows, policies, snapshots
 
-    async def check_mcp(self, uow: UnitOfWork, context: AuthContext, tool: ToolDefinition) -> None:
-        connection = await required(
-            uow.connection, context.scope, "mcp_connections", tool.binding.connection_id or ""
+    @staticmethod
+    async def mcp_data(
+        uow: UnitOfWork, context: AuthContext, tools: list[ToolDefinition]
+    ) -> dict[str, dict[str, dict[str, Any]]]:
+        if not tools:
+            return {}
+        connections = await repository("mcp_connections", context.scope).get_many(
+            uow.connection,
+            [tool.binding.connection_id for tool in tools if tool.binding.connection_id],
         )
+        imports = await repository("mcp_imports", context.scope).get_many(
+            uow.connection, [tool.binding.adapter_key for tool in tools]
+        )
+        originals = await repository("mcp_discoveries", context.scope).get_many(
+            uow.connection, [row["discovery_id"] for row in imports.values()]
+        )
+        table = TABLES["mcp_discoveries"]
+        latest = {
+            row["connection_id"]: dict(row)
+            for row in (
+                await uow.connection.execute(
+                    select(table)
+                    .where(
+                        repository("mcp_discoveries", context.scope).predicate(),
+                        table.c.connection_id.in_(connections),
+                    )
+                    .distinct(table.c.connection_id)
+                    .order_by(table.c.connection_id, table.c.created_at.desc(), table.c.id.desc())
+                )
+            ).mappings()
+        }
+        credentials = await repository("credentials", context.scope).get_many(
+            uow.connection,
+            [row["credential_ref"] for row in connections.values() if row["credential_ref"]],
+        )
+        return {
+            "connections": connections,
+            "imports": imports,
+            "originals": originals,
+            "latest": latest,
+            "credentials": credentials,
+        }
+
+    @staticmethod
+    def check_mcp(
+        uow: UnitOfWork,
+        context: AuthContext,
+        tool: ToolDefinition,
+        data: dict[str, dict[str, dict[str, Any]]],
+    ) -> None:
+        connection = data["connections"].get(tool.binding.connection_id or "")
+        imported = data["imports"].get(tool.binding.adapter_key)
+        if connection is None or imported is None:
+            raise ServiceError("DEPENDENCY_INVALID", "当前渠道缺少所需 MCP 绑定", 422)
         if (
             connection["status"] != "ENABLED"
             or connection["auth_failed"]
@@ -293,32 +364,26 @@ class DependencyResolver:
             or connection["tested_revision"] != connection["configuration_revision"]
         ):
             raise ServiceError("DEPENDENCY_INVALID", "MCP 连接未通过当前配置验证或已停用", 422)
-        imported = await required(
-            uow.connection, context.scope, "mcp_imports", tool.binding.adapter_key
-        )
-        original = await required(
-            uow.connection, context.scope, "mcp_discoveries", imported["discovery_id"]
-        )
-        discoveries = await repository("mcp_discoveries", context.scope).find(
-            uow.connection, connection_id=connection["id"]
-        )
-        latest = (
-            max(discoveries, key=lambda row: (row["created_at"], row["id"]))
-            if discoveries
-            else None
-        )
+        original = data["originals"].get(imported["discovery_id"])
+        if original is None:
+            raise ServiceError("DEPENDENCY_INVALID", "当前渠道缺少所需 MCP 发现记录", 422)
+        latest = data["latest"].get(connection["id"])
         require_current_binding(tool.binding, connection, imported, original, latest)
         if connection["credential_ref"]:
+            try:
+                uow.require_read_lock(
+                    record_key(
+                        context.scope.channel_id, "credentials", connection["credential_ref"]
+                    )
+                )
+            except RuntimeError as exc:
+                raise ServiceError(
+                    "REVISION_CONFLICT", "MCP 凭据配置已变化，请重新检查", 409
+                ) from exc
+            credential = data["credentials"].get(connection["credential_ref"])
             if (
-                record_key(context.scope.channel_id, "credentials", connection["credential_ref"])
-                not in uow.keys
-            ):
-                raise ServiceError("REVISION_CONFLICT", "MCP 凭据配置已变化，请重新检查", 409)
-            credential = await required(
-                uow.connection, context.scope, "credentials", connection["credential_ref"]
-            )
-            if (
-                credential["state"] != "ACTIVE"
+                credential is None
+                or credential["state"] != "ACTIVE"
                 or credential["revision"] != connection["credential_revision"]
             ):
                 raise ServiceError(

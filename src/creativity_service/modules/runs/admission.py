@@ -7,6 +7,7 @@ from jsonschema import Draft202012Validator
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import transaction
+from creativity_service.core.database.reading import read_connection
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import (
@@ -20,10 +21,10 @@ from creativity_service.core.primitives import (
 from creativity_service.core.versioning import validate_schema
 from creativity_service.modules.runs.base import RunKernel
 from creativity_service.modules.runs.repositories import (
+    NewRunRecords,
     idempotency_key,
     one,
     rows,
-    save,
     verify_scope,
 )
 from creativity_service.modules.runs.schemas import TERMINAL, AdmissionReceipt
@@ -87,7 +88,9 @@ class AdmissionService(RunKernel):
             request_digest = digest(
                 [request_digest, [[s.resource_type, s.resource_id] for s in sources]]
             )
-        async with self.engine.connect() as connection:
+        resolver = self.resolver
+        prepare_definition = getattr(resolver, "prepare", None)
+        async with read_connection(self.engine) as connection:
             previous = await one(
                 connection,
                 "run_idempotency",
@@ -95,13 +98,17 @@ class AdmissionService(RunKernel):
                 scope_digest=scope_digest,
                 key=key,
             )
+            if not previous and prepare_definition:
+                # 正式解析只读取本地配置，与幂等预读共用连接；提交前仍开启新的受控事务。
+                definition, resolver = await prepare_definition(context, request)
         if previous:
             return await self.replay(
                 context, previous["run_id"], request_digest, previous["request_digest"]
             )
-        if self.resolver is None:
+        if resolver is None:
             raise unavailable("冻结执行定义解析器")
-        definition = await self.resolver.resolve(context, request)
+        if not prepare_definition:
+            definition = await resolver.resolve(context, request)
         validate_schema(definition.input_schema)
         validate_schema(definition.output_schema)
         if any(
@@ -131,11 +138,11 @@ class AdmissionService(RunKernel):
                 raise ServiceError("EXECUTION_POLICY_INVALID", "预算候选与执行定义不符", 422)
             plan = plan.model_copy(update={"run_id": run_id})
         keys = [
-            *self.keys(context, run_id, request.conversation_id),
+            *self.keys(context, run_id, request.conversation_id, budget=False),
             idempotency_key(context.scope, scope_digest, key),
             *self.versions.snapshot_keys(context.scope, run_id, list(definition.version_ids)),
         ]
-        resolver_keys = getattr(self.resolver, "keys", None)
+        resolver_keys = getattr(resolver, "keys", None)
         if resolver_keys:
             keys.extend(resolver_keys(context, definition))
         source_link = digest(["run", run_id, request.conversation_id])
@@ -165,11 +172,21 @@ class AdmissionService(RunKernel):
                 key=key,
             )
             if not duplicate and not existing_run:
-                validate_definition = getattr(self.resolver, "validate_in", None)
-                if validate_definition:
-                    await validate_definition(uow, context, definition)
+                pending = NewRunRecords(uow)
+                validate_definition = getattr(resolver, "validate_in", None)
+                validate_batch = getattr(resolver, "validate_batch_in", None)
+                if validate_definition or validate_batch:
+                    if validate_batch:
+                        validated = await validate_batch(uow, context, definition, pending.batch)
+                    else:
+                        assert validate_definition is not None
+                        validated = await validate_definition(uow, context, definition)
+                    if validated is not None:
+                        definition = validated
                 prepare = getattr(self.turns, "prepare", None)
                 if request.conversation_id and prepare:
+                    # 会话扩展可能查询候选，先把已校验的新快照写入当前事务。
+                    await pending.flush()
                     await prepare(uow, context, definition, request)
                 if not Draft202012Validator(definition.input_schema).is_valid(request.input):
                     raise ServiceError("INPUT_SCHEMA_INVALID", "输入不符合当前智能体要求", 422)
@@ -194,10 +211,10 @@ class AdmissionService(RunKernel):
                     frozen_versions=definition.frozen_spec.versions
                     if definition.frozen_spec
                     else None,
+                    pending=pending.batch,
                 )
                 if snapshot.versions[0].resource_id != definition.agent_id:
                     raise ServiceError("SNAPSHOT_INVALID", "入口版本与智能体不一致", 422)
-                await self.budgets.admit(uow, context, run_id, plan)
                 now = utcnow()
                 identity = context.model_copy(
                     update={
@@ -207,8 +224,7 @@ class AdmissionService(RunKernel):
                         "granted_actions": frozenset(),
                     }
                 )
-                row = await save(
-                    uow,
+                row = pending.add(
                     "runs",
                     run_id,
                     {
@@ -231,12 +247,11 @@ class AdmissionService(RunKernel):
                         "conversation_id": request.conversation_id,
                         "parent_run_id": parent_run_id,
                         "input_ref": new_id("content"),
-                        "event_sequence": 0,
+                        "event_sequence": 1,
                         "resources_released": False,
                         "recovery_count": 0,
                     },
                 )
-                await self.guard(uow, row)
                 await DeletionGuard(context.scope).link_many(
                     uow,
                     [
@@ -244,21 +259,24 @@ class AdmissionService(RunKernel):
                         for identifier, source in input_links
                     ],
                 )
-                await save(
-                    uow,
+                pending.add(
                     "run_contents",
                     row["input_ref"],
                     {"run_id": run_id, "kind": "input", "payload": request.input},
                 )
                 if definition.frozen_spec:
-                    await self.content(
-                        uow, row, "execution_spec", definition.frozen_spec.model_dump(mode="json")
+                    pending.add(
+                        "run_contents",
+                        new_id("content"),
+                        {
+                            "run_id": run_id,
+                            "kind": "execution_spec",
+                            "payload": definition.frozen_spec.model_dump(mode="json"),
+                        },
                     )
                 if request.conversation_id:
                     assert self.turns is not None
-                    await self.turns.admit(uow, context, row, request)
-                    await save(
-                        uow,
+                    pending.add(
                         "run_occupancies",
                         new_id("occupancy"),
                         {
@@ -273,8 +291,7 @@ class AdmissionService(RunKernel):
                         ContentRef("conversation", request.conversation_id),
                         ContentRef("run", run_id),
                     )
-                await save(
-                    uow,
+                pending.add(
                     "run_idempotency",
                     new_id("idempotency"),
                     {
@@ -289,8 +306,7 @@ class AdmissionService(RunKernel):
                         "expires_at": now + timedelta(hours=24),
                     },
                 )
-                await save(
-                    uow,
+                pending.add(
                     "dispatch_outbox",
                     new_id("dispatch"),
                     {
@@ -301,10 +317,37 @@ class AdmissionService(RunKernel):
                         "next_attempt_at": now,
                     },
                 )
-                admitted = getattr(self.resolver, "admitted_in", None)
+                payload_ref = new_id("content")
+                pending.add(
+                    "run_contents",
+                    payload_ref,
+                    {
+                        "run_id": run_id,
+                        "kind": "event",
+                        "payload": self.receipt(row).model_dump(mode="json"),
+                    },
+                )
+                pending.add(
+                    "run_events",
+                    new_id("event"),
+                    {
+                        "run_id": run_id,
+                        "sequence": 1,
+                        "event_type": "accepted",
+                        "payload_ref": payload_ref,
+                        "expires_at": now + timedelta(hours=24),
+                    },
+                )
+                await pending.flush()
+                await self.guard(uow, row)
+                if request.conversation_id:
+                    assert self.turns is not None
+                    await self.turns.admit(uow, context, row, request)
+                admitted = getattr(resolver, "admitted_in", None)
                 if admitted:
                     await admitted(uow, context, definition, row)
-                await self.event(uow, row, "accepted", self.receipt(row).model_dump(mode="json"))
+                # 先完成独立运行内容写入，再短暂占用配额锁；额度失败仍回滚整个受理事务。
+                await self.budgets.admit(uow, context, run_id, plan)
         if existing_run:
             return await self.replay(context, existing_run, "", "")
         if duplicate:

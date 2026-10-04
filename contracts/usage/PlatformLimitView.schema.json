@@ -1,0 +1,103 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "limit_code": {
+      "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+      "title": "Limit Code",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "unit": {
+      "enum": [
+        "requests",
+        "concurrency"
+      ],
+      "title": "Unit",
+      "type": "string"
+    },
+    "period": {
+      "default": "minute",
+      "enum": [
+        "minute",
+        "hour",
+        "day",
+        "month"
+      ],
+      "title": "Period",
+      "type": "string"
+    },
+    "timezone": {
+      "default": "Asia/Shanghai",
+      "title": "Timezone",
+      "type": "string"
+    },
+    "limit_value": {
+      "minimum": 1,
+      "title": "Limit Value",
+      "type": "integer"
+    },
+    "status": {
+      "default": "ACTIVE",
+      "enum": [
+        "ACTIVE",
+        "DISABLED"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "unit_label": {
+      "title": "Unit Label",
+      "type": "string"
+    },
+    "used": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Used"
+    },
+    "remaining": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Remaining"
+    },
+    "effective_at": {
+      "format": "date-time",
+      "title": "Effective At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "limit_code",
+    "name",
+    "unit",
+    "limit_value",
+    "revision",
+    "unit_label",
+    "used",
+    "remaining",
+    "effective_at"
+  ],
+  "title": "PlatformLimitView",
+  "type": "object"
+}

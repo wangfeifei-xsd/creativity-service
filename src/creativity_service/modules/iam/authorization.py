@@ -229,6 +229,14 @@ class IamAuthorization:
 
     async def read_policy(self, context: AuthContext) -> ReadAuthorization:
         """一次复核并返回可复用的数据；每次调用都读取当前状态，不做跨请求缓存。"""
+        read_scope = getattr(self.authentication.identities, "read_scope", None)
+        # 管理身份在 Redis 核对后只访问本地数据库；带远端主体复核的业务身份不持此连接。
+        if context.actor_id and read_scope:
+            async with read_scope():
+                return await self.load_policy(context)
+        return await self.load_policy(context)
+
+    async def load_policy(self, context: AuthContext) -> ReadAuthorization:
         identity = await self.authentication.revalidate(context)
         if identity.member is not None:
             grants = await self.authentication.identities.grants(context.scope.channel_id)

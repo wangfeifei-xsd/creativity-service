@@ -6,6 +6,7 @@ from pathlib import Path
 from sqlalchemy import Column, Index, MetaData, Table
 
 from creativity_service.core.database.tables import column_type
+from creativity_service.modules.usage.indexes_v0034 import INDEXES
 
 BASELINE = json.loads(Path(__file__).with_name("baseline_v0004.json").read_text(encoding="utf-8"))
 
@@ -31,3 +32,7 @@ def build_metadata() -> MetaData:
 
 
 metadata = build_metadata()
+
+# 历史建表函数保持冻结，当前模型额外登记后续迁移引入的普通索引。
+for name, table_name, columns in INDEXES:
+    Index(name, *(metadata.tables[table_name].c[column] for column in columns))

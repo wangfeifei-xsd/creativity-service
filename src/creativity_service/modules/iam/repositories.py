@@ -1,5 +1,6 @@
 """IAM 受控存储，所有写入使用公共事务锁并显式填充字段。"""
 
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from sqlalchemy import Table, and_, insert, or_, select, update
@@ -8,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from creativity_service.core.auth.types import AccountState, GrantState, MembershipState, Revocation
 from creativity_service.core.context import ControlScope, Scope
 from creativity_service.core.database import UnitOfWork, validate_row
+from creativity_service.core.database.queries import scoped_select
+from creativity_service.core.database.reading import read_connection
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import Contract, ServiceError, utcnow
@@ -32,12 +35,8 @@ async def rows(
     if not channel_id:
         raise ValueError("必须指定渠道")
     table = TABLES[name]
-    result = await connection.execute(
-        select(table).where(
-            table.c.channel_id == channel_id,
-            *(table.c[k] == v for k, v in filters.items()),
-        )
-    )
+    statement, parameters = scoped_select(table, {"channel_id": channel_id}, filters)
+    result = await connection.execute(statement, parameters)
     return [dict(row) for row in result.mappings()]
 
 
@@ -167,8 +166,11 @@ class IdentityRepository:
     def __init__(self, engine: AsyncEngine) -> None:
         self.engine = engine
 
+    def read_scope(self) -> AbstractAsyncContextManager[AsyncConnection]:
+        return read_connection(self.engine)
+
     async def account(self, user_id: str) -> AccountState | None:
-        async with self.engine.connect() as connection:
+        async with read_connection(self.engine) as connection:
             row = await one(connection, "platform_accounts", "system", id=user_id)
         return to_state(AccountState, row) if row else None
 
@@ -197,17 +199,17 @@ class IdentityRepository:
             return await one(connection, "platform_accounts", "system", login_name=login_name)
 
     async def membership(self, channel_id: str, user_id: str) -> MembershipState | None:
-        async with self.engine.connect() as connection:
+        async with read_connection(self.engine) as connection:
             row = await one(connection, "channel_memberships", channel_id, user_id=user_id)
             return await membership_state(connection, row) if row else None
 
     async def grants(self, channel_id: str) -> list[GrantState]:
-        async with self.engine.connect() as connection:
+        async with read_connection(self.engine) as connection:
             result = await rows(connection, "resource_grants", channel_id)
         return [to_state(GrantState, row) for row in result]
 
     async def token_revoked(self, channel_id: str, token_digest: str) -> bool:
-        async with self.engine.connect() as connection:
+        async with read_connection(self.engine) as connection:
             return bool(
                 await rows(
                     connection, "iam_revocations", channel_id, kind="token", target_id=token_digest

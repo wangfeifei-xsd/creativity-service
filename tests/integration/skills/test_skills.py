@@ -63,6 +63,38 @@ async def test_version_summaries_do_not_download_historical_packages(skills_env)
     assert len(env.store.reads) == 1
 
 
+async def test_runtime_skill_validation_reads_one_batch_for_multiple_skills(skills_env):
+    from creativity_service.core.database import transaction
+    from creativity_service.core.locking import read_key
+    from creativity_service.core.versioning import version_view
+    from creativity_service.modules.skills.services import SkillVersionValidator
+    from tests.integration.agents.test_read_queries import statements
+
+    env = skills_env
+    versions = []
+    for index in range(5):
+        detail = await env.skills.create(env.context, body(f"batch_skill_{index}"))
+        async with env.engine.connect() as connection:
+            stored = await repository("resource_versions", env.context.scope).get(
+                connection, detail.versions[0].version_id
+            )
+        versions.append(version_view(stored))
+    counts = []
+    for size in (1, 5):
+        keys = [
+            read_key(key)
+            for version in versions[:size]
+            for key in env.skills.versions.keys(env.context.scope, version.version_id, "read")
+        ]
+        with statements(env.engine) as queries:
+            async with transaction(env.engine, env.context.scope, keys) as uow:
+                await SkillVersionValidator(env.skills).validate_many(
+                    uow, env.context, versions[:size]
+                )
+        counts.append(len(queries))
+    assert counts[0] == counts[1]
+
+
 async def test_create_freeze_fork_load_and_release_preserve_history(skills_env):
     env = skills_env
     detail = await env.skills.create(env.context, body())

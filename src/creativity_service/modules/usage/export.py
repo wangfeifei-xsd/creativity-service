@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from creativity_service.modules.budgets.schemas import BudgetCreate, BudgetView
+from creativity_service.modules.budgets.schemas import BudgetCreate, BudgetView, PlatformLimitView
 from creativity_service.modules.usage.schemas import (
     AttemptPlan,
     ReservationReceipt,
@@ -27,6 +27,7 @@ def main() -> None:
         UsageSummary,
         BudgetCreate,
         BudgetView,
+        PlatformLimitView,
     ):
         path = root / f"{model.__name__}.schema.json"
         content = (

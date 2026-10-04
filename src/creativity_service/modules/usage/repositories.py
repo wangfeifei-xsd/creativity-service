@@ -6,6 +6,7 @@ from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.database import UnitOfWork, validate_row
+from creativity_service.core.database.queries import scoped_select
 from creativity_service.core.locking import ResourceKey
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.modules.usage.tables import metadata
@@ -15,6 +16,10 @@ SYSTEM_TABLES = {"platform_limits", "platform_quota_occupancies"}
 
 def ledger_key(channel_id: str) -> ResourceKey:
     return ResourceKey(channel_id, "usage-ledger", ("ledger-and-budgets",))
+
+
+def budget_configuration_key(channel_id: str) -> ResourceKey:
+    return ResourceKey(channel_id, "usage-configuration", ("policies-and-prices",))
 
 
 def platform_key() -> ResourceKey:
@@ -28,11 +33,8 @@ async def rows(
         if not (name == "usage_exports" and channel_id == "system"):
             raise ServiceError("SCOPE_MISMATCH", "用量数据范围不正确", 403)
     table = metadata.tables[name]
-    result = await connection.execute(
-        select(table).where(
-            table.c.channel_id == channel_id, *(table.c[k] == v for k, v in filters.items())
-        )
-    )
+    statement, parameters = scoped_select(table, {"channel_id": channel_id}, filters)
+    result = await connection.execute(statement, parameters)
     return [dict(row) for row in result.mappings()]
 
 
@@ -66,6 +68,8 @@ async def save(
     if system and name not in SYSTEM_TABLES:
         raise ServiceError("CONTROL_SCOPE_INVALID", "不允许改写控制面归属", 403)
     uow.require_lock(platform_key() if name in SYSTEM_TABLES else ledger_key(channel_id))
+    if name in {"budget_policies", "price_versions"}:
+        uow.require_lock(budget_configuration_key(channel_id))
     if {"id", "channel_id", "created_at", "updated_at", "revision"} & values.keys():
         raise ServiceError("CONTEXT_OVERRIDE", "不能覆盖用量归属或修订", 422)
     table = metadata.tables[name]
@@ -81,6 +85,11 @@ async def save(
         "revision": current["revision"] + 1 if current else 1,
     }
     validate_row(table, row)
+    # 同一事务的占用、策略发生写入后，后续校验必须看到本次写入。
+    prefix = "usage-read:" + name
+    for key in list(uow.read_cache):
+        if key == prefix or key.startswith(prefix + ":"):
+            del uow.read_cache[key]
     if current:
         await uow.connection.execute(
             update(table)
@@ -90,3 +99,40 @@ async def save(
     else:
         await uow.connection.execute(insert(table).values(**row))
     return row
+
+
+async def add_platform_occupancies(uow: UnitOfWork, records: dict[str, dict[str, Any]]) -> None:
+    """平台锁内批量查重和登记占用；限额数量不会增加逐条网络往返。"""
+    uow.require_lock(platform_key())
+    if not records:
+        return
+    table = metadata.tables["platform_quota_occupancies"]
+    now = utcnow()
+    prepared = []
+    for identifier, values in records.items():
+        if {"id", "channel_id", "created_at", "updated_at", "revision"} & values.keys():
+            raise ServiceError("CONTEXT_OVERRIDE", "不能覆盖平台配额归属", 422)
+        if values.get("target_channel_id") != uow.scope.channel_id:
+            raise ServiceError("SCOPE_MISMATCH", "占用必须属于当前业务渠道", 403)
+        row = {
+            **values,
+            "id": identifier,
+            "channel_id": "system",
+            "created_at": now,
+            "updated_at": now,
+            "revision": 1,
+        }
+        validate_row(table, row)
+        prepared.append(row)
+    for start in range(0, len(prepared), 100):
+        batch = prepared[start : start + 100]
+        if (
+            await uow.connection.scalar(
+                select(table.c.id)
+                .where(table.c.channel_id == "system", table.c.id.in_([row["id"] for row in batch]))
+                .limit(1)
+            )
+            is not None
+        ):
+            raise ServiceError("DUPLICATE_ID", "平台占用记录标识已存在", 409)
+        await uow.connection.execute(insert(table), batch)

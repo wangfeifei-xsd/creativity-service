@@ -21,7 +21,7 @@ from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.core.versioning import VersionService
-from creativity_service.modules.agents.access import locked_require
+from creativity_service.modules.agents.access import locked_policy, locked_require
 from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.iam.reading import require_action, resource_state, visible_actions
 from creativity_service.modules.iam.repositories import policy_key
@@ -112,65 +112,155 @@ class SkillVersionValidator:
         version: ResourceVersion,
         operation: Literal["freeze", "release"],
     ) -> None:
-        row = await repository("skills", context.scope).get(uow.connection, version.resource_id)
-        if version.resource_type != "skill" or not row or row["status"] != "ACTIVE":
-            raise ServiceError("SKILL_UNAVAILABLE", "技能不存在或已停用", 409)
-        definition = SkillDefinition.model_validate(version.content)
+        await self.validate_many(uow, context, [version])
+
+    async def validate_many(
+        self,
+        uow: UnitOfWork,
+        context: AuthContext,
+        versions: list[ResourceVersion],
+        *,
+        known_versions: dict[str, dict[str, Any]] | None = None,
+        resources: dict[str, dict[str, dict[str, Any]]] | None = None,
+    ) -> None:
+        """依赖闭包中的技能共用一批当前包、清单、工具与授权数据。"""
+        if not versions:
+            return
+        from creativity_service.modules.models.tables import metadata as models_metadata
+
+        scope = context.scope
+        definitions = [SkillDefinition.model_validate(v.content) for v in versions]
+        skills = (
+            resources["skill"]
+            if resources is not None
+            else await repository("skills", scope).get_many(
+                uow.connection, [v.resource_id for v in versions]
+            )
+        )
         artifacts = core_metadata.tables["artifacts"]
-        stored = (
-            (
+        stored = [
+            dict(row)
+            for row in (
                 await uow.connection.execute(
                     select(artifacts).where(
-                        artifacts.c.channel_id == context.scope.channel_id,
-                        artifacts.c.id == definition.artifact_id,
+                        artifacts.c.channel_id == scope.channel_id,
+                        artifacts.c.id.in_([d.artifact_id for d in definitions]),
                     )
                 )
+            ).mappings()
+        ]
+        indexed_artifacts = {row["id"]: row for row in stored}
+        if len(indexed_artifacts) != len(stored):
+            raise ServiceError("STORAGE_INVARIANT_BROKEN", "技能包标识重复", 503)
+        files = await repository("skill_files", scope).find_many(
+            uow.connection, "version_id", [v.version_id for v in versions]
+        )
+        file_index: dict[str, dict[str, dict[str, Any]]] = {}
+        for file in files:
+            entries = file_index.setdefault(file["version_id"], {})
+            if file["relative_path"] in entries:
+                raise ServiceError("SKILL_PACKAGE_CORRUPT", "技能文件路径重复", 503)
+            entries[file["relative_path"]] = file
+        tool_ids = {
+            identifier
+            for d in definitions
+            for identifier in [*d.required_tool_versions, *d.tool_bindings.values()]
+        }
+        tool_versions = (
+            known_versions
+            if known_versions is not None
+            else await repository("resource_versions", scope).get_many(uow.connection, tool_ids)
+        )
+        tool_rows = (
+            resources.get("tool", {})
+            if resources is not None
+            else await Repository(tool_metadata.tables["tools"], scope).get_many(
+                uow.connection,
+                [v["resource_id"] for v in tool_versions.values() if v["resource_type"] == "tool"],
             )
-            .mappings()
-            .all()
         )
-        if (
-            len(stored) != 1
-            or stored[0]["state"] != "AVAILABLE"
-            or stored[0]["expires_at"] <= utcnow()
-        ):
-            raise ServiceError("SKILL_PACKAGE_CORRUPT", "技能包文件不存在或已失效", 409)
-        markers = core_metadata.tables["deletion_markers"]
-        deleted = await uow.connection.scalar(
-            select(markers.c.id)
-            .where(
-                markers.c.channel_id == context.scope.channel_id,
-                markers.c.target_type == "artifact",
-                markers.c.target_id == definition.artifact_id,
+        agent_ids = {identifier for d in definitions for identifier in d.allowed_agents}
+        version_repo = repository("resource_versions", scope)
+        known_agents = (
+            set(
+                await uow.connection.scalars(
+                    select(version_repo.table.c.resource_id)
+                    .where(
+                        version_repo.predicate(),
+                        version_repo.table.c.resource_type == "agent",
+                        version_repo.table.c.resource_id.in_(agent_ids),
+                    )
+                    .distinct()
+                )
             )
-            .limit(1)
+            if agent_ids
+            else set()
         )
-        if deleted:
-            raise ServiceError("CONTENT_DELETED", "技能包文件已删除", 410)
-        ids, _, issues = await resolve_dependencies(
-            uow.connection, context, definition, self.service.tools
+        needs_models = any(d.required_model_capabilities for d in definitions)
+        models = (
+            await Repository(models_metadata.tables["models"], scope).find(
+                uow.connection, status="ACTIVE"
+            )
+            if needs_models
+            else []
         )
-        if issues:
-            raise ServiceError(issues[0].code, "；".join(i.message for i in issues), 422)
-        if ids != sorted(definition.required_tool_versions) or ids != sorted(
-            version.dependency_version_ids
-        ):
-            raise ServiceError("SKILL_DEPENDENCY_MISSING", "工具绑定已变化，请重新保存草稿", 409)
-        await self.service.check_tool_permissions(uow, context, ids)
-        files = await repository("skill_files", context.scope).find(
-            uow.connection, version_id=version.version_id
+        connections = await Repository(models_metadata.tables["model_connections"], scope).get_many(
+            uow.connection, [m["connection_id"] for m in models]
         )
-        actual = {f["relative_path"]: f for f in files}
-        if set(actual) != {f.relative_path for f in definition.files} or any(
-            actual[f.relative_path]["sha256"] != f.sha256
-            or actual[f.relative_path]["size_bytes"] != f.size_bytes
-            or actual[f.relative_path]["artifact_id"] != definition.artifact_id
-            for f in definition.files
-        ):
-            raise ServiceError("SKILL_PACKAGE_CORRUPT", "技能包清单不一致", 503)
-        await DeletionGuard(context.scope).check(
-            uow, [ContentRef("skill", row["id"]), *[ContentRef("version", v) for v in ids]]
-        )
+        data = {
+            "versions": tool_versions,
+            "tools": tool_rows,
+            "agents": known_agents,
+            "models": models,
+            "connections": connections,
+        }
+        policy = await locked_policy(uow, context)
+        refs = []
+        for version, definition in zip(versions, definitions, strict=True):
+            row = skills.get(version.resource_id)
+            if version.resource_type != "skill" or not row or row["status"] != "ACTIVE":
+                raise ServiceError("SKILL_UNAVAILABLE", "技能不存在或已停用", 409)
+            artifact = indexed_artifacts.get(definition.artifact_id)
+            if (
+                not artifact
+                or artifact["state"] != "AVAILABLE"
+                or artifact["expires_at"] <= utcnow()
+            ):
+                raise ServiceError("SKILL_PACKAGE_CORRUPT", "技能包文件不存在或已失效", 409)
+            ids, _, issues = await resolve_dependencies(
+                uow.connection, context, definition, self.service.tools, loaded=data
+            )
+            if issues:
+                raise ServiceError(issues[0].code, "；".join(i.message for i in issues), 422)
+            if ids != sorted(definition.required_tool_versions) or ids != sorted(
+                version.dependency_version_ids
+            ):
+                raise ServiceError(
+                    "SKILL_DEPENDENCY_MISSING", "工具绑定已变化，请重新保存草稿", 409
+                )
+            for identifier in ids:
+                tool_version = tool_versions.get(identifier)
+                if not tool_version or tool_version["resource_type"] != "tool":
+                    raise ServiceError("SKILL_DEPENDENCY_MISSING", "工具版本不存在", 422)
+                tool = ToolDefinition.model_validate(tool_version["content"])
+                for action in {"run:create", *tool.required_scopes}:
+                    policy.require(context, action, "tool", tool_version["resource_id"])
+            actual = file_index.get(version.version_id, {})
+            if set(actual) != {f.relative_path for f in definition.files} or any(
+                actual[f.relative_path]["sha256"] != f.sha256
+                or actual[f.relative_path]["size_bytes"] != f.size_bytes
+                or actual[f.relative_path]["artifact_id"] != definition.artifact_id
+                for f in definition.files
+            ):
+                raise ServiceError("SKILL_PACKAGE_CORRUPT", "技能包清单不一致", 503)
+            refs.extend(
+                [
+                    ContentRef("artifact", definition.artifact_id),
+                    ContentRef("skill", row["id"]),
+                    *[ContentRef("version", v) for v in ids],
+                ]
+            )
+        await DeletionGuard(scope).check(uow, refs)
 
 
 class SkillRuntimeRunner(Protocol):

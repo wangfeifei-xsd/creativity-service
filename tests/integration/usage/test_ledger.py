@@ -15,7 +15,12 @@ from creativity_service.modules.budgets.schemas import (
     BudgetUpdate,
     PlatformLimitCreate,
 )
-from creativity_service.modules.usage.repositories import ledger_key, rows, save
+from creativity_service.modules.usage.repositories import (
+    budget_configuration_key,
+    ledger_key,
+    rows,
+    save,
+)
 from creativity_service.modules.usage.schemas import AttemptPlan, UsageFilter
 from creativity_service.modules.usage.tables import metadata
 from tests.integration.channels.conftest import credential, provision
@@ -39,7 +44,11 @@ def plan(run=None, attempt=None, **values):
 
 
 async def price(env, currency="USD", rate="1", relations=None, model="model_demo"):
-    async with transaction(env.engine, env.scope, [ledger_key(env.scope.channel_id)]) as uow:
+    async with transaction(
+        env.engine,
+        env.scope,
+        [ledger_key(env.scope.channel_id), budget_configuration_key(env.scope.channel_id)],
+    ) as uow:
         return await save(
             uow,
             "price_versions",
@@ -588,7 +597,11 @@ async def test_admission_and_reservation_share_caller_transaction(usage_env):
 async def test_model_concurrency_checks_actual_fallback_model(usage_env):
     env = usage_env
     parent = await budget(env, unit="concurrency", limit="3")
-    async with transaction(env.engine, env.scope, [ledger_key(env.scope.channel_id)]) as uow:
+    async with transaction(
+        env.engine,
+        env.scope,
+        [ledger_key(env.scope.channel_id), budget_configuration_key(env.scope.channel_id)],
+    ) as uow:
         await save(
             uow,
             "budget_policies",
@@ -625,7 +638,11 @@ async def test_model_price_port_rejects_incomplete_price_dimensions(usage_env):
     candidate = SimpleNamespace(
         scope=env.scope, model_id="model_demo", parameters={"max_tokens": 100}
     )
-    async with transaction(env.engine, env.scope, [ledger_key(env.scope.channel_id)]) as uow:
+    async with transaction(
+        env.engine,
+        env.scope,
+        [ledger_key(env.scope.channel_id), budget_configuration_key(env.scope.channel_id)],
+    ) as uow:
         await env.usage.prices.require_priced(uow, env.context, [candidate])
         await save(
             uow,

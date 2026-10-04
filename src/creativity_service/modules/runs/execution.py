@@ -416,6 +416,7 @@ class ExecutionService(RunKernel):
                         raise ServiceError(
                             "ATTEMPT_TARGET_INVALID", "预算模型与冻结步骤不一致", 422
                         )
+                    await uow.acquire(self.budgets.reservation_keys(context, attempt_id))
                     usages = await usage_repo.rows(
                         uow.connection, "usage_records", lease.scope.channel_id, run_id=row["id"]
                     )
@@ -520,6 +521,7 @@ class ExecutionService(RunKernel):
                 if attempt["sent_at"] or attempt["state"] != "STARTED":
                     raise ServiceError("ATTEMPT_ALREADY_SENT", "此尝试已发送或结束", 409)
                 if attempt["usage_id"]:
+                    await uow.acquire(self.budgets.reservation_keys(context, attempt_id))
                     usage = await usage_repo.required(
                         uow.connection,
                         "usage_records",

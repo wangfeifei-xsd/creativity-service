@@ -1,0 +1,65 @@
+uv run ruff format --check .
+593 files already formatted
+uv run ruff check .
+All checks passed!
+uv run mypy
+Success: no issues found in 318 source files
+uv run pytest -m 'not integration'
+============================= test session starts ==============================
+platform darwin -- Python 3.12.7, pytest-9.1.1, pluggy-1.6.0
+rootdir: /Users/wanghongfei/work/work-space/一玄/70.agent/creativity-service
+configfile: pyproject.toml
+testpaths: tests
+plugins: platformdirs-4.12.2, asyncio-1.4.0, langsmith-0.14.2, anyio-4.15.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 649 items / 452 deselected / 197 selected
+
+tests/contract/test_acceptance.py ...                                    [  1%]
+tests/models/test_embeddings.py .......                                  [  5%]
+tests/models/test_protocols.py ................                          [ 13%]
+tests/test_agents.py ........................                            [ 25%]
+tests/test_automation_time.py .                                          [ 25%]
+tests/test_backend_client.py .......                                     [ 29%]
+tests/test_bootstrap.py ..........                                       [ 34%]
+tests/test_business_contracts.py ...........                             [ 40%]
+tests/test_compatibility.py .                                            [ 40%]
+tests/test_configuration.py ...                                          [ 42%]
+tests/test_core_contracts.py ......                                      [ 45%]
+tests/test_core_security.py .                                            [ 45%]
+tests/test_evaluations.py ........                                       [ 49%]
+tests/test_mcp_identity.py .                                             [ 50%]
+tests/test_mcp_transport.py .......                                      [ 53%]
+tests/test_prompts.py ..................                                 [ 62%]
+tests/test_sdk.py .............                                          [ 69%]
+tests/test_skills.py ......................                              [ 80%]
+tests/test_storage_audit.py ..                                           [ 81%]
+tests/test_tools.py ............................                         [ 95%]
+tests/test_tools_http.py ......                                          [ 98%]
+tests/test_usage_pricing.py ..                                           [100%]
+
+=============================== warnings summary ===============================
+tests/test_skills.py::test_links_and_duplicate_entries_rejected
+  /opt/homebrew/Cellar/python@3.12/3.12.7_1/Frameworks/Python.framework/Versions/3.12/lib/python3.12/zipfile/__init__.py:1607: UserWarning: Duplicate name: 'x'
+    return self._open_to_write(zinfo, force_zip64=force_zip64)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============== 197 passed, 452 deselected, 1 warning in 20.43s ================
+uv run creativity-openapi --check
+uv run creativity-openapi --backend --check
+uv run python -m creativity_service.core.contracts.export --check
+uv run python -m creativity_service.modules.integrations.export --check
+uv run python -m creativity_service.modules.channels.export --check
+uv run python -m creativity_service.modules.usage.export --check
+uv run python -m creativity_service.modules.agents.export --check
+uv run python -m creativity_service.modules.skills.export --check
+uv run python -m creativity_service.modules.tools.export --check
+uv run python -m creativity_service.modules.mcp.export --check
+uv run python -m creativity_service.modules.runs.export --check
+uv run python -m creativity_service.modules.memory.export --check
+uv run python -m creativity_service.modules.conversations.export --check
+uv run python -m creativity_service.modules.prompts.export --check
+uv run python -m creativity_service.modules.models.export --check
+uv run python -m creativity_service.modules.evaluations.export --check
+uv run python scripts/render_data_model.py --check
+uv run python -m creativity_service.core.database.audit
+存储审查通过

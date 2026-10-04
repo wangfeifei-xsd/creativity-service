@@ -415,7 +415,12 @@ async def test_session_budget_and_message_atomicity(env):
     await env.runs.cancel(env.context, accepted[0].run_id)
     assert turns.finished == 1
     async with transaction(
-        env.engine, env.context.scope, env.budgets.admission_keys(env.context, "unused")
+        env.engine,
+        env.context.scope,
+        [
+            *env.budgets.admission_keys(env.context, "unused"),
+            usage_repo.budget_configuration_key(env.context.scope.channel_id),
+        ],
     ) as uow:
         await usage_repo.save(
             uow,

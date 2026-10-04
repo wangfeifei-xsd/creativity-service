@@ -2,11 +2,13 @@
 
 from typing import Any
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import insert, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.context import Scope
 from creativity_service.core.database import UnitOfWork, scope_values, validate_row
+from creativity_service.core.database.inserts import InsertBatch
+from creativity_service.core.database.queries import scoped_select
 from creativity_service.core.locking import ResourceKey
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.modules.runs.tables import metadata
@@ -32,10 +34,8 @@ async def rows(
     if not channel_id or channel_id == "system":
         raise ServiceError("SCOPE_MISMATCH", "运行必须属于业务渠道", 403)
     table = metadata.tables[name]
-    statement = select(table).where(
-        table.c.channel_id == channel_id, *(table.c[k] == v for k, v in filters.items())
-    )
-    return [dict(r) for r in (await connection.execute(statement)).mappings()]
+    statement, parameters = scoped_select(table, {"channel_id": channel_id}, filters)
+    return [dict(r) for r in (await connection.execute(statement, parameters)).mappings()]
 
 
 async def one(
@@ -61,13 +61,17 @@ def verify_scope(row: dict[str, Any], scope: Scope) -> None:
         raise ServiceError("NOT_FOUND", "运行记录不存在", 404)
 
 
-async def save(
-    uow: UnitOfWork, name: str, record_id: str, values: dict[str, Any]
+def prepare_row(
+    uow: UnitOfWork,
+    name: str,
+    record_id: str,
+    values: dict[str, Any],
+    current: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """普通写入与受理批量写入共用范围、锁、字段和完整性校验。"""
     if not isinstance(uow.scope, Scope):
         raise ServiceError("SCOPE_MISMATCH", "运行不能使用控制面范围", 403)
     table, scope = metadata.tables[name], uow.scope
-    current = await one(uow.connection, name, scope.channel_id, id=record_id)
     if current:
         verify_scope(current, scope)
     run_id = record_id if name == "runs" else values.get("run_id", (current or {}).get("run_id"))
@@ -101,6 +105,15 @@ async def save(
     if name == "run_occupancies":
         uow.require_lock(conversation_key(scope, row["conversation_id"]))
     validate_row(table, row)
+    return row
+
+
+async def save(
+    uow: UnitOfWork, name: str, record_id: str, values: dict[str, Any]
+) -> dict[str, Any]:
+    table, scope = metadata.tables[name], uow.scope
+    current = await one(uow.connection, name, scope.channel_id, id=record_id)
+    row = prepare_row(uow, name, record_id, values, current)
     if current:
         await uow.connection.execute(
             update(table)
@@ -110,3 +123,19 @@ async def save(
     else:
         await uow.connection.execute(insert(table).values(**row))
     return row
+
+
+class NewRunRecords:
+    """同一受理的新记录批量查重并写入，避免每条执行一读一写。"""
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self.uow = uow
+        self.batch = InsertBatch(uow)
+
+    def add(self, name: str, identifier: str, values: dict[str, Any]) -> dict[str, Any]:
+        row = prepare_row(self.uow, name, identifier, values)
+        self.batch.stage(metadata.tables[name], row)
+        return row
+
+    async def flush(self) -> None:
+        await self.batch.flush()

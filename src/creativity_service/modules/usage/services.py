@@ -57,6 +57,7 @@ class UsageService:
             ) as work:
                 return await self.settle(event, outcome=outcome, uow=work)
         uow.require_scope(event.scope)
+        await uow.acquire([ledger_key(event.scope.channel_id)])
         uow.require_lock(ledger_key(event.scope.channel_id))
         normalize(event.normalized_tokens, event.subset_relations)
         payload = event.model_dump(mode="json")
@@ -311,6 +312,7 @@ class UsageService:
                     scope, attempt_id, outcome, confirmed_unsent=confirmed_unsent, uow=work
                 )
         uow.require_scope(scope)
+        await uow.acquire([ledger_key(scope.channel_id)])
         uow.require_lock(ledger_key(scope.channel_id))
         row = await required(
             uow.connection, "usage_records", scope.channel_id, attempt_id=attempt_id
@@ -343,6 +345,7 @@ class UsageService:
                     uow=work,
                 )
         uow.require_scope(scope)
+        await uow.acquire([ledger_key(scope.channel_id)])
         uow.require_lock(ledger_key(scope.channel_id))
         row = await required(
             uow.connection, "usage_records", scope.channel_id, attempt_id=attempt_id

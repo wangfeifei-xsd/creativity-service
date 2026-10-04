@@ -11,7 +11,16 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from sqlalchemy.sql.elements import ColumnElement
 
 from creativity_service.core.context import ControlScope, Scope
-from creativity_service.core.locking import ResourceKey, acquire_locks, record_key
+from creativity_service.core.database.inserts import InsertBatch
+from creativity_service.core.database.queries import scoped_select
+from creativity_service.core.locking import (
+    ResourceKey,
+    acquire_locks,
+    lock_order,
+    normalize_keys,
+    read_key,
+    record_key,
+)
 from creativity_service.core.primitives import ServiceError, canonical_json, utcnow
 
 transaction_active: ContextVar[bool] = ContextVar("transaction_active", default=False)
@@ -28,10 +37,45 @@ class UnitOfWork:
     ) -> None:
         self.connection, self.scope, self.keys = connection, scope, keys
         self.active = True
+        self.read_cache: dict[str, Any] = {}
 
     def require_lock(self, key: ResourceKey) -> None:
         if not self.active or key not in self.keys or not self.connection.in_transaction():
             raise RuntimeError("写入前须在同一活动事务中取得约定互斥锁")
+
+    def require_read_lock(self, key: ResourceKey) -> None:
+        """排他锁也满足读取要求，共享锁不能满足写入要求。"""
+        exclusive = ResourceKey(key.channel_id, key.resource_type, key.business_key)
+        self.require_lock(exclusive if exclusive in self.keys else read_key(key))
+
+    async def acquire(self, keys: list[ResourceKey]) -> None:
+        """只能按统一顺序追加末尾的锁，不能升级已经持有的共享锁。"""
+        if not self.active or not self.connection.in_transaction():
+            raise RuntimeError("追加互斥锁必须位于活动事务内")
+        requested = normalize_keys(frozenset(keys))
+        if any(key.channel_id not in {self.scope.channel_id, "system"} for key in requested):
+            raise ServiceError("LOCK_SCOPE_MISMATCH", "锁渠道与上下文不符", 403)
+        held = {(key.channel_id, key.resource_type, key.business_key): key for key in self.keys}
+        pending = set()
+        for key in requested:
+            previous = held.get((key.channel_id, key.resource_type, key.business_key))
+            if previous is not None:
+                if previous.shared and not key.shared:
+                    raise RuntimeError("不能在事务中升级共享锁，请预先声明写入资源")
+            else:
+                if not key.shared and any(
+                    previous.shared and previous.lock_id == key.lock_id for previous in self.keys
+                ):
+                    raise RuntimeError("不能在事务中升级共享锁，请预先声明写入资源")
+                pending.add(key)
+        if (
+            pending
+            and self.keys
+            and min(map(lock_order, pending)) <= max(map(lock_order, self.keys))
+        ):
+            raise RuntimeError("追加锁必须遵守全局资源顺序")
+        await acquire_locks(self.connection, frozenset(pending))
+        self.keys |= frozenset(pending)
 
     def require_scope(self, scope: Scope | ControlScope) -> None:
         if not self.active or scope != self.scope:
@@ -75,10 +119,9 @@ async def transaction(
         async with engine.begin() as connection:
             if connection.dialect.name != "postgresql":
                 raise RuntimeError("事务互斥只支持 PostgreSQL")
-            if await connection.get_isolation_level() != "READ COMMITTED":
-                raise RuntimeError("事务互斥协议要求 READ COMMITTED 隔离级别")
-            await acquire_locks(connection, frozenset(keys))
-            uow = UnitOfWork(connection, scope, frozenset(keys))
+            locked = normalize_keys(frozenset(keys))
+            await acquire_locks(connection, locked)
+            uow = UnitOfWork(connection, scope, locked)
             yield uow
     finally:
         if uow is not None:
@@ -135,15 +178,10 @@ class Repository:
         )
 
     async def get(self, connection: AsyncConnection, record_id: str) -> dict[str, Any] | None:
-        rows = (
-            (
-                await connection.execute(
-                    select(self.table).where(self.predicate(), self.table.c.id == record_id)
-                )
-            )
-            .mappings()
-            .all()
+        statement, parameters = scoped_select(
+            self.table, scope_values(self.table, self.scope), {"id": record_id}
         )
+        rows = (await connection.execute(statement, parameters)).mappings().all()
         if len(rows) > 1:
             raise ServiceError("STORAGE_INVARIANT_BROKEN", "记录标识重复，请联系管理员", 503)
         return dict(rows[0]) if rows else None
@@ -151,10 +189,10 @@ class Repository:
     async def find(self, connection: AsyncConnection, **filters: Any) -> list[dict[str, Any]]:
         if set(filters) - set(self.table.c.keys()):
             raise ValueError("筛选字段不存在")
-        statement = select(self.table).where(
-            self.predicate(), *(self.table.c[key] == value for key, value in filters.items())
+        statement, parameters = scoped_select(
+            self.table, scope_values(self.table, self.scope), filters
         )
-        return [dict(row) for row in (await connection.execute(statement)).mappings()]
+        return [dict(row) for row in (await connection.execute(statement, parameters)).mappings()]
 
     async def find_many(
         self, connection: AsyncConnection, field: str, values: Iterable[Any], **filters: Any
@@ -165,12 +203,15 @@ class Repository:
         identifiers = list(dict.fromkeys(values))
         result: list[dict[str, Any]] = []
         for start in range(0, len(identifiers), 500):
-            statement = select(self.table).where(
-                self.predicate(),
-                self.table.c[field].in_(identifiers[start : start + 500]),
-                *(self.table.c[key] == value for key, value in filters.items()),
+            statement, parameters = scoped_select(
+                self.table,
+                scope_values(self.table, self.scope),
+                filters,
+                {field: identifiers[start : start + 500]},
             )
-            result.extend(dict(row) for row in (await connection.execute(statement)).mappings())
+            result.extend(
+                dict(row) for row in (await connection.execute(statement, parameters)).mappings()
+            )
         return result
 
     async def get_many(
@@ -186,7 +227,12 @@ class Repository:
         validate_row(self.table, values)
 
     async def add(
-        self, uow: UnitOfWork, record_id: str, values: Mapping[str, Any]
+        self,
+        uow: UnitOfWork,
+        record_id: str,
+        values: Mapping[str, Any],
+        *,
+        pending: InsertBatch | None = None,
     ) -> dict[str, Any]:
         uow.require_scope(self.scope)
         uow.require_lock(record_key(self.scope.channel_id, self.table.name, record_id))
@@ -203,13 +249,16 @@ class Repository:
         }
         if set(values) & protected:
             raise ServiceError("CONTEXT_OVERRIDE", "不能通过正文覆盖归属或服务元数据", 422)
-        existing = await uow.connection.scalar(
-            select(self.table.c.id)
-            .where(self.table.c.channel_id == self.scope.channel_id, self.table.c.id == record_id)
-            .limit(1)
-        )
-        if existing is not None:
-            raise ServiceError("DUPLICATE_ID", "记录标识已存在")
+        if pending is None:
+            existing = await uow.connection.scalar(
+                select(self.table.c.id)
+                .where(
+                    self.table.c.channel_id == self.scope.channel_id, self.table.c.id == record_id
+                )
+                .limit(1)
+            )
+            if existing is not None:
+                raise ServiceError("DUPLICATE_ID", "记录标识已存在")
         now = utcnow()
         row = {
             **values,
@@ -224,11 +273,20 @@ class Repository:
             if name in self.table.c and name not in row:
                 row[name] = None
         self._validate(row)
-        await uow.connection.execute(insert(self.table).values(**row))
+        if pending is None:
+            await uow.connection.execute(insert(self.table).values(**row))
+        else:
+            if pending.uow is not uow:
+                raise RuntimeError("批量新增不能跨工作单元")
+            pending.stage(self.table, row)
         return row
 
     async def add_many(
-        self, uow: UnitOfWork, records: Mapping[str, Mapping[str, Any]]
+        self,
+        uow: UnitOfWork,
+        records: Mapping[str, Mapping[str, Any]],
+        *,
+        pending: InsertBatch | None = None,
     ) -> dict[str, dict[str, Any]]:
         """在声明的全部记录锁内批量查重和插入；任一记录无效则整批不写入。"""
         uow.require_scope(self.scope)
@@ -262,6 +320,12 @@ class Repository:
                     row[name] = None
             self._validate(row)
             prepared[identifier] = row
+        if pending is not None:
+            if pending.uow is not uow:
+                raise RuntimeError("批量新增不能跨工作单元")
+            for row in prepared.values():
+                pending.stage(self.table, row)
+            return prepared
         identifiers = list(prepared)
         for start in range(0, len(identifiers), 500):
             existing = await uow.connection.scalar(
@@ -276,7 +340,7 @@ class Repository:
                 raise ServiceError("DUPLICATE_ID", "记录标识已存在")
         batch_rows = list(prepared.values())
         for start in range(0, len(batch_rows), 100):
-            await uow.connection.execute(insert(self.table).values(batch_rows[start : start + 100]))
+            await uow.connection.execute(insert(self.table), batch_rows[start : start + 100])
         return prepared
 
     async def change(

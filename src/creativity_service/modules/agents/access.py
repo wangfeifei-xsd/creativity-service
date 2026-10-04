@@ -1,10 +1,14 @@
 """外部身份复核与锁下本地授权分离，发布事务不访问 Redis 或网络。"""
 
 from dataclasses import dataclass
+from typing import Any
+
+from sqlalchemy import and_, select
 
 from creativity_service.core.auth.types import GrantState, MembershipState, ServiceIdentity
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork
+from creativity_service.core.locking import read_key
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.integrations.business.delegation import DelegationClaims
 from creativity_service.modules.agents.repositories import repository
@@ -12,11 +16,11 @@ from creativity_service.modules.channels.state import current_service
 from creativity_service.modules.iam.authorization import action_allowed, effective_actions
 from creativity_service.modules.iam.repositories import (
     membership_state,
-    one,
     policy_key,
     rows,
     to_state,
 )
+from creativity_service.modules.iam.tables import metadata as iam_metadata
 from creativity_service.modules.integrations.repositories import (
     configuration_key,
     environment_scope,
@@ -39,7 +43,7 @@ class LockedAuthorization:
     claims: DelegationClaims | None = None
 
     def require(self, context: AuthContext, action: str, kind: str, identifier: str) -> None:
-        self.uow.require_lock(policy_key(context.scope.channel_id))
+        self.uow.require_read_lock(policy_key(context.scope.channel_id))
         origin = self.context
         if (
             context.model_dump(exclude={"scope"}) != origin.model_dump(exclude={"scope"})
@@ -72,20 +76,38 @@ class LockedAuthorization:
 
 
 async def locked_policy(uow: UnitOfWork, context: AuthContext) -> LockedAuthorization:
+    """只读授权事务内复用已加载事实，身份和完整范围均参与缓存键。"""
+    reusable = all(
+        read_key(policy_key(channel)) in uow.keys
+        for channel in (context.scope.channel_id, "system")
+    )
+    cache_key = "agent-authorization:" + context.model_dump_json()
+    cached = uow.read_cache.get(cache_key) if reusable else None
+    if isinstance(cached, LockedAuthorization):
+        cached.uow.require_scope(context.scope)
+        return cached
+    policy = await read_locked_policy(uow, context)
+    if reusable:
+        uow.read_cache[cache_key] = policy
+    return policy
+
+
+async def read_locked_policy(uow: UnitOfWork, context: AuthContext) -> LockedAuthorization:
     scope = context.scope
-    uow.require_lock(policy_key(scope.channel_id))
-    uow.require_lock(policy_key("system"))
-    channel = await repository("channels", scope).get(uow.connection, scope.channel_id)
-    environments = await repository("channel_environments", scope).find(uow.connection)
+    uow.require_read_lock(policy_key(scope.channel_id))
+    uow.require_read_lock(policy_key("system"))
+    current = await identity_rows(uow, context)
+    channel, environment, domain = (
+        current.get(name) for name in ("channels", "channel_environments", "data_scopes")
+    )
     if (
         not channel
         or channel["status"] != "ACTIVE"
-        or len(environments) != 1
-        or environments[0]["status"] != "ACTIVE"
+        or not environment
+        or environment["status"] != "ACTIVE"
     ):
         raise ServiceError("FORBIDDEN", "渠道或目标环境不可用", 403)
     if scope.data_scope_id:
-        domain = await repository("data_scopes", scope).get(uow.connection, scope.data_scope_id)
         if not domain or domain["status"] != "ACTIVE":
             raise ServiceError("FORBIDDEN", "当前业务数据域不可用", 403)
     if context.token_digest and await rows(
@@ -97,10 +119,7 @@ async def locked_policy(uow: UnitOfWork, context: AuthContext) -> LockedAuthoriz
     ):
         raise ServiceError("UNAUTHENTICATED", "当前会话已撤销", 401)
     if context.actor_id:
-        account = await one(uow.connection, "platform_accounts", "system", id=context.actor_id)
-        member = await one(
-            uow.connection, "channel_memberships", scope.channel_id, user_id=context.actor_id
-        )
+        account, member = current.get("platform_accounts"), current.get("channel_memberships")
         if (
             not account
             or account["status"] != "ACTIVE"
@@ -119,7 +138,7 @@ async def locked_policy(uow: UnitOfWork, context: AuthContext) -> LockedAuthoriz
             grants=tuple(grants),
         )
     elif context.client_id and context.key_id:
-        uow.require_lock(configuration_key(scope))
+        uow.require_read_lock(configuration_key(scope))
         identity = await current_service(uow.connection, context)
         delegation = await integration_repository(
             environment_scope(scope), "delegation_nonces"
@@ -151,6 +170,69 @@ async def locked_policy(uow: UnitOfWork, context: AuthContext) -> LockedAuthoriz
         return LockedAuthorization(uow, context, identity=identity, claims=claims)
     else:
         raise ServiceError("FORBIDDEN", "此操作需要管理身份", 403)
+
+
+async def identity_rows(uow: UnitOfWork, context: AuthContext) -> dict[str, dict[str, Any]]:
+    """一次关联查询取得当前范围和管理身份；仍由 Python 判断状态、范围及授权。"""
+    scope = context.scope
+    channel = repository("channels", scope).table
+    environment = repository("channel_environments", scope).table
+    domain = repository("data_scopes", scope).table
+    tables = [channel, environment, domain]
+    joined = channel.outerjoin(
+        environment,
+        and_(
+            environment.c.channel_id == scope.channel_id,
+            environment.c.environment == scope.environment,
+        ),
+    ).outerjoin(
+        domain,
+        and_(
+            domain.c.channel_id == scope.channel_id,
+            domain.c.environment == scope.environment,
+            domain.c.id == scope.data_scope_id,
+        ),
+    )
+    if context.actor_id:
+        account, member = (
+            iam_metadata.tables["platform_accounts"],
+            iam_metadata.tables["channel_memberships"],
+        )
+        tables.extend([account, member])
+        joined = joined.outerjoin(
+            account,
+            and_(
+                account.c.channel_id == "system",
+                account.c.id == context.actor_id,
+            ),
+        ).outerjoin(
+            member,
+            and_(
+                member.c.channel_id == scope.channel_id,
+                member.c.user_id == context.actor_id,
+            ),
+        )
+    found = (
+        (
+            await uow.connection.execute(
+                select(*tables)
+                .select_from(joined)
+                .where(
+                    channel.c.channel_id == scope.channel_id,
+                    channel.c.id == scope.channel_id,
+                )
+            )
+        )
+        .mappings()
+        .all()
+    )
+    if len(found) > 1:
+        raise ServiceError("STORAGE_INVARIANT_BROKEN", "渠道或身份记录重复，请核查", 503)
+    return {
+        table.name: {column.name: found[0][column] for column in table.c}
+        for table in tables
+        if found and found[0][table.c.id] is not None
+    }
 
 
 async def locked_require(

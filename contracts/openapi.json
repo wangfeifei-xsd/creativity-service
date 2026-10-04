@@ -11588,6 +11588,109 @@
         "title": "PlatformLimitCreate",
         "type": "object"
       },
+      "PlatformLimitView": {
+        "additionalProperties": false,
+        "properties": {
+          "effective_at": {
+            "format": "date-time",
+            "title": "Effective At",
+            "type": "string"
+          },
+          "limit_code": {
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "title": "Limit Code",
+            "type": "string"
+          },
+          "limit_value": {
+            "minimum": 1.0,
+            "title": "Limit Value",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "period": {
+            "default": "minute",
+            "enum": [
+              "minute",
+              "hour",
+              "day",
+              "month"
+            ],
+            "title": "Period",
+            "type": "string"
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "default": "ACTIVE",
+            "enum": [
+              "ACTIVE",
+              "DISABLED"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "timezone": {
+            "default": "Asia/Shanghai",
+            "title": "Timezone",
+            "type": "string"
+          },
+          "unit": {
+            "enum": [
+              "requests",
+              "concurrency"
+            ],
+            "title": "Unit",
+            "type": "string"
+          },
+          "unit_label": {
+            "title": "Unit Label",
+            "type": "string"
+          },
+          "used": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Used"
+          }
+        },
+        "required": [
+          "limit_code",
+          "name",
+          "unit",
+          "limit_value",
+          "revision",
+          "unit_label",
+          "used",
+          "remaining",
+          "effective_at"
+        ],
+        "title": "PlatformLimitView",
+        "type": "object"
+      },
       "PolicyInput": {
         "additionalProperties": false,
         "properties": {
@@ -61778,8 +61881,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/PlatformLimitView"
                   },
                   "title": "Response Platform Limits Admin V1 Platform Budget Limits Get",
                   "type": "array"
@@ -62005,8 +62107,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/PlatformLimitView"
                   },
                   "title": "Response Set Platform Limit Admin V1 Platform Budget Limits Post",
                   "type": "array"

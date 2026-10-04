@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import DisplayStatus, VisibleAction
 from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.database.reading import read_connection
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import ServiceError, digest
@@ -100,27 +101,35 @@ class AgentKernel:
         ]
 
     async def dependency_keys(
-        self, context: AuthContext, definition: AgentDefinition
+        self,
+        context: AuthContext,
+        definition: AgentDefinition,
+        *,
+        loaded: list[dict[str, Any]] | None = None,
     ) -> list[ResourceKey]:
         """先枚举受锁资源，锁下再解析；依赖闭包变化会在发布处拒绝。"""
         keys = []
-        async with self.engine.connect() as connection:
-            rows = await dependency_rows(connection, context.scope, definition.bindings.ids())
-            for row in rows:
-                if row["resource_type"] == "tool":
-                    connection_id = row["content"].get("binding", {}).get("connection_id")
-                    if connection_id:
-                        mcp = await required(
-                            connection, context.scope, "mcp_connections", connection_id
-                        )
-                        if mcp["credential_ref"]:
-                            keys.append(
-                                record_key(
-                                    context.scope.channel_id,
-                                    "credentials",
-                                    mcp["credential_ref"],
-                                )
-                            )
+        rows = loaded
+        if rows is None:
+            async with read_connection(self.engine) as connection:
+                rows = await dependency_rows(connection, context.scope, definition.bindings.ids())
+        connection_ids = {
+            row["content"].get("binding", {}).get("connection_id")
+            for row in rows
+            if row["resource_type"] == "tool"
+        } - {None}
+        if connection_ids:
+            async with read_connection(self.engine) as connection:
+                connections = await repository("mcp_connections", context.scope).get_many(
+                    connection, connection_ids
+                )
+            if connection_ids - connections.keys():
+                raise ServiceError("DEPENDENCY_INVALID", "当前渠道缺少所需 MCP 连接", 422)
+            for mcp in connections.values():
+                if mcp["credential_ref"]:
+                    keys.append(
+                        record_key(context.scope.channel_id, "credentials", mcp["credential_ref"])
+                    )
         for row in rows:
             keys.append(record_key(context.scope.channel_id, "resource_versions", row["id"]))
             if row["resource_type"] in RESOURCE_TABLES:

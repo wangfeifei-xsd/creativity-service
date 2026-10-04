@@ -11,6 +11,7 @@ from creativity_service.modules.budgets.schemas import (
     BudgetUpdate,
     BudgetView,
     PlatformLimitCreate,
+    PlatformLimitView,
 )
 from creativity_service.modules.channels.api import Session
 from creativity_service.modules.usage.assembly import UsageServices
@@ -129,15 +130,15 @@ async def exchange_rate(
     return await service.management.exchange_rate(session, body)
 
 
-@router.get("/platform/budget-limits", response_model=list[dict[str, Any]])
-async def platform_limits(session: Session, service: Services) -> list[dict[str, Any]]:
+@router.get("/platform/budget-limits", response_model=list[PlatformLimitView])
+async def platform_limits(session: Session, service: Services) -> list[PlatformLimitView]:
     return await service.management.platform_limits(session)
 
 
-@router.post("/platform/budget-limits", response_model=list[dict[str, Any]], status_code=201)
+@router.post("/platform/budget-limits", response_model=list[PlatformLimitView], status_code=201)
 async def set_platform_limit(
     body: PlatformLimitCreate, session: Session, service: Services
-) -> list[dict[str, Any]]:
+) -> list[PlatformLimitView]:
     return await service.management.platform_limits(session, body)
 
 

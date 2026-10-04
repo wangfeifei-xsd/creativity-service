@@ -13,8 +13,14 @@ from creativity_service.core.auth.types import (
     WorkspaceOption,
 )
 from creativity_service.core.context import AuthContext, ChannelState, Scope
+from creativity_service.core.database.reading import read_connection
 from creativity_service.core.primitives import ServiceError, utcnow
-from creativity_service.modules.channels.repositories import ChannelRepository, one, required, rows
+from creativity_service.modules.channels.repositories import (
+    ChannelRepository,
+    one,
+    rows,
+    scope_rows,
+)
 from creativity_service.modules.channels.tables import metadata
 from creativity_service.modules.iam.authorization import effective_actions
 from creativity_service.modules.iam.repositories import TABLES as identity_tables
@@ -105,27 +111,15 @@ class ChannelStateService:
             or service.key_id != context.key_id
         ):
             raise ServiceError("SCOPE_MISMATCH", "接入身份与当前范围不符", 403)
-        async with self.repository.engine.connect() as connection:
-            channel = await required(connection, "channels", scope.channel_id, id=scope.channel_id)
-            environment = await required(
-                connection, "channel_environments", scope.channel_id, environment=scope.environment
-            )
+        async with read_connection(self.repository.engine) as connection:
+            current = await scope_rows(connection, scope)
+            channel, environment = current["channels"], current["channel_environments"]
+            domain = current.get("data_scopes")
             stored_member = (
                 await identity_one(
                     connection, "channel_memberships", scope.channel_id, user_id=context.actor_id
                 )
                 if context.actor_id and member is None
-                else None
-            )
-            domain = (
-                await required(
-                    connection,
-                    "data_scopes",
-                    scope.channel_id,
-                    id=scope.data_scope_id,
-                    environment=scope.environment,
-                )
-                if scope.data_scope_id
                 else None
             )
             identity = service or (

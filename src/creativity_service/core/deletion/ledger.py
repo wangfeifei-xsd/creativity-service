@@ -5,6 +5,7 @@ import fcntl
 import json
 import os
 from contextvars import ContextVar
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -22,9 +23,29 @@ class LedgerSettings(BaseSettings):
     deletion_ledger_path: Path = Path(".local/deletion-ledger")
 
 
+@lru_cache(maxsize=8)
+def _configured_root(env_file: Path, stamp: tuple[int, int, int] | None) -> Path:
+    """仅复用进程配置解析；文件变更、工作目录变化会得到新的配置，清单内容仍每次读取。"""
+    return LedgerSettings(_env_file=env_file).deletion_ledger_path
+
+
+def configured_root() -> Path:
+    environment = {key.lower(): value for key, value in os.environ.items()}
+    override = environment.get("creativity_deletion_ledger_path")
+    if override is not None:
+        return Path(override)
+    path = Path(".env").resolve()
+    try:
+        stat = path.stat()
+        stamp = (stat.st_mtime_ns, stat.st_size, stat.st_ino)
+    except FileNotFoundError:
+        stamp = None
+    return _configured_root(path, stamp)
+
+
 class DeletionLedger:
     def __init__(self, root: Path | None = None) -> None:
-        self.root = root or LedgerSettings().deletion_ledger_path
+        self.root = root or configured_root()
 
     def _operate(
         self,

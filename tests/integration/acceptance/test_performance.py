@@ -96,7 +96,7 @@ async def test_twenty_clients_management_and_admission(runtime_env):
             )
         context = tenant.manager.context
         tenants.append(tenant)
-        # 预算属于发布快照，须在固定候选之前配置，不能在发布后修改测试条件。
+        # 固定渠道和平台限额，所有预热及正式波次使用相同的准入条件。
         await env.usage.management.save_budget(
             tenant.manager,
             BudgetCreate(

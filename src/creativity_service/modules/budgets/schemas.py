@@ -1,5 +1,6 @@
 """预算策略与平台限额配置。"""
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -51,3 +52,11 @@ class PlatformLimitCreate(Contract):
     limit_value: int = Field(ge=1, strict=True)
     status: Literal["ACTIVE", "DISABLED"] = "ACTIVE"
     revision: Revision | None = None
+
+
+class PlatformLimitView(PlatformLimitCreate):
+    revision: Revision
+    unit_label: str
+    used: int | None
+    remaining: int | None
+    effective_at: datetime

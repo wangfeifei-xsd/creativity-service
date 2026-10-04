@@ -14,6 +14,7 @@ from creativity_service.core.database import (
     assert_external_io_allowed,
     transaction,
 )
+from creativity_service.core.database.inserts import InsertBatch
 from creativity_service.core.database.tables import metadata
 from creativity_service.core.deletion.ledger import (
     DeletionLedger,
@@ -21,7 +22,7 @@ from creativity_service.core.deletion.ledger import (
     maintenance_mode,
 )
 from creativity_service.core.deletion.resources import CONTENT_MODELS
-from creativity_service.core.locking import ResourceKey, record_key
+from creativity_service.core.locking import ResourceKey, read_key, record_key
 from creativity_service.core.primitives import ServiceError, digest, new_id, unavailable, utcnow
 
 
@@ -75,15 +76,18 @@ class DeletionGuard:
     ) -> frozenset[ContentRef]:
         """在同一图锁下按层批量读取来源，返回每个输入对象的删除结果。"""
         uow.require_scope(self.scope)
-        uow.require_lock(content_key(self.scope))
+        uow.require_read_lock(content_key(self.scope))
+        # 共享图锁阻止删除标记和恢复屏障变化，只在本事务内复用；来源边仍按当前状态读取。
+        reusable = read_key(content_key(self.scope)) in uow.keys
         targets = {
             barrier_id(scope): scope for scope in (scopes if scopes is not None else [self.scope])
         }
         if any(scope.channel_id != self.scope.channel_id for scope in targets.values()):
             raise ServiceError("SCOPE_MISMATCH", "删除检查不能跨渠道", 403)
         table = metadata.tables["recovery_barriers"]
-        barriers = {}
-        identifiers = list(targets)
+        barrier_cache = f"deletion-barriers:{self.scope.channel_id}"
+        barriers = uow.read_cache.setdefault(barrier_cache, {}) if reusable else {}
+        identifiers = [identifier for identifier in targets if identifier not in barriers]
         for start in range(0, len(identifiers), 500):
             records = await uow.connection.execute(
                 select(table).where(
@@ -105,15 +109,20 @@ class DeletionGuard:
         ):
             raise ServiceError("RECOVERY_BLOCKED", "内容恢复核对尚未完成", 503)
         table = metadata.tables["deletion_markers"]
-        markers = [
-            dict(row)
-            for row in (
-                await uow.connection.execute(
-                    select(table).where(table.c.channel_id == self.scope.channel_id)
-                )
-            ).mappings()
-        ]
-        markers.extend(manifest.get("entries", []))
+        marker_cache = f"deletion-markers:{self.scope.channel_id}"
+        markers = uow.read_cache.get(marker_cache) if reusable else None
+        if markers is None:
+            markers = [
+                dict(row)
+                for row in (
+                    await uow.connection.execute(
+                        select(table).where(table.c.channel_id == self.scope.channel_id)
+                    )
+                ).mappings()
+            ]
+            markers.extend(manifest.get("entries", []))
+            if reusable:
+                uow.read_cache[marker_cache] = markers
         deleted_scopes = {
             tuple((m.get("scope") or m).get(k) for k in Scope.model_fields)
             for m in markers
@@ -242,6 +251,8 @@ class DeletionGuard:
         self,
         uow: UnitOfWork,
         links: list[tuple[str, ContentRef, ContentRef, str | None]],
+        *,
+        pending: InsertBatch | None = None,
     ) -> None:
         """同一图锁内批量复核并登记来源，不把旧事务的删除结果传入新写入。"""
         if not links:
@@ -267,7 +278,7 @@ class DeletionGuard:
                 "derived_id": derived.resource_id,
                 "source_version": version,
             }
-        await self.sources.add_many(uow, records)
+        await self.sources.add_many(uow, records, pending=pending)
 
 
 class DeletionService:

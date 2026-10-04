@@ -6,7 +6,7 @@ from decimal import Decimal
 from functools import wraps
 from typing import Any
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -15,8 +15,17 @@ from creativity_service.core.contracts import Admission, BudgetReservation, Usag
 from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.locking import ResourceKey
 from creativity_service.core.primitives import Money, ServiceError, digest, new_id, utcnow
+from creativity_service.modules.budgets.platform import current_limits, occupancy_counts
 from creativity_service.modules.usage.pricing import calculate, normalize, timezone
-from creativity_service.modules.usage.repositories import ledger_key, one, platform_key, rows, save
+from creativity_service.modules.usage.repositories import (
+    add_platform_occupancies,
+    budget_configuration_key,
+    ledger_key,
+    one,
+    platform_key,
+    rows,
+    save,
+)
 from creativity_service.modules.usage.schemas import AttemptPlan, ReservationReceipt
 from creativity_service.modules.usage.tables import metadata
 
@@ -88,13 +97,44 @@ def record_cost(row: dict[str, Any], unit: str, *, exposure: bool) -> Decimal | 
 
 
 async def active_price(uow: UnitOfWork, model_id: str, at: datetime) -> dict[str, Any] | None:
-    prices = await rows(uow.connection, "price_versions", uow.scope.channel_id, model_id=model_id)
-    choices = [p for p in prices if p["effective_at"] <= at]
-    return (
-        max(choices, key=lambda p: (p["effective_at"], p["created_at"], p["id"]))
-        if choices
-        else None
+    return (await active_prices(uow, [model_id], at)).get(model_id)
+
+
+async def active_prices(
+    uow: UnitOfWork, model_ids: list[str], at: datetime
+) -> dict[str, dict[str, Any]]:
+    if not model_ids:
+        return {}
+    table = metadata.tables["price_versions"]
+    current = (
+        select(
+            table,
+            func.row_number()
+            .over(
+                partition_by=table.c.model_id,
+                order_by=(
+                    table.c.effective_at.desc(),
+                    table.c.created_at.desc(),
+                    table.c.id.desc(),
+                ),
+            )
+            .label("position"),
+        )
+        .where(
+            table.c.channel_id == uow.scope.channel_id,
+            table.c.model_id.in_(model_ids),
+            table.c.effective_at <= at,
+        )
+        .subquery()
     )
+    result = {}
+    for row in (
+        await uow.connection.execute(select(current).where(current.c.position == 1))
+    ).mappings():
+        price = dict(row)
+        price.pop("position")
+        result[price["model_id"]] = price
+    return result
 
 
 class BudgetService:
@@ -110,19 +150,46 @@ class BudgetService:
     def reservation_keys(self, context: AuthContext, attempt_id: str) -> list[ResourceKey]:
         return [ledger_key(context.scope.channel_id)]
 
-    def require(self, uow: UnitOfWork, context: AuthContext) -> None:
+    def require(self, uow: UnitOfWork, context: AuthContext, *, read_only: bool = False) -> None:
         uow.require_scope(context.scope)
-        uow.require_lock(ledger_key(context.scope.channel_id))
+        if read_only:
+            uow.require_read_lock(ledger_key(context.scope.channel_id))
+        else:
+            uow.require_lock(ledger_key(context.scope.channel_id))
         if not self.available:
             raise ServiceError("BUDGET_CONTROL_UNAVAILABLE", "预算控制暂不可用，请稍后重试", 503)
 
     async def policies(self, uow: UnitOfWork) -> list[dict[str, Any]]:
-        return await rows(uow.connection, "budget_policies", uow.scope.channel_id, status="ACTIVE")
+        from creativity_service.core.locking import read_key
+
+        key = budget_configuration_key(uow.scope.channel_id)
+        uow.require_read_lock(
+            key
+            if key in uow.keys or read_key(key) in uow.keys
+            else ledger_key(uow.scope.channel_id)
+        )
+        cache_key = "usage-read:budget_policies"
+        if cache_key not in uow.read_cache:
+            uow.read_cache[cache_key] = await rows(
+                uow.connection, "budget_policies", uow.scope.channel_id, status="ACTIVE"
+            )
+        return list(uow.read_cache[cache_key])
+
+    def require_configuration(self, uow: UnitOfWork, context: AuthContext) -> None:
+        uow.require_scope(context.scope)
+        uow.require_read_lock(budget_configuration_key(context.scope.channel_id))
+        if not self.available:
+            raise ServiceError("BUDGET_CONTROL_UNAVAILABLE", "预算控制暂不可用，请稍后重试", 503)
+
+    async def prices(
+        self, uow: UnitOfWork, model_ids: list[str], at: datetime
+    ) -> dict[str, dict[str, Any]]:
+        return await active_prices(uow, model_ids, at)
 
     async def exposure_data(
         self, uow: UnitOfWork, policies: list[dict[str, Any]], now: datetime
     ) -> dict[str, list[dict[str, Any]]]:
-        uow.require_lock(ledger_key(uow.scope.channel_id))
+        uow.require_read_lock(ledger_key(uow.scope.channel_id))
         result: dict[str, list[dict[str, Any]]] = {"admissions": [], "usage_records": []}
         for name in result:
             selected = [
@@ -148,6 +215,20 @@ class BudgetService:
                     if name == "admissions"
                     else table.c.state.in_(["HELD", "PENDING"])
                 )
+            cache_key = (
+                "usage-read:"
+                + name
+                + ":"
+                + digest(
+                    [
+                        min(periods).isoformat() if periods else None,
+                        any(p["unit"] == "concurrency" for p in selected),
+                    ]
+                )
+            )
+            if cache_key in uow.read_cache:
+                result[name] = list(uow.read_cache[cache_key])
+                continue
             result[name] = [
                 dict(r)
                 for r in (
@@ -158,6 +239,7 @@ class BudgetService:
                     )
                 ).mappings()
             ]
+            uow.read_cache[cache_key] = result[name]
         return result
 
     async def exposure(
@@ -221,7 +303,11 @@ class BudgetService:
         }
 
     async def estimate(
-        self, uow: UnitOfWork, plan: AttemptPlan
+        self,
+        uow: UnitOfWork,
+        plan: AttemptPlan,
+        *,
+        prices: dict[str, dict[str, Any]] | None = None,
     ) -> tuple[dict[str, int], dict[str, Any] | None, Decimal | None]:
         if set(plan.additional_upper_tokens) & {"input", "output"}:
             raise ServiceError("USAGE_INVALID", "扩展维度不能覆盖输入输出上限", 422)
@@ -233,7 +319,11 @@ class BudgetService:
         for child in plan.subset_relations:
             tokens.setdefault(child, 0)
         normalize(tokens, plan.subset_relations)
-        price = await active_price(uow, plan.model_id, utcnow())
+        price = (
+            prices.get(plan.model_id)
+            if prices is not None
+            else await active_price(uow, plan.model_id, utcnow())
+        )
         amount, _, _ = calculate(price, tokens, plan.subset_relations, "ESTIMATED", upper=True)
         return tokens, price, amount
 
@@ -241,8 +331,8 @@ class BudgetService:
     async def admit(
         self, uow: UnitOfWork, context: AuthContext, run_id: str, plan: AttemptPlan | None = None
     ) -> Admission:
+        await uow.acquire(self.reservation_keys(context, run_id))
         self.require(uow, context)
-        uow.require_lock(platform_key())
         if plan and plan.run_id != run_id:
             raise ServiceError("SCOPE_MISMATCH", "候选调用与受理运行不一致", 422)
         existing = await one(uow.connection, "admissions", context.scope.channel_id, run_id=run_id)
@@ -251,8 +341,22 @@ class BudgetService:
             self.verify_source(existing, context, plan)
             return self.admission_view(existing, context.scope)
         snapshot, now = self.snapshot(context, plan), utcnow()
-        tokens, price, upper = await self.estimate(uow, plan) if plan else ({}, None, None)
+        demands = uow.read_cache.get("admission-budget-demands", [])
+        if demands:
+            exposure = await self.exposure_data(uow, [policy for policy, _ in demands], now)
+            for policy, increment in demands:
+                if (
+                    await self.exposure(uow, policy, now, exposure) + increment
+                    > policy["limit_value"]
+                ):
+                    raise ServiceError("BUDGET_EXCEEDED", "请求量、并发或预算已达上限", 429)
         selected = [p for p in await self.policies(uow) if matches(p, snapshot)]
+        needs_amount = any(p["unit"] == "amount" for p in selected)
+        tokens, price, upper = (
+            await self.estimate(uow, plan, prices=None if needs_amount else {})
+            if plan
+            else ({}, None, None)
+        )
         exposure = await self.exposure_data(uow, selected, now)
         for policy in selected:
             used = await self.exposure(uow, policy, now, exposure)
@@ -275,46 +379,6 @@ class BudgetService:
                 increment = token_increment
             if used + increment > policy["limit_value"]:
                 raise ServiceError("BUDGET_EXCEEDED", "请求量、并发或预算已达上限", 429)
-        limits = await rows(uow.connection, "platform_limits", "system")
-        current: dict[str, dict[str, Any]] = {}
-        for limit in limits:
-            if limit["effective_at"] <= now and (
-                limit["limit_code"] not in current
-                or limit["created_at"] > current[limit["limit_code"]]["created_at"]
-            ):
-                current[limit["limit_code"]] = limit
-        occupancies = await rows(uow.connection, "platform_quota_occupancies", "system")
-        for limit in current.values():
-            if limit["status"] != "ACTIVE":
-                continue
-            start = period_start(now, limit["period"], limit["timezone"])
-            platform_used = sum(
-                1
-                for o in occupancies
-                if o["limit_code"] == limit["limit_code"]
-                and (
-                    o["status"] == "HELD"
-                    if limit["unit"] == "concurrency"
-                    else o["created_at"] >= start
-                )
-            )
-            if platform_used + 1 > limit["limit_value"]:
-                raise ServiceError("PLATFORM_LIMIT_EXCEEDED", "平台请求量或并发已达上限", 429)
-            await save(
-                uow,
-                "platform_quota_occupancies",
-                new_id("quota"),
-                {
-                    "target_channel_id": context.scope.channel_id,
-                    "run_id": run_id,
-                    "limit_id": limit["id"],
-                    "limit_code": limit["limit_code"],
-                    "period_start": start,
-                    "unit": limit["unit"],
-                    "status": "HELD",
-                },
-                system=True,
-            )
         row = await save(
             uow,
             "admissions",
@@ -329,6 +393,32 @@ class BudgetService:
             },
         )
         await self.refresh_alerts(uow, now)
+        # 全局锁只保护平台额度的计数与登记，不覆盖渠道预算和提醒写入。
+        await uow.acquire([platform_key()])
+        limits = await current_limits(uow.connection, now)
+        starts = {
+            limit["limit_code"]: period_start(now, limit["period"], limit["timezone"])
+            for limit in limits
+        }
+        occupancies = await occupancy_counts(uow.connection, limits, starts)
+        pending = {}
+        for limit in limits:
+            if limit["status"] != "ACTIVE":
+                continue
+            start = starts[limit["limit_code"]]
+            platform_used = occupancies.get(limit["limit_code"], 0)
+            if platform_used + 1 > limit["limit_value"]:
+                raise ServiceError("PLATFORM_LIMIT_EXCEEDED", "平台请求量或并发已达上限", 429)
+            pending[new_id("quota")] = {
+                "target_channel_id": context.scope.channel_id,
+                "run_id": run_id,
+                "limit_id": limit["id"],
+                "limit_code": limit["limit_code"],
+                "period_start": start,
+                "unit": limit["unit"],
+                "status": "HELD",
+            }
+        await add_platform_occupancies(uow, pending)
         return self.admission_view(row, context.scope)
 
     @staticmethod
@@ -372,6 +462,7 @@ class BudgetService:
                 self.engine, context.scope, self.reservation_keys(context, plan.attempt_id)
             ) as work:
                 return await self.reserve_attempt(context, plan, uow=work)
+        await uow.acquire(self.reservation_keys(context, plan.attempt_id))
         self.require(uow, context)
         admission = await one(
             uow.connection, "admissions", context.scope.channel_id, run_id=plan.run_id
@@ -531,6 +622,7 @@ class BudgetService:
             ) as work:
                 await self.finish_admission(context, run_id, uow=work)
             return
+        await uow.acquire(self.admission_keys(context, run_id))
         self.require(uow, context)
         uow.require_lock(platform_key())
         admission = await one(uow.connection, "admissions", context.scope.channel_id, run_id=run_id)

@@ -7,6 +7,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
 
 from creativity_service.core.primitives import ServiceError, canonical_json
+from creativity_service.core.schema_validation import check_schema
 from creativity_service.modules.tools.schemas import ToolDefinition
 
 
@@ -85,7 +86,7 @@ def validate_schema(schema: dict[str, Any]) -> None:
     if len(canonical_json(schema)) > 65536:
         raise ServiceError("TOOL_INPUT_INVALID", "结构定义不能超过 64 KiB", 422)
     try:
-        Draft202012Validator.check_schema(schema)
+        check_schema(schema)
     except SchemaError:
         raise ServiceError("TOOL_INPUT_INVALID", "结构定义不符合 JSON Schema 规范", 422) from None
 

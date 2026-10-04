@@ -13,13 +13,15 @@ from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
+from creativity_service.modules.budgets.platform import current_limits, occupancy_counts
 from creativity_service.modules.budgets.schemas import (
     BudgetCreate,
     BudgetUpdate,
     BudgetView,
     PlatformLimitCreate,
+    PlatformLimitView,
 )
-from creativity_service.modules.budgets.services import BudgetService
+from creativity_service.modules.budgets.services import BudgetService, period_start
 from creativity_service.modules.channels.reading import ChannelReadData
 from creativity_service.modules.channels.repositories import one as channel_one
 from creativity_service.modules.channels.repositories import rows as channel_rows
@@ -31,6 +33,7 @@ from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.usage.pricing import timezone, validate_price
 from creativity_service.modules.usage.query import UsageQueries, view, visible
 from creativity_service.modules.usage.repositories import (
+    budget_configuration_key,
     ledger_key,
     one,
     platform_key,
@@ -199,6 +202,7 @@ class UsageManagement:
         validate_price(body)
         price_id, audit_id = new_id("price"), new_id("audit")
         keys = [
+            budget_configuration_key(context.scope.channel_id),
             ledger_key(context.scope.channel_id),
             policy_key(context.scope.channel_id),
             policy_key("system"),
@@ -338,6 +342,7 @@ class UsageManagement:
         policy_id = policy_id or new_id("budget")
         version_id, audit_id, link_id = new_id("version"), new_id("audit"), new_id("source")
         keys = [
+            budget_configuration_key(context.scope.channel_id),
             ledger_key(context.scope.channel_id),
             policy_key(context.scope.channel_id),
             policy_key("system"),
@@ -486,7 +491,7 @@ class UsageManagement:
 
     async def platform_limits(
         self, session: AdminSession, body: PlatformLimitCreate | None = None
-    ) -> list[dict[str, Any]]:
+    ) -> list[PlatformLimitView]:
         await self.channels.iam.authentication.revalidate_admin(session, governance=True)
         if isinstance(session.context, AuthContext):
             raise ServiceError("FORBIDDEN", "平台限额须使用平台管理会话", 403)
@@ -496,11 +501,10 @@ class UsageManagement:
         scope = ControlScope(purpose="platform_limits", actor_id=session.account.id)
         async with transaction(self.engine, scope, [platform_key(), policy_key("system")]) as uow:
             await current_actor(uow, session, "channel:govern")
-            records = await rows(uow.connection, "platform_limits", "system")
+            records = await current_limits(uow.connection, utcnow())
             if body:
-                versions = [r for r in records if r["limit_code"] == body.limit_code]
-                latest = max(versions, key=lambda r: r["created_at"]) if versions else None
-                if (latest and body.revision != len(versions)) or (
+                latest = next((r for r in records if r["limit_code"] == body.limit_code), None)
+                if (latest and body.revision != latest["revision"]) or (
                     not latest and body.revision is not None
                 ):
                     raise ServiceError("REVISION_CONFLICT", "平台限额已更新，请刷新后重试", 409)
@@ -517,8 +521,28 @@ class UsageManagement:
                     },
                     system=True,
                 )
-                records = await rows(uow.connection, "platform_limits", "system")
-            return records
+                records = await current_limits(uow.connection, utcnow())
+            now = utcnow()
+            counts = await occupancy_counts(
+                uow.connection,
+                records,
+                {r["limit_code"]: period_start(now, r["period"], r["timezone"]) for r in records},
+            )
+            return [
+                PlatformLimitView.model_validate(
+                    {
+                        **{key: r[key] for key in PlatformLimitCreate.model_fields},
+                        "limit_value": int(r["limit_value"]),
+                        "unit_label": UNIT_LABELS[r["unit"]],
+                        "used": counts.get(r["limit_code"], 0) if r["status"] == "ACTIVE" else None,
+                        "remaining": max(0, int(r["limit_value"]) - counts.get(r["limit_code"], 0))
+                        if r["status"] == "ACTIVE"
+                        else None,
+                        "effective_at": r["effective_at"],
+                    }
+                )
+                for r in records
+            ]
 
     async def options(self, session: AdminSession) -> dict[str, Any]:
         scopes = await self.scopes(session)

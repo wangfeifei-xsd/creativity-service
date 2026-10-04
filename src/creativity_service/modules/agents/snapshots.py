@@ -6,8 +6,9 @@ from jsonschema import Draft202012Validator
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.database.inserts import InsertBatch
 from creativity_service.core.deletion import ContentRef, DeletionGuard
-from creativity_service.core.locking import record_key
+from creativity_service.core.locking import read_key, record_key
 from creativity_service.core.primitives import (
     ServiceError,
     canonical_json,
@@ -33,7 +34,11 @@ from creativity_service.modules.agents.schemas import (
     Purpose,
 )
 from creativity_service.modules.agents.validation import static_issues
-from creativity_service.modules.releases.checks import check_budget, check_evidence
+from creativity_service.modules.releases.checks import (
+    check_budget,
+    check_evidence,
+    published_dependencies_match,
+)
 
 
 class AgentSnapshots(AgentKernel):
@@ -47,6 +52,8 @@ class AgentSnapshots(AgentKernel):
         refs: tuple[str, ...] = (),
         *,
         require_evaluation: bool = True,
+        loaded_dependencies: list[dict[str, Any]] | None = None,
+        defer_budget: bool = False,
     ) -> tuple[AgentValidation, list[dict[str, Any]], dict[str, Any]]:
         definition = AgentDefinition.model_validate(version["content"])
         issues = static_issues(definition)
@@ -69,6 +76,7 @@ class AgentSnapshots(AgentKernel):
                 {},
             )
         rows: list[dict[str, Any]] = []
+        resources: dict[str, dict[str, dict[str, Any]]] = {}
         manifest: dict[str, Any] = {}
         dependencies_digest = candidate_digest = None
         try:
@@ -86,11 +94,23 @@ class AgentSnapshots(AgentKernel):
             if version["output_schema"] != definition.output_schema:
                 raise ServiceError("SNAPSHOT_INVALID", "智能体输出契约不一致", 409)
             rows, policies, models = await self.dependencies.resolve(
-                uow, context, agent["id"], definition, purpose
+                uow,
+                context,
+                agent["id"],
+                definition,
+                purpose,
+                loaded=loaded_dependencies,
+                resources=resources,
             )
             checks.append(AgentCheck(key="dependencies", label="依赖、权限与模型能力", passed=True))
             policies["budgets"] = await check_budget(
-                self.budgets, uow, context, agent["id"], definition, models
+                self.budgets,
+                uow,
+                context,
+                agent["id"],
+                definition,
+                models,
+                defer_exposure=defer_budget,
             )
             checks.append(AgentCheck(key="budget", label="可执行预算", passed=True))
             manifest = dependency_manifest(rows, policies)
@@ -146,7 +166,10 @@ class AgentSnapshots(AgentKernel):
                     issues=[AgentIssue(code=exc.code, message=exc.message)],
                 )
             )
-        views = [await self.dependency_view(uow, context, row) for row in rows]
+        views = [
+            self.dependency_summary(row, resources[row["resource_type"]][row["resource_id"]])
+            for row in rows
+        ]
         return (
             AgentValidation(
                 valid=all(c.passed for c in checks),
@@ -258,6 +281,8 @@ class AgentSnapshots(AgentKernel):
         validation: AgentValidation,
         dependencies: list[dict[str, Any]],
         manifest: dict[str, Any],
+        *,
+        pending: InsertBatch | None = None,
     ) -> FrozenExecutionSpec:
         assert validation.dependencies_digest and validation.candidate_digest
         spec = FrozenExecutionSpec(
@@ -296,17 +321,21 @@ class AgentSnapshots(AgentKernel):
                 "candidate_digest": validation.candidate_digest,
                 "spec": spec.model_dump(mode="json"),
             },
+            pending=pending,
         )
-        for kind, source in [
+        sources = [
             ("agent", agent["id"]),
             *[("version", row["id"]) for row in [version, *dependencies]],
-        ]:
+        ]
+        links: list[tuple[str, ContentRef, ContentRef, str | None]] = []
+        for kind, source in sources:
             link_id = digest([identifier, kind, source])
             if record_key(context.scope.channel_id, "source_links", link_id) not in uow.keys:
                 raise ServiceError("REVISION_CONFLICT", "候选依赖已变化，请重新冻结", 409)
-            await DeletionGuard(context.scope).link(
-                uow, link_id, ContentRef(kind, source), ContentRef("agent_candidate", identifier)
+            links.append(
+                (link_id, ContentRef(kind, source), ContentRef("agent_candidate", identifier), None)
             )
+        await DeletionGuard(context.scope).link_many(uow, links, pending=pending)
         return spec
 
     async def resolve_published(self, context: AuthContext, agent_code: str) -> FrozenExecutionSpec:
@@ -343,6 +372,12 @@ class AgentSnapshots(AgentKernel):
         keys += self.candidate_keys(
             context, identifier, agent["id"], version["id"], dependency_keys
         )
+        keys = [
+            key
+            if key.resource_type in {"record:agent_candidates", "record:source_links"}
+            else read_key(key)
+            for key in keys
+        ]
         async with transaction(self.engine, context.scope, keys) as uow:
             current = await repository("release_mappings", context.scope).get(
                 uow.connection, mapping_id
@@ -359,7 +394,7 @@ class AgentSnapshots(AgentKernel):
                 uow, context, agent, version, "production", require_evaluation=False
             )
             self.require_valid(validation)
-            if version["dependencies_digest"] != validation.dependencies_digest:
+            if not await published_dependencies_match(uow, version, manifest):
                 raise ServiceError("DEPENDENCY_INVALID", "发布依赖或策略已变化，需要重新发布", 409)
             return await self.store_candidate(
                 uow,
@@ -380,7 +415,11 @@ class AgentSnapshots(AgentKernel):
         async with transaction(
             self.engine,
             context.scope,
-            self.keys(context, row["agent_id"], ("agent_candidates", identifier)),
+            [
+                read_key(key)
+                for key in self.keys(context, row["agent_id"], ("agent_candidates", identifier))
+                if key.resource_type != "usage-ledger"
+            ],
         ) as uow:
             await locked_require(uow, context, "run:create", "agent", row["agent_id"])
             await DeletionGuard(context.scope).check(

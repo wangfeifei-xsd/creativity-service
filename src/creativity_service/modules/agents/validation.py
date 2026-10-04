@@ -6,6 +6,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
 from creativity_service.core.primitives import canonical_json
+from creativity_service.core.schema_validation import check_schema
 from creativity_service.modules.agents.registry import ENTRYPOINTS, legacy_templates
 from creativity_service.modules.agents.schemas import AgentDefinition, AgentIssue
 
@@ -96,7 +97,7 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
 
     for path, schema in schemas:
         try:
-            Draft202012Validator.check_schema(schema)
+            check_schema(schema)
         except SchemaError:
             fail("结构定义不符合 JSON Schema 规范", path)
             continue

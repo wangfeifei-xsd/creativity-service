@@ -120,15 +120,23 @@ class RunKernel:
         return context
 
     def keys(
-        self, context: AuthContext, run_id: str, conversation_id: str | None = None
+        self,
+        context: AuthContext,
+        run_id: str,
+        conversation_id: str | None = None,
+        *,
+        budget: bool = False,
     ) -> list[ResourceKey]:
+        from creativity_service.core.locking import read_key
+
         keys = [
             run_key(context.scope.channel_id, run_id),
-            content_key(context.scope),
-            *self.budgets.admission_keys(context, run_id),
+            read_key(content_key(context.scope)),
         ]
+        if budget:
+            keys.extend(self.budgets.reservation_keys(context, run_id))
         if self.content_guard_keys:
-            keys.extend(self.content_guard_keys(context))
+            keys.extend(read_key(key) for key in self.content_guard_keys(context))
         if conversation_id:
             keys.append(conversation_key(context.scope, conversation_id))
             if self.turns:

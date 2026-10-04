@@ -3,9 +3,12 @@
 from decimal import Decimal
 from typing import Any
 
+from sqlalchemy import select
+
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork
-from creativity_service.core.primitives import ServiceError, utcnow
+from creativity_service.core.database.tables import metadata
+from creativity_service.core.primitives import ServiceError, digest, utcnow
 from creativity_service.modules.agents.schemas import AgentDefinition
 from creativity_service.modules.budgets.services import BudgetService, matches
 from creativity_service.modules.models.schemas import FrozenModel
@@ -20,9 +23,21 @@ async def check_budget(
     agent_id: str,
     definition: AgentDefinition,
     models: list[FrozenModel],
+    *,
+    defer_exposure: bool = False,
 ) -> list[dict[str, Any]]:
-    service.require(uow, context)
+    if defer_exposure:
+        service.require_configuration(uow, context)
+    else:
+        service.require(uow, context, read_only=True)
     policies = await service.policies(uow)
+    now = utcnow()
+    prices = (
+        await service.prices(uow, [model.model_id for model in models], now)
+        if definition.limits.cost_limit or any(p["unit"] == "amount" for p in policies)
+        else {}
+    )
+    exposure = {} if defer_exposure else await service.exposure_data(uow, policies, now)
     relevant: dict[str, dict[str, Any]] = {}
     for model in models:
         plan = AttemptPlan(
@@ -35,7 +50,7 @@ async def check_budget(
             input_tokens=definition.context.context_limit,
             max_output_tokens=definition.limits.token_limit - definition.context.context_limit,
         )
-        _, price, upper = await service.estimate(uow, plan)
+        _, price, upper = await service.estimate(uow, plan, prices=prices)
         ceiling = definition.limits.cost_limit
         if ceiling and (
             not price
@@ -49,8 +64,10 @@ async def check_budget(
         for policy in policies:
             if not matches(policy, service.snapshot(context, plan)):
                 continue
-            # Key 预算属于当前调用身份，仍实时检查，但不能改变发布者冻结的配置摘要。
-            if policy["scope_type"] != "key":
+            # 调用 Key 和渠道并发均为实时准入条件，不改变 Agent 的执行内容或发布证据。
+            if policy["scope_type"] != "key" and not (
+                policy["scope_type"] == "channel" and policy["unit"] == "concurrency"
+            ):
                 relevant[policy["id"]] = {
                     k: policy[k]
                     for k in (
@@ -74,9 +91,64 @@ async def check_budget(
                 increment = Decimal(definition.limits.token_limit)
             else:
                 increment = Decimal(1)
-            if await service.exposure(uow, policy, utcnow()) + increment > policy["limit_value"]:
+            if defer_exposure:
+                # 静态配置受共享配置锁保护；动态占用留到受理事务末尾的账本锁内核对。
+                uow.read_cache.setdefault("admission-budget-demands", []).append(
+                    (policy, increment)
+                )
+            elif (
+                await service.exposure(uow, policy, now, exposure) + increment
+                > policy["limit_value"]
+            ):
                 raise ServiceError("BUDGET_NOT_EXECUTABLE", "当前可用预算不足以执行此配置", 422)
     return sorted(relevant.values(), key=lambda p: p["id"])
+
+
+async def published_dependencies_match(
+    uow: UnitOfWork, version: dict[str, Any], manifest: dict[str, Any]
+) -> bool:
+    """兼容旧版将渠道并发写入摘要的发布记录，不修改不可变版本或放宽其他依赖。"""
+    if digest(manifest) == version["dependencies_digest"]:
+        return True
+    # 仅不匹配的历史版本读取发布时的预算版本，每个策略最多返回一条。
+    table = metadata.tables["resource_versions"]
+    historical = (
+        await uow.connection.execute(
+            select(table.c.id, table.c.resource_id, table.c.content)
+            .where(
+                table.c.channel_id == uow.scope.channel_id,
+                table.c.resource_type == "budget_policy",
+                table.c.state == "FROZEN",
+                table.c.created_at <= version["created_at"],
+            )
+            .distinct(table.c.resource_id)
+            .order_by(table.c.resource_id, table.c.created_at.desc(), table.c.id.desc())
+        )
+    ).mappings()
+    budgets = list(manifest["policies"]["budgets"])
+    for row in historical:
+        policy = row["content"]
+        if (
+            policy["scope_type"] == "channel"
+            and policy["unit"] == "concurrency"
+            and policy["status"] == "ACTIVE"
+        ):
+            budgets.append(
+                {
+                    **{
+                        k: policy[k] for k in ("scope_type", "scope_id", "unit", "mode", "currency")
+                    },
+                    "id": row["resource_id"],
+                    "version_id": row["id"],
+                    # 原字段为 NUMERIC(24, 8)，还原旧摘要保留的八位小数。
+                    "limit_value": format(Decimal(policy["limit_value"]), ".8f"),
+                }
+            )
+    legacy = {
+        **manifest,
+        "policies": {**manifest["policies"], "budgets": sorted(budgets, key=lambda p: p["id"])},
+    }
+    return bool(digest(legacy) == version["dependencies_digest"])
 
 
 def check_evidence(

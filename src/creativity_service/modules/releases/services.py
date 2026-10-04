@@ -16,6 +16,7 @@ from creativity_service.modules.agents.schemas import (
 )
 from creativity_service.modules.agents.services import AgentService
 from creativity_service.modules.iam.repositories import one
+from creativity_service.modules.releases.checks import published_dependencies_match
 
 
 class ReleaseService:
@@ -74,15 +75,14 @@ class ReleaseService:
                     raise ServiceError("ROLLBACK_INVALID", "只能回滚到当前环境的历史发布版本", 422)
             elif version["state"] not in {"DRAFT", "PUBLISHED"}:
                 raise ServiceError("VERSION_UNAVAILABLE", "此版本不可发布", 422)
-            validation, resolved, _ = await s.inspect_in(
+            validation, resolved, manifest = await s.inspect_in(
                 uow, context, agent, version, "production", body.evaluation_refs
             )
             s.require_valid(validation)
             if [d["id"] for d in resolved] != dependency_ids:
                 raise ServiceError("REVISION_CONFLICT", "依赖闭包已变化，请重新检查", 409)
-            if (
-                version["state"] == "PUBLISHED"
-                and version["dependencies_digest"] != validation.dependencies_digest
+            if version["state"] == "PUBLISHED" and not await published_dependencies_match(
+                uow, version, manifest
             ):
                 raise ServiceError(
                     "DEPENDENCY_INVALID", "历史版本的依赖或策略已变化，请创建新版本", 422

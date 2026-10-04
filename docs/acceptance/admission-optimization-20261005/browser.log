@@ -1,0 +1,19 @@
+[WebServer] (node:58468) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:58481) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 2 workers
+
+(node:58488) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:58489) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › tests/limits.spec.ts:17:1 › 渠道并发限额可编辑，保留版本及隐藏周期字段 (2.6s)
+  ✓  2 [chromium] › tests/usage.spec.ts:19:1 › USG 页面保留币种、缺失值及只读权限，支持筛选与核查 (3.1s)
+  ✓  4 [chromium] › tests/usage.spec.ts:44:1 › USG 窄屏总览与调用明细无页面横向溢出 (1.1s)
+  ✓  3 [chromium] › tests/limits.spec.ts:40:1 › 平台限额展示占用，提交修订号并保留冲突表单 (2.9s)
+  ✓  5 [chromium] › tests/usage.spec.ts:54:1 › 账单核查保留缺失金额与币种差异，不把缺失值显示成零 (1.5s)
+  ✓  6 [chromium] › tests/limits.spec.ts:77:1 › 无权限及错误工作区不请求平台限额 (793ms)
+
+  6 passed (9.3s)

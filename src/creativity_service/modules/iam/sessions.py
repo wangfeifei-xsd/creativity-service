@@ -31,6 +31,7 @@ NAVIGATION = (
     ("model-routes", "模型路由", "model:manage"),
     ("accounts", "账号管理", "account:manage"),
     ("channels", "渠道管理", "channel:govern"),
+    ("platform-limits", "平台限额", "channel:govern"),
     ("members", "成员与权限", "membership:read"),
     ("resource-grants", "资源授权", "grant:read"),
     ("audit-events", "操作审计", "audit:read"),
@@ -45,6 +46,7 @@ NAVIGATION = (
     ("conversations", "会话管理", "conversation:read"),
     ("memories", "记忆管理", "memory:read"),
     ("usage", "用量", "usage:read"),
+    ("concurrency-limits", "并发限额", "budget:manage"),
 )
 
 
@@ -359,9 +361,13 @@ class SessionService:
             navigation=[
                 NavigationItem(navigation_key=key, label=label)
                 for key, label, action in NAVIGATION
-                if action in actions
-                or (key == "channels" and "channel:manage" in actions)
-                or (key == "prompts" and "version:read" in actions)
+                if (
+                    action in actions
+                    or (key == "channels" and "channel:manage" in actions)
+                    or (key == "prompts" and "version:read" in actions)
+                )
+                and (key != "platform-limits" or not isinstance(session.context, AuthContext))
+                and (key != "concurrency-limits" or isinstance(session.context, AuthContext))
             ],
             actions=[
                 VisibleAction(action_key=action, label=ACTION_NAMES[action])

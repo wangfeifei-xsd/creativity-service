@@ -1,13 +1,15 @@
 """渠道存储入口；系统索引只能精确定位，业务记录始终显式限定渠道。"""
 
 import re
+from functools import lru_cache
 from typing import Any
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import Select, and_, bindparam, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from creativity_service.core.context import ControlScope
+from creativity_service.core.context import ControlScope, Scope
 from creativity_service.core.database import ControlRepository, UnitOfWork, validate_row
+from creativity_service.core.database.queries import scoped_select
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import ServiceError, digest, utcnow
 from creativity_service.modules.channels.tables import metadata
@@ -32,12 +34,69 @@ async def rows(
     if name == "key_identity_index":
         raise ServiceError("CONTROL_TABLE", "密钥身份索引只允许按完整摘要精确查找", 403)
     table = metadata.tables[name]
-    result = await connection.execute(
-        select(table).where(
-            table.c.channel_id == channel_id, *(table.c[k] == v for k, v in filters.items())
+    statement, parameters = scoped_select(table, {"channel_id": channel_id}, filters)
+    result = await connection.execute(statement, parameters)
+    return [dict(row) for row in result.mappings()]
+
+
+@lru_cache(maxsize=1)
+def _scope_statement() -> Select[Any]:
+    channel, environment, domain = (
+        metadata.tables[name] for name in ("channels", "channel_environments", "data_scopes")
+    )
+    joined = channel.outerjoin(
+        environment,
+        and_(
+            environment.c.channel_id == channel.c.channel_id,
+            environment.c.environment == bindparam("environment"),
+        ),
+    ).outerjoin(
+        domain,
+        and_(
+            domain.c.channel_id == channel.c.channel_id,
+            domain.c.environment == bindparam("environment"),
+            domain.c.id == bindparam("data_scope_id"),
+        ),
+    )
+    return (
+        select(channel, environment, domain)
+        .select_from(joined)
+        .where(
+            channel.c.channel_id == bindparam("channel_id"), channel.c.id == bindparam("channel_id")
         )
     )
-    return [dict(row) for row in result.mappings()]
+
+
+async def scope_rows(connection: AsyncConnection, scope: Scope) -> dict[str, dict[str, Any]]:
+    """关联读取渠道、环境和域；保留缺失及重复检查，状态由调用服务判断。"""
+    found = (
+        (
+            await connection.execute(
+                _scope_statement(),
+                {
+                    "channel_id": scope.channel_id,
+                    "environment": scope.environment,
+                    "data_scope_id": scope.data_scope_id,
+                },
+            )
+        )
+        .mappings()
+        .all()
+    )
+    if len(found) > 1:
+        raise ServiceError("STORAGE_INVARIANT_BROKEN", "渠道范围记录重复，请联系管理员", 503)
+    result = {
+        name: {column.name: found[0][column] for column in table.c}
+        for name in ("channels", "channel_environments", "data_scopes")
+        for table in [metadata.tables[name]]
+        if found and found[0][table.c.id] is not None
+    }
+    required_names = {"channels", "channel_environments"}
+    if scope.data_scope_id:
+        required_names.add("data_scopes")
+    if not required_names <= result.keys():
+        raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
+    return result
 
 
 async def one(

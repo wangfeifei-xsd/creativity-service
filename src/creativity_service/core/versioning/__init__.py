@@ -2,7 +2,6 @@
 
 from typing import Any, Literal, Protocol
 
-from jsonschema import Draft202012Validator
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.context import AuthContext, Authorization, DenyAuthorization, Scope
@@ -13,11 +12,13 @@ from creativity_service.core.database import (
     assert_external_io_allowed,
     transaction,
 )
+from creativity_service.core.database.inserts import InsertBatch
 from creativity_service.core.database.tables import metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id, unavailable, utcnow
+from creativity_service.core.schema_validation import check_schema
 
 
 class VersionValidator(Protocol):
@@ -48,7 +49,7 @@ def version_view(row: dict[str, Any]) -> ResourceVersion:
 
 
 def validate_schema(schema: dict[str, Any]) -> None:
-    Draft202012Validator.check_schema(schema)
+    check_schema(schema)
 
     def visit(value: Any) -> None:
         if isinstance(value, dict):
@@ -322,15 +323,21 @@ class VersionService:
 
     @classmethod
     def snapshot_keys(cls, scope: Scope, run_id: str, version_ids: list[str]) -> list[ResourceKey]:
+        from creativity_service.core.locking import read_key
+
+        snapshot_id = cls.snapshot_id(scope, run_id)
         return [
-            content_key(scope),
-            record_key(scope.channel_id, "release_snapshots", cls.snapshot_id(scope, run_id)),
-            *(record_key(scope.channel_id, "resource_versions", item) for item in version_ids),
+            read_key(content_key(scope)),
+            record_key(scope.channel_id, "release_snapshots", snapshot_id),
+            *(
+                read_key(record_key(scope.channel_id, "resource_versions", item))
+                for item in version_ids
+            ),
             *(
                 record_key(
                     scope.channel_id,
                     "source_links",
-                    digest([cls.snapshot_id(scope, run_id), kind, source]),
+                    digest([snapshot_id, kind, source]),
                 )
                 for kind, source in [("run", run_id), *(("version", v) for v in version_ids)]
             ),
@@ -346,12 +353,16 @@ class VersionService:
         output_schema: dict[str, Any],
         *,
         frozen_versions: tuple[ResourceVersion, ...] | None = None,
+        pending: InsertBatch | None = None,
     ) -> ReleaseSnapshot:
         """受理服务完成实时授权后，传入同一事务；预算或调度写入失败会连同快照回滚。"""
         scope = context.scope
         uow.require_scope(scope)
         for key in self.snapshot_keys(scope, run_id, version_ids):
-            uow.require_lock(key)
+            if key.shared:
+                uow.require_read_lock(key)
+            else:
+                uow.require_lock(key)
         await DeletionGuard(scope).check(
             uow, [ContentRef("run", run_id), *(ContentRef("version", v) for v in version_ids)]
         )
@@ -398,6 +409,7 @@ class VersionService:
                 "dependencies_digest": snapshot.dependencies_digest,
                 "output_schema": output_schema,
             },
+            pending=pending,
         )
         await DeletionGuard(scope).link_many(
             uow,
@@ -413,6 +425,7 @@ class VersionService:
                     *(ContentRef("version", v) for v in version_ids),
                 ]
             ],
+            pending=pending,
         )
         return snapshot
 
