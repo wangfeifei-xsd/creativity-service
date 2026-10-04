@@ -3,11 +3,18 @@
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncConnection
+from sqlalchemy import select
 
 from creativity_service.core.auth.types import ResourceState, ServiceIdentity, WorkspaceOption
 from creativity_service.core.context import AuthContext, ChannelState, Scope
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.modules.channels.repositories import ChannelRepository, one, required, rows
+from creativity_service.modules.channels.tables import metadata
+from creativity_service.modules.iam.tables import metadata as identity_metadata
+from creativity_service.modules.iam.repositories import role_catalog_rows, membership_from_catalog, to_state
+from creativity_service.modules.iam.authorization import effective_actions
+from creativity_service.modules.iam.roles import GOVERNANCE_ACTIONS
+from creativity_service.core.auth.types import GrantState
 from creativity_service.modules.iam.repositories import one as identity_one
 
 
@@ -123,42 +130,50 @@ class ChannelDirectory:
     def __init__(self, repository: ChannelRepository) -> None:
         self.repository = repository
 
-    async def list_for(self, user_id: str) -> list[WorkspaceOption]:
-        result = []
+    async def data_for(self, user_id: str) -> dict[str, list[dict[str, Any]]]:
         async with self.repository.engine.connect() as connection:
-            # 目录只枚举渠道定位索引，逐渠道核对真实成员；系统身份不构成通配授权。
-            for channel_id in await self.repository.directory(connection):
-                member = await identity_one(
-                    connection, "channel_memberships", channel_id, user_id=user_id
-                )
-                if member is None or member["status"] != "ACTIVE":
-                    continue
-                channel = await required(connection, "channels", channel_id, id=channel_id)
-                if channel["status"] == "ARCHIVED":
-                    continue
-                environments = {
-                    r["environment"]: r
-                    for r in await rows(connection, "channel_environments", channel_id)
-                }
-                for domain in await rows(connection, "data_scopes", channel_id):
-                    env = environments.get(domain["environment"])
-                    if (
-                        env is None
-                        or env["environment"] not in member["environments"]
-                        or domain["id"] not in member["data_scopes"]
-                    ):
-                        continue
-                    result.append(
-                        WorkspaceOption(
-                            channel_id=channel_id,
-                            channel_name=channel["name"],
-                            environment=env["environment"],
-                            environment_name=env["name"],
-                            data_scope_id=domain["id"],
-                            data_scope_name=domain["name"],
-                        )
-                    )
+            located = await self.repository.directory(connection)
+            members = identity_metadata.tables["channel_memberships"]
+            memberships = [dict(r) for r in (await connection.execute(select(members).where(members.c.channel_id.in_(located), members.c.user_id == user_id, members.c.status == "ACTIVE"))).mappings()]
+            identifiers = {r["channel_id"] for r in memberships}
+            if len(identifiers) != len(memberships):
+                raise ServiceError("STORAGE_INVARIANT_BROKEN", "渠道成员身份重复", 503)
+            result = {"members": memberships}
+            # 只有已定位且有真实成员关系的渠道进入批量读取，系统渠道不是通配符。
+            for name in ("channels", "channel_environments", "data_scopes", "resource_grants", "custom_roles"):
+                table = metadata.tables[name] if name in metadata.tables else identity_metadata.tables[name]
+                result[name] = [dict(r) for r in (await connection.execute(select(table).where(table.c.channel_id.in_(identifiers)))).mappings()] if identifiers else []
         return result
+
+    async def options_for(self, user_id: str, *, authorized: bool) -> list[WorkspaceOption]:
+        data = await self.data_for(user_id)
+        members = {r["channel_id"]: r for r in data["members"]}
+        channels = {r["channel_id"]: r for r in data["channels"] if r["id"] == r["channel_id"]}
+        environments = {(r["channel_id"], r["environment"]): r for r in data["channel_environments"]}
+        grants = {identifier: [to_state(GrantState, r) for r in data["resource_grants"] if r["channel_id"] == identifier] for identifier in members}
+        states = {identifier: membership_from_catalog(row, role_catalog_rows([r for r in data["custom_roles"] if r["channel_id"] == identifier])) for identifier, row in members.items()}
+        result = []
+        for domain in data["data_scopes"]:
+            identifier = domain["channel_id"]
+            member, channel = states[identifier], channels.get(identifier)
+            env = environments.get((identifier, domain["environment"]))
+            if not channel or channel["status"] == "ARCHIVED" or not env or env["environment"] not in member.environments or domain["id"] not in member.data_scopes:
+                continue
+            if authorized:
+                available = grants[identifier]
+                if not any(effective_actions(member, available, env["environment"], domain["id"], g.resource_type, g.resource_id) for g in available):
+                    continue
+                governed = bool(effective_actions(member, available, env["environment"], domain["id"], "channel", identifier) & GOVERNANCE_ACTIONS)
+                if not governed and (channel["status"] != "ACTIVE" or env["status"] != "ACTIVE" or domain["status"] != "ACTIVE"):
+                    continue
+            result.append(WorkspaceOption(channel_id=identifier, channel_name=channel["name"], environment=env["environment"], environment_name=env["name"], data_scope_id=domain["id"], data_scope_name=domain["name"]))
+        return result
+
+    async def list_for(self, user_id: str) -> list[WorkspaceOption]:
+        return await self.options_for(user_id, authorized=False)
+
+    async def authorized_for(self, user_id: str) -> list[WorkspaceOption]:
+        return await self.options_for(user_id, authorized=True)
 
 
 class ChannelResourceReader:

@@ -96,6 +96,10 @@ async def save(
 
 
 async def role_catalog(connection: AsyncConnection, channel_id: str) -> dict[str, dict[str, Any]]:
+    return role_catalog_rows(await rows(connection, "custom_roles", channel_id))
+
+
+def role_catalog_rows(custom: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     result = {
         code: {
             "id": code,
@@ -108,7 +112,7 @@ async def role_catalog(connection: AsyncConnection, channel_id: str) -> dict[str
         for code, name in ROLE_NAMES.items()
         if code != "platform_admin"
     }
-    for row in await rows(connection, "custom_roles", channel_id):
+    for row in custom:
         result[row["id"]] = {**row, "builtin": False}
     return result
 
@@ -135,6 +139,10 @@ async def membership_state(
     catalog = await role_catalog(connection, row["channel_id"])
     if override:
         catalog[override["id"]] = override
+    return membership_from_catalog(row, catalog)
+
+
+def membership_from_catalog(row: dict[str, Any], catalog: dict[str, dict[str, Any]]) -> MembershipState:
     codes = [
         code for code in row["roles"] if code in catalog and catalog[code]["state"] == "ACTIVE"
     ]
