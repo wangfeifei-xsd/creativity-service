@@ -4,12 +4,21 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from sqlalchemy import select, tuple_
+
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import Artifact, BusinessResult, ResultEnvelope, RunEvent
 from creativity_service.core.database import Repository, transaction
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.primitives import ServiceError, utcnow
+from creativity_service.modules.iam.authorization import ReadAuthorization
+from creativity_service.modules.iam.reading import (
+    read_actions,
+    read_policy,
+    require_action,
+    resource_state,
+)
 from creativity_service.modules.runs.base import RunKernel
 from creativity_service.modules.runs.repositories import required, rows, verify_scope
 from creativity_service.modules.runs.schemas import (
@@ -19,6 +28,7 @@ from creativity_service.modules.runs.schemas import (
     RunSummary,
     TracePage,
 )
+from creativity_service.modules.runs.tables import metadata
 from creativity_service.modules.tools.tables import metadata as tool_metadata
 from creativity_service.modules.tools.validation import artifact_references
 from creativity_service.modules.usage import repositories as usage_repo
@@ -28,31 +38,32 @@ class QueryService(RunKernel):
     async def filter_options(self, context: AuthContext) -> dict[str, Any]:
         from creativity_service.modules.channels.tables import metadata as channels
 
-        await self.authorization.require(context, "run:read", "scope")
-        filters = context.scope.model_dump(exclude={"channel_id"})
-        if context.principal_type == "management" and context.scope.subject_id is None:
-            filters.pop("subject_type", None)
-            filters.pop("subject_id", None)
+        policy = await read_policy(self.authorization, context)
+        allowed = await read_actions(
+            self.authorization, context, "run", "scope", ["run:read"], policy=policy
+        )
+        require_action(allowed, "run:read")
+        table = metadata.tables["runs"]
+        predicates = self.read_predicates(context, policy)
         async with self.engine.connect() as connection:
-            found = await rows(connection, "runs", context.scope.channel_id, **filters)
-        visible = []
-        for row in found:
-            try:
-                effective = await self.access_context(context, row["id"])
-                await self.authorization.require(effective, "run:read", row["id"])
-            except ServiceError as exc:
-                if exc.status in {403, 404}:
-                    continue
-                raise
-            visible.append(row)
-        async with self.engine.connect() as connection:
-            keys = []
-            for identifier in sorted({r["key_id"] for r in visible if r["key_id"]}):
-                key = await Repository(channels.tables["channel_keys"], context.scope).get(
-                    connection, identifier
-                )
-                if key:
-                    keys.append({"value": identifier, "label": key["name"]})
+            # 选项只读取去重后的显示字段，不加载运行正文和整份执行策略。
+            visible = [
+                dict(r)
+                for r in (
+                    await connection.execute(
+                        select(table.c.agent_id, table.c.agent_name, table.c.key_id, table.c.error)
+                        .where(*predicates)
+                        .distinct()
+                    )
+                ).mappings()
+            ]
+            key_rows = await Repository(channels.tables["channel_keys"], context.scope).get_many(
+                connection, [r["key_id"] for r in visible if r["key_id"]]
+            )
+            keys = [
+                {"value": identifier, "label": key["name"]}
+                for identifier, key in sorted(key_rows.items())
+            ]
         return {
             "agents": [
                 {"value": key, "label": name}
@@ -77,10 +88,48 @@ class QueryService(RunKernel):
         if context.client_id and context.client_id != row["client_id"]:
             raise ServiceError("NOT_FOUND", "运行记录不存在", 404)
 
-    async def get_run(self, context: AuthContext, run_id: str) -> ResultEnvelope:
+    @staticmethod
+    def read_predicates(context: AuthContext, policy: ReadAuthorization | None) -> list[Any]:
+        table = metadata.tables["runs"]
+        scope = context.scope.model_dump()
+        if context.principal_type == "management" and context.scope.subject_id is None:
+            scope.pop("subject_type")
+            scope.pop("subject_id")
+        predicates = [table.c[k] == v for k, v in scope.items()]
+        if context.client_id:
+            predicates.append(table.c.client_id == context.client_id)
+        if policy is not None:
+            identifiers = policy.resource_ids("run", "run:read")
+            if identifiers is not None:
+                predicates.append(table.c.id.in_(identifiers))
+        return predicates
+
+    async def read_access(
+        self, context: AuthContext, run_id: str
+    ) -> tuple[AuthContext, ReadAuthorization | None, frozenset[str]]:
         context = await self.access_context(context, run_id)
-        await self.authorization.require(context, "run:read", run_id)
-        await self.authorization.require(context, "run:content", run_id)
+        policy = await read_policy(self.authorization, context)
+        permissions = await read_actions(
+            self.authorization,
+            context,
+            "run",
+            run_id,
+            ["run:read", "run:content", "run:create"],
+            policy=policy,
+            state=resource_state(context, "run", {"id": run_id}),
+        )
+        require_action(permissions, "run:read")
+        return context, policy, permissions
+
+    async def get_run(self, context: AuthContext, run_id: str) -> ResultEnvelope:
+        context, policy, permissions = await self.read_access(context, run_id)
+        require_action(permissions, "run:content")
+        return await self.read_result(context, run_id, policy)
+
+    async def read_result(
+        self, context: AuthContext, run_id: str, policy: ReadAuthorization | None
+    ) -> ResultEnvelope:
+        """调用方已经验证运行内容权限，复用读取和响应装配原子能力。"""
         async with transaction(self.engine, context.scope, self.keys(context, run_id)) as uow:
             row = await self.locked_run(uow, run_id)
             self.owner(context, row)
@@ -164,68 +213,59 @@ class QueryService(RunKernel):
                 uow.connection, source_type="run", source_id=run_id, derived_type="artifact"
             )
             identifiers.update(link["derived_id"] for link in links)
+            artifact_rows = await Repository(
+                core_metadata.tables["artifacts"], context.scope
+            ).get_many(uow.connection, identifiers)
+            blocked = await DeletionGuard(context.scope).blocked_refs(
+                uow, [ContentRef("artifact", i) for i in artifact_rows]
+            )
         artifacts = []
-        for identifier in sorted(identifiers):
-            try:
-                await self.authorization.require(context, "artifact:download", identifier)
-            except ServiceError as exc:
-                if exc.status in {403, 404}:
-                    continue
-                raise
-            async with transaction(self.engine, context.scope, self.keys(context, run_id)) as uow:
-                await self.guard(uow, await self.locked_run(uow, run_id))
-                await DeletionGuard(context.scope).check(uow, [ContentRef("artifact", identifier)])
-                artifact = await Repository(core_metadata.tables["artifacts"], context.scope).get(
-                    uow.connection, identifier
+        for identifier, artifact in sorted(artifact_rows.items()):
+            if artifact["state"] != "AVAILABLE" or artifact["expires_at"] <= utcnow():
+                continue
+            permissions = await read_actions(
+                self.authorization,
+                context,
+                "artifact",
+                identifier,
+                ["artifact:download"],
+                policy=policy,
+                state=resource_state(context, "artifact", artifact),
+            )
+            if "artifact:download" not in permissions:
+                continue
+            if ContentRef("artifact", identifier) in blocked:
+                raise ServiceError("CONTENT_DELETED", "内容或来源已删除", 410)
+            prefix = "admin" if context.principal_type == "management" else "api"
+            artifacts.append(
+                Artifact(
+                    artifact_id=identifier,
+                    scope=context.scope,
+                    name=artifact["name"],
+                    content_type=artifact["content_type"],
+                    size_bytes=artifact["size_bytes"],
+                    sha256=artifact["sha256"],
+                    state=artifact["state"],
+                    expires_at=artifact["expires_at"],
+                    download_path=f"/{prefix}/v1/artifacts/{identifier}/content",
                 )
-                if (
-                    not artifact
-                    or artifact["state"] != "AVAILABLE"
-                    or artifact["expires_at"] <= utcnow()
-                ):
-                    continue
-                prefix = "admin" if context.principal_type == "management" else "api"
-                artifacts.append(
-                    Artifact(
-                        artifact_id=identifier,
-                        scope=context.scope,
-                        name=artifact["name"],
-                        content_type=artifact["content_type"],
-                        size_bytes=artifact["size_bytes"],
-                        sha256=artifact["sha256"],
-                        state=artifact["state"],
-                        expires_at=artifact["expires_at"],
-                        download_path=f"/{prefix}/v1/artifacts/{identifier}/content",
-                    )
-                )
+            )
         return envelope.model_copy(update={"artifacts": tuple(artifacts)})
 
     async def detail(self, context: AuthContext, run_id: str) -> dict[str, Any]:
-        context = await self.access_context(context, run_id)
-        await self.authorization.require(context, "run:read", run_id)
-        content_allowed = True
-        try:
-            await self.authorization.require(context, "run:content", run_id)
-        except ServiceError as exc:
-            if exc.status not in {403, 404}:
-                raise
-            content_allowed = False
+        context, policy, permissions = await self.read_access(context, run_id)
+        content_allowed = "run:content" in permissions
         actions = []
-        try:
-            await self.authorization.require(context, "run:create", run_id)
+        if "run:create" in permissions:
             actions = [
                 {"action_key": "cancel", "label": "取消"},
                 {"action_key": "rerun", "label": "重新执行"},
             ]
-        except ServiceError as exc:
-            if exc.status not in {403, 404}:
-                raise
-        try:
-            await self.authorization.require(context, "content:delete", "scope")
+        scope_actions = await read_actions(
+            self.authorization, context, "content", "scope", ["content:delete"], policy=policy
+        )
+        if "content:delete" in scope_actions:
             actions.append({"action_key": "delete", "label": "删除运行内容"})
-        except ServiceError as exc:
-            if exc.status not in {403, 404}:
-                raise
         async with transaction(self.engine, context.scope, self.keys(context, run_id)) as uow:
             row = await self.locked_run(uow, run_id)
             self.owner(context, row)
@@ -268,23 +308,23 @@ class QueryService(RunKernel):
                 calls = await Repository(tool_metadata.tables["tool_calls"], context.scope).find(
                     uow.connection, run_id=run_id
                 )
-                for call in calls:
-                    for identifier in call["evidence_ids"]:
-                        await DeletionGuard(context.scope).check(
-                            uow, [ContentRef("evidence", identifier)]
-                        )
-                        ref = await Repository(
-                            tool_metadata.tables["evidence_refs"], context.scope
-                        ).get(uow.connection, identifier)
-                        if ref:
-                            evidence.append(
-                                {
-                                    "title": ref["title"],
-                                    "source_version": ref["source_version"],
-                                    "observed_at": ref["observed_at"].isoformat(),
-                                    "location": ref["location"],
-                                }
-                            )
+                identifiers = [identifier for call in calls for identifier in call["evidence_ids"]]
+                await DeletionGuard(context.scope).check(
+                    uow, [ContentRef("evidence", i) for i in identifiers]
+                )
+                refs = await Repository(
+                    tool_metadata.tables["evidence_refs"], context.scope
+                ).get_many(uow.connection, identifiers)
+                evidence = [
+                    {
+                        "title": ref["title"],
+                        "source_version": ref["source_version"],
+                        "observed_at": ref["observed_at"].isoformat(),
+                        "location": ref["location"],
+                    }
+                    for identifier in identifiers
+                    if (ref := refs.get(identifier))
+                ]
             return_value = {
                 **self.receipt(row).model_dump(mode="json"),
                 "name": row["agent_name"],
@@ -316,7 +356,7 @@ class QueryService(RunKernel):
             }
         return {
             **return_value,
-            "result": (await self.get_run(context, run_id)).model_dump(mode="json")
+            "result": (await self.read_result(context, run_id, policy)).model_dump(mode="json")
             if content_allowed
             else None,
         }
@@ -339,64 +379,83 @@ class QueryService(RunKernel):
     ) -> dict[str, Any]:
         if not 1 <= limit <= 200:
             raise ServiceError("PAGE_INVALID", "分页数量超出范围", 422)
-        await self.authorization.require(context, "run:read", "scope")
-        filters = context.scope.model_dump(exclude={"channel_id"})
-        if context.principal_type == "management" and context.scope.subject_id is None:
-            filters.pop("subject_type", None)
-            filters.pop("subject_id", None)
+        policy = await read_policy(self.authorization, context)
+        allowed = await read_actions(
+            self.authorization, context, "run", "scope", ["run:read"], policy=policy
+        )
+        require_action(allowed, "run:read")
         if bool(subject_type) != bool(subject_id):
             raise ServiceError("FILTER_INVALID", "主体类型与编号须同时提供", 422)
         if any(value is not None and value.tzinfo is None for value in (start_at, end_at)):
             raise ServiceError("FILTER_INVALID", "查询时间必须包含时区", 422)
         if start_at and end_at and start_at >= end_at:
             raise ServiceError("FILTER_INVALID", "结束时间须晚于开始时间", 422)
+        table = metadata.tables["runs"]
+        predicates = self.read_predicates(context, policy)
+        for field, value in (
+            ("state", state),
+            ("agent_id", agent_id),
+            ("key_id", key_id),
+            ("purpose", purpose),
+            ("subject_type", subject_type),
+            ("subject_id", subject_id),
+        ):
+            if value:
+                predicates.append(table.c[field] == value)
+        if start_at:
+            predicates.append(table.c.created_at >= start_at)
+        if end_at:
+            predicates.append(table.c.created_at < end_at)
+        if error_code:
+            predicates.append(table.c.error["code"].as_string() == error_code)
         async with self.engine.connect() as connection:
-            found = await rows(
-                connection,
-                "runs",
-                context.scope.channel_id,
-                **filters,
-            )
-        selected = sorted(
-            (
-                r
-                for r in found
-                if (not state or r["state"] == state)
-                and (not agent_id or r["agent_id"] == agent_id)
-                and (not key_id or r["key_id"] == key_id)
-                and (not purpose or r["purpose"] == purpose)
-                and (not start_at or r["created_at"] >= start_at)
-                and (not end_at or r["created_at"] < end_at)
-                and (
-                    not subject_id
-                    or (r["subject_type"], r["subject_id"]) == (subject_type, subject_id)
+            if after_id:
+                cursors = (
+                    await connection.execute(
+                        select(table.c.created_at, table.c.id).where(
+                            *predicates, table.c.id == after_id
+                        )
+                    )
+                ).all()
+                if len(cursors) != 1:
+                    raise ServiceError("CURSOR_INVALID", "分页位置已失效", 422)
+                predicates.append(tuple_(table.c.created_at, table.c.id) > tuple(cursors[0]))
+            visible: list[dict[str, Any]] = []
+            while len(visible) <= limit:
+                batch = [
+                    dict(r)
+                    for r in (
+                        await connection.execute(
+                            select(table)
+                            .where(*predicates)
+                            .order_by(table.c.created_at, table.c.id)
+                            .limit(limit + 1)
+                        )
+                    ).mappings()
+                ]
+                if not batch:
+                    break
+                for row in batch:
+                    effective = self.row_context(context, row)
+                    permissions = await read_actions(
+                        self.authorization,
+                        effective,
+                        "run",
+                        row["id"],
+                        ["run:read"],
+                        policy=policy,
+                        state=resource_state(effective, "run", row),
+                    )
+                    if "run:read" in permissions:
+                        visible.append(row)
+                    if len(visible) > limit:
+                        break
+                if len(batch) < limit + 1:
+                    break
+                predicates.append(
+                    tuple_(table.c.created_at, table.c.id)
+                    > (batch[-1]["created_at"], batch[-1]["id"])
                 )
-                and (not error_code or (r["error"] or {}).get("code") == error_code)
-                and (not context.client_id or r["client_id"] == context.client_id)
-            ),
-            key=lambda r: (r["created_at"], r["id"]),
-        )
-        if after_id:
-            cursor = next((r for r in selected if r["id"] == after_id), None)
-            if cursor is None:
-                raise ServiceError("CURSOR_INVALID", "分页位置已失效", 422)
-            selected = [
-                r
-                for r in selected
-                if (r["created_at"], r["id"]) > (cursor["created_at"], cursor["id"])
-            ]
-        visible = []
-        for row in selected:
-            try:
-                effective = await self.access_context(context, row["id"])
-                await self.authorization.require(effective, "run:read", row["id"])
-            except ServiceError as exc:
-                if exc.status in {403, 404}:
-                    continue
-                raise
-            visible.append(row)
-            if len(visible) > limit:
-                break
         return {
             "items": [
                 RunSummary(
@@ -424,26 +483,36 @@ class QueryService(RunKernel):
             await self.guard(uow, row)
             if after_sequence > row["event_sequence"]:
                 raise ServiceError("CURSOR_INVALID", "事件游标超出当前进度", 422)
-            events = sorted(
-                await rows(uow.connection, "run_events", context.scope.channel_id, run_id=run_id),
-                key=lambda e: e["sequence"],
-            )
-            if any(e["sequence"] > after_sequence and e["expires_at"] <= utcnow() for e in events):
+            table = metadata.tables["run_events"]
+            predicates = [
+                Repository(table, context.scope).predicate(),
+                table.c.run_id == run_id,
+                table.c.sequence > after_sequence,
+            ]
+            if await uow.connection.scalar(
+                select(table.c.id).where(*predicates, table.c.expires_at <= utcnow()).limit(1)
+            ):
                 raise ServiceError("EVENTS_EXPIRED", "事件已过期，请查询运行结果", 410)
-            remaining = [e for e in events if e["sequence"] > after_sequence]
+            remaining = [
+                dict(r)
+                for r in (
+                    await uow.connection.execute(
+                        select(table).where(*predicates).order_by(table.c.sequence).limit(limit)
+                    )
+                ).mappings()
+            ]
             if after_sequence < row["event_sequence"] and (
                 not remaining or remaining[0]["sequence"] != after_sequence + 1
             ):
                 raise ServiceError("EVENTS_EXPIRED", "事件已过期，请查询运行结果", 410)
             result = []
-            for event in remaining[:limit]:
-                payload = await required(
-                    uow.connection,
-                    "run_contents",
-                    context.scope.channel_id,
-                    id=event["payload_ref"],
-                    run_id=run_id,
-                )
+            contents = await Repository(metadata.tables["run_contents"], context.scope).get_many(
+                uow.connection, [e["payload_ref"] for e in remaining]
+            )
+            for event in remaining:
+                payload = contents.get(event["payload_ref"])
+                if payload is None or payload["run_id"] != run_id:
+                    raise ServiceError("NOT_FOUND", "事件内容不存在", 404)
                 result.append(
                     RunEvent(
                         scope=context.scope,
@@ -468,25 +537,31 @@ class QueryService(RunKernel):
         async with transaction(self.engine, context.scope, self.keys(context, run_id)) as uow:
             row = await self.locked_run(uow, run_id)
             self.owner(context, row)
-            steps = sorted(
-                (
-                    s
-                    for s in await rows(
-                        uow.connection, "run_steps", context.scope.channel_id, run_id=run_id
+            table = metadata.tables["run_steps"]
+            steps = [
+                dict(r)
+                for r in (
+                    await uow.connection.execute(
+                        select(table)
+                        .where(
+                            Repository(table, context.scope).predicate(),
+                            table.c.run_id == run_id,
+                            table.c.sequence > after_sequence,
+                        )
+                        .order_by(table.c.sequence)
+                        .limit(limit + 1)
                     )
-                    if s["sequence"] > after_sequence
-                ),
-                key=lambda s: s["sequence"],
+                ).mappings()
+            ]
+            attempt_rows = await Repository(metadata.tables["attempts"], context.scope).find_many(
+                uow.connection, "step_id", [s["id"] for s in steps[:limit]], run_id=run_id
             )
+            grouped: dict[str, list[dict[str, Any]]] = {}
+            for attempt in attempt_rows:
+                grouped.setdefault(attempt["step_id"], []).append(attempt)
             items = []
             for step in steps[:limit]:
-                attempts = await rows(
-                    uow.connection,
-                    "attempts",
-                    context.scope.channel_id,
-                    run_id=run_id,
-                    step_id=step["id"],
-                )
+                attempts = grouped.get(step["id"], [])
                 items.append(
                     {
                         "step_id": step["id"],

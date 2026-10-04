@@ -3,13 +3,21 @@
 from sqlalchemy import select
 
 from creativity_service.core.context import AuthContext
-from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database import transaction
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.modules.conversations.tables import metadata as conversations
+from creativity_service.modules.iam.reading import (
+    read_actions,
+    read_policy,
+    require_action,
+    resource_state,
+)
 from creativity_service.modules.memory import repositories as repo
 from creativity_service.modules.memory.base import MemoryKernel
+from creativity_service.modules.memory.reading import indexed, scoped_id, scoped_rows
 from creativity_service.modules.memory.schemas import ConsolidationView, MemoryConfirm
 from creativity_service.modules.memory.tables import metadata
+from creativity_service.modules.runs.tables import metadata as runs
 
 LABELS = {
     "PENDING": "等待整理",
@@ -26,7 +34,11 @@ class MemoryJobs(MemoryKernel):
     ) -> list[ConsolidationView]:
         if anchor_id:
             context = await self.subject(context, anchor_id)
-        await self.authorization.require(context, "memory:read", "scope")
+        policy = await read_policy(self.authorization, context)
+        permissions = await read_actions(
+            self.authorization, context, "memory", "scope", ["memory:read"], policy=policy
+        )
+        require_action(permissions, "memory:read")
         scope = context.scope.model_dump()
         if context.principal_type == "management" and not context.scope.subject_id:
             scope.pop("subject_id")
@@ -44,20 +56,68 @@ class MemoryJobs(MemoryKernel):
                     )
                 ).mappings()
             ]
+        contexts = {scoped_id(row): self.row_context(context, row) for row in rows}
+        async with self.engine.connect() as connection:
+            conversation_rows = indexed(
+                await scoped_rows(
+                    connection,
+                    conversations.tables["conversations"],
+                    [(contexts[scoped_id(r)], r["conversation_id"]) for r in rows],
+                )
+            )
+            run_rows = indexed(
+                await scoped_rows(
+                    connection,
+                    runs.tables["runs"],
+                    [
+                        (contexts[scoped_id(r)], r["generation_run_id"])
+                        for r in rows
+                        if r["generation_run_id"]
+                    ],
+                )
+            )
         result = []
         for row in rows:
-            scoped = self.row_context(context, row)
-            if not await self.allowed(scoped, "memory:read"):
+            scoped = contexts[scoped_id(row)]
+            permissions = await read_actions(
+                self.authorization,
+                scoped,
+                "memory",
+                "scope",
+                ["memory:read", "memory:write"],
+                policy=policy,
+            )
+            if "memory:read" not in permissions:
                 continue
             title = "会话名称不可用"
-            if await self.allowed(scoped, "conversation:read", row["conversation_id"]):
-                async with self.engine.connect() as connection:
-                    conversation = await Repository(
-                        conversations.tables["conversations"], scoped.scope
-                    ).get(connection, row["conversation_id"])
-                if conversation and conversation["status"] not in {"DELETING", "DELETED"}:
+            conversation = conversation_rows.get(scoped_id(row, row["conversation_id"]))
+            if conversation and conversation["status"] not in {"DELETING", "DELETED"}:
+                allowed = await read_actions(
+                    self.authorization,
+                    scoped,
+                    "conversation",
+                    conversation["id"],
+                    ["conversation:read"],
+                    policy=policy,
+                    state=resource_state(scoped, "conversation", conversation),
+                )
+                if "conversation:read" in allowed:
                     title = conversation["title"]
             run_id = row["generation_run_id"]
+            run = run_rows.get(scoped_id(row, run_id)) if run_id else None
+            run_allowed = (
+                await read_actions(
+                    self.authorization,
+                    scoped,
+                    "run",
+                    run_id,
+                    ["run:read"],
+                    policy=policy,
+                    state=resource_state(scoped, "run", run),
+                )
+                if run
+                else frozenset()
+            )
             result.append(
                 ConsolidationView(
                     id=row["id"],
@@ -67,14 +127,11 @@ class MemoryJobs(MemoryKernel):
                     state_label=LABELS[row["state"]],
                     attempt=row["attempt"],
                     generated_count=len(row["memory_ids"]),
-                    generation_run_id=run_id
-                    if run_id and await self.allowed(scoped, "run:read", run_id)
-                    else None,
+                    generation_run_id=run_id if run_id and "run:read" in run_allowed else None,
                     created_at=row["created_at"],
                     updated_at=row["updated_at"],
                     message="请检查运行详情与记忆策略" if row["error_code"] else None,
-                    can_retry=row["state"] == "FAILED"
-                    and await self.allowed(scoped, "memory:write"),
+                    can_retry=row["state"] == "FAILED" and "memory:write" in permissions,
                 )
             )
         return result

@@ -30,6 +30,15 @@ class AdminSession:
     context: AuthContext | ControlAuthContext
 
 
+@dataclass(frozen=True)
+class ValidatedIdentity:
+    """一次身份复核的读取结果，仅供当前调用继续计算授权。"""
+
+    account: AccountState | None = None
+    member: MembershipState | None = None
+    service: ServiceIdentity | None = None
+
+
 class AuthenticationService:
     def __init__(
         self,
@@ -71,11 +80,16 @@ class AuthenticationService:
             raise ServiceError("PASSWORD_CHANGE_REQUIRED", "请先修改初始密码", 403)
         return account
 
-    async def active_member(self, context: AuthContext) -> MembershipState:
+    async def active_member(
+        self, context: AuthContext, *, account: AccountState | None = None
+    ) -> MembershipState:
         user_id = context.actor_id
         if not user_id or context.principal_id != user_id:
             raise ServiceError("UNAUTHENTICATED", "管理身份不完整", 401)
-        await self.active_account(user_id)
+        if account is None:
+            account = await self.active_account(user_id)
+        if account.id != user_id or account.status != "ACTIVE" or account.must_change_password:
+            raise ServiceError("UNAUTHENTICATED", "管理身份不可用", 401)
         member = await self.identities.membership(context.scope.channel_id, user_id)
         if member is None or member.status != "ACTIVE":
             raise ServiceError("MEMBERSHIP_DISABLED", "渠道成员已停用", 401)
@@ -104,8 +118,14 @@ class AuthenticationService:
         return identity
 
     async def validate_record(
-        self, record: TokenRecord, *, allow_initial: bool = False, governance: bool = False
-    ) -> None:
+        self,
+        record: TokenRecord,
+        *,
+        allow_initial: bool = False,
+        governance: bool = False,
+        context: AuthContext | None = None,
+    ) -> ValidatedIdentity:
+        account, member, service = None, None, None
         if await self.identities.token_revoked(record.channel_id, record.token_digest):
             raise ServiceError("UNAUTHENTICATED", "请重新登录", 401)
         if record.purpose != "service":
@@ -115,14 +135,15 @@ class AuthenticationService:
             if account.must_change_password and not allow_initial:
                 raise ServiceError("PASSWORD_CHANGE_REQUIRED", "请先修改初始密码", 403)
         if record.purpose != "login":
-            context = self.context(record)
+            context = context or self.context(record)
             if record.purpose == "management":
-                member = await self.active_member(context)
+                member = await self.active_member(context, account=account)
                 if member.revision != record.membership_version:
                     raise ServiceError("UNAUTHENTICATED", "成员授权已更新，请重新登录", 401)
             else:
-                await self.service_identity(context)
+                service = await self.service_identity(context)
             await require_channel_state(context, self.channels, governance=governance)
+        return ValidatedIdentity(account, member, service)
 
     def context(self, record: TokenRecord, request_id: str | None = None) -> AuthContext:
         if record.purpose == "login" or record.environment is None:
@@ -152,8 +173,12 @@ class AuthenticationService:
         self, bearer: str, request_id: str, *, allow_initial: bool = False, governance: bool = False
     ) -> AdminSession:
         record = await self.tokens.read(bearer, {"login", "management"})
-        await self.validate_record(record, allow_initial=allow_initial, governance=governance)
-        account = await self.active_account(record.principal_id, allow_initial=allow_initial)
+        identity = await self.validate_record(
+            record, allow_initial=allow_initial, governance=governance
+        )
+        account = identity.account
+        if account is None:
+            raise ServiceError("UNAUTHENTICATED", "管理身份不完整", 401)
         context: AuthContext | ControlAuthContext
         if record.purpose == "login":
             context = ControlAuthContext(
@@ -167,7 +192,9 @@ class AuthenticationService:
             context = self.context(record, request_id)
         return AdminSession(record, account, context)
 
-    async def revalidate(self, context: AuthContext) -> None:
+    async def revalidate(self, context: AuthContext) -> ValidatedIdentity:
+        if context.actor_id and (context.client_id or context.key_id):
+            raise ServiceError("UNAUTHENTICATED", "身份来源冲突", 401)
         if context.session_id or context.token_digest:
             if not context.session_id or not context.token_digest:
                 raise ServiceError("UNAUTHENTICATED", "会话凭据不完整", 401)
@@ -185,15 +212,14 @@ class AuthenticationService:
                 )
             ):
                 raise ServiceError("UNAUTHENTICATED", "会话归属不符", 401)
-            await self.validate_record(record)
+            return await self.validate_record(record, context=context)
         elif context.principal_type != "worker":
             raise ServiceError("UNAUTHENTICATED", "缺少会话凭据", 401)
         if context.actor_id:
-            if context.client_id or context.key_id:
-                raise ServiceError("UNAUTHENTICATED", "身份来源冲突", 401)
-            await self.active_member(context)
+            identity = ValidatedIdentity(member=await self.active_member(context))
         elif context.client_id and context.key_id:
-            await self.service_identity(context)
+            identity = ValidatedIdentity(service=await self.service_identity(context))
         else:
             raise ServiceError("UNAUTHENTICATED", "缺少原始身份来源", 401)
         await require_channel_state(context, self.channels)
+        return identity

@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Protocol
 
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.context import AuthContext, Authorization, DenyAuthorization, Scope
@@ -67,12 +67,41 @@ class DeletionGuard:
         self.barriers = Repository(metadata.tables["recovery_barriers"], scope)
 
     async def check(self, uow: UnitOfWork, refs: list[ContentRef]) -> None:
+        if await self.blocked_refs(uow, refs):
+            raise ServiceError("CONTENT_DELETED", "内容或来源已删除", 410)
+
+    async def blocked_refs(
+        self, uow: UnitOfWork, refs: list[ContentRef], *, scopes: list[Scope] | None = None
+    ) -> frozenset[ContentRef]:
+        """在同一图锁下按层批量读取来源，返回每个输入对象的删除结果。"""
         uow.require_scope(self.scope)
         uow.require_lock(content_key(self.scope))
-        barrier = await self.barriers.get(uow.connection, barrier_id(self.scope))
+        targets = {
+            barrier_id(scope): scope for scope in (scopes if scopes is not None else [self.scope])
+        }
+        if any(scope.channel_id != self.scope.channel_id for scope in targets.values()):
+            raise ServiceError("SCOPE_MISMATCH", "删除检查不能跨渠道", 403)
+        table = metadata.tables["recovery_barriers"]
+        barriers = {}
+        identifiers = list(targets)
+        for start in range(0, len(identifiers), 500):
+            records = await uow.connection.execute(
+                select(table).where(
+                    table.c.channel_id == self.scope.channel_id,
+                    table.c.id.in_(identifiers[start : start + 500]),
+                )
+            )
+            for record in records.mappings():
+                if record["id"] in barriers:
+                    raise ServiceError("STORAGE_INVARIANT_BROKEN", "恢复屏障标识重复", 503)
+                barriers[record["id"]] = record
         manifest = current_manifest.get() or {}
         if not maintenance_mode.get() and (
-            barrier is None or barrier["state"] != "READY" or manifest.get("blocked")
+            any(
+                identifier not in barriers or barriers[identifier]["state"] != "READY"
+                for identifier in targets
+            )
+            or manifest.get("blocked")
         ):
             raise ServiceError("RECOVERY_BLOCKED", "内容恢复核对尚未完成", 503)
         table = metadata.tables["deletion_markers"]
@@ -90,40 +119,56 @@ class DeletionGuard:
             for m in markers
             if m["target_type"] == "scope"
         }
-        if tuple(self.scope.model_dump().values()) in deleted_scopes:
+        if scopes is None and tuple(self.scope.model_dump().values()) in deleted_scopes:
             raise ServiceError("CONTENT_DELETED", "该范围内容已删除", 410)
         deleted = {
             ContentRef(m["target_type"], m["target_id"])
             for m in markers
             if m["target_type"] != "scope"
         }
+        # 已核对数据库与独立清单，没有删除记录时无需查询任何来源边。
+        if not deleted and not deleted_scopes:
+            return frozenset()
         visited: set[ContentRef] = set()
-        pending = list(refs)
+        pending = set(refs)
+        blocked: set[ContentRef] = set()
+        parents: dict[ContentRef, set[ContentRef]] = {}
+
+        def connect(parent: ContentRef, source: ContentRef) -> None:
+            parents.setdefault(source, set()).add(parent)
+            if source not in visited:
+                pending.add(source)
+
         while pending:
-            ref = pending.pop()
-            if ref in visited:
-                continue
-            if ref in deleted:
-                raise ServiceError("CONTENT_DELETED", "内容或来源已删除", 410)
-            visited.add(ref)
+            batch = list(pending - visited)[:500]
+            pending.difference_update(batch)
+            visited.update(batch)
+            blocked.update(set(batch) & deleted)
             if len(visited) > 10000:
                 raise ServiceError("SOURCE_GRAPH_LIMIT", "来源关系过多，需核对后读取", 503)
+            batch = [ref for ref in batch if ref not in blocked]
+            if not batch:
+                continue
             # 同渠道来源可跨主体；读取来源自己的归属，不能套用调用方的主体。
-            model = CONTENT_MODELS.get(ref.resource_type)
-            if deleted_scopes and model is not None:
-                table = model
-                if "environment" in table.c:
+            kinds = {ref.resource_type for ref in batch}
+            if deleted_scopes:
+                for kind in kinds:
+                    model = CONTENT_MODELS.get(kind)
+                    if model is None or "environment" not in model.c:
+                        continue
                     records = await uow.connection.execute(
-                        select(table).where(
-                            table.c.channel_id == self.scope.channel_id,
-                            table.c.id == ref.resource_id,
+                        select(model).where(
+                            model.c.channel_id == self.scope.channel_id,
+                            model.c.id.in_(
+                                [r.resource_id for r in batch if r.resource_type == kind]
+                            ),
                         )
                     )
-                    if any(
-                        tuple(row.get(k) for k in Scope.model_fields) in deleted_scopes
+                    blocked.update(
+                        ContentRef(kind, row["id"])
                         for row in records.mappings()
-                    ):
-                        raise ServiceError("CONTENT_DELETED", "内容或来源范围已删除", 410)
+                        if tuple(row.get(k) for k in Scope.model_fields) in deleted_scopes
+                    )
             table = metadata.tables["source_links"]
             links = [
                 dict(row)
@@ -131,29 +176,39 @@ class DeletionGuard:
                     await uow.connection.execute(
                         select(table).where(
                             table.c.channel_id == self.scope.channel_id,
-                            table.c.derived_type == ref.resource_type,
-                            table.c.derived_id == ref.resource_id,
+                            tuple_(table.c.derived_type, table.c.derived_id).in_(
+                                [(r.resource_type, r.resource_id) for r in batch]
+                            ),
                         )
                     )
                 ).mappings()
             ]
-            if any(
-                tuple(link.get(k) for k in Scope.model_fields) in deleted_scopes for link in links
-            ):
-                raise ServiceError("CONTENT_DELETED", "内容或来源范围已删除", 410)
-            pending.extend(ContentRef(link["source_type"], link["source_id"]) for link in links)
-            if ref.resource_type == "run" and (deleted or deleted_scopes):
+            for link in links:
+                parent = ContentRef(link["derived_type"], link["derived_id"])
+                if tuple(link.get(k) for k in Scope.model_fields) in deleted_scopes:
+                    blocked.add(parent)
+                connect(parent, ContentRef(link["source_type"], link["source_id"]))
+            run_ids = [r.resource_id for r in batch if r.resource_type == "run"]
+            if run_ids:
                 # 受理后的输入及工具内容先于上下文来源边出现，旧运行也须立即阻断。
                 for kind in ("message", "tool_call"):
                     model = CONTENT_MODELS.get(kind)
                     if model is not None:
-                        identifiers = await uow.connection.scalars(
-                            select(model.c.id).where(
+                        records = await uow.connection.execute(
+                            select(model.c.id, model.c.run_id).where(
                                 model.c.channel_id == self.scope.channel_id,
-                                model.c.run_id == ref.resource_id,
+                                model.c.run_id.in_(run_ids),
                             )
                         )
-                        pending.extend(ContentRef(kind, value) for value in identifiers)
+                        for row in records.mappings():
+                            connect(ContentRef("run", row["run_id"]), ContentRef(kind, row["id"]))
+        affected = list(blocked)
+        while affected:
+            for parent in parents.get(affected.pop(), set()):
+                if parent not in blocked:
+                    blocked.add(parent)
+                    affected.append(parent)
+        return frozenset(set(refs) & blocked)
 
     async def link(
         self,

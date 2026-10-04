@@ -95,5 +95,6 @@ def build_mcp_service(
         lambda scope, binding: resolve_adapter(service, scope, binding)
     )
     tools.management.binding_checks.append(service.check_binding)
+    tools.management.binding_read_checks[service.check_binding] = service.read_bindings
     tools.management.binding_option_providers.append(service.bindings)
     return service

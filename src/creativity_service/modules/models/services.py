@@ -426,14 +426,28 @@ class ModelService:
             )
         return await self.model_view(context, row)
 
-    async def model_view(self, context: AuthContext, row: dict[str, Any]) -> ModelView:
-        async with self.engine.connect() as conn:
-            connection = await required(
-                conn, context.scope, "model_connections", row["connection_id"]
-            )
+    async def model_view(
+        self,
+        context: AuthContext,
+        row: dict[str, Any],
+        *,
+        connection: dict[str, Any] | None = None,
+        providers: list[dict[str, Any]] | None = None,
+        permissions: frozenset[str] | None = None,
+    ) -> ModelView:
+        if connection is None:
+            async with self.engine.connect() as conn:
+                connection = await required(
+                    conn, context.scope, "model_connections", row["connection_id"]
+                )
         digest_value = configuration_digest(row, connection)
         provider = next(
-            (p for p in await self.provider_rows() if p["id"] == connection["provider_id"]), None
+            (
+                p
+                for p in (providers if providers is not None else await self.provider_rows())
+                if p["id"] == connection["provider_id"]
+            ),
+            None,
         )
         capabilities = []
         for key, name in CAPABILITY_NAMES.items():
@@ -454,8 +468,11 @@ class ModelService:
             )
         actions = [action("edit", "编辑"), action("history", "历史版本")]
         try:
-            decision = await self.iam.authorization.check(context, "run:create", "model", row["id"])
-            if decision.allowed:
+            if permissions is None:
+                permissions = await self.iam.authorization.allowed_actions(
+                    context, "model", row["id"]
+                )
+            if "run:create" in permissions:
                 actions.insert(1, action("test", "能力验证"))
         except ServiceError as exc:
             if exc.status not in {403, 404}:
@@ -489,26 +506,43 @@ class ModelService:
         )
 
     async def models(self, session: AdminSession) -> ModelList:
-        context = await self.context(session)
+        from creativity_service.modules.iam.reading import require_action, resource_state
+
+        if not isinstance(session.context, AuthContext):
+            raise ServiceError("FORBIDDEN", "请先进入渠道工作区", 403)
+        context = session.context
+        policy = await self.iam.authorization.read_policy(context)
+        require_action(policy.actions("channel", context.scope.channel_id), "model:manage")
         async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
             rows = await repository(context.scope, "models").find(uow.connection)
-            visible = []
-            for row in rows:
-                if (
-                    await repository(context.scope, "model_connections").get(
-                        uow.connection, row["connection_id"]
-                    )
-                    is None
-                ):
-                    continue
-                try:
-                    await DeletionGuard(context.scope).check(uow, [ContentRef("model", row["id"])])
-                    visible.append(row)
-                except ServiceError as exc:
-                    if exc.code != "CONTENT_DELETED":
-                        raise
+            connections = await repository(context.scope, "model_connections").get_many(
+                uow.connection, [row["connection_id"] for row in rows]
+            )
+            blocked = await DeletionGuard(context.scope).blocked_refs(
+                uow, [ContentRef("model", row["id"]) for row in rows]
+            )
+            visible = [
+                row
+                for row in rows
+                if row["connection_id"] in connections
+                and ContentRef("model", row["id"]) not in blocked
+            ]
+        providers = await self.provider_rows()
         return ModelList(
-            items=[await self.model_view(context, row) for row in visible],
+            items=[
+                await self.model_view(
+                    context,
+                    row,
+                    connection=connections[row["connection_id"]],
+                    providers=providers,
+                    permissions=policy.actions(
+                        "model", row["id"], resource_state(context, "model", row)
+                    )
+                    if row["status"] == "ACTIVE"
+                    else frozenset(),
+                )
+                for row in visible
+            ],
             actions=[action("create", "新增模型")],
         )
 

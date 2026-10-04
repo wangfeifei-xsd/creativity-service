@@ -2,13 +2,12 @@
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import transaction
-from creativity_service.core.deletion import ContentRef, DeletionGuard
-from creativity_service.core.primitives import ServiceError
-from creativity_service.modules.agents.access import locked_require
+from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.modules.agents.repositories import repository
 from creativity_service.modules.agents.schemas import AgentDefinition
 from creativity_service.modules.agents.services import AgentService
 from creativity_service.modules.conversations.schemas import AgentChoice
+from creativity_service.modules.iam.reading import resource_state
 
 
 class ConversationAgents:
@@ -16,42 +15,50 @@ class ConversationAgents:
         self.agents = agents
 
     async def list_available(self, context: AuthContext) -> list[AgentChoice]:
-        await self.agents.authorization.authentication.revalidate(context)
-        async with self.agents.engine.connect() as connection:
-            agents = await repository("agents", context.scope).find(connection, status="ACTIVE")
+        policy = await self.agents.authorization.read_policy(context)
         choices = []
-        for agent in agents:
-            try:
-                await self.agents.require(context, "run:create", agent["id"])
-                async with transaction(
-                    self.agents.engine, context.scope, self.agents.keys(context, agent["id"])
-                ) as uow:
-                    await locked_require(uow, context, "run:create", "agent", agent["id"])
-                    mapping_id = self.agents.mapping_id(context, agent["id"])
-                    state = await repository("agent_environment_states", context.scope).get(
-                        uow.connection, mapping_id
-                    )
-                    mapping = await repository("release_mappings", context.scope).get(
-                        uow.connection, mapping_id
-                    )
-                    if not mapping or (state and state["status"] != "ACTIVE"):
-                        continue
-                    version = await repository("resource_versions", context.scope).get(
-                        uow.connection, mapping["version_id"]
-                    )
-                    if not version or version["state"] != "PUBLISHED":
-                        continue
-                    await DeletionGuard(context.scope).check(
-                        uow,
-                        [ContentRef("agent", agent["id"]), ContentRef("version", version["id"])],
-                    )
-                    if AgentDefinition.model_validate(
-                        version["content"]
-                    ).context.conversation_enabled:
-                        choices.append(
-                            AgentChoice(agent_code=agent["agent_code"], name=agent["name"])
-                        )
-            except ServiceError as exc:
-                if exc.status not in {403, 404, 410}:
-                    raise
+        async with transaction(
+            self.agents.engine, context.scope, [content_key(context.scope)]
+        ) as uow:
+            agents = await repository("agents", context.scope).find(uow.connection, status="ACTIVE")
+            agents = [
+                row
+                for row in agents
+                if "run:create"
+                in policy.actions("agent", row["id"], resource_state(context, "agent", row))
+            ]
+            identifiers = [self.agents.mapping_id(context, row["id"]) for row in agents]
+            states = await repository("agent_environment_states", context.scope).get_many(
+                uow.connection, identifiers
+            )
+            mappings = await repository("release_mappings", context.scope).get_many(
+                uow.connection, identifiers
+            )
+            versions = await repository("resource_versions", context.scope).get_many(
+                uow.connection, [r["version_id"] for r in mappings.values()]
+            )
+            blocked = await DeletionGuard(context.scope).blocked_refs(
+                uow,
+                [
+                    *(ContentRef("agent", row["id"]) for row in agents),
+                    *(ContentRef("version", identifier) for identifier in versions),
+                ],
+            )
+            for agent in agents:
+                identifier = self.agents.mapping_id(context, agent["id"])
+                state, mapping = states.get(identifier), mappings.get(identifier)
+                version = versions.get(mapping["version_id"]) if mapping else None
+                if (
+                    not version
+                    or version["state"] != "PUBLISHED"
+                    or (state and state["status"] != "ACTIVE")
+                ):
+                    continue
+                if {
+                    ContentRef("agent", agent["id"]),
+                    ContentRef("version", version["id"]),
+                } & blocked:
+                    continue
+                if AgentDefinition.model_validate(version["content"]).context.conversation_enabled:
+                    choices.append(AgentChoice(agent_code=agent["agent_code"], name=agent["name"]))
         return sorted(choices, key=lambda choice: choice.name)

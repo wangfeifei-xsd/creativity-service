@@ -90,6 +90,12 @@ class RunKernel:
 
     async def access_context(self, context: AuthContext, run_id: str) -> AuthContext:
         row = await self.load(TaskEnvelope(channel_id=context.scope.channel_id, run_id=run_id))
+        return self.row_context(context, row)
+
+    @staticmethod
+    def row_context(context: AuthContext, row: dict[str, Any]) -> AuthContext:
+        if row["channel_id"] != context.scope.channel_id:
+            raise ServiceError("NOT_FOUND", "运行记录不存在", 404)
         scope = context.scope
         if (
             context.principal_type == "management"
@@ -137,12 +143,23 @@ class RunKernel:
         return row
 
     async def guard(self, uow: UnitOfWork, row: dict[str, Any]) -> None:
-        refs = [ContentRef("run", row["id"]), ContentRef("snapshot", row["release_snapshot_id"])]
-        if row["conversation_id"]:
-            refs.append(ContentRef("conversation", row["conversation_id"]))
-        await DeletionGuard(self.context(row).scope).check(uow, refs)
+        await self.guard_many(uow, [row])
+
+    async def guard_many(self, uow: UnitOfWork, rows: list[dict[str, Any]]) -> None:
+        if not isinstance(uow.scope, Scope):
+            raise ServiceError("SCOPE_MISMATCH", "运行不能使用控制面范围", 403)
+        refs = []
+        for row in rows:
+            verify_scope(row, uow.scope)
+            refs.extend(
+                [ContentRef("run", row["id"]), ContentRef("snapshot", row["release_snapshot_id"])]
+            )
+            if row["conversation_id"]:
+                refs.append(ContentRef("conversation", row["conversation_id"]))
+        await DeletionGuard(uow.scope).check(uow, refs)
         if self.content_guard:
-            await self.content_guard(uow, row)
+            for row in rows:
+                await self.content_guard(uow, row)
 
     async def snapshot(self, uow: UnitOfWork, row: dict[str, Any]) -> ReleaseSnapshot:
         await self.guard(uow, row)

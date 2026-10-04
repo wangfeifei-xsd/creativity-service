@@ -14,6 +14,7 @@ from creativity_service.core.context import AuthContext, ControlScope, Scope
 from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import ServiceError, new_id, utcnow
+from creativity_service.modules.channels.reading import ChannelReadData
 from creativity_service.modules.channels.repositories import one, required, rows, save
 from creativity_service.modules.channels.schemas import (
     KeyCreate,
@@ -37,10 +38,23 @@ class KeyService:
     def __init__(self, channels: ChannelService) -> None:
         self.channels, self.repository, self.iam = channels, channels.repository, channels.iam
 
-    async def view(self, connection: AsyncConnection, row: dict[str, Any]) -> KeyView:
-        client = await one(connection, "service_clients", row["channel_id"], id=row["client_id"])
-        env = await one(
-            connection, "channel_environments", row["channel_id"], environment=row["environment"]
+    async def view(
+        self, connection: AsyncConnection, row: dict[str, Any], data: ChannelReadData | None = None
+    ) -> KeyView:
+        client = (
+            data.clients.get(row["client_id"])
+            if data is not None
+            else await one(connection, "service_clients", row["channel_id"], id=row["client_id"])
+        )
+        env = (
+            data.environments.get(row["environment"])
+            if data is not None
+            else await one(
+                connection,
+                "channel_environments",
+                row["channel_id"],
+                environment=row["environment"],
+            )
         )
         status = (
             "EXPIRED"
@@ -74,19 +88,14 @@ class KeyService:
         await self.channels.authorize(session, channel_id, "key:manage")
         async with self.repository.engine.connect() as connection:
             await required(connection, "channels", channel_id, id=channel_id)
+            data = await ChannelReadData.load(connection, session, channel_id)
             result = []
             for row in await rows(connection, "channel_keys", channel_id):
-                client = await required(
-                    connection, "service_clients", channel_id, id=row["client_id"]
-                )
-                if await self.channels.visible(
-                    connection,
-                    session,
-                    row["environment"],
-                    client["data_scopes"],
-                    action="key:manage",
-                ):
-                    result.append(await self.view(connection, row))
+                client = data.clients.get(row["client_id"])
+                if client is None:
+                    raise ServiceError("NOT_FOUND", "接入服务不存在", 404)
+                if data.visible(row["environment"], client["data_scopes"], action="key:manage"):
+                    result.append(await self.view(connection, row, data))
             return result
 
     def creation_keys(

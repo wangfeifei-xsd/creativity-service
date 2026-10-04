@@ -23,6 +23,7 @@ from creativity_service.core.primitives import ServiceError, digest, new_id, utc
 from creativity_service.core.versioning import VersionService
 from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.iam.authorization import IamAuthorization
+from creativity_service.modules.iam.reading import resource_state, visible_actions
 from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.skills.authorization import PackageAuthorization, SkillAuthorization
 from creativity_service.modules.skills.dependencies import local_bindings, resolve_dependencies
@@ -198,13 +199,15 @@ class SkillService:
         await self.authorization.boundary(context, action, "skill", skill_id)
 
     async def actions(
-        self, context: AuthContext, skill_id: str, actions: list[tuple[str, str, str]]
+        self,
+        context: AuthContext,
+        skill_id: str,
+        actions: list[tuple[str, str, str]],
+        permissions: frozenset[str] | None = None,
     ) -> list[VisibleAction]:
-        result = []
-        for key, label, action in actions:
-            if (await self.authorization.check(context, action, "skill", skill_id)).allowed:
-                result.append(VisibleAction(action_key=key, label=label))
-        return result
+        if permissions is None:
+            permissions = await self.authorization.allowed_actions(context, "skill", skill_id)
+        return visible_actions(permissions, actions)
 
     def artifacts(
         self, context: AuthContext, skill_id: str, action: str = "skill:manage"
@@ -603,7 +606,9 @@ class SkillService:
             for action in {"run:create", *definition.required_scopes}:
                 await locked_require(uow, context, action, "tool", version["resource_id"])
 
-    async def view(self, context: AuthContext, row: dict[str, Any]) -> SkillView:
+    async def view(
+        self, context: AuthContext, row: dict[str, Any], permissions: frozenset[str] | None = None
+    ) -> SkillView:
         return SkillView(
             skill_id=row["id"],
             skill_code=row["skill_code"],
@@ -620,37 +625,34 @@ class SkillService:
                     ("edit", "编辑技能", "skill:manage"),
                     ("create_version", "新增版本", "version:edit"),
                 ],
+                permissions,
             ),
         )
 
     async def list_skills(self, context: AuthContext, search: str | None = None) -> SkillList:
-        await self.authorization.authentication.revalidate(context)
-        async with self.engine.connect() as connection:
-            rows = await repository("skills", context.scope).find(connection)
+        policy = await self.authorization.read_policy(context)
         items = []
-        for row in rows:
-            if search and search.casefold() not in (row["name"] + row["description"]).casefold():
-                continue
-            if (
-                await self.authorization.check(context, "skill:manage", "skill", row["id"])
-            ).allowed:
-                async with transaction(
-                    self.engine, context.scope, [content_key(context.scope)]
-                ) as uow:
-                    try:
-                        await DeletionGuard(context.scope).check(
-                            uow, [ContentRef("skill", row["id"])]
-                        )
-                    except ServiceError as exc:
-                        if exc.code == "CONTENT_DELETED":
-                            continue
-                        raise
-                items.append(await self.view(context, row))
+        async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
+            rows = await repository("skills", context.scope).find(uow.connection)
+            rows = [
+                row
+                for row in rows
+                if (
+                    not search or search.casefold() in (row["name"] + row["description"]).casefold()
+                )
+                and "skill:manage"
+                in policy.actions("skill", row["id"], resource_state(context, "skill", row))
+            ]
+            blocked = await DeletionGuard(context.scope).blocked_refs(
+                uow, [ContentRef("skill", row["id"]) for row in rows]
+            )
+            for row in rows:
+                if ContentRef("skill", row["id"]) not in blocked:
+                    items.append(await self.view(context, row, frozenset()))
         return SkillList(
             items=items,
-            actions=await self.actions(
-                context,
-                "new",
+            actions=visible_actions(
+                policy.actions("skill", "new"),
                 [("create", "新增技能", "skill:manage"), ("import", "导入技能包", "skill:manage")],
             ),
         )

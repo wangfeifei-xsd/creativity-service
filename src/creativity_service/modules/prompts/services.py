@@ -21,8 +21,15 @@ from creativity_service.core.primitives import (
     new_id,
     unavailable,
 )
-from creativity_service.core.versioning import VersionService
-from creativity_service.modules.iam.authorization import IamAuthorization
+from creativity_service.core.versioning import VersionService, version_view
+from creativity_service.modules.iam.authorization import IamAuthorization, ReadAuthorization
+from creativity_service.modules.iam.reading import (
+    read_actions,
+    read_policy,
+    require_action,
+    resource_state,
+    visible_actions,
+)
 from creativity_service.modules.prompts.authorization import PromptAuthorization
 from creativity_service.modules.prompts.differences import compare_content
 from creativity_service.modules.prompts.portable import export_text, import_text
@@ -30,6 +37,11 @@ from creativity_service.modules.prompts.ports import (
     PromptContextProvider,
     PromptDebugRunner,
     PromptEvidenceReader,
+)
+from creativity_service.modules.prompts.reading import (
+    PromptReadData,
+    read_references,
+    release_views,
 )
 from creativity_service.modules.prompts.rendering import render, validate_content
 from creativity_service.modules.prompts.repositories import repository
@@ -110,12 +122,16 @@ class PromptService:
                 return False
             raise
 
-    async def actions(self, context: AuthContext, resource_id: str) -> list[VisibleAction]:
-        return [
-            VisibleAction(action_key=action, label=label)
-            for action, label in ACTION_LABELS.items()
-            if await self.allowed(context, action, resource_id)
-        ]
+    async def actions(
+        self, context: AuthContext, resource_id: str, permissions: frozenset[str] | None = None
+    ) -> list[VisibleAction]:
+        if permissions is None:
+            permissions = await read_actions(
+                self.authorization, context, "prompt", resource_id, list(ACTION_LABELS)
+            )
+        return visible_actions(
+            permissions, [(action, label, action) for action, label in ACTION_LABELS.items()]
+        )
 
     async def _resource(self, context: AuthContext, prompt_id: str) -> dict[str, Any]:
         async with self.engine.connect() as connection:
@@ -177,42 +193,49 @@ class PromptService:
         return await self.detail(context, prompt_id)
 
     async def list_items(self, context: AuthContext) -> PromptListView:
+        policy = await read_policy(self.authorization, context)
         async with self.engine.connect() as connection:
             rows = await repository("prompts", context.scope).find(connection)
-        items = [
-            await self.detail(context, row["id"])
-            for row in sorted(rows, key=lambda r: r["created_at"], reverse=True)
-            if await self.allowed(context, "version:read", row["id"])
-        ]
-        return PromptListView(items=items, actions=await self.actions(context, "new"))
+        visible = []
+        for row in sorted(rows, key=lambda r: r["created_at"], reverse=True):
+            permissions = await read_actions(
+                self.authorization,
+                context,
+                "prompt",
+                row["id"],
+                list(ACTION_LABELS),
+                policy=policy,
+                state=resource_state(context, "prompt", row),
+            )
+            if "version:read" in permissions:
+                visible.append((row, permissions))
+        data = await PromptReadData.load(self.engine, context, [row["id"] for row, _ in visible])
+        create_permissions = await read_actions(
+            self.authorization, context, "prompt", "new", list(ACTION_LABELS), policy=policy
+        )
+        return PromptListView(
+            items=[
+                data.view(row, await self.actions(context, row["id"], permissions))
+                for row, permissions in visible
+            ],
+            actions=await self.actions(context, "new", create_permissions),
+        )
 
     async def detail(self, context: AuthContext, prompt_id: str) -> PromptView:
-        await self.authorization.require(context, "version:read", prompt_id)
+        policy = await read_policy(self.authorization, context)
         row = await self._resource(context, prompt_id)
-        async with self.engine.connect() as connection:
-            versions = await repository("resource_versions", context.scope).find(
-                connection, resource_type="prompt", resource_id=prompt_id
-            )
-            tests = await repository("prompt_tests", context.scope).find(connection)
-        versions.sort(key=lambda item: item["created_at"], reverse=True)
-        ids = {v["id"] for v in versions}
-        dates = [test["created_at"] for test in tests if test["version_id"] in ids]
-        refs = await self.references(context, prompt_id)
-        return PromptView(
-            prompt_id=prompt_id,
-            prompt_code=row["prompt_code"],
-            name=row["name"],
-            purpose=row["purpose"],
-            revision=row["revision"],
-            version_label=versions[0]["version_label"] if versions else None,
-            status=display_status(versions[0]["state"] if versions else "DRAFT"),
-            releases=await self.releases(context, prompt_id),
-            last_test_at=max(dates) if dates else None,
-            agent_count=len(
-                {ref.source_resource_id for ref in refs if ref.resource_type_label == "智能体"}
-            ),
-            actions=await self.actions(context, prompt_id),
+        permissions = await read_actions(
+            self.authorization,
+            context,
+            "prompt",
+            prompt_id,
+            list(ACTION_LABELS),
+            policy=policy,
+            state=resource_state(context, "prompt", row),
         )
+        require_action(permissions, "version:read")
+        data = await PromptReadData.load(self.engine, context, [prompt_id])
+        return data.view(row, await self.actions(context, prompt_id, permissions))
 
     async def validate_edit(
         self, context: AuthContext, prompt_id: str, content: PromptContent
@@ -250,43 +273,116 @@ class PromptService:
         await self._resource(context, version.resource_id)
         return version
 
-    async def version_detail(self, context: AuthContext, version_id: str) -> PromptVersionView:
-        version = await self.read_version(context, version_id)
-        row = await self._resource(context, version.resource_id)
-        content = PromptContent.model_validate(version.content)
-        actions = await self.actions(context, version.resource_id)
-        if not await self.allowed(context, "data:read_sensitive", version.resource_id):
-            if any(
-                v.default is not None and v.sensitivity in {"sensitive", "secret"}
-                for v in content.variables
-            ):
-                actions = [a for a in actions if a.action_key != "version:edit"]
-            version = version.model_copy(
-                update={"content": redacted_content(content).model_dump(mode="json")}
-            )
-        async with self.engine.connect() as connection:
-            raw = await repository("resource_versions", context.scope).get(connection, version_id)
-        if raw is None:
+    async def _version_views(
+        self,
+        context: AuthContext,
+        rows: list[dict[str, Any]],
+        policy: ReadAuthorization | None,
+        parents: dict[str, dict[str, Any]] | None = None,
+        *,
+        include_actions: bool = True,
+    ) -> list[PromptVersionView]:
+        if any(row["resource_type"] != "prompt" for row in rows):
             raise ServiceError("NOT_FOUND", "提示词版本不存在", 404)
-        return PromptVersionView(
-            version=version,
-            name=row["name"],
-            revision=version.draft_revision or raw["revision"],
-            status=display_status(version.state),
-            actions=actions,
+        if parents is None:
+            async with self.engine.connect() as connection:
+                parents = await repository("prompts", context.scope).get_many(
+                    connection, [row["resource_id"] for row in rows]
+                )
+        permissions_by_prompt = {}
+        for identifier in dict.fromkeys(row["resource_id"] for row in rows):
+            parent = parents.get(identifier)
+            if parent is None:
+                raise ServiceError("NOT_FOUND", "提示词不存在", 404)
+            permissions = await read_actions(
+                self.authorization,
+                context,
+                "prompt",
+                identifier,
+                list(ACTION_LABELS),
+                policy=policy,
+                state=resource_state(context, "prompt", parent),
+            )
+            require_action(permissions, "version:read")
+            permissions_by_prompt[identifier] = permissions
+        if rows:
+            async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
+                await DeletionGuard(context.scope).check(
+                    uow, [ContentRef("version", row["id"]) for row in rows]
+                )
+        result = []
+        for row in rows:
+            version = version_view(row)
+            permissions = permissions_by_prompt[row["resource_id"]]
+            content = PromptContent.model_validate(version.content)
+            actions = (
+                await self.actions(context, row["resource_id"], permissions)
+                if include_actions
+                else []
+            )
+            if "data:read_sensitive" not in permissions:
+                if any(
+                    v.default is not None and v.sensitivity in {"sensitive", "secret"}
+                    for v in content.variables
+                ):
+                    actions = [a for a in actions if a.action_key != "version:edit"]
+                version = version.model_copy(
+                    update={"content": redacted_content(content).model_dump(mode="json")}
+                )
+            result.append(
+                PromptVersionView(
+                    version=version,
+                    name=parents[row["resource_id"]]["name"],
+                    revision=version.draft_revision or row["revision"],
+                    status=display_status(version.state),
+                    actions=actions,
+                )
+            )
+        return result
+
+    async def _read_version_views(
+        self, context: AuthContext, identifiers: list[str], *, include_actions: bool = True
+    ) -> list[PromptVersionView]:
+        policy = await read_policy(self.authorization, context)
+        async with self.engine.connect() as connection:
+            rows = await repository("resource_versions", context.scope).get_many(
+                connection, identifiers
+            )
+        if any(identifier not in rows for identifier in identifiers):
+            raise ServiceError("NOT_FOUND", "提示词版本不存在", 404)
+        return await self._version_views(
+            context,
+            [rows[identifier] for identifier in identifiers],
+            policy,
+            include_actions=include_actions,
         )
 
+    async def version_detail(self, context: AuthContext, version_id: str) -> PromptVersionView:
+        return (await self._read_version_views(context, [version_id]))[0]
+
     async def list_versions(self, context: AuthContext, prompt_id: str) -> list[PromptVersionView]:
-        await self.authorization.require(context, "version:read", prompt_id)
-        await self._resource(context, prompt_id)
+        policy = await read_policy(self.authorization, context)
+        parent = await self._resource(context, prompt_id)
+        permissions = await read_actions(
+            self.authorization,
+            context,
+            "prompt",
+            prompt_id,
+            list(ACTION_LABELS),
+            policy=policy,
+            state=resource_state(context, "prompt", parent),
+        )
+        require_action(permissions, "version:read")
         async with self.engine.connect() as connection:
             rows = await repository("resource_versions", context.scope).find(
                 connection, resource_type="prompt", resource_id=prompt_id
             )
-        return [
-            await self.version_detail(context, row["id"])
-            for row in sorted(rows, key=lambda r: r["created_at"], reverse=True)
-        ]
+        return await self._version_views(
+            context,
+            sorted(rows, key=lambda r: r["created_at"], reverse=True),
+            policy,
+            {prompt_id: parent},
+        )
 
     async def edit_draft(
         self, context: AuthContext, version_id: str, body: PromptDraftEdit
@@ -482,49 +578,28 @@ class PromptService:
             versions = await repository("resource_versions", context.scope).find(
                 connection, resource_type="prompt", resource_id=prompt_id
             )
-            ids = {v["id"]: v for v in versions}
-            refs = await repository("resource_references", context.scope).find(
-                connection, target_resource_type="prompt"
-            )
-            result = []
-            for ref in refs:
-                if ref["target_version_id"] not in ids:
-                    continue
-                source = await repository("resource_versions", context.scope).get(
-                    connection, ref["source_version_id"]
-                )
-                if source:
-                    result.append(
-                        PromptReference(
-                            source_resource_id=source["resource_id"],
-                            source_version_id=source["id"],
-                            source_name=source["content"].get("name"),
-                            version_label=source["version_label"],
-                            status=display_status(source["state"]),
-                            target_version_id=ref["target_version_id"],
-                            target_version_label=ids[ref["target_version_id"]]["version_label"],
-                            resource_type_label="智能体"
-                            if source["resource_type"] == "agent"
-                            else "配置资源",
-                        )
-                    )
-        return result
+            return (await read_references(connection, context, versions)).get(prompt_id, [])
 
     async def compare(
         self, context: AuthContext, version_id: str, other_id: str
     ) -> PromptCompareView:
-        current, previous = (
-            await self.version_detail(context, version_id),
-            await self.version_detail(context, other_id),
+        current, previous = await self._read_version_views(
+            context, [version_id, other_id], include_actions=False
         )
         if current.version.resource_id != previous.version.resource_id:
             raise ServiceError("PROMPT_COMPARE_INVALID", "只能对比同一提示词的版本", 422)
+        prompt_id = current.version.resource_id
+        async with self.engine.connect() as connection:
+            versions = await repository("resource_versions", context.scope).find(
+                connection, resource_type="prompt", resource_id=prompt_id
+            )
+            references = (await read_references(connection, context, versions)).get(prompt_id, [])
         return PromptCompareView(
             differences=compare_content(
                 PromptContent.model_validate(previous.version.content),
                 PromptContent.model_validate(current.version.content),
             ),
-            references=await self.references(context, current.version.resource_id),
+            references=references,
         )
 
     async def releases(self, context: AuthContext, prompt_id: str) -> list[PromptReleaseView]:
@@ -533,23 +608,10 @@ class PromptService:
             rows = await repository("release_mappings", context.scope).find(
                 connection, resource_type="prompt", resource_id=prompt_id
             )
-            result = []
-            for row in rows:
-                version = await repository("resource_versions", context.scope).get(
-                    connection, row["version_id"]
-                )
-                if version:
-                    result.append(
-                        PromptReleaseView(
-                            environment=row["environment"],
-                            environment_label=ENVIRONMENTS[row["environment"]],
-                            version_id=row["version_id"],
-                            version_label=version["version_label"],
-                            revision=row["revision"],
-                            published_at=row["updated_at"],
-                        )
-                    )
-        return result
+            versions = await repository("resource_versions", context.scope).get_many(
+                connection, [row["version_id"] for row in rows]
+            )
+        return release_views(rows, versions)
 
     async def release(
         self, context: AuthContext, prompt_id: str, body: PromptReleaseRequest

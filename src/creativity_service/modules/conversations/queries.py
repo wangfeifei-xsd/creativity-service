@@ -28,8 +28,14 @@ from creativity_service.modules.conversations.schemas import (
     TurnView,
 )
 from creativity_service.modules.conversations.tables import metadata
-from creativity_service.modules.runs import repositories as run_repo
+from creativity_service.modules.iam.reading import (
+    read_actions,
+    read_policy,
+    require_action,
+    resource_state,
+)
 from creativity_service.modules.runs.schemas import LABELS, TERMINAL
+from creativity_service.modules.runs.tables import metadata as run_metadata
 
 
 def encode_cursor(value: dict[str, Any]) -> str:
@@ -72,7 +78,16 @@ class ConversationQueries(ConversationKernel):
             start_at and end_at and start_at >= end_at
         ):
             raise ServiceError("FILTER_INVALID", "请提供含时区的有效时间范围", 422)
-        await self.authorization.require(context, "conversation:read", "scope")
+        policy = await read_policy(self.authorization, context)
+        permissions = await read_actions(
+            self.authorization,
+            context,
+            "conversation",
+            "scope",
+            ["conversation:read"],
+            policy=policy,
+        )
+        require_action(permissions, "conversation:read")
         filters = {
             "status": status,
             "agent_id": agent_id,
@@ -129,20 +144,56 @@ class ConversationQueries(ConversationKernel):
                 ).mappings()
             ]
         items = []
+        visible = []
         for row in candidates[:limit]:
             item_context = self.row_context(context, row)
-            if not await self.allowed(item_context, "conversation:read", row["id"]):
+            permissions = await read_actions(
+                self.authorization,
+                item_context,
+                "conversation",
+                row["id"],
+                ["conversation:read", "conversation:write", "content:delete", "data:export"],
+                policy=policy,
+                state=resource_state(item_context, "conversation", row),
+            )
+            if "conversation:read" not in permissions:
                 continue
-            actions = await self.actions(item_context, row["id"])
-            try:
-                async with transaction(
-                    self.engine, item_context.scope, self.hooks.keys(item_context, row["id"])
-                ) as uow:
-                    current = await self.hooks.current(uow, item_context, row["id"])
-                    items.append(self.view(current, actions))
-            except ServiceError as exc:
-                if exc.status not in {404, 410}:
-                    raise
+            actions = await self.actions(item_context, row["id"], permissions, policy=policy)
+            visible.append((row, item_context, actions))
+        if visible:
+            keys = [
+                key
+                for row, item_context, _ in visible
+                for key in self.hooks.keys(item_context, row["id"])
+            ]
+            async with transaction(self.engine, context.scope, keys) as uow:
+                current_rows = {
+                    r["id"]: dict(r)
+                    for r in (
+                        await uow.connection.execute(
+                            select(table).where(
+                                table.c.channel_id == context.scope.channel_id,
+                                table.c.id.in_([row["id"] for row, _, _ in visible]),
+                            )
+                        )
+                    ).mappings()
+                }
+                blocked = await DeletionGuard(context.scope).blocked_refs(
+                    uow,
+                    [ContentRef("conversation", row["id"]) for row, _, _ in visible],
+                    scopes=[item_context.scope for _, item_context, _ in visible],
+                )
+                for row, item_context, actions in visible:
+                    current = current_rows.get(row["id"])
+                    if (
+                        current is None
+                        or current["status"] in {"DELETING", "DELETED"}
+                        or current["expires_at"] <= utcnow()
+                    ):
+                        continue
+                    self.row_context(item_context, current)
+                    if ContentRef("conversation", row["id"]) not in blocked:
+                        items.append(self.view(current, actions))
         more = len(candidates) > limit
         next_cursor = (
             encode_cursor(
@@ -157,9 +208,17 @@ class ConversationQueries(ConversationKernel):
         )
         executable = self.runs.resolver is not None
         agents = await self.directory.list_available(context) if self.directory else []
+        create_permissions = await read_actions(
+            self.authorization,
+            context,
+            "conversation",
+            "new",
+            ["conversation:write"],
+            policy=policy,
+        )
         actions = (
             [VisibleAction(action_key="create", label="新建会话")]
-            if executable and agents and await self.allowed(context, "conversation:write", "new")
+            if executable and agents and "conversation:write" in create_permissions
             else []
         )
         return ConversationList(
@@ -172,34 +231,36 @@ class ConversationQueries(ConversationKernel):
         )
 
     async def detail(self, context: AuthContext, conversation_id: str) -> ConversationDetail:
-        context = await self.access(context, conversation_id)
-        actions = await self.actions(context, conversation_id)
+        context, _, policy, permissions = await self.read_access(context, conversation_id)
+        actions = await self.actions(context, conversation_id, permissions, policy=policy)
         async with transaction(
             self.engine, context.scope, self.hooks.keys(context, conversation_id)
         ) as uow:
             row = await self.hooks.current(uow, context, conversation_id)
             summaries = []
-            source_rows = await repo.rows(
-                uow.connection, "messages", context.scope, conversation_id=conversation_id
+            summary_rows = await repo.rows(
+                uow.connection,
+                "conversation_summaries",
+                context.scope,
+                conversation_id=conversation_id,
+                status="VALID",
             )
-            sequences = {m["id"]: m["sequence"] for m in source_rows}
-            for summary in sorted(
-                await repo.rows(
-                    uow.connection,
-                    "conversation_summaries",
-                    context.scope,
-                    conversation_id=conversation_id,
-                    status="VALID",
-                ),
-                key=lambda s: s["version"],
-            ):
-                try:
-                    await DeletionGuard(context.scope).check(
-                        uow, [ContentRef("summary", summary["id"])]
-                    )
-                except ServiceError as exc:
-                    if exc.code != "CONTENT_DELETED":
-                        raise
+            source_rows = await Repository(metadata.tables["messages"], context.scope).get_many(
+                uow.connection,
+                [
+                    identifier
+                    for summary in summary_rows
+                    for identifier in summary["source_message_ids"]
+                ],
+            )
+            sequences = {
+                identifier: message["sequence"] for identifier, message in source_rows.items()
+            }
+            blocked = await DeletionGuard(context.scope).blocked_refs(
+                uow, [ContentRef("summary", s["id"]) for s in summary_rows]
+            )
+            for summary in sorted(summary_rows, key=lambda s: s["version"]):
+                if ContentRef("summary", summary["id"]) in blocked:
                     continue
                 summaries.append(
                     SummaryView(
@@ -247,7 +308,9 @@ class ConversationQueries(ConversationKernel):
     ) -> MessagePage:
         if not 1 <= limit <= 200:
             raise ServiceError("PAGE_INVALID", "分页数量超出范围", 422)
-        context = await self.access(context, conversation_id)
+        context, conversation, policy, conversation_permissions = await self.read_access(
+            context, conversation_id
+        )
         binding = digest(
             [context.scope.model_dump(), context.principal_id, conversation_id, "messages-v1"]
         )
@@ -260,29 +323,13 @@ class ConversationQueries(ConversationKernel):
                     raise ValueError()
             except (KeyError, TypeError, ValueError) as exc:
                 raise ServiceError("CURSOR_INVALID", "历史游标不正确", 422) from exc
+        ceiling = conversation["next_sequence"] - 1 if ceiling is None else ceiling
+        table = metadata.tables["messages"]
         async with self.engine.connect() as connection:
-            all_turns = await repo.rows(
-                connection, "conversation_turns", context.scope, conversation_id=conversation_id
-            )
-        can_write = await self.allowed(context, "conversation:write", conversation_id)
-        permissions = {
-            t["run_id"]: (
-                can_write and await self.allowed(context, "run:create", t["run_id"]),
-                await self.allowed(context, "run:read", t["run_id"])
-                and await self.allowed(context, "run:content", t["run_id"]),
-            )
-            for t in all_turns
-        }
-        async with transaction(
-            self.engine, context.scope, self.hooks.keys(context, conversation_id)
-        ) as uow:
-            row = await self.hooks.current(uow, context, conversation_id)
-            ceiling = row["next_sequence"] - 1 if ceiling is None else ceiling
-            table = metadata.tables["messages"]
             found = [
-                dict(r)
-                for r in (
-                    await uow.connection.execute(
+                dict(row)
+                for row in (
+                    await connection.execute(
                         select(table)
                         .where(
                             table.c.channel_id == context.scope.channel_id,
@@ -296,34 +343,81 @@ class ConversationQueries(ConversationKernel):
                 ).mappings()
             ]
             selected = found[:limit]
-            turns, run_states = [], {}
-            for turn in sorted(
-                await repo.rows(
-                    uow.connection,
-                    "conversation_turns",
-                    context.scope,
-                    conversation_id=conversation_id,
-                ),
-                key=lambda t: t["sequence"],
-            ):
-                if turn["id"] not in {m["turn_id"] for m in selected}:
-                    continue
-                run = await run_repo.required(
-                    uow.connection, "runs", context.scope.channel_id, id=turn["run_id"]
+            turn_rows = await Repository(
+                metadata.tables["conversation_turns"], context.scope
+            ).find_many(
+                connection, "id", [m["turn_id"] for m in selected], conversation_id=conversation_id
+            )
+            run_rows = await Repository(run_metadata.tables["runs"], context.scope).get_many(
+                connection, [turn["run_id"] for turn in turn_rows]
+            )
+            contents = await Repository(
+                run_metadata.tables["run_contents"], context.scope
+            ).get_many(
+                connection,
+                [
+                    run["result_ref"]
+                    for run in run_rows.values()
+                    if run["state"] == "SUCCEEDED" and run["result_ref"]
+                ],
+            )
+            artifacts = await Repository(core_metadata.tables["artifacts"], context.scope).get_many(
+                connection,
+                [
+                    part["artifact_id"]
+                    for message in selected
+                    for part in message["content_parts"]
+                    if part["type"] == "attachment"
+                ],
+            )
+        permissions = {}
+        for turn in turn_rows:
+            run = run_rows.get(turn["run_id"])
+            if run is None:
+                raise ServiceError("NOT_FOUND", "运行记录不存在", 404)
+            allowed = (
+                await read_actions(
+                    self.runs.authorization,
+                    context,
+                    "run",
+                    run["id"],
+                    ["run:create", "run:read", "run:content"],
+                    policy=policy,
+                    state=resource_state(context, "run", run),
                 )
+                if not context.client_id or context.client_id == run["client_id"]
+                else frozenset()
+            )
+            permissions[run["id"]] = (
+                "conversation:write" in conversation_permissions and "run:create" in allowed,
+                {"run:read", "run:content"} <= allowed,
+            )
+        async with transaction(
+            self.engine, context.scope, self.hooks.keys(context, conversation_id)
+        ) as uow:
+            await self.hooks.current(uow, context, conversation_id)
+            await self.runs.guard_many(uow, list(run_rows.values()))
+            valid_artifacts = {
+                identifier: artifact
+                for identifier, artifact in artifacts.items()
+                if artifact["state"] == "AVAILABLE" and artifact["expires_at"] > utcnow()
+            }
+            await DeletionGuard(context.scope).check(
+                uow,
+                [
+                    *(ContentRef("message", message["id"]) for message in selected),
+                    *(ContentRef("artifact", identifier) for identifier in valid_artifacts),
+                ],
+            )
+            turns, run_states = [], {}
+            for turn in sorted(turn_rows, key=lambda row: row["sequence"]):
+                run = run_rows[turn["run_id"]]
                 run_states[run["id"]] = run["state"]
-                await self.runs.guard(uow, run)
                 result = None
-                if run["state"] == "SUCCEEDED" and run["result_ref"]:
-                    content = await run_repo.one(
-                        uow.connection,
-                        "run_contents",
-                        context.scope.channel_id,
-                        id=run["result_ref"],
-                    )
-                    if content and content["payload"] is not None:
-                        result = BusinessResult.model_validate(content["payload"])
-                can_cancel, can_view = permissions.get(run["id"], (False, False))
+                content = contents.get(run["result_ref"])
+                if content and content["payload"] is not None:
+                    result = BusinessResult.model_validate(content["payload"])
+                can_cancel, can_view = permissions[run["id"]]
                 turns.append(
                     TurnView(
                         turn_id=turn["id"],
@@ -353,24 +447,12 @@ class ConversationQueries(ConversationKernel):
                 )
             items = []
             for message in selected:
-                await DeletionGuard(context.scope).check(
-                    uow, [ContentRef("message", message["id"])]
-                )
                 attachments = []
                 for part in message["content_parts"]:
                     if part["type"] != "attachment":
                         continue
-                    artifact = await Repository(
-                        core_metadata.tables["artifacts"], context.scope
-                    ).get(uow.connection, part["artifact_id"])
-                    if (
-                        artifact
-                        and artifact["state"] == "AVAILABLE"
-                        and artifact["expires_at"] > utcnow()
-                    ):
-                        await DeletionGuard(context.scope).check(
-                            uow, [ContentRef("artifact", artifact["id"])]
-                        )
+                    artifact = valid_artifacts.get(part["artifact_id"])
+                    if artifact:
                         prefix = "admin" if context.principal_type == "management" else "api"
                         attachments.append(
                             AttachmentView(

@@ -26,6 +26,7 @@ from creativity_service.modules.agents.schemas import (
 )
 from creativity_service.modules.budgets.services import BudgetService
 from creativity_service.modules.iam.authorization import IamAuthorization
+from creativity_service.modules.iam.reading import visible_actions
 from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.integrations.repositories import configuration_key
 from creativity_service.modules.memory.repositories import policy_key as memory_key
@@ -72,13 +73,15 @@ class AgentKernel:
         await self.authorization.boundary(context, action, "agent", agent_id)
 
     async def actions(
-        self, context: AuthContext, agent_id: str, values: list[tuple[str, str, str]]
+        self,
+        context: AuthContext,
+        agent_id: str,
+        values: list[tuple[str, str, str]],
+        permissions: frozenset[str] | None = None,
     ) -> list[VisibleAction]:
-        return [
-            VisibleAction(action_key=key, label=label)
-            for key, label, action in values
-            if (await self.authorization.check(context, action, "agent", agent_id)).allowed
-        ]
+        if permissions is None:
+            permissions = await self.authorization.allowed_actions(context, "agent", agent_id)
+        return visible_actions(permissions, values)
 
     def keys(
         self, context: AuthContext, agent_id: str, *records: tuple[str, str]
@@ -203,29 +206,41 @@ class AgentKernel:
         )
         return agent, version
 
-    async def agent_view(self, context: AuthContext, row: dict[str, Any]) -> AgentView:
+    async def agent_view(
+        self, context: AuthContext, row: dict[str, Any], permissions: frozenset[str] | None = None
+    ) -> AgentView:
         async with self.engine.connect() as connection:
             state = await repository("agent_environment_states", context.scope).get(
                 connection, self.mapping_id(context, row["id"])
             )
+        actions = await self.actions(
+            context,
+            row["id"],
+            [
+                ("edit", "编辑信息", "agent:manage"),
+                ("create_version", "新增草稿", "agent:manage"),
+                ("offline", "下线", "release:publish"),
+                ("emergency_stop", "紧急停用", "release:publish"),
+                ("enable", "启用", "release:publish"),
+            ],
+            permissions,
+        )
+        return self.agent_summary(row, state, actions)
+
+    @staticmethod
+    def agent_summary(
+        row: dict[str, Any], state: dict[str, Any] | None, actions: list[VisibleAction]
+    ) -> AgentView:
         return AgentView(
             agent_id=row["id"],
             **{k: row[k] for k in ("agent_code", "name", "description", "owner", "revision")},
             status=status(state["status"] if state else row["status"]),
-            actions=await self.actions(
-                context,
-                row["id"],
-                [
-                    ("edit", "编辑信息", "agent:manage"),
-                    ("create_version", "新增草稿", "agent:manage"),
-                    ("offline", "下线", "release:publish"),
-                    ("emergency_stop", "紧急停用", "release:publish"),
-                    ("enable", "启用", "release:publish"),
-                ],
-            ),
+            actions=actions,
         )
 
-    async def version_view(self, context: AuthContext, row: dict[str, Any]) -> AgentVersionView:
+    async def version_view(
+        self, context: AuthContext, row: dict[str, Any], permissions: frozenset[str] | None = None
+    ) -> AgentVersionView:
         actions = [
             ("validate", "校验", "agent:manage"),
             ("test", "调试", "run:create"),
@@ -240,7 +255,7 @@ class AgentKernel:
             status=status(row["state"]),
             definition=AgentDefinition.model_validate(row["content"]),
             content_digest=row["content_digest"],
-            actions=await self.actions(context, row["resource_id"], actions),
+            actions=await self.actions(context, row["resource_id"], actions, permissions),
         )
 
     async def dependency_view(
@@ -249,6 +264,10 @@ class AgentKernel:
         resource = await required(
             uow.connection, context.scope, RESOURCE_TABLES[row["resource_type"]], row["resource_id"]
         )
+        return self.dependency_summary(row, resource)
+
+    @staticmethod
+    def dependency_summary(row: dict[str, Any], resource: dict[str, Any]) -> AgentDependency:
         return AgentDependency(
             resource_type=row["resource_type"],
             resource_id=row["resource_id"],

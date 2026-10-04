@@ -20,6 +20,7 @@ from creativity_service.modules.budgets.schemas import (
     PlatformLimitCreate,
 )
 from creativity_service.modules.budgets.services import BudgetService
+from creativity_service.modules.channels.reading import ChannelReadData
 from creativity_service.modules.channels.repositories import one as channel_one
 from creativity_service.modules.channels.repositories import rows as channel_rows
 from creativity_service.modules.channels.services import ChannelService
@@ -83,10 +84,9 @@ class UsageManagement:
         context = await self.context(session, action)
         result = []
         async with self.engine.connect() as connection:
-            for domain in await channel_rows(connection, "data_scopes", context.scope.channel_id):
-                if await self.channels.visible(
-                    connection, session, domain["environment"], [domain["id"]], action=action
-                ):
+            data = await ChannelReadData.load(connection, session, context.scope.channel_id)
+            for domain in data.domains.values():
+                if data.visible(domain["environment"], [domain["id"]], action=action):
                     if context.scope.subject_id and domain["id"] != context.scope.data_scope_id:
                         continue
                     result.append(
@@ -252,16 +252,10 @@ class UsageManagement:
         async with transaction(
             self.engine, context.scope, [ledger_key(context.scope.channel_id)]
         ) as uow:
-            for domain in await channel_rows(
-                uow.connection, "data_scopes", context.scope.channel_id
-            ):
-                await self.channels.require_visible(
-                    uow.connection,
-                    session,
-                    domain["environment"],
-                    [domain["id"]],
-                    action="budget:manage",
-                )
+            data = await ChannelReadData.load(uow.connection, session, context.scope.channel_id)
+            for domain in data.domains.values():
+                if not data.visible(domain["environment"], [domain["id"]], action="budget:manage"):
+                    raise ServiceError("NOT_FOUND", "请求资源不在授权范围内", 404)
             result = []
             for row in await rows(uow.connection, "budget_policies", context.scope.channel_id):
                 blocked_reason = None

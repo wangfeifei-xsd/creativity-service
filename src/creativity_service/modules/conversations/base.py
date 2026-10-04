@@ -18,6 +18,14 @@ from creativity_service.modules.conversations.ports import (
 )
 from creativity_service.modules.conversations.schemas import STATES, ConversationView
 from creativity_service.modules.conversations.tables import metadata
+from creativity_service.modules.iam.authorization import ReadAuthorization
+from creativity_service.modules.iam.reading import (
+    read_actions,
+    read_policy,
+    require_action,
+    resource_state,
+    visible_actions,
+)
 from creativity_service.modules.runs.repositories import verify_scope
 from creativity_service.modules.runs.services import RunService
 
@@ -71,6 +79,13 @@ class ConversationKernel:
     async def access(
         self, context: AuthContext, conversation_id: str, action: str = "conversation:read"
     ) -> AuthContext:
+        context, _ = await self.locate(context, conversation_id)
+        await self.authorization.require(context, action, conversation_id)
+        return context
+
+    async def locate(
+        self, context: AuthContext, conversation_id: str
+    ) -> tuple[AuthContext, dict[str, Any]]:
         table = metadata.tables["conversations"]
         async with self.engine.connect() as connection:
             rows = (
@@ -87,9 +102,25 @@ class ConversationKernel:
             )
         if len(rows) != 1:
             raise ServiceError("NOT_FOUND", "会话记录不存在", 404)
-        context = self.row_context(context, dict(rows[0]))
-        await self.authorization.require(context, action, conversation_id)
-        return context
+        row = dict(rows[0])
+        return self.row_context(context, row), row
+
+    async def read_access(
+        self, context: AuthContext, conversation_id: str
+    ) -> tuple[AuthContext, dict[str, Any], ReadAuthorization | None, frozenset[str]]:
+        context, row = await self.locate(context, conversation_id)
+        policy = await read_policy(self.authorization, context)
+        permissions = await read_actions(
+            self.authorization,
+            context,
+            "conversation",
+            conversation_id,
+            ["conversation:read", "conversation:write", "content:delete", "data:export"],
+            policy=policy,
+            state=resource_state(context, "conversation", row),
+        )
+        require_action(permissions, "conversation:read")
+        return context, row, policy, permissions
 
     async def allowed(self, context: AuthContext, action: str, resource_id: str) -> bool:
         try:
@@ -100,22 +131,41 @@ class ConversationKernel:
             raise
         return True
 
-    async def actions(self, context: AuthContext, conversation_id: str) -> list[VisibleAction]:
-        actions = []
-        for key, label, permission in (
-            ("title", "修改标题", "conversation:write"),
-            ("archive", "归档", "conversation:write"),
-            ("restore", "恢复", "conversation:write"),
-            ("send", "发送", "conversation:write"),
-            ("delete", "删除", "content:delete"),
-            ("export", "导出", "data:export"),
-            ("branch", "创建分支", "conversation:write"),
-            ("upload", "上传附件", "artifact:upload"),
+    async def actions(
+        self,
+        context: AuthContext,
+        conversation_id: str,
+        permissions: frozenset[str] | None = None,
+        *,
+        policy: ReadAuthorization | None = None,
+    ) -> list[VisibleAction]:
+        if permissions is None:
+            permissions = await read_actions(
+                self.authorization,
+                context,
+                "conversation",
+                conversation_id,
+                ["conversation:write", "content:delete", "data:export"],
+            )
+        actions = visible_actions(
+            permissions,
+            [
+                ("title", "修改标题", "conversation:write"),
+                ("archive", "归档", "conversation:write"),
+                ("restore", "恢复", "conversation:write"),
+                ("send", "发送", "conversation:write"),
+                ("delete", "删除", "content:delete"),
+                ("export", "导出", "data:export"),
+            ],
+        )
+        for kind, key, label, permission in (
+            ("conversation", "branch", "创建分支", "conversation:write"),
+            ("artifact", "upload", "上传附件", "artifact:upload"),
         ):
-            if await self.allowed(
-                context, permission, "new" if key in {"upload", "branch"} else conversation_id
-            ):
-                actions.append(VisibleAction(action_key=key, label=label))
+            allowed = await read_actions(
+                self.authorization, context, kind, "new", [permission], policy=policy
+            )
+            actions.extend(visible_actions(allowed, [(key, label, permission)]))
         return actions
 
     @staticmethod

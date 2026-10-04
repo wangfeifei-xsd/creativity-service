@@ -1,12 +1,17 @@
 """角色动作上限、资源授权、数据域及主体权限的交集。"""
 
+from dataclasses import dataclass
+
 from creativity_service.core.auth.authentication import AuthenticationService
 from creativity_service.core.auth.types import (
     AccountState,
     AuthorizationDecision,
     GrantState,
     MembershipState,
+    ResourceState,
     ResourceStateReader,
+    ServiceIdentity,
+    SubjectAuthority,
     SubjectAuthorityReader,
 )
 from creativity_service.core.context import AuthContext
@@ -86,6 +91,122 @@ def require_platform(account: AccountState, action: str) -> None:
         raise ServiceError("FORBIDDEN", "无权执行此操作", 403)
 
 
+def verify_resource_state(
+    context: AuthContext, resource_type: str, resource_id: str, state: ResourceState | None
+) -> None:
+    """校验可信批量查询结果的归属；此原子校验不再访问数据库。"""
+    if resource_type == "channel":
+        if resource_id != context.scope.channel_id:
+            raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
+        return
+    if resource_id in {"*", "new", "scope"}:
+        return
+    scope = context.scope
+    if (
+        state is None
+        or state.resource_type != resource_type
+        or state.resource_id != resource_id
+        or state.scope.channel_id != scope.channel_id
+        or state.scope.environment != scope.environment
+        or (
+            state.scope.data_scope_id is not None
+            and state.scope.data_scope_id != scope.data_scope_id
+        )
+        or (
+            state.scope.subject_type is not None
+            and (state.scope.subject_type, state.scope.subject_id)
+            != (scope.subject_type, scope.subject_id)
+        )
+    ):
+        raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
+    if not state.active:
+        raise ServiceError("RESOURCE_DISABLED", "资源已停用", 403)
+
+
+@dataclass(frozen=True)
+class ReadAuthorization:
+    """当前读取操作的授权基础数据，不得传入写入事务或后续执行边界。"""
+
+    context: AuthContext
+    member: MembershipState | None = None
+    grants: tuple[GrantState, ...] = ()
+    service: ServiceIdentity | None = None
+    subject: SubjectAuthority | None = None
+
+    def resource_ids(self, resource_type: str, action: str) -> frozenset[str] | None:
+        """把资源授权收窄为查询标识；None 表示当前范围内可读全部资源。"""
+        if action in self.actions(resource_type, "*"):
+            return None
+        candidates = (
+            {g.resource_id for g in self.grants if g.resource_type == resource_type}
+            if self.member is not None
+            else set(self.subject.resources.get(resource_type, ()))
+            if self.subject
+            else set()
+        )
+        return frozenset(
+            identifier
+            for identifier in candidates
+            if identifier not in {"*", "new", "scope"}
+            and action
+            in self.actions(
+                resource_type,
+                identifier,
+                ResourceState(
+                    scope=self.context.scope,
+                    resource_type=resource_type,
+                    resource_id=identifier,
+                    name="",
+                    active=True,
+                ),
+            )
+        )
+
+    def actions(
+        self,
+        resource_type: str,
+        resource_id: str,
+        state: ResourceState | None = None,
+        *,
+        context: AuthContext | None = None,
+    ) -> frozenset[str]:
+        target = context or self.context
+        origin = self.context
+        # 管理列表可收窄到一条记录的主体，不能换身份、请求、渠道或数据域。
+        if (
+            target.model_dump(exclude={"scope"}) != origin.model_dump(exclude={"scope"})
+            or target.scope.model_dump(exclude={"subject_type", "subject_id"})
+            != origin.scope.model_dump(exclude={"subject_type", "subject_id"})
+            or ((origin.scope.subject_id or not origin.actor_id) and target.scope != origin.scope)
+        ):
+            raise ServiceError("SCOPE_MISMATCH", "读取授权不能扩大身份或范围", 403)
+        verify_resource_state(target, resource_type, resource_id, state)
+        if self.member is not None:
+            actions = effective_actions(
+                self.member,
+                list(self.grants),
+                target.scope.environment,
+                target.scope.data_scope_id or "",
+                resource_type,
+                resource_id,
+            )
+        elif self.service is not None and self.subject is not None:
+            if self.service.expires_at <= utcnow() or self.subject.expires_at <= utcnow():
+                raise ServiceError("UNAUTHENTICATED", "主体委托已失效", 401)
+            resources = self.subject.resources.get(resource_type, frozenset())
+            actions = (
+                self.service.client_actions
+                & self.service.key_actions
+                & self.subject.actions
+                & self.subject.agent_actions
+                if resource_id in resources or "*" in resources
+                else frozenset()
+            )
+        else:
+            raise unavailable("当前身份授权数据")
+        return frozenset(value for value in actions if action_allowed(actions, value))
+
+
 class IamAuthorization:
     def __init__(
         self,
@@ -97,75 +218,44 @@ class IamAuthorization:
 
     async def verify_resource(
         self, context: AuthContext, resource_type: str, resource_id: str
-    ) -> None:
-        if resource_type == "channel":
-            if resource_id != context.scope.channel_id:
-                raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
-            return
-        if resource_id in {"*", "new", "scope"}:
-            return
-        if self.resources is None:
-            raise unavailable("资源当前状态服务")
-        state = await self.resources.read_current(context, resource_type, resource_id)
-        scope = context.scope
+    ) -> ResourceState | None:
+        state = None
+        if resource_type != "channel" and resource_id not in {"*", "new", "scope"}:
+            if self.resources is None:
+                raise unavailable("资源当前状态服务")
+            state = await self.resources.read_current(context, resource_type, resource_id)
+        verify_resource_state(context, resource_type, resource_id, state)
+        return state
+
+    async def read_policy(self, context: AuthContext) -> ReadAuthorization:
+        """一次复核并返回可复用的数据；每次调用都读取当前状态，不做跨请求缓存。"""
+        identity = await self.authentication.revalidate(context)
+        if identity.member is not None:
+            grants = await self.authentication.identities.grants(context.scope.channel_id)
+            return ReadAuthorization(context, member=identity.member, grants=tuple(grants))
+        if identity.service is None or self.subjects is None:
+            raise unavailable("主体委托授权服务")
+        subject = await self.subjects.read_current(context)
         if (
-            state is None
-            or state.resource_type != resource_type
-            or state.resource_id != resource_id
-            or state.scope.channel_id != scope.channel_id
-            or state.scope.environment != scope.environment
-            or (
-                state.scope.data_scope_id is not None
-                and state.scope.data_scope_id != scope.data_scope_id
-            )
-            or (
-                state.scope.subject_type is not None
-                and (state.scope.subject_type, state.scope.subject_id)
-                != (scope.subject_type, scope.subject_id)
-            )
+            subject.scope != context.scope
+            or subject.expires_at <= utcnow()
+            or not context.scope.subject_type
+            or not context.scope.subject_id
         ):
-            raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
-        if not state.active:
-            raise ServiceError("RESOURCE_DISABLED", "资源已停用", 403)
+            raise ServiceError("UNAUTHENTICATED", "主体委托已失效", 401)
+        return ReadAuthorization(context, service=identity.service, subject=subject)
+
+    async def allowed_actions(
+        self, context: AuthContext, resource_type: str, resource_id: str
+    ) -> frozenset[str]:
+        policy = await self.read_policy(context)
+        state = await self.verify_resource(context, resource_type, resource_id)
+        return policy.actions(resource_type, resource_id, state)
 
     async def check(
         self, context: AuthContext, action: str, resource_type: str, resource_id: str
     ) -> AuthorizationDecision:
-        await self.authentication.revalidate(context)
-        await self.verify_resource(context, resource_type, resource_id)
-        if context.actor_id:
-            member = await self.authentication.active_member(context)
-            grants = await self.authentication.identities.grants(context.scope.channel_id)
-            actions = effective_actions(
-                member,
-                grants,
-                context.scope.environment,
-                context.scope.data_scope_id or "",
-                resource_type,
-                resource_id,
-            )
-        else:
-            identity = await self.authentication.service_identity(context)
-            if self.subjects is None:
-                raise unavailable("主体委托授权服务")
-            subject = await self.subjects.read_current(context)
-            if (
-                subject.scope != context.scope
-                or subject.expires_at <= utcnow()
-                or not context.scope.subject_type
-                or not context.scope.subject_id
-            ):
-                raise ServiceError("UNAUTHENTICATED", "主体委托已失效", 401)
-            resources = subject.resources.get(resource_type, frozenset())
-            actions = (
-                identity.client_actions
-                & identity.key_actions
-                & subject.actions
-                & subject.agent_actions
-                if resource_id in resources or "*" in resources
-                else frozenset()
-            )
-        filtered = sorted(value for value in actions if action_allowed(actions, value))
+        filtered = sorted(await self.allowed_actions(context, resource_type, resource_id))
         allowed = action in filtered
         return AuthorizationDecision(
             allowed=allowed, actions=filtered, reason=None if allowed else "无权执行此操作"

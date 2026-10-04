@@ -18,9 +18,11 @@ from creativity_service.core.primitives import ServiceError, digest, new_id, utc
 from creativity_service.core.security.credentials import CredentialService
 from creativity_service.core.security.outbound import OutboundPolicy
 from creativity_service.modules.iam.authorization import IamAuthorization
+from creativity_service.modules.iam.reading import require_action, resource_state
 from creativity_service.modules.iam.roles import ACTION_NAMES
 from creativity_service.modules.mcp.bindings import require_current_binding
 from creativity_service.modules.mcp.differences import differences
+from creativity_service.modules.mcp.reading import import_reasons
 from creativity_service.modules.mcp.repositories import repository
 from creativity_service.modules.mcp.schemas import (
     McpCheck,
@@ -174,10 +176,18 @@ class McpService:
             await self.authorization.boundary(context, "credential:use", "credential", row["id"])
         return row["revision"] if row else None
 
-    async def view(self, context: AuthContext, row: dict[str, Any]) -> McpConnection:
-        permitted = (
-            await self.authorization.check(context, "mcp:manage", "mcp_connection", row["id"])
-        ).allowed
+    async def view(
+        self,
+        context: AuthContext,
+        row: dict[str, Any],
+        permissions: frozenset[str] | None = None,
+        import_permissions: frozenset[str] | None = None,
+    ) -> McpConnection:
+        if permissions is None:
+            permissions = await self.authorization.allowed_actions(
+                context, "mcp_connection", row["id"]
+            )
+        permitted = "mcp:manage" in permissions
         actions = []
         if permitted:
             actions = [
@@ -190,12 +200,11 @@ class McpService:
                     ("disable", "停用") if row["status"] == "ENABLED" else ("enable", "启用"),
                 ]
             ]
-            if all(
-                [
-                    (await self.authorization.check(context, action, "tool", "new")).allowed
-                    for action in ("tool:manage", "version:edit")
-                ]
-            ):
+            if import_permissions is None:
+                import_permissions = await self.authorization.allowed_actions(
+                    context, "tool", "new"
+                )
+            if {"tool:manage", "version:edit"} <= import_permissions:
                 actions.append(VisibleAction(action_key="import", label="导入草稿"))
         return McpConnection(
             connection_id=row["id"],
@@ -219,16 +228,16 @@ class McpService:
         )
 
     async def list_connections(self, context: AuthContext) -> McpList:
-        await self.authorization.authentication.revalidate(context)
+        policy = await self.authorization.read_policy(context)
+        import_permissions = policy.actions("tool", "new")
         items = []
         for row in await self.rows(context, "mcp_connections"):
-            if (
-                await self.authorization.check(context, "mcp:manage", "mcp_connection", row["id"])
-            ).allowed:
-                items.append(await self.view(context, row))
-        allowed = (
-            await self.authorization.check(context, "mcp:manage", "mcp_connection", "new")
-        ).allowed
+            permissions = policy.actions(
+                "mcp_connection", row["id"], resource_state(context, "mcp_connection", row)
+            )
+            if "mcp:manage" in permissions:
+                items.append(await self.view(context, row, permissions, import_permissions))
+        allowed = "mcp:manage" in policy.actions("mcp_connection", "new")
         return McpList(
             items=items,
             actions=[VisibleAction(action_key="create", label="新增连接")] if allowed else [],
@@ -574,19 +583,10 @@ class McpService:
             await repo.change(uow, row["id"], row["revision"], values)
         return check, snapshot
 
-    async def import_view(self, context: AuthContext, row: dict[str, Any]) -> McpImport:
-        reason = None
-        try:
-            await self.binding_state(
-                context,
-                ToolBinding(
-                    adapter_key=row["id"],
-                    implementation_version=row["schema_hash"],
-                    connection_id=row["connection_id"],
-                ),
-            )
-        except ServiceError as exc:
-            reason = exc.message
+    async def import_view(self, context: AuthContext, row: dict[str, Any], reasons: dict[str, str | None] | None = None) -> McpImport:
+        if reasons is None:
+            reasons = await import_reasons(self, context, [row])
+        reason = reasons[row["id"]]
         return McpImport(
             import_id=row["id"],
             discovery_id=row["discovery_id"],
@@ -600,10 +600,18 @@ class McpService:
         )
 
     async def detail(self, context: AuthContext, connection_id: str) -> McpDetail:
-        await self.require(context, connection_id)
+        if context.principal_type not in {"management", "worker"} or not context.actor_id:
+            raise ServiceError("FORBIDDEN", "连接管理仅面向管理成员", 403)
+        policy = await self.authorization.read_policy(context)
         row = await self.get(context, "mcp_connections", connection_id)
+        permissions = policy.actions(
+            "mcp_connection", row["id"], resource_state(context, "mcp_connection", row)
+        )
+        require_action(permissions, "mcp:manage")
+        imports = await self.rows(context, "mcp_imports", connection_id=connection_id)
+        reasons = await import_reasons(self, context, imports)
         return McpDetail(
-            connection=await self.view(context, row),
+            connection=await self.view(context, row, permissions, policy.actions("tool", "new")),
             checks=[
                 check_view(r)
                 for r in (await self.rows(context, "mcp_checks", connection_id=connection_id))[:100]
@@ -615,8 +623,7 @@ class McpService:
                 ]
             ],
             imports=[
-                await self.import_view(context, r)
-                for r in await self.rows(context, "mcp_imports", connection_id=connection_id)
+                await self.import_view(context, r, reasons) for r in imports
             ],
         )
 
@@ -814,25 +821,41 @@ class McpService:
     async def impact(self, context: AuthContext, connection_id: str) -> McpImpact:
         await self.require(context, connection_id)
         mappings = await self.rows(context, "mcp_imports", connection_id=connection_id)
-        impacts = [
-            await self.tools.impact(context, tool_id)
-            for tool_id in dict.fromkeys(m["local_tool_id"] for m in mappings)
-        ]
+        impacts = list(
+            (await self.tools.impacts(context, [m["local_tool_id"] for m in mappings])).values()
+        )
         return McpImpact(
             tools=impacts,
             ongoing_calls=sum(t.ongoing_calls for t in impacts),
             message="停用后阻止新调用；在途调用保留已取得的结果或结果待核实记录。",
         )
 
+    async def read_bindings(self, context: AuthContext, definitions: dict[str, ToolDefinition]) -> dict[str, str | None]:
+        selected = {identifier: definition for identifier, definition in definitions.items() if definition.binding.adapter_key.startswith("mcp_")}
+        async with self.engine.connect() as connection:
+            imports = await repository(context.scope, "mcp_imports").get_many(connection, [d.binding.adapter_key for d in selected.values()])
+        reasons = await import_reasons(self, context, list(imports.values()))
+        result = {}
+        for identifier, definition in selected.items():
+            imported = imports.get(definition.binding.adapter_key)
+            reason = reasons.get(definition.binding.adapter_key, "连接记录不存在")
+            if imported and (definition.binding.connection_id != imported["connection_id"] or definition.binding.implementation_version != imported["schema_hash"] or definition.input_schema != imported["input_schema"] or definition.effect_type != imported["effect_type"] or definition.cache_policy.ttl_seconds):
+                reason = "MCP 固定输入和影响类型不能改写，当前不启用结果缓存"
+            result[identifier] = reason
+        return result
+
     async def bindings(self, context: AuthContext) -> list[BindingOption]:
+        from creativity_service.modules.tools.tables import metadata as tool_metadata
         result = []
         labels = {"READ_ONLY": "只读", "IDEMPOTENT_WRITE": "幂等写入", "EXTERNAL_WRITE": "外部写入"}
-        for row in await self.rows(context, "mcp_imports"):
-            if not (
-                await self.authorization.check(context, "tool:manage", "tool", row["local_tool_id"])
-            ).allowed:
-                continue
-            view = await self.import_view(context, row)
+        policy = await self.authorization.read_policy(context)
+        imports = await self.rows(context, "mcp_imports")
+        async with self.engine.connect() as connection:
+            tools = await Repository(tool_metadata.tables["tools"], context.scope).get_many(connection, [r["local_tool_id"] for r in imports])
+        imports = [r for r in imports if (tool := tools.get(r["local_tool_id"])) and "tool:manage" in policy.actions("tool", tool["id"], resource_state(context, "tool", tool))]
+        reasons = await import_reasons(self, context, imports)
+        for row in imports:
+            view = await self.import_view(context, row, reasons)
             reason = view.unavailable_reason or (
                 "写入须配置核查工具并经逐次审批" if row["effect_type"] != "READ_ONLY" else None
             )

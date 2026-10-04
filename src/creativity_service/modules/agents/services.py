@@ -26,6 +26,7 @@ from creativity_service.modules.agents.schemas import (
     AgentVersionView,
 )
 from creativity_service.modules.agents.snapshots import AgentSnapshots
+from creativity_service.modules.iam.reading import require_action, resource_state, visible_actions
 
 
 class AgentService(AgentSnapshots):
@@ -189,42 +190,46 @@ class AgentService(AgentSnapshots):
         return await self.version_view(context, row)
 
     async def list_agents(self, context: AuthContext, search: str | None = None) -> AgentList:
-        await self.authorization.authentication.revalidate(context)
+        policy = await self.authorization.read_policy(context)
         async with self.engine.connect() as connection:
             rows = await repository("agents", context.scope).find(connection)
+            if search:
+                rows = [
+                    row
+                    for row in rows
+                    if search.casefold() in (row["name"] + row["description"]).casefold()
+                ]
+            states = await repository("agent_environment_states", context.scope).get_many(
+                connection, [self.mapping_id(context, row["id"]) for row in rows]
+            )
         result = []
         for row in rows:
-            if search and search.casefold() not in (row["name"] + row["description"]).casefold():
-                continue
-            if (
-                await self.authorization.check(context, "agent:manage", "agent", row["id"])
-            ).allowed:
-                result.append(await self.agent_view(context, row))
+            allowed = policy.actions("agent", row["id"], resource_state(context, "agent", row))
+            if "agent:manage" in allowed:
+                result.append(
+                    self.agent_summary(row, states.get(self.mapping_id(context, row["id"])), [])
+                )
         return AgentList(
             items=result,
-            actions=await self.actions(context, "new", [("create", "新增智能体", "agent:manage")]),
+            actions=visible_actions(
+                policy.actions("agent", "new"), [("create", "新增智能体", "agent:manage")]
+            ),
         )
 
     async def detail(self, context: AuthContext, agent_id: str) -> AgentDetail:
-        await self.require(context, "agent:manage", agent_id)
+        policy = await self.authorization.read_policy(context)
         async with transaction(self.engine, context.scope, self.keys(context, agent_id)) as uow:
-            await DeletionGuard(context.scope).check(uow, [ContentRef("agent", agent_id)])
             agent = await required(uow.connection, context.scope, "agents", agent_id)
+            permissions = policy.actions("agent", agent_id, resource_state(context, "agent", agent))
+            require_action(permissions, "agent:manage")
+            await DeletionGuard(context.scope).check(uow, [ContentRef("agent", agent_id)])
             versions = await repository("resource_versions", context.scope).find(
                 uow.connection, resource_type="agent", resource_id=agent_id
             )
-            visible_versions = []
-            for version in versions:
-                try:
-                    await DeletionGuard(context.scope).check(
-                        uow, [ContentRef("version", version["id"])]
-                    )
-                except ServiceError as exc:
-                    if exc.code != "CONTENT_DELETED":
-                        raise
-                else:
-                    visible_versions.append(version)
-            versions = visible_versions
+            blocked = await DeletionGuard(context.scope).blocked_refs(
+                uow, [ContentRef("version", version["id"]) for version in versions]
+            )
+            versions = [v for v in versions if ContentRef("version", v["id"]) not in blocked]
             mapping = await repository("release_mappings", context.scope).get(
                 uow.connection, self.mapping_id(context, agent_id)
             )
@@ -257,8 +262,8 @@ class AgentService(AgentSnapshots):
             if draft and (not released or released["content"].get(k) != draft["content"].get(k))
         ]
         return AgentDetail(
-            agent=await self.agent_view(context, agent),
-            versions=[await self.version_view(context, v) for v in versions],
+            agent=await self.agent_view(context, agent, permissions),
+            versions=[await self.version_view(context, v, permissions) for v in versions],
             release_version_id=mapping["version_id"] if mapping else None,
             release_revision=mapping["revision"] if mapping else None,
             differences=differences,
@@ -280,39 +285,45 @@ class AgentService(AgentSnapshots):
             ],
         )
 
+    async def version(self, context: AuthContext, version_id: str) -> AgentVersionView:
+        agent, row = await self.raw(context, version_id)
+        policy = await self.authorization.read_policy(context)
+        permissions = policy.actions("agent", agent["id"], resource_state(context, "agent", agent))
+        require_action(permissions, "agent:manage")
+        return await self.version_view(context, row, permissions)
+
     async def options(self, context: AuthContext) -> AgentOptions:
-        await self.authorization.authentication.revalidate(context)
-        async with self.engine.connect() as connection:
-            rows = await repository("resource_versions", context.scope).find(connection)
+        policy = await self.authorization.read_policy(context)
         result = []
-        for row in rows:
-            kind = row["resource_type"]
-            if kind not in {"prompt", "model_route", "tool", "skill"} or row["state"] not in {
-                "DRAFT",
-                "PUBLISHED",
-            }:
-                continue
-            allowed = await self.authorization.check(
-                context, "run:create", kind, row["resource_id"]
+        async with transaction(self.engine, context.scope, self.keys(context, "options")) as uow:
+            rows = await repository("resource_versions", context.scope).find_many(
+                uow.connection, "resource_type", ["prompt", "model_route", "tool", "skill"]
             )
-            if not allowed.allowed:
-                continue
-            try:
-                async with transaction(
-                    self.engine, context.scope, self.keys(context, "options")
-                ) as uow:
-                    await DeletionGuard(context.scope).check(
-                        uow,
-                        [ContentRef(kind, row["resource_id"]), ContentRef("version", row["id"])],
-                    )
-                    resource = await required(
-                        uow.connection, context.scope, RESOURCE_TABLES[kind], row["resource_id"]
-                    )
-                    if resource.get("status", "ACTIVE") == "ACTIVE":
-                        result.append(await self.dependency_view(uow, context, row))
-            except ServiceError as exc:
-                if exc.code not in {"CONTENT_DELETED", "DEPENDENCY_INVALID"}:
-                    raise
+            rows = [row for row in rows if row["state"] in {"DRAFT", "PUBLISHED"}]
+            resources = {}
+            for kind in {row["resource_type"] for row in rows}:
+                resources[kind] = await repository(RESOURCE_TABLES[kind], context.scope).get_many(
+                    uow.connection, [r["resource_id"] for r in rows if r["resource_type"] == kind]
+                )
+            allowed_resources = {
+                (kind, identifier)
+                for kind, parents in resources.items()
+                for identifier, parent in parents.items()
+                if parent.get("status", "ACTIVE") == "ACTIVE"
+                and "run:create"
+                in policy.actions(kind, identifier, resource_state(context, kind, parent))
+            }
+            rows = [r for r in rows if (r["resource_type"], r["resource_id"]) in allowed_resources]
+            refs = [ContentRef(kind, identifier) for kind, identifier in allowed_resources]
+            refs.extend(ContentRef("version", row["id"]) for row in rows)
+            blocked = await DeletionGuard(context.scope).blocked_refs(uow, refs)
+            for row in rows:
+                kind = row["resource_type"]
+                if not (
+                    {ContentRef(kind, row["resource_id"]), ContentRef("version", row["id"])}
+                    & blocked
+                ):
+                    result.append(self.dependency_summary(row, resources[kind][row["resource_id"]]))
         return AgentOptions(
             templates=templates(),
             legacy_templates=legacy_templates(),

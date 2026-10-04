@@ -1,6 +1,6 @@
 """显式范围仓储与可由多个服务共用的短事务工作单元。"""
 
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Iterable, Mapping
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from datetime import datetime
@@ -155,6 +155,32 @@ class Repository:
             self.predicate(), *(self.table.c[key] == value for key, value in filters.items())
         )
         return [dict(row) for row in (await connection.execute(statement)).mappings()]
+
+    async def find_many(
+        self, connection: AsyncConnection, field: str, values: Iterable[Any], **filters: Any
+    ) -> list[dict[str, Any]]:
+        """只读取本批关联键，分批限制参数量并保留完整范围过滤。"""
+        if field not in self.table.c or set(filters) - set(self.table.c.keys()):
+            raise ValueError("筛选字段不存在")
+        identifiers = list(dict.fromkeys(values))
+        result: list[dict[str, Any]] = []
+        for start in range(0, len(identifiers), 500):
+            statement = select(self.table).where(
+                self.predicate(),
+                self.table.c[field].in_(identifiers[start : start + 500]),
+                *(self.table.c[key] == value for key, value in filters.items()),
+            )
+            result.extend(dict(row) for row in (await connection.execute(statement)).mappings())
+        return result
+
+    async def get_many(
+        self, connection: AsyncConnection, identifiers: Iterable[str]
+    ) -> dict[str, dict[str, Any]]:
+        rows = await self.find_many(connection, "id", identifiers)
+        result = {row["id"]: row for row in rows}
+        if len(result) != len(rows):
+            raise ServiceError("STORAGE_INVARIANT_BROKEN", "记录标识重复，请联系管理员", 503)
+        return result
 
     def _validate(self, values: Mapping[str, Any]) -> None:
         validate_row(self.table, values)

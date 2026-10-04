@@ -15,6 +15,7 @@ from creativity_service.core.deletion import RecoveryService
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import Contract, ServiceError, new_id, unavailable, utcnow
 from creativity_service.modules.channels.ports import ResourceReferenceReader, UsageReader
+from creativity_service.modules.channels.reading import ChannelReadData
 from creativity_service.modules.channels.repositories import (
     ChannelRepository,
     environment_id,
@@ -573,12 +574,11 @@ class ChannelService:
         await self.authorize(session, channel_id, "environment:manage")
         async with self.repository.engine.connect() as connection:
             await required(connection, "channels", channel_id, id=channel_id)
+            data = await ChannelReadData.load(connection, session, channel_id)
             result = [
                 r
-                for r in await rows(connection, "channel_environments", channel_id)
-                if await self.visible(
-                    connection, session, r["environment"], action="environment:manage"
-                )
+                for r in data.environments.values()
+                if data.visible(r["environment"], action="environment:manage")
             ]
         return [self.environment_view(r) for r in result]
 
@@ -649,17 +649,25 @@ class ChannelService:
         await self.authorize(session, channel_id, "data_scope:manage")
         async with self.repository.engine.connect() as connection:
             await required(connection, "channels", channel_id, id=channel_id)
+            data = await ChannelReadData.load(connection, session, channel_id)
             return [
-                await self.domain_view(connection, r)
-                for r in await rows(connection, "data_scopes", channel_id)
-                if await self.visible(
-                    connection, session, r["environment"], [r["id"]], action="data_scope:manage"
-                )
+                await self.domain_view(connection, r, data)
+                for r in data.domains.values()
+                if data.visible(r["environment"], [r["id"]], action="data_scope:manage")
             ]
 
-    async def domain_view(self, connection: AsyncConnection, row: dict[str, Any]) -> DataScopeView:
-        env = await one(
-            connection, "channel_environments", row["channel_id"], environment=row["environment"]
+    async def domain_view(
+        self, connection: AsyncConnection, row: dict[str, Any], data: ChannelReadData | None = None
+    ) -> DataScopeView:
+        env = (
+            data.environments.get(row["environment"])
+            if data is not None
+            else await one(
+                connection,
+                "channel_environments",
+                row["channel_id"],
+                environment=row["environment"],
+            )
         )
         return DataScopeView(
             data_scope_id=row["id"],
@@ -809,22 +817,34 @@ class ChannelService:
         await self.authorize(session, channel_id, "client:manage")
         async with self.repository.engine.connect() as connection:
             await required(connection, "channels", channel_id, id=channel_id)
+            data = await ChannelReadData.load(connection, session, channel_id)
             return [
-                await self.client_view(connection, r)
-                for r in await rows(connection, "service_clients", channel_id)
-                if await self.visible(
-                    connection, session, r["environment"], r["data_scopes"], action="client:manage"
-                )
+                await self.client_view(connection, r, data)
+                for r in data.clients.values()
+                if data.visible(r["environment"], r["data_scopes"], action="client:manage")
             ]
 
-    async def client_view(self, connection: AsyncConnection, row: dict[str, Any]) -> ClientView:
-        env = await one(
-            connection, "channel_environments", row["channel_id"], environment=row["environment"]
+    async def client_view(
+        self, connection: AsyncConnection, row: dict[str, Any], data: ChannelReadData | None = None
+    ) -> ClientView:
+        env = (
+            data.environments.get(row["environment"])
+            if data is not None
+            else await one(
+                connection,
+                "channel_environments",
+                row["channel_id"],
+                environment=row["environment"],
+            )
         )
         domains = {
             d["id"]: d["name"]
-            for d in await rows(
-                connection, "data_scopes", row["channel_id"], environment=row["environment"]
+            for d in (
+                data.domains.values()
+                if data is not None
+                else await rows(
+                    connection, "data_scopes", row["channel_id"], environment=row["environment"]
+                )
             )
         }
         return ClientView(

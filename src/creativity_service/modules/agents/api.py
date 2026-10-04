@@ -75,9 +75,7 @@ async def create_version(
 
 @router.get("/agent-versions/{version_id}", response_model=AgentVersionView)
 async def version(context: Context, service: Services, version_id: str) -> AgentVersionView:
-    agent, row = await service.raw(context, version_id)
-    await service.require(context, "agent:manage", agent["id"])
-    return await service.version_view(context, row)
+    return await service.version(context, version_id)
 
 
 @router.patch("/agent-versions/{version_id}", response_model=AgentVersionView)

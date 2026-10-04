@@ -3,7 +3,6 @@
 from collections.abc import Awaitable, Callable
 from typing import Any, Literal
 
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.context import AuthContext
@@ -17,7 +16,9 @@ from creativity_service.core.primitives import ServiceError, digest, new_id, una
 from creativity_service.core.versioning import VersionService, version_view
 from creativity_service.integrations.tools import EFFECT_LABELS, SOURCE_LABELS, AdapterRegistry
 from creativity_service.modules.iam.authorization import IamAuthorization
+from creativity_service.modules.iam.reading import require_action, resource_state, visible_actions
 from creativity_service.modules.tools.ports import ToolDebugPort
+from creativity_service.modules.tools.reading import ToolReadData
 from creativity_service.modules.tools.repositories import ToolRepository
 from creativity_service.modules.tools.schemas import (
     BindingOption,
@@ -122,6 +123,7 @@ class ToolService:
         )
         self.repository = ToolRepository(engine)
         self.binding_checks = registry.binding_checks
+        self.binding_read_checks: dict[Callable[[AuthContext, ToolDefinition], Awaitable[None]], Callable[[AuthContext, dict[str, ToolDefinition]], Awaitable[dict[str, str | None]]]] = {}
         self.binding_option_providers: list[
             Callable[[AuthContext], Awaitable[list[BindingOption]]]
         ] = []
@@ -133,13 +135,15 @@ class ToolService:
         await self.authorization.boundary(context, action, "tool", tool_id)
 
     async def actions(
-        self, context: AuthContext, resource_id: str, keys: list[tuple[str, str, str]]
+        self,
+        context: AuthContext,
+        resource_id: str,
+        keys: list[tuple[str, str, str]],
+        permissions: frozenset[str] | None = None,
     ) -> list[VisibleAction]:
-        result = []
-        for key, label, action in keys:
-            if (await self.authorization.check(context, action, "tool", resource_id)).allowed:
-                result.append(VisibleAction(action_key=key, label=label))
-        return result
+        if permissions is None:
+            permissions = await self.authorization.allowed_actions(context, "tool", resource_id)
+        return visible_actions(permissions, keys)
 
     async def create(self, context: AuthContext, body: ToolCreate) -> ToolView:
         await self.require(context, "tool:manage", "new")
@@ -180,7 +184,11 @@ class ToolService:
         return await self.view(context, row, [])
 
     async def view(
-        self, context: AuthContext, row: dict[str, Any], versions: list[dict[str, Any]]
+        self,
+        context: AuthContext,
+        row: dict[str, Any],
+        versions: list[dict[str, Any]],
+        permissions: frozenset[str] | None = None,
     ) -> ToolView:
         effects = sorted({v["content"]["effect_type"] for v in versions if v["content"]})
         return ToolView(
@@ -203,6 +211,7 @@ class ToolService:
                     ("create_version", "新增版本", "version:edit"),
                     *(([("disable", "停用", "tool:manage")]) if row["status"] == "ACTIVE" else []),
                 ],
+                permissions,
             ),
         )
 
@@ -215,9 +224,10 @@ class ToolService:
         search: str | None = None,
         referenced_by: str | None = None,
     ) -> ToolList:
-        await self.authorization.authentication.revalidate(context)
+        policy = await self.authorization.read_policy(context)
         items = []
         agents: dict[str, ToolReference] = {}
+        visible = []
         for row in await self.repository.rows(context, "tools"):
             if (
                 source_type
@@ -228,19 +238,19 @@ class ToolService:
                 continue
             if search and search.casefold() not in (row["name"] + row["description"]).casefold():
                 continue
-            if not (
-                await self.authorization.check(context, "tool:manage", "tool", row["id"])
-            ).allowed:
+            if "tool:manage" not in policy.actions(
+                "tool", row["id"], resource_state(context, "tool", row)
+            ):
                 continue
-            async with self.engine.connect() as connection:
-                versions = await Repository(
-                    core_metadata.tables["resource_versions"], context.scope
-                ).find(connection, resource_type="tool", resource_id=row["id"])
+            visible.append(row)
+        data = await ToolReadData.load(self.engine, context, [r["id"] for r in visible])
+        for row in visible:
+            versions = data.versions.get(row["id"], [])
             if effect_type and not any(
                 v["content"].get("effect_type") == effect_type for v in versions
             ):
                 continue
-            impact = await self.impact(context, row["id"])
+            impact = data.impacts[row["id"]]
             agents.update(
                 {ref.version_id: ref for ref in impact.references if ref.resource_type == "agent"}
             )
@@ -248,37 +258,49 @@ class ToolService:
                 ref.version_id == referenced_by for ref in impact.references
             ):
                 continue
-            items.append(await self.view(context, row, versions))
+            items.append(await self.view(context, row, versions, frozenset()))
         return ToolList(
             items=items,
             referenced_agents=list(agents.values()),
-            actions=await self.actions(context, "new", [("create", "新增工具", "tool:manage")]),
+            actions=visible_actions(
+                policy.actions("tool", "new"), [("create", "新增工具", "tool:manage")]
+            ),
         )
 
     async def detail(self, context: AuthContext, tool_id: str) -> ToolDetail:
-        await self.require(context, "tool:manage", tool_id)
+        policy = await self.authorization.read_policy(context)
         scope = context.scope
         async with transaction(self.engine, scope, [content_key(scope)]) as uow:
-            await DeletionGuard(scope).check(uow, [ContentRef("tool", tool_id)])
             row = await Repository(metadata.tables["tools"], scope).get(uow.connection, tool_id)
             if row is None:
                 raise ServiceError("NOT_FOUND", "工具不存在", 404)
+            permissions = policy.actions("tool", tool_id, resource_state(context, "tool", row))
+            require_action(permissions, "tool:manage")
             versions = await Repository(core_metadata.tables["resource_versions"], scope).find(
                 uow.connection, resource_type="tool", resource_id=tool_id
             )
             mappings = await Repository(core_metadata.tables["release_mappings"], scope).find(
                 uow.connection, resource_type="tool", resource_id=tool_id
             )
+            await DeletionGuard(scope).check(
+                uow,
+                [
+                    ContentRef("tool", tool_id),
+                    *(ContentRef("version", v["id"]) for v in versions if v["state"] != "RETIRED"),
+                ],
+            )
+        data = await ToolReadData.load(self.engine, context, [tool_id], target_versions=versions)
+        reasons = await self.binding_reasons(context, [v for v in versions if v["state"] != "RETIRED"])
         return ToolDetail(
-            tool=await self.view(context, row, versions),
+            tool=await self.view(context, row, versions, permissions),
             versions=[
-                await self.version_detail(context, v["id"])
+                await self.version_display(context, row, v, permissions, reasons)
                 for v in versions
                 if v["state"] != "RETIRED"
             ],
             release_version_id=mappings[0]["version_id"] if mappings else None,
             release_revision=mappings[0]["revision"] if mappings else None,
-            impact=await self.impact(context, tool_id),
+            impact=data.impacts[tool_id],
         )
 
     async def validate_config(self, context: AuthContext, definition: ToolDefinition) -> None:
@@ -436,6 +458,23 @@ class ToolService:
         for check in self.binding_checks:
             await check(context, definition)
 
+    async def binding_reasons(self, context: AuthContext, versions: list[dict[str, Any]]) -> dict[str, str | None]:
+        definitions = {r["id"]: ToolDefinition.model_validate(r["content"]) for r in versions}
+        reasons: dict[str, str | None] = {}
+        for check in self.binding_checks:
+            if check in self.binding_read_checks:
+                values = await self.binding_read_checks[check](context, definitions)
+                for identifier, reason in values.items():
+                    if reason:
+                        reasons[identifier] = reason
+            else:
+                for identifier, definition in definitions.items():
+                    try:
+                        await check(context, definition)
+                    except ServiceError as exc:
+                        reasons[identifier] = exc.message
+        return reasons
+
     async def edit_version(
         self, context: AuthContext, version_id: str, body: ToolVersionEdit
     ) -> ToolVersionView:
@@ -457,12 +496,27 @@ class ToolService:
 
     async def version_detail(self, context: AuthContext, version_id: str) -> ToolVersionView:
         tool, row = await self.repository.resolve(context, version_id)
-        await self.require(context, "version:read", tool["id"])
+        policy = await self.authorization.read_policy(context)
+        permissions = policy.actions("tool", tool["id"], resource_state(context, "tool", tool))
+        return await self.version_display(context, tool, row, permissions)
+
+    async def version_display(
+        self,
+        context: AuthContext,
+        tool: dict[str, Any],
+        row: dict[str, Any],
+        permissions: frozenset[str],
+        binding_reasons: dict[str, str | None] | None = None,
+    ) -> ToolVersionView:
+        require_action(permissions, "version:read")
         definition = ToolDefinition.model_validate(row["content"])
         reason = None
         try:
             self.registry.validate(context.scope, definition, tool["source_type"], executable=True)
-            await self.check_binding(context, definition)
+            if binding_reasons is None:
+                await self.check_binding(context, definition)
+            else:
+                reason = binding_reasons.get(row["id"])
             if tool["status"] != "ACTIVE":
                 reason = "工具已停用"
         except ServiceError as exc:
@@ -479,7 +533,7 @@ class ToolService:
             status=status(row["state"]),
             execution_enabled=reason is None,
             unavailable_reason=reason,
-            actions=await self.actions(context, tool["id"], keys),
+            actions=visible_actions(permissions, keys),
         )
 
     async def freeze(self, context: AuthContext, version_id: str, revision: int) -> ToolVersionView:
@@ -506,55 +560,24 @@ class ToolService:
             )
         return view.version
 
-    async def impact(self, context: AuthContext, tool_id: str) -> ToolImpact:
-        await self.require(context, "tool:manage", tool_id)
-        refs = []
+    async def impacts(self, context: AuthContext, tool_ids: list[str]) -> dict[str, ToolImpact]:
+        policy = await self.authorization.read_policy(context)
         async with self.engine.connect() as connection:
-            versions = Repository(core_metadata.tables["resource_versions"], context.scope)
-            references = Repository(core_metadata.tables["resource_references"], context.scope)
-            for target in await versions.find(
-                connection, resource_type="tool", resource_id=tool_id
-            ):
-                for ref in await references.find(connection, target_version_id=target["id"]):
-                    source = await versions.get(connection, ref["source_version_id"])
-                    if source:
-                        resource = (
-                            await self.authorization.resources.read_current(
-                                context, source["resource_type"], source["resource_id"]
-                            )
-                            if self.authorization.resources
-                            else None
-                        )
-                        refs.append(
-                            ToolReference(
-                                resource_name=resource.name if resource else None,
-                                resource_type=source["resource_type"],
-                                version_id=source["id"],
-                                version_label=source["version_label"],
-                            )
-                        )
-        calls = metadata.tables["tool_calls"]
-        async with self.engine.connect() as connection:
-            ongoing = int(
-                await connection.scalar(
-                    select(func.count())
-                    .select_from(calls)
-                    .where(
-                        calls.c.channel_id == context.scope.channel_id,
-                        calls.c.environment == context.scope.environment,
-                        calls.c.data_scope_id == context.scope.data_scope_id,
-                        calls.c.tool_id == tool_id,
-                        calls.c.state == "STARTED",
-                    )
-                )
-                or 0
+            tools = await Repository(metadata.tables["tools"], context.scope).get_many(
+                connection, tool_ids
             )
-        return ToolImpact(
-            tool_id=tool_id,
-            references=refs,
-            ongoing_calls=ongoing,
-            message="停用后阻断后续调用和重试，进行中的结果交付将再次校验。",
-        )
+        for identifier in dict.fromkeys(tool_ids):
+            row = tools.get(identifier)
+            if row is None:
+                raise ServiceError("NOT_FOUND", "工具不存在", 404)
+            require_action(
+                policy.actions("tool", identifier, resource_state(context, "tool", row)),
+                "tool:manage",
+            )
+        return (await ToolReadData.load(self.engine, context, tool_ids)).impacts
+
+    async def impact(self, context: AuthContext, tool_id: str) -> ToolImpact:
+        return (await self.impacts(context, [tool_id]))[tool_id]
 
     async def disable(self, context: AuthContext, tool_id: str, revision: int) -> ToolDetail:
         await self.require(context, "tool:manage", tool_id)

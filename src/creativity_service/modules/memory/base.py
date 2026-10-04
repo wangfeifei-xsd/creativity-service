@@ -12,8 +12,10 @@ from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.modules.conversations.tables import metadata as conversations
+from creativity_service.modules.iam.reading import read_actions, visible_actions
 from creativity_service.modules.memory import repositories as repo
 from creativity_service.modules.memory.ports import MemorySourceReader, SourceState
+from creativity_service.modules.memory.reading import MemoryReadData, scoped_id
 from creativity_service.modules.memory.schemas import (
     ConsolidationSettings,
     MemoryAttribute,
@@ -102,28 +104,47 @@ class MemoryKernel:
         return True
 
     async def actions(
-        self, context: AuthContext, resource_id: str = "scope"
+        self,
+        context: AuthContext,
+        resource_id: str = "scope",
+        permissions: frozenset[str] | None = None,
     ) -> list[VisibleAction]:
-        return [
-            VisibleAction(action_key=key, label=label)
-            for key, label, permission in (
+        if permissions is None:
+            permissions = await read_actions(
+                self.authorization,
+                context,
+                "memory",
+                resource_id,
+                ["memory:write", "memory:delete"],
+            )
+        return visible_actions(
+            permissions,
+            [
                 ("create", "新增记忆", "memory:write"),
                 ("edit", "修正", "memory:write"),
                 ("confirm", "确认", "memory:write"),
                 ("delete", "遗忘", "memory:delete"),
-            )
-            if await self.allowed(context, permission, resource_id)
-        ]
+            ],
+        )
 
-    async def preference_actions(self, context: AuthContext) -> list[VisibleAction]:
-        return [
-            VisibleAction(action_key=k, label=label)
-            for k, label, permission in (
+    async def preference_actions(
+        self, context: AuthContext, permissions: frozenset[str] | None = None
+    ) -> list[VisibleAction]:
+        if permissions is None:
+            permissions = await read_actions(
+                self.authorization,
+                context,
+                "memory",
+                "scope",
+                ["memory:preferences", "memory:delete"],
+            )
+        return visible_actions(
+            permissions,
+            [
                 ("preferences", "长期记忆", "memory:preferences"),
                 ("clear", "清空记忆", "memory:delete"),
-            )
-            if await self.allowed(context, permission)
-        ]
+            ],
+        )
 
     @staticmethod
     async def preference(
@@ -308,15 +329,31 @@ class MemoryKernel:
         )
 
     async def refresh(
-        self, uow: UnitOfWork, context: AuthContext, row: dict[str, Any]
+        self,
+        uow: UnitOfWork,
+        context: AuthContext,
+        row: dict[str, Any],
+        data: MemoryReadData | None = None,
     ) -> dict[str, Any]:
         """先剔除失效来源再检查派生内容，独立来源采用任一有效依据语义。"""
-        sources = await repo.rows(
-            uow.connection, "memory_sources", context.scope, memory_id=row["id"], status="ACTIVE"
+        sources = (
+            data.sources.get(scoped_id(row), [])
+            if data is not None
+            else await repo.rows(
+                uow.connection,
+                "memory_sources",
+                context.scope,
+                memory_id=row["id"],
+                status="ACTIVE",
+            )
         )
         valid, changed = [], False
         for source in sources:
-            state = await self.source_state(uow, context, source)
+            state = (
+                data.states.get(scoped_id(source))
+                if data is not None
+                else await self.source_state(uow, context, source)
+            )
             if state and (row["memory_type"] != "FACT" or row["key"] in state.fact_keys):
                 valid.append(source)
                 continue
@@ -336,7 +373,10 @@ class MemoryKernel:
             )
         marked = changed and row.get("source_mode") == "ALL"
         try:
-            await DeletionGuard(context.scope).check(uow, [ContentRef("memory", row["id"])])
+            if data is None or changed:
+                await DeletionGuard(context.scope).check(uow, [ContentRef("memory", row["id"])])
+            elif ContentRef("memory", row["id"]) in data.blocked:
+                marked = True
         except ServiceError as exc:
             if exc.code != "CONTENT_DELETED":
                 raise
@@ -395,14 +435,28 @@ class MemoryKernel:
         context: AuthContext,
         row: dict[str, Any],
         visible_sources: frozenset[str] = frozenset(),
+        data: MemoryReadData | None = None,
     ) -> list[MemorySourceView]:
         if row["status"] == "REVOKED":
             return []
         result = []
-        for source in await repo.rows(
-            uow.connection, "memory_sources", context.scope, memory_id=row["id"], status="ACTIVE"
-        ):
-            state = await self.source_state(uow, context, source)
+        sources = (
+            data.sources.get(scoped_id(row), [])
+            if data is not None
+            else await repo.rows(
+                uow.connection,
+                "memory_sources",
+                context.scope,
+                memory_id=row["id"],
+                status="ACTIVE",
+            )
+        )
+        for source in sources:
+            state = (
+                data.states.get(scoped_id(source))
+                if data is not None
+                else await self.source_state(uow, context, source)
+            )
             if state:
                 result.append(
                     MemorySourceView(
