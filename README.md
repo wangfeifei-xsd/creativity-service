@@ -71,6 +71,8 @@ uv run creativity-iam init-admin --login-name admin --display-name 管理员
 
 上述命令依次启动 PostgreSQL、Redis 和 MinIO，创建开发存储桶，执行数据库迁移，初始化系统渠道和平台管理员。管理员初始化仅在首次安装时执行；密码通过终端交互输入，首次登录后需要修改初始密码。
 
+空库也可直接执行完整归档 [sql/init.sql](sql/init.sql)，一次创建当前全部表、索引、中文注释、系统渠道和迁移版本记录。执行方式与后续管理员初始化见 [SQL 初始化说明](sql/README.md)。
+
 ### 3. 启动服务
 
 在一个终端启动 API：
@@ -139,6 +141,7 @@ curl -fsS http://127.0.0.1:8000/health/ready
 | `make test` | 运行非集成测试 |
 | `make integration` | 运行依赖真实基础设施的集成测试 |
 | `make migrate` | 将数据库迁移至当前版本 |
+| `make sql` / `make sql-check` | 生成 / 校验完整初始化 SQL 归档 |
 | `make openapi` | 导出完整接口和业务接口的 OpenAPI |
 | `make contracts` | 生成各模块 JSON Schema、样例及 OpenAPI |
 | `make model-check` | 校验模型档案、迁移源码及存储定义 |
@@ -168,6 +171,7 @@ creativity-service/
 ├── docs/                # 模块说明、数据模型与验证记录
 ├── examples/            # 接入和配置示例
 ├── scripts/             # 文档、契约及验收工具
+├── sql/                 # 完整空库初始化 SQL 与执行说明
 ├── sdks/                # 调用 SDK
 ├── tests/               # 单元、契约、集成及端到端测试
 ├── .env.example         # 本地配置模板

@@ -14,6 +14,7 @@ from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.deletion import RecoveryService
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import Contract, ServiceError, new_id, unavailable, utcnow
+from creativity_service.modules.channels.initialization import system_channel_values
 from creativity_service.modules.channels.ports import ResourceReferenceReader, UsageReader
 from creativity_service.modules.channels.reading import ChannelReadData
 from creativity_service.modules.channels.repositories import (
@@ -350,17 +351,7 @@ class ChannelService:
                 uow,
                 "channels",
                 "system",
-                {
-                    "channel_code": "system",
-                    "name": "平台系统渠道",
-                    "owner": "平台",
-                    "business_type": "system",
-                    "status": "ACTIVE",
-                    "archived_at": None,
-                    "retention_policy": {"retention_days": 365},
-                    "budget_policy_refs": [],
-                    "rate_limit_policy_refs": [],
-                },
+                system_channel_values(),
             )
 
     async def create(self, session: AdminSession, body: ChannelCreate) -> ChannelView:

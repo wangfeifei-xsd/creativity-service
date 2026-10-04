@@ -1,4 +1,4 @@
-.PHONY: install dev worker check format test integration openapi migrate infra-up infra-down contracts model-check storage-audit dependency-audit iam-reconcile
+.PHONY: install dev worker check format test integration openapi migrate sql sql-check infra-up infra-down contracts model-check storage-audit dependency-audit iam-reconcile
 
 install:
 	uv sync --locked
@@ -31,6 +31,7 @@ check:
 	uv run python -m creativity_service.modules.models.export --check
 	uv run python -m creativity_service.modules.evaluations.export --check
 	uv run python scripts/render_data_model.py --check
+	uv run python scripts/render_init_sql.py --check
 	uv run python -m creativity_service.core.database.audit
 
 format:
@@ -49,6 +50,12 @@ openapi:
 
 migrate:
 	uv run alembic upgrade head
+
+sql:
+	uv run python scripts/render_init_sql.py
+
+sql-check:
+	uv run python scripts/render_init_sql.py --check
 
 infra-up:
 	docker compose --env-file .env -f deploy/compose.dev.yml up -d --wait postgres redis minio
@@ -77,6 +84,7 @@ contracts:
 
 model-check:
 	uv run python scripts/render_data_model.py --check
+	uv run python scripts/render_init_sql.py --check
 	uv run python -m creativity_service.core.database.audit
 
 storage-audit:
