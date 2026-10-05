@@ -37,7 +37,6 @@ def inventory(connection):
             {
                 "channel_id": channel_id,
                 "name": channels[0]["name"] if channels else None,
-                "business_type": channels[0]["business_type"] if channels else None,
                 "data_scopes": [
                     {
                         k: row[k]

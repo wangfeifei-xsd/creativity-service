@@ -72,7 +72,7 @@ def render() -> str:
         for index in sorted(table.indexes, key=lambda item: item.name or ""):
             append(CreateIndex(index))
 
-    lines.append("-- 初始化平台系统渠道；管理员与内置角色由账号初始化服务创建。")
+    lines.append("-- 初始化平台系统渠道；管理员由账号初始化服务创建。")
     channel = metadata.tables["channels"]
     values = system_channel_values()
     for name, value in values.items():
@@ -95,6 +95,18 @@ def render() -> str:
     for row in json.loads(seed.read_text(encoding="utf-8")):
         append(
             insert(metadata.tables["iam_menus"]).values(
+                **row, created_at=func.current_timestamp(), updated_at=func.current_timestamp()
+            )
+        )
+    lines.append("-- 初始化角色管理的内置目录；运行时选项和鉴权读取数据库定义。")
+    role_table = metadata.tables["builtin_roles"]
+    seed = ROOT / "src/creativity_service/modules/iam/role_seed_v0036.json"
+    for row in json.loads(seed.read_text(encoding="utf-8")):
+        row["allowed_actions"] = cast(
+            literal(json.dumps(row["allowed_actions"], ensure_ascii=False)), postgresql.JSONB
+        )
+        append(
+            insert(role_table).values(
                 **row, created_at=func.current_timestamp(), updated_at=func.current_timestamp()
             )
         )

@@ -188,7 +188,7 @@ async def test_config_history_stale_capabilities_and_no_test_bypass(channel_env)
 
 async def test_tenant_isolation_endpoint_policy_and_http_contract(channel_env):
     tenant, services, connection_input, connection, model_input, model = await setup(channel_env)
-    other = await provision(channel_env, "other", "playmate")
+    other = await provision(channel_env, "other", "club")
     with pytest.raises(ServiceError) as exc:
         await services.configuration.detail(other.manager, model.id)
     assert exc.value.status == 404

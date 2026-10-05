@@ -36,6 +36,33 @@ operations.tables["custom_roles"].append_column(
     )
 )
 operations.tables["custom_roles"].comment = "平台与渠道自定义角色"
+operations.tables["custom_roles"].append_column(
+    Column(
+        "grant_scope",
+        column_type("varchar(32)"),
+        nullable=True,
+        comment="授权类别",
+        info={"required": True, "source": "受信上下文与服务层校验", "sensitivity": "内部"},
+    )
+)
+identity.tables["platform_accounts"].append_column(
+    Column(
+        "role_id",
+        column_type("varchar(64)"),
+        nullable=True,
+        comment="账号选择的管理角色",
+        info={"required": False, "source": "受信上下文与服务层校验", "sensitivity": "内部"},
+    )
+)
+identity.tables["builtin_roles"].append_column(
+    Column(
+        "account_assignable",
+        column_type("boolean"),
+        nullable=True,
+        comment="可用于账号管理",
+        info={"required": True, "source": "受信上下文与服务层校验", "sensitivity": "内部"},
+    )
+)
 Index(
     "ix_platform_accounts_directory",
     *(

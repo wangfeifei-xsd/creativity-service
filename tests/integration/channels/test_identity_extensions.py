@@ -191,7 +191,7 @@ async def test_custom_role_scope_revision_and_immediate_revocation(channel_env):
     assert not (
         await env.iam.authorization.check(context, "run:read", "channel", scope.channel_id)
     ).allowed
-    other = await provision(env, "partner", "playmate")
+    other = await provision(env, "partner", "club")
     with pytest.raises(ServiceError):
         await env.iam.access.put_member(
             other.manager,

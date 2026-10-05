@@ -92,7 +92,7 @@ async def test_two_real_channels_token_binding_masks_and_index(
     channel_env, channel, service_identity
 ):
     env, rental = channel_env, service_identity
-    playmate = await provision(env, "playmate", "playmate")
+    playmate = await provision(env, "playmate", "club")
     other = await credential(env, playmate)
     assert rental.context.scope.channel_id != other.context.scope.channel_id
     assert rental.context.scope.environment == other.context.scope.environment == "test"
@@ -432,7 +432,7 @@ async def test_suspend_governance_resume_archive_and_durable_events(
 
 async def test_mapping_concurrency_environment_ownership_and_new_workspace(channel_env):
     env = channel_env
-    channel = await provision(env, "playmate", "playmate")
+    channel = await provision(env, "playmate", "club")
     channel_id = channel.channel.channel_id
     body = DataScopeCreate(
         name="俱乐部乙",
@@ -483,7 +483,7 @@ async def test_cross_channel_reference_and_governance_does_not_grant_data(
     channel_env, channel, service_identity
 ):
     env = channel_env
-    other = await provision(env, "playmate", "playmate")
+    other = await provision(env, "playmate", "club")
     with pytest.raises(ServiceError) as exc:
         await env.services.channels.detail(channel.manager, other.channel.channel_id)
     assert exc.value.status == 404
@@ -521,7 +521,7 @@ async def test_workspace_atomic_switch_failure_and_session_indexes(
     channel_env, channel, monkeypatch
 ):
     env = channel_env
-    other = await provision(env, "playmate", "playmate")
+    other = await provision(env, "playmate", "club")
     body = ChannelContextInput(
         channel_id=other.channel.channel_id,
         environment="test",

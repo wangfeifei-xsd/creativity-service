@@ -113,30 +113,29 @@ async def channel_env():
     sync_engine.dispose()
 
 
-def channel_body(env, code="rental", business_type="gamerental"):
+def channel_body(env, code="rental", scope_type="default"):
     name = (
         "租号渠道"
-        if code == "rental" and business_type == "gamerental"
+        if code == "rental" and scope_type == "default"
         else "陪玩渠道"
-        if code == "playmate" and business_type == "playmate"
+        if code == "playmate" and scope_type == "club"
         else f"{code.strip()}渠道"
     )
     return ChannelCreate(
         name=name,
         owner="业务负责人",
-        business_type=business_type,
         first_admin_user_id=env.user_id,
         environment="test",
         data_scope=InitialDataScope(
-            name="默认业务域" if business_type == "gamerental" else "俱乐部甲",
-            external_scope_type="default" if business_type == "gamerental" else "club",
-            external_scope_id="default" if business_type == "gamerental" else "club-1",
+            name="默认业务域" if scope_type == "default" else "俱乐部甲",
+            external_scope_type="default" if scope_type == "default" else "club",
+            external_scope_id="default" if scope_type == "default" else "club-1",
         ),
     )
 
 
-async def provision(env, code="rental", business_type="gamerental", *, independent_actions=None):
-    body = channel_body(env, code, business_type)
+async def provision(env, code="rental", scope_type="default", *, independent_actions=None):
+    body = channel_body(env, code, scope_type)
     if independent_actions is not None:
         body = body.model_copy(update={"independent_actions": independent_actions})
     channel = await env.services.channels.create(env.admin, body)

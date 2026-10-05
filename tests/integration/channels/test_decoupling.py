@@ -25,7 +25,7 @@ from .conftest import credential, login, provision
 pytestmark = pytest.mark.integration
 
 
-async def open_workspace(env, code="research", category=None):
+async def open_workspace(env, code="research"):
     body = {
         "name": "资料工作区" if code == "research" else f"{code}工作区",
         "owner": "资料管理员",
@@ -37,8 +37,6 @@ async def open_workspace(env, code="research", category=None):
             "external_scope_id": "研发:001/甲",
         },
     }
-    if category is not None:
-        body["business_type"] = category
     response = await env.client.post(
         "/admin/v1/channels",
         json=body,
@@ -64,14 +62,12 @@ async def open_workspace(env, code="research", category=None):
     return SimpleNamespace(channel=channel, domain=domain, token=token, manager=manager)
 
 
-@pytest.mark.parametrize("category", [None, "研发服务", "gamerental", "playmate"])
-async def test_arbitrary_channel_issues_credentials_without_business_category(
-    channel_env, category
-):
+async def test_arbitrary_channel_issues_credentials_without_business_category(channel_env):
     env = channel_env
-    workspace = await open_workspace(env, category=category)
+    workspace = await open_workspace(env)
     identity = await credential(env, workspace)
-    assert workspace.channel.business_type == category
+    assert "business_type" not in workspace.channel.model_dump()
+    assert "business_type_name" not in workspace.channel.model_dump()
     assert workspace.domain.external_scope_type == "源系统/workspace"
     assert workspace.domain.external_scope_type_name is None
     assert identity.context.scope.channel_id == workspace.channel.channel_id
@@ -84,7 +80,10 @@ async def test_arbitrary_channel_issues_credentials_without_business_category(
         },
     )
     assert options.status_code == 200
-    assert options.json()["business_types"] == []
+    assert "business_types" not in options.json()
+    schema = env.client._transport.app.openapi()
+    assert "/admin/v1/channel-business-types" not in schema["paths"]
+    assert "business_type" not in schema["components"]["schemas"]["ChannelCreate"]["properties"]
 
 
 async def test_custom_mapping_concurrency_channel_environment_and_no_default(channel_env):
@@ -216,18 +215,17 @@ async def test_custom_scope_delegation_without_http_connection_and_strict_isolat
 
 
 @pytest.mark.parametrize(
-    "category,kind,source_id,label",
+    "code,kind,source_id",
     [
-        ("gamerental", "default", "default", "租号"),
-        ("playmate", "club", "club-1", "陪玩"),
+        ("rental", "default", "default"),
+        ("playmate", "club", "club-1"),
     ],
 )
 async def test_legacy_explicit_mapping_and_identity_are_preserved(
-    channel_env, category, kind, source_id, label
+    channel_env, code, kind, source_id
 ):
-    workspace = await provision(channel_env, category, category)
+    workspace = await provision(channel_env, code, kind)
     identity = await credential(channel_env, workspace)
-    assert workspace.channel.business_type_name == label
     assert (workspace.domain.external_scope_type, workspace.domain.external_scope_id) == (
         kind,
         source_id,

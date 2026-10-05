@@ -1,7 +1,5 @@
 """渠道页面入口、操作和字段选项的服务端组装。"""
 
-from pydantic import Field
-
 from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import NavigationItem, VisibleAction
@@ -16,9 +14,6 @@ from creativity_service.modules.iam.roles import ACTION_NAMES, INDEPENDENT_ACTIO
 class ChannelCreateOptions(Contract):
     accounts: list[NamedOption]
     environments: list[NamedOption]
-    business_types: list[NamedOption] = Field(
-        default_factory=list, deprecated=True, description="兼容字段；分类为可选自由文本"
-    )
     independent_actions: list[VisibleAction]
 
 

@@ -9,7 +9,6 @@ def system_channel_values() -> dict[str, Any]:
         "channel_code": "system",
         "name": "平台系统渠道",
         "owner": "平台",
-        "business_type": "system",
         "status": "ACTIVE",
         "archived_at": None,
         "retention_policy": {"retention_days": 365},

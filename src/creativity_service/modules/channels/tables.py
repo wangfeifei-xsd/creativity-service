@@ -9,7 +9,7 @@ from sqlalchemy import Column, Index, MetaData, Table
 from creativity_service.core.database.tables import column_type
 
 BASELINE = json.loads(Path(__file__).with_name("baseline_v0003.json").read_text(encoding="utf-8"))
-CURRENT = json.loads(Path(__file__).with_name("baseline_v0020.json").read_text(encoding="utf-8"))
+CURRENT = json.loads(Path(__file__).with_name("baseline_v0037.json").read_text(encoding="utf-8"))
 
 
 def build_metadata(definitions: list[dict[str, Any]] | None = None) -> MetaData:

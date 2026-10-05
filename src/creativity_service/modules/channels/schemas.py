@@ -37,9 +37,6 @@ class InitialDataScope(Contract):
 class ChannelCreate(Contract):
     name: str = Field(min_length=1, max_length=128)
     owner: str = Field(min_length=1, max_length=128)
-    business_type: str | None = Field(
-        default=None, min_length=1, max_length=32, description="可选业务分类，仅用于展示"
-    )
     first_admin_user_id: Identifier
     environment: Environment | None = Field(
         default=None,
@@ -132,8 +129,6 @@ class ChannelView(Contract):
     channel_code: str
     name: str
     owner: str
-    business_type: str | None
-    business_type_name: str | None
     status: ChannelStatus
     status_label: str
     created_at: datetime

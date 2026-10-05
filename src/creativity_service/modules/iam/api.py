@@ -297,8 +297,10 @@ async def custom_roles(session: Session, iam: Services) -> list[dict[str, Any]]:
 
 
 @router.get("/custom-roles/options")
-async def role_options(session: Session, iam: Services) -> dict[str, Any]:
-    return await CustomRoles(iam.access).options(session)
+async def role_options(
+    session: Session, iam: Services, grant_scope: str | None = None
+) -> dict[str, Any]:
+    return await CustomRoles(iam.access).options(session, grant_scope)
 
 
 @router.delete("/custom-roles/{identifier}", status_code=204)

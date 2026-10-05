@@ -11,7 +11,6 @@ from creativity_service.core.contracts import NavigationItem, VisibleAction
 from creativity_service.core.primitives import Contract, Identifier, Revision
 
 ChannelRole = Identifier
-AdministratorRole = Literal["platform_admin", "channel_admin"]
 
 
 class LoginInput(Contract):
@@ -50,7 +49,7 @@ class AccountCreate(Contract):
     display_name: str = Field(min_length=1, max_length=128)
     initial_password: SecretStr = Field(min_length=12, max_length=256)
     platform_roles: list[Identifier] = Field(default_factory=list, max_length=50)
-    role: AdministratorRole | None = None
+    role: Identifier | None = None
     channel_ids: list[Identifier] | None = Field(default=None, max_length=200)
 
 
@@ -59,7 +58,7 @@ class AccountUpdate(Contract):
     display_name: str | None = Field(default=None, min_length=1, max_length=128)
     status: Status | None = None
     platform_roles: list[Identifier] | None = Field(default=None, max_length=50)
-    role: AdministratorRole | None = None
+    role: Identifier | None = None
     channel_ids: list[Identifier] | None = Field(default=None, max_length=200)
 
 
@@ -79,8 +78,9 @@ class AccountView(Contract):
     display_name: str
     platform_roles: list[str]
     platform_role_names: list[str]
-    role: AdministratorRole
+    role: str | None
     role_name: str
+    grant_scope: Literal["platform", "channel"] | None = None
     channel_ids: list[str] = Field(default_factory=list)
     channel_names: list[str | None] = Field(default_factory=list)
     status: Status

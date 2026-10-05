@@ -40,8 +40,6 @@ from creativity_service.modules.iam.revocations import RevocationService, enqueu
 from creativity_service.modules.iam.roles import (
     ACTION_NAMES,
     INDEPENDENT_ACTIONS,
-    ROLE_ACTIONS,
-    role_actions,
 )
 from creativity_service.modules.iam.schemas import (
     GrantInput,
@@ -186,7 +184,7 @@ class AccessService:
             grants,
             list(target.environments),
             list(target.data_scopes),
-            role_actions(target.roles) | target.custom_actions,
+            target.custom_actions,
             "channel",
             target.channel_id,
             known_pairs,
@@ -778,7 +776,12 @@ class AccessService:
                 "resource_id": channel_id,
                 "environments": environments,
                 "data_scopes": data_scopes,
-                "allowed_actions": sorted(ROLE_ACTIONS["channel_admin"] | independent),
+                "allowed_actions": sorted(
+                    await resolved_actions(
+                        uow.connection, channel_id, ["channel_admin"], require_active=True
+                    )
+                    | independent
+                ),
             },
         )
         await append_event(
@@ -909,7 +912,11 @@ class AccessService:
                 "resource_id": domain_id,
                 "environments": [environment],
                 "data_scopes": [domain_id],
-                "allowed_actions": sorted(ROLE_ACTIONS["channel_admin"]),
+                "allowed_actions": sorted(
+                    await resolved_actions(
+                        uow.connection, channel_id, ["channel_admin"], require_active=True
+                    )
+                ),
             },
         )
         await append_event(

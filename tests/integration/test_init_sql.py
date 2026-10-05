@@ -20,7 +20,6 @@ from creativity_service.core.database.audit import audit_database
 from creativity_service.core.primitives import new_id
 from creativity_service.modules.channels.assembly import build_channel_services
 from creativity_service.modules.channels.initialization import system_channel_values
-from creativity_service.modules.iam.roles import ROLE_NAMES
 from creativity_service.modules.iam.schemas import AccountCreate, LoginInput
 from creativity_service.storage import metadata
 from tests.support.captcha import captcha_token
@@ -63,6 +62,137 @@ def snapshot(connection, schema):
         }
         for name in inspector.get_table_names(schema=schema)
     }
+
+
+def test_role_catalog_upgrade_preserves_existing_definitions_and_identity(isolated_database):
+    database = isolated_database
+    config = Config("alembic.ini")
+    config.set_main_option("version_table_schema", database.schema)
+    with database.engine.begin() as connection:
+        connection.execute(text(f'SET LOCAL search_path TO "{database.schema}"'))
+        config.attributes["connection"] = connection
+        command.upgrade(config, "0035_management")
+        connection.execute(
+            text(
+                "INSERT INTO builtin_roles "
+                "(id, channel_id, role_code, name, allowed_actions, grant_scope, revision) "
+                "VALUES ('old-admin-role', 'system', 'channel_admin', '原渠道角色', "
+                "'[\"run:read\"]', 'channel', 4)"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO custom_roles (id, channel_id, name, allowed_actions, state, revision) "
+                "VALUES ('platform-old', 'system', '平台旧角色', "
+                "'[\"account:manage\"]', 'ACTIVE', 2), "
+                "('channel-old', 'legacy-channel', '渠道旧角色', '[\"run:read\"]', 'ACTIVE', 3)"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO platform_accounts (id, channel_id, platform_roles, status) "
+                "VALUES ('legacy-account', 'system', '[]', 'ACTIVE')"
+            )
+        )
+        command.upgrade(config, "0036_role_catalog")
+        role = (
+            connection.execute(
+                text(
+                    "SELECT * FROM builtin_roles WHERE id = 'old-admin-role' "
+                    "AND channel_id = 'system'"
+                )
+            )
+            .mappings()
+            .one()
+        )
+        assert role["name"] == "原渠道角色" and role["allowed_actions"] == ["run:read"]
+        assert role["revision"] == 4 and role["account_assignable"] is True
+        assert (
+            connection.scalar(
+                text("SELECT count(*) FROM builtin_roles WHERE channel_id = 'system'")
+            )
+            == 6
+        )
+        scopes = dict(connection.execute(text("SELECT id, grant_scope FROM custom_roles")).all())
+        assert scopes == {"platform-old": "platform", "channel-old": "channel"}
+        account = (
+            connection.execute(
+                text(
+                    "SELECT role_id, platform_roles FROM platform_accounts "
+                    "WHERE channel_id = 'system' AND id = 'legacy-account'"
+                )
+            )
+            .mappings()
+            .one()
+        )
+        assert account["role_id"] is None and account["platform_roles"] == []
+        assert connection.scalar(text("SELECT count(*) FROM channel_memberships")) == 0
+
+
+def test_remove_channel_category_preserves_identity_and_related_records(isolated_database):
+    database = isolated_database
+    config = Config("alembic.ini")
+    config.set_main_option("version_table_schema", database.schema)
+    with database.engine.begin() as connection:
+        connection.execute(text(f'SET LOCAL search_path TO "{database.schema}"'))
+        config.attributes["connection"] = connection
+        command.upgrade(config, "0036_role_catalog")
+        connection.execute(
+            text(
+                "INSERT INTO channels (id, channel_id, channel_code, name, business_type) "
+                "VALUES ('old-channel', 'old-channel', 'OLDX', '既有渠道', 'playmate')"
+            )
+        )
+        related = {
+            "channel_code_index": {
+                "id": "old-index",
+                "channel_id": "system",
+                "target_channel_id": "old-channel",
+            },
+            "data_scopes": {
+                "id": "old-scope",
+                "channel_id": "old-channel",
+                "external_scope_type": "club",
+                "external_scope_id": "club-1",
+            },
+            "service_clients": {"id": "old-client", "channel_id": "old-channel"},
+            "channel_keys": {
+                "id": "old-key",
+                "channel_id": "old-channel",
+                "client_id": "old-client",
+            },
+            "channel_memberships": {
+                "id": "old-member",
+                "channel_id": "old-channel",
+                "user_id": "old-user",
+            },
+            "resource_grants": {"id": "old-grant", "channel_id": "old-channel"},
+            "runs": {"id": "old-run", "channel_id": "old-channel"},
+        }
+        for table, values in related.items():
+            connection.execute(metadata.tables[table].insert().values(**values))
+        before = {
+            table: connection.execute(metadata.tables[table].select()).mappings().all()
+            for table in related
+        }
+        previous = dict(connection.execute(text("SELECT * FROM channels")).mappings().one())
+        previous.pop("business_type")
+        command.upgrade(config, "head")
+        assert "business_type" not in {
+            column["name"]
+            for column in inspect(connection).get_columns("channels", schema=database.schema)
+        }
+        assert dict(connection.execute(text("SELECT * FROM channels")).mappings().one()) == previous
+        for table in related:
+            assert (
+                connection.execute(metadata.tables[table].select()).mappings().all()
+                == before[table]
+            )
+        command.downgrade(config, "0036_role_catalog")
+        restored = dict(connection.execute(text("SELECT * FROM channels")).mappings().one())
+        assert restored.pop("business_type") is None
+        assert restored == previous
+        command.upgrade(config, "head")
 
 
 def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_database, tmp_path):
@@ -205,7 +335,12 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
         assert session.account.must_change_password
         assert database.connection.execute(text("SELECT count(*) FROM channels")).scalar_one() == 1
         roles = database.connection.execute(text("SELECT role_code FROM builtin_roles")).scalars()
-        assert set(roles) == set(ROLE_NAMES)
+        seed = json.loads(
+            (
+                ARCHIVE.parent.parent / "src/creativity_service/modules/iam/role_seed_v0036.json"
+            ).read_text()
+        )
+        assert set(roles) == {row["role_code"] for row in seed}
     finally:
         keys = [key async for key in redis.scan_iter(f"{database.schema}:*")]
         if keys:

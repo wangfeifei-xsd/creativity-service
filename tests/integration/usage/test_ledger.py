@@ -253,7 +253,7 @@ async def test_growing_tool_context_rechecks_and_unpriced_is_not_zero(usage_env)
 
 async def test_channel_key_rotation_debug_evaluation_and_cross_scope_rejected(usage_env):
     env = usage_env
-    other = await provision(env, "playmate", "playmate")
+    other = await provision(env, "playmate", "club")
     first_key = await credential(env, env.channel, "渠道服务一")
     next_key = await credential(env, env.channel, "渠道服务二")
     await price(env)

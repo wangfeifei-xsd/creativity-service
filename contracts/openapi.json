@@ -137,10 +137,9 @@
           "role": {
             "anyOf": [
               {
-                "enum": [
-                  "platform_admin",
-                  "channel_admin"
-                ],
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
                 "type": "string"
               },
               {
@@ -218,10 +217,9 @@
           "role": {
             "anyOf": [
               {
-                "enum": [
-                  "platform_admin",
-                  "channel_admin"
-                ],
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
                 "type": "string"
               },
               {
@@ -285,6 +283,21 @@
             "title": "Display Name",
             "type": "string"
           },
+          "grant_scope": {
+            "anyOf": [
+              {
+                "enum": [
+                  "platform",
+                  "channel"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Scope"
+          },
           "login_name": {
             "title": "Login Name",
             "type": "string"
@@ -312,12 +325,15 @@
             "type": "integer"
           },
           "role": {
-            "enum": [
-              "platform_admin",
-              "channel_admin"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Role",
-            "type": "string"
+            "title": "Role"
           },
           "role_name": {
             "title": "Role Name",
@@ -4134,20 +4150,6 @@
       "ChannelCreate": {
         "additionalProperties": false,
         "properties": {
-          "business_type": {
-            "anyOf": [
-              {
-                "maxLength": 32,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "可选业务分类，仅用于展示",
-            "title": "Business Type"
-          },
           "data_scope": {
             "anyOf": [
               {
@@ -4232,15 +4234,6 @@
               "$ref": "#/components/schemas/NamedOption"
             },
             "title": "Accounts",
-            "type": "array"
-          },
-          "business_types": {
-            "deprecated": true,
-            "description": "兼容字段；分类为可选自由文本",
-            "items": {
-              "$ref": "#/components/schemas/NamedOption"
-            },
-            "title": "Business Types",
             "type": "array"
           },
           "environments": {
@@ -4489,28 +4482,6 @@
             ],
             "title": "Archived At"
           },
-          "business_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Business Type"
-          },
-          "business_type_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Business Type Name"
-          },
           "channel_code": {
             "title": "Channel Code",
             "type": "string"
@@ -4558,8 +4529,6 @@
           "channel_code",
           "name",
           "owner",
-          "business_type",
-          "business_type_name",
           "status",
           "status_label",
           "created_at",
@@ -15092,6 +15061,21 @@
             "minItems": 1,
             "title": "Allowed Actions",
             "type": "array"
+          },
+          "grant_scope": {
+            "anyOf": [
+              {
+                "enum": [
+                  "platform",
+                  "channel"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Scope"
           },
           "menu_ids": {
             "anyOf": [
@@ -44089,6 +44073,24 @@
     "/admin/v1/custom-roles/options": {
       "get": {
         "operationId": "role_options_admin_v1_custom_roles_options_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "grant_scope",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Grant Scope"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {

@@ -1,7 +1,7 @@
 {
-  "model_version": "1.9.0",
+  "model_version": "1.9.1",
   "requirements_version": "v0.7",
-  "date": "2026-10-05",
+  "date": "2026-10-06",
   "modules": {
     "core": {
       "title": "公共设施",
@@ -1508,14 +1508,6 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
-        },
-        {
-          "name": "business_type",
-          "type": "varchar(32)",
-          "comment": "可选业务分类展示文本，历史分类原值保留",
-          "required": false,
-          "source": "可选展示元数据，不参与身份、路由或授权",
-          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -2274,6 +2266,14 @@
           "required": true,
           "source": "受信服务上下文与服务层校验",
           "sensitivity": "内部"
+        },
+        {
+          "name": "role_id",
+          "type": "varchar(64)",
+          "comment": "账号选择的管理角色",
+          "required": false,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -2373,6 +2373,14 @@
           "comment": "授权类别",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "account_assignable",
+          "type": "boolean",
+          "comment": "可用于账号管理",
+          "required": true,
+          "source": "受信上下文与服务层校验",
           "sensitivity": "内部"
         }
       ],
@@ -15764,6 +15772,14 @@
           "type": "jsonb",
           "comment": "可见菜单节点清单，空值沿用按动作生成",
           "required": false,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "grant_scope",
+          "type": "varchar(32)",
+          "comment": "授权类别",
+          "required": true,
           "source": "受信上下文与服务层校验",
           "sensitivity": "内部"
         }

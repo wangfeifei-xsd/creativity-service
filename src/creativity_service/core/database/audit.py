@@ -144,6 +144,21 @@ def audit_catalog(root: Path) -> list[str]:
         (current_iam, "platform_accounts", ["channel_id", "status", "login_name", "id"]),
     ):
         next(t for t in baseline if t["name"] == table_name)["indexes"].append(columns)
+    # 新增角色目录字段叠加到当前模型，不修改历史账号迁移的冻结定义。
+    for table_name, name, type_, comment, required in (
+        ("platform_accounts", "role_id", "varchar(64)", "账号选择的管理角色", False),
+        ("builtin_roles", "account_assignable", "boolean", "可用于账号管理", True),
+    ):
+        next(t for t in current_iam if t["name"] == table_name)["columns"].append(
+            {
+                "name": name,
+                "type": type_,
+                "comment": comment,
+                "required": required,
+                "source": "受信上下文与服务层校验",
+                "sensitivity": "内部",
+            }
+        )
     if archived != current_core:
         failures.append("公共表归档与冻结实现不一致")
     if [t for t in catalog["tables"] if t["revision"] == "0002_iam"] != current_iam:

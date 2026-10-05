@@ -16,7 +16,7 @@ from creativity_service.core.auth.types import (
 )
 from creativity_service.core.context import AuthContext
 from creativity_service.core.primitives import ServiceError, unavailable, utcnow
-from creativity_service.modules.iam.roles import INDEPENDENT_ACTIONS, role_actions
+from creativity_service.modules.iam.roles import INDEPENDENT_ACTIONS
 
 SENSITIVE_ACTIONS = frozenset(
     {
@@ -71,7 +71,7 @@ def effective_actions(
         and resource_covers(grant, member.channel_id, resource_type, resource_id)
         for action in grant.allowed_actions
     )
-    return allowed & (role_actions(member.roles) | member.custom_actions | INDEPENDENT_ACTIONS)
+    return allowed & (member.custom_actions | INDEPENDENT_ACTIONS)
 
 
 def action_allowed(actions: frozenset[str], action: str) -> bool:
@@ -85,7 +85,7 @@ def action_allowed(actions: frozenset[str], action: str) -> bool:
 
 
 def platform_actions(account: AccountState) -> frozenset[str]:
-    return role_actions(account.platform_roles) | account.custom_actions
+    return account.custom_actions
 
 
 def require_platform(account: AccountState, action: str) -> None:

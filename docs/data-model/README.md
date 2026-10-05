@@ -1,8 +1,8 @@
 # Creativity P0 数据模型索引
 
-模型版本 **1.9.0**；需求基线 **v0.7**；技术基线 **v1.6**。
+模型版本 **1.9.1**；需求基线 **v0.7**；技术基线 **v1.6**。
 
-本档案覆盖全部 P0 持久化对象。机器清单为 [catalog.json](catalog.json)，字段文档由 `scripts/render_data_model.py` 生成。共享基础的代码定义位于 `core/database/baseline_v0001.json`；各模块归档中的 `revision` 保留原始修订来源，供模型归属与一致性检查使用。全部已实现 PostgreSQL 表统一由 [初始基线](../../alembic/versions/0001_initial.py) 建库，当前修订号为 `0035_management`。开发规范引用 [rule.md](../../../rule.md)。
+本档案覆盖全部 P0 持久化对象。机器清单为 [catalog.json](catalog.json)，字段文档由 `scripts/render_data_model.py` 生成。共享基础的代码定义位于 `core/database/baseline_v0001.json`；各模块归档中的 `revision` 保留原始修订来源，供模型归属与一致性检查使用。全部已实现 PostgreSQL 表统一由 [初始基线](../../alembic/versions/0001_initial.py) 建库，当前修订号为 `0037_remove_business_type`。开发规范引用 [rule.md](../../../rule.md)。
 
 完整空库初始化脚本：[sql/init.sql](../../sql/init.sql)；执行、维护与验证方法见 [初始化说明](../../sql/README.md)。
 

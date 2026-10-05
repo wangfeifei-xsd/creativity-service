@@ -1,6 +1,6 @@
 # 账号与授权模型
 
-模型版本 1.9.0；负责方案 04；需求 [02-账号与权限管理.md](../../../../需求文档/02-账号与权限管理.md)。总索引见 [README](../README.md)。
+模型版本 1.9.1；负责方案 04；需求 [02-账号与权限管理.md](../../../../需求文档/02-账号与权限管理.md)。总索引见 [README](../README.md)。
 
 ## platform_accounts
 
@@ -21,6 +21,7 @@
 | `must_change_password` | `boolean` | 首次修改密码标记 | 是 | 服务层校验后的业务输入 | 内部 |
 | `credential_updated_at` | `timestamptz` | 凭据更新时间 | 是 | 服务层校验后的业务输入 | 内部 |
 | `credential_version` | `bigint` | 凭据撤销代次 | 是 | 受信服务上下文与服务层校验 | 内部 |
+| `role_id` | `varchar(64)` | 账号选择的管理角色 | 否 | 受信上下文与服务层校验 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, login_name)`；`(channel_id, status, login_name, id)`。
 
@@ -41,6 +42,7 @@
 | `name` | `varchar(128)` | 角色名称 | 是 | 服务层校验后的业务输入 | 内部 |
 | `allowed_actions` | `jsonb` | 允许动作 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `grant_scope` | `varchar(32)` | 授权类别 | 是 | 服务层校验后的业务输入 | 内部 |
+| `account_assignable` | `boolean` | 可用于账号管理 | 是 | 受信上下文与服务层校验 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, role_code)`。
 
@@ -120,6 +122,7 @@
 | `allowed_actions` | `jsonb` | 角色动作上限 | 是 | 受信上下文与服务层校验 | 内部 |
 | `state` | `varchar(32)` | 启停状态 | 是 | 受信上下文与服务层校验 | 内部 |
 | `menu_ids` | `jsonb` | 可见菜单节点清单，空值沿用按动作生成 | 否 | 受信上下文与服务层校验 | 内部 |
+| `grant_scope` | `varchar(32)` | 授权类别 | 是 | 受信上下文与服务层校验 | 内部 |
 
 普通索引：`(channel_id, id)`。
 

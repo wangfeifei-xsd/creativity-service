@@ -139,7 +139,7 @@ async def save(
     if protected & values.keys():
         raise ServiceError("CONTEXT_OVERRIDE", "不能覆盖渠道归属", 422)
     immutable = {
-        "channels": {"channel_code", "business_type"},
+        "channels": {"channel_code"},
         "channel_environments": {"environment"},
         "data_scopes": {"environment", "external_scope_type", "external_scope_id"},
         "service_clients": {"environment"},

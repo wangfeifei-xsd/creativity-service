@@ -1,7 +1,7 @@
 -- Creativity 全量初始化归档，适用于 PostgreSQL 17 空库或空 schema。
--- 模型版本：1.9.0；迁移基线：0035_management。
+-- 模型版本：1.9.1；迁移基线：0037_remove_business_type。
 -- 初始建库基线：alembic/versions/0001_initial.py；后续修订在其上追加。
--- 包含 111 张表、1680 个字段、248 个普通索引及全部中文注释。
+-- 包含 111 张表、1682 个字段、248 个普通索引及全部中文注释。
 -- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。
 -- 执行方式与管理员初始化见 sql/README.md；表创建在连接的当前 schema。
 -- 已有同名表时整个事务失败回滚；系统渠道和迁移基线与建表一起提交。
@@ -941,7 +941,8 @@ CREATE TABLE builtin_roles (
 	role_code VARCHAR(64),
 	name VARCHAR(128),
 	allowed_actions JSONB,
-	grant_scope VARCHAR(32)
+	grant_scope VARCHAR(32),
+	account_assignable BOOLEAN
 );
 
 COMMENT ON TABLE builtin_roles IS '内置角色';
@@ -963,6 +964,8 @@ COMMENT ON COLUMN builtin_roles.name IS '角色名称';
 COMMENT ON COLUMN builtin_roles.allowed_actions IS '允许动作';
 
 COMMENT ON COLUMN builtin_roles.grant_scope IS '授权类别';
+
+COMMENT ON COLUMN builtin_roles.account_assignable IS '可用于账号管理';
 
 CREATE INDEX ix_builtin_roles_0 ON builtin_roles (channel_id, id);
 
@@ -1194,8 +1197,7 @@ CREATE TABLE channels (
 	archived_at TIMESTAMP WITH TIME ZONE,
 	retention_policy JSONB,
 	budget_policy_refs JSONB,
-	rate_limit_policy_refs JSONB,
-	business_type VARCHAR(32)
+	rate_limit_policy_refs JSONB
 );
 
 COMMENT ON TABLE channels IS '渠道主档';
@@ -1225,8 +1227,6 @@ COMMENT ON COLUMN channels.retention_policy IS '保存策略';
 COMMENT ON COLUMN channels.budget_policy_refs IS '预算策略引用';
 
 COMMENT ON COLUMN channels.rate_limit_policy_refs IS '限流策略引用';
-
-COMMENT ON COLUMN channels.business_type IS '可选业务分类展示文本，历史分类原值保留';
 
 CREATE INDEX ix_channels_0 ON channels (channel_id, id);
 
@@ -1621,7 +1621,8 @@ CREATE TABLE custom_roles (
 	name VARCHAR(128),
 	allowed_actions JSONB,
 	state VARCHAR(32),
-	menu_ids JSONB
+	menu_ids JSONB,
+	grant_scope VARCHAR(32)
 );
 
 COMMENT ON TABLE custom_roles IS '平台与渠道自定义角色';
@@ -1643,6 +1644,8 @@ COMMENT ON COLUMN custom_roles.allowed_actions IS '角色动作上限';
 COMMENT ON COLUMN custom_roles.state IS '启停状态';
 
 COMMENT ON COLUMN custom_roles.menu_ids IS '可见菜单节点清单，空值沿用按动作生成';
+
+COMMENT ON COLUMN custom_roles.grant_scope IS '授权类别';
 
 CREATE INDEX ix_custom_roles_0 ON custom_roles (channel_id, id);
 
@@ -4030,7 +4033,8 @@ CREATE TABLE platform_accounts (
 	status VARCHAR(32),
 	must_change_password BOOLEAN,
 	credential_updated_at TIMESTAMP WITH TIME ZONE,
-	credential_version BIGINT
+	credential_version BIGINT,
+	role_id VARCHAR(64)
 );
 
 COMMENT ON TABLE platform_accounts IS '平台账号';
@@ -4060,6 +4064,8 @@ COMMENT ON COLUMN platform_accounts.must_change_password IS '首次修改密码�
 COMMENT ON COLUMN platform_accounts.credential_updated_at IS '凭据更新时间';
 
 COMMENT ON COLUMN platform_accounts.credential_version IS '凭据撤销代次';
+
+COMMENT ON COLUMN platform_accounts.role_id IS '账号选择的管理角色';
 
 CREATE INDEX ix_platform_accounts_0 ON platform_accounts (channel_id, id);
 
@@ -6212,8 +6218,8 @@ CREATE INDEX ix_webhook_endpoints_0 ON webhook_endpoints (channel_id, id);
 
 CREATE INDEX ix_webhook_endpoints_1 ON webhook_endpoints (channel_id, environment, data_scope_id, subject_type, subject_id);
 
--- 初始化平台系统渠道；管理员与内置角色由账号初始化服务创建。
-INSERT INTO channels (id, channel_id, created_at, updated_at, revision, channel_code, name, status, owner, archived_at, retention_policy, budget_policy_refs, rate_limit_policy_refs, business_type) VALUES ('system', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, 'system', '平台系统渠道', 'ACTIVE', '平台', NULL, CAST('{"retention_days": 365}' AS JSONB), CAST('[]' AS JSONB), CAST('[]' AS JSONB), 'system');
+-- 初始化平台系统渠道；管理员由账号初始化服务创建。
+INSERT INTO channels (id, channel_id, created_at, updated_at, revision, channel_code, name, status, owner, archived_at, retention_policy, budget_policy_refs, rate_limit_policy_refs) VALUES ('system', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, 'system', '平台系统渠道', 'ACTIVE', '平台', NULL, CAST('{"retention_days": 365}' AS JSONB), CAST('[]' AS JSONB), CAST('[]' AS JSONB));
 
 -- 初始化菜单目录；页面绑定与权限按钮由服务端维护。
 INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_group_configuration', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '模型与能力', 'DIR', NULL, NULL, NULL, 'both', 0, true, true);
@@ -6398,7 +6404,20 @@ INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, k
 
 INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_data_read_sensitive', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '读取敏感原文', 'BUTTON', 'menu_shared_actions', NULL, 'data:read_sensitive', 'channel', 60, true, true);
 
+-- 初始化角色管理的内置目录；运行时选项和鉴权读取数据库定义。
+INSERT INTO builtin_roles (id, channel_id, created_at, updated_at, revision, role_code, name, allowed_actions, grant_scope, account_assignable) VALUES ('role_platform_admin', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, 'platform_admin', '平台管理员', CAST('["account:manage", "audit:read", "channel:create", "channel:govern", "menu:manage", "role:grant", "usage:platform"]' AS JSONB), 'platform', true);
+
+INSERT INTO builtin_roles (id, channel_id, created_at, updated_at, revision, role_code, name, allowed_actions, grant_scope, account_assignable) VALUES ('role_channel_admin', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, 'channel_admin', '渠道管理员', CAST('["agent:manage", "analysis:run", "artifact:cleanup", "artifact:download", "artifact:upload", "audit:read", "budget:manage", "channel:manage", "client:manage", "content:cleanup", "content:delete", "content:derive", "conversation:read", "conversation:write", "credential:use", "credential:write", "data_scope:manage", "environment:manage", "evaluation:content", "evaluation:manage", "evaluation:read", "evaluation:review", "feedback:manage", "grant:manage", "grant:read", "integration:manage", "key:manage", "mcp:manage", "membership:manage", "membership:read", "memory:delete", "memory:preferences", "memory:read", "memory:write", "metric:read", "model:manage", "prompt:manage", "recovery:block", "recovery:complete", "recovery:initialize", "report:read", "run:content", "run:create", "run:read", "skill:manage", "snapshot:read", "tool:manage", "usage:read", "version:edit", "version:freeze", "version:read"]' AS JSONB), 'channel', true);
+
+INSERT INTO builtin_roles (id, channel_id, created_at, updated_at, revision, role_code, name, allowed_actions, grant_scope, account_assignable) VALUES ('role_builder', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, 'builder', '开发配置人员', CAST('["agent:manage", "artifact:download", "artifact:upload", "content:derive", "conversation:read", "conversation:write", "credential:use", "credential:write", "evaluation:content", "evaluation:manage", "evaluation:read", "integration:manage", "mcp:manage", "model:manage", "prompt:manage", "run:content", "run:create", "run:read", "skill:manage", "snapshot:read", "tool:manage", "version:edit", "version:freeze", "version:read"]' AS JSONB), 'channel', false);
+
+INSERT INTO builtin_roles (id, channel_id, created_at, updated_at, revision, role_code, name, allowed_actions, grant_scope, account_assignable) VALUES ('role_operator', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, 'operator', '运营人员', CAST('["artifact:download", "conversation:read", "conversation:write", "evaluation:content", "evaluation:read", "evaluation:review", "feedback:manage", "memory:preferences", "memory:read", "memory:write", "run:content", "run:create", "run:read"]' AS JSONB), 'channel', false);
+
+INSERT INTO builtin_roles (id, channel_id, created_at, updated_at, revision, role_code, name, allowed_actions, grant_scope, account_assignable) VALUES ('role_analyst', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, 'analyst', '分析人员', CAST('["analysis:run", "artifact:download", "metric:read", "report:read", "usage:read"]' AS JSONB), 'channel', false);
+
+INSERT INTO builtin_roles (id, channel_id, created_at, updated_at, revision, role_code, name, allowed_actions, grant_scope, account_assignable) VALUES ('role_auditor', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, 'auditor', '审计人员', CAST('["audit:read", "evaluation:read", "run:read", "usage:read", "version:read"]' AS JSONB), 'channel', false);
+
 -- 写入已完成的迁移基线，后续升级从此修订继续。
-INSERT INTO creativity_alembic_version (version_num, channel_id) VALUES ('0035_management', 'system');
+INSERT INTO creativity_alembic_version (version_num, channel_id) VALUES ('0037_remove_business_type', 'system');
 
 COMMIT;

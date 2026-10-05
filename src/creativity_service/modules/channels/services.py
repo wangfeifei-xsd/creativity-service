@@ -67,7 +67,6 @@ from creativity_service.modules.iam.schemas import AuditView, DirectoryPage
 from creativity_service.modules.iam.services import IamServices
 
 STATUS_LABELS = {"ACTIVE": "启用", "DISABLED": "停用", "SUSPENDED": "已暂停", "ARCHIVED": "已归档"}
-BUSINESS_NAMES = {"gamerental": "租号", "playmate": "陪玩", "system": "平台系统"}
 SERVICE_ACTIONS = frozenset(
     {
         "run:create",
@@ -280,7 +279,6 @@ class ChannelService:
                         "name",
                         "owner",
                         "channel_code",
-                        "business_type",
                         "environment",
                         "release_policy",
                         "retention_policy",
@@ -420,7 +418,6 @@ class ChannelService:
                     "channel_code": code,
                     "name": name,
                     "owner": clean_name(body.owner),
-                    "business_type": clean_name(body.business_type) if body.business_type else None,
                     "status": "ACTIVE",
                     "archived_at": None,
                     "retention_policy": body.retention_policy.model_dump(),
@@ -486,8 +483,6 @@ class ChannelService:
             channel_code=row["channel_code"],
             name=row["name"],
             owner=row["owner"],
-            business_type=row["business_type"],
-            business_type_name=BUSINESS_NAMES.get(row["business_type"], row["business_type"]),
             status=row["status"],
             status_label=STATUS_LABELS[row["status"]],
             created_at=row["created_at"],

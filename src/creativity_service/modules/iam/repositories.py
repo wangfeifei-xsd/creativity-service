@@ -16,7 +16,6 @@ from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import Contract, ServiceError, digest, utcnow
 from creativity_service.modules.iam.management_tables import metadata as management_metadata
 from creativity_service.modules.iam.operations_tables import metadata as operations_metadata
-from creativity_service.modules.iam.roles import ROLE_ACTIONS, ROLE_NAMES
 from creativity_service.modules.iam.tables import metadata
 
 TABLES = {
@@ -111,31 +110,65 @@ async def save(
     return value
 
 
-async def role_catalog(connection: AsyncConnection, channel_id: str) -> dict[str, dict[str, Any]]:
+async def role_catalog(
+    connection: AsyncConnection, channel_id: str, *, all_scopes: bool = False
+) -> dict[str, dict[str, Any]]:
+    """角色管理、账号选择与鉴权共用数据库目录；系统定义不直接赋予业务访问权。"""
+    custom = TABLES["custom_roles"]
+    found = (
+        await connection.execute(
+            select(custom).where(custom.c.channel_id.in_({"system", channel_id}))
+        )
+    ).mappings()
     return role_catalog_rows(
-        await rows(connection, "custom_roles", channel_id), platform=channel_id == "system"
+        [dict(row) for row in found],
+        await rows(connection, "builtin_roles", "system"),
+        platform=channel_id == "system",
+        all_scopes=all_scopes,
     )
 
 
 def role_catalog_rows(
-    custom: list[dict[str, Any]], *, platform: bool = False
+    custom: list[dict[str, Any]],
+    builtin: list[dict[str, Any]],
+    *,
+    platform: bool = False,
+    all_scopes: bool = False,
 ) -> dict[str, dict[str, Any]]:
+    scope = "platform" if platform else "channel"
+    if len(builtin) != len({row["role_code"] for row in builtin}):
+        raise ServiceError("STORAGE_INVARIANT_BROKEN", "内置角色编码重复", 503)
     result = {
-        code: {
-            "id": code,
-            "name": name,
-            "allowed_actions": sorted(ROLE_ACTIONS[code]),
+        row["role_code"]: {
+            **row,
+            "id": row["role_code"],
             "state": "ACTIVE",
             "builtin": True,
-            "revision": None,
             "menu_ids": None,
         }
-        for code, name in ROLE_NAMES.items()
-        if (code == "platform_admin") == platform
+        for row in builtin
+        if all_scopes or row["grant_scope"] == scope
     }
     for row in custom:
-        result[row["id"]] = {**row, "builtin": False}
-    return result
+        if all_scopes or row["grant_scope"] == scope:
+            if row["id"] in result:
+                raise ServiceError("STORAGE_INVARIANT_BROKEN", "角色标识重复", 503)
+            result[row["id"]] = {
+                **row,
+                "builtin": False,
+                "account_assignable": row["channel_id"] == "system",
+            }
+    return dict(
+        sorted(
+            result.items(),
+            key=lambda item: (
+                item[1]["grant_scope"] != "platform",
+                not item[1]["builtin"],
+                item[1]["name"],
+                item[0],
+            ),
+        )
+    )
 
 
 async def resolved_actions(
@@ -167,7 +200,11 @@ def membership_from_catalog(
     row: dict[str, Any], catalog: dict[str, dict[str, Any]]
 ) -> MembershipState:
     codes = [
-        code for code in row["roles"] if code in catalog and catalog[code]["state"] == "ACTIVE"
+        code
+        for code in row["roles"]
+        if code in catalog
+        and catalog[code]["state"] == "ACTIVE"
+        and catalog[code]["grant_scope"] == "channel"
     ]
     return to_state(
         MembershipState,
@@ -175,10 +212,7 @@ def membership_from_catalog(
             **row,
             "roles": codes,
             "custom_actions": frozenset(
-                a
-                for code in codes
-                if code not in ROLE_ACTIONS
-                for a in catalog[code]["allowed_actions"]
+                a for code in codes for a in catalog[code]["allowed_actions"]
             ),
         },
     )
@@ -188,7 +222,9 @@ def account_from_catalog(row: dict[str, Any], catalog: dict[str, dict[str, Any]]
     codes = [
         code
         for code in row["platform_roles"]
-        if code in catalog and catalog[code]["state"] == "ACTIVE"
+        if code in catalog
+        and catalog[code]["state"] == "ACTIVE"
+        and catalog[code]["grant_scope"] == "platform"
     ]
     return to_state(
         AccountState,
@@ -196,10 +232,7 @@ def account_from_catalog(row: dict[str, Any], catalog: dict[str, dict[str, Any]]
             **row,
             "platform_roles": codes,
             "custom_actions": frozenset(
-                a
-                for code in codes
-                if code not in ROLE_ACTIONS
-                for a in catalog[code]["allowed_actions"]
+                a for code in codes for a in catalog[code]["allowed_actions"]
             ),
         },
     )

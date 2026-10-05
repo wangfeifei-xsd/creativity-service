@@ -1,6 +1,6 @@
 # 渠道管理模型
 
-模型版本 1.9.0；负责方案 05；需求 [01-渠道管理.md](../../../../需求文档/01-渠道管理.md)。总索引见 [README](../README.md)。
+模型版本 1.9.1；负责方案 05；需求 [01-渠道管理.md](../../../../需求文档/01-渠道管理.md)。总索引见 [README](../README.md)。
 
 ## channels
 
@@ -21,7 +21,6 @@
 | `retention_policy` | `jsonb` | 保存策略 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `budget_policy_refs` | `jsonb` | 预算策略引用 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `rate_limit_policy_refs` | `jsonb` | 限流策略引用 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `business_type` | `varchar(32)` | 可选业务分类展示文本，历史分类原值保留 | 否 | 可选展示元数据，不参与身份、路由或授权 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, channel_code)`。
 

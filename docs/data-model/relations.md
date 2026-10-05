@@ -38,7 +38,7 @@
 
 04 关系增量：platform_accounts.credential_version 与管理 Token 的签发代次比较；channel_memberships.revision 与管理工作区 Token 的成员修订比较。资源授权从数据库实时读取，不保存在 Token 中。resource_grants 通过目标渠道关联有效成员或系统内置角色，撤销保留原对象与 revision 并清空 allowed_actions。iam_revocations 保存账号/成员/Key 索引或单 Token 摘要撤销意图，完成缓存补偿后保留元数据供后续保留策略处理。
 
-05 当前实现记录：`channels.business_type` 创建后不可更改，现有映射限定 default/default 与 club。这是待方案 19 解除的历史业务耦合，不是新业务接入约束；修改时另建兼容迁移并保留原标识。`service_clients.data_scopes` 显式列举同渠道、同环境的数据域，服务身份每次取其中仍启用的范围。`key_identity_index` 与渠道 Key 主记录同事务提交，身份索引归 system，主记录归真实渠道。`key_rotations` 保留新旧 Key 标识与重叠截止时间，不更改 client_id。
+渠道不保存业务分类；外部数据域类型与编号采用显式配置，不限定 default/default 或 club。`0037_remove_business_type` 仅删除冗余分类列，保留渠道及原映射标识。`service_clients.data_scopes` 显式列举同渠道、同环境的数据域，服务身份每次取其中仍启用的范围。`key_identity_index` 与渠道 Key 主记录同事务提交，身份索引归 system，主记录归真实渠道。`key_rotations` 保留新旧 Key 标识与重叠截止时间，不更改 client_id。
 
 `channel_lifecycle_events` 与治理变更、审计共用事务，载荷只包含状态及修订等元数据；原始 channel_id、environment、target_id 不因消费或清理改写。runs 与 retention 消费进度分别记录；消费按至少一次交付，接收方按 event_id 幂等。归档不删除 Key、轮换、用量和审计记录。
 

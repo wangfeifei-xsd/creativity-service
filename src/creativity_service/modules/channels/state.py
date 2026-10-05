@@ -30,6 +30,7 @@ from creativity_service.modules.iam.repositories import (
     to_state,
 )
 from creativity_service.modules.iam.repositories import one as identity_one
+from creativity_service.modules.iam.repositories import rows as identity_rows
 from creativity_service.modules.iam.roles import GOVERNANCE_ACTIONS
 
 
@@ -180,6 +181,8 @@ class ChannelDirectory:
             if len(identifiers) != len(memberships):
                 raise ServiceError("STORAGE_INVARIANT_BROKEN", "渠道成员身份重复", 503)
             result = {"members": memberships}
+            result["builtin_roles"] = await identity_rows(connection, "builtin_roles", "system")
+            result["shared_roles"] = await identity_rows(connection, "custom_roles", "system")
             # 只有已定位且有真实成员关系的渠道进入批量读取，系统渠道不是通配符。
             for name in (
                 "channels",
@@ -222,7 +225,11 @@ class ChannelDirectory:
             identifier: membership_from_catalog(
                 row,
                 role_catalog_rows(
-                    [r for r in data["custom_roles"] if r["channel_id"] == identifier]
+                    [
+                        *data["shared_roles"],
+                        *(r for r in data["custom_roles"] if r["channel_id"] == identifier),
+                    ],
+                    data["builtin_roles"],
                 ),
             )
             for identifier, row in members.items()

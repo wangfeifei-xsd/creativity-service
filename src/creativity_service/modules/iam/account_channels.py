@@ -14,7 +14,7 @@ from creativity_service.modules.channels.tables import metadata as channel_metad
 from creativity_service.modules.iam.audit import append_event, audit_ranges
 from creativity_service.modules.iam.authorization import require_platform
 from creativity_service.modules.iam.repositories import TABLES, membership_id, policy_key, save
-from creativity_service.modules.iam.roles import ROLE_ACTIONS
+from creativity_service.modules.iam.roles import ORDINARY_CHANNEL_ACTIONS
 
 
 def administrator_grant_id(channel_id: str, user_id: str) -> str:
@@ -58,6 +58,8 @@ async def account_channels(
 async def assignment_scopes(
     connection: AsyncConnection, user_id: str, channel_ids: list[str]
 ) -> list[Scope]:
+    if len(channel_ids) != len(set(channel_ids)) or "system" in channel_ids:
+        raise ServiceError("VALIDATION_ERROR", "授权渠道重复或无效", 422)
     existing = (await account_channels(connection, [user_id])).get(user_id, [])
     identifiers = set(channel_ids) | {r["channel_id"] for r in existing}
     if len(identifiers) > 400:
@@ -82,11 +84,16 @@ async def synchronize_channels(
     selected: list[str],
     event_id: str,
     request_id: str,
+    role: dict[str, Any] | None,
 ) -> bool:
     """角色与多渠道授权同事务提交；移除渠道时停用成员，阻断包括既有通配授权的访问。"""
+    if not selected and len(units) == 1:
+        return False
     require_platform(actor, "channel:govern")
     if len(selected) != len(set(selected)) or "system" in selected:
         raise ServiceError("VALIDATION_ERROR", "授权渠道重复或无效", 422)
+    if selected and (role is None or role["grant_scope"] != "channel" or role["state"] != "ACTIVE"):
+        raise ServiceError("ROLE_UNAVAILABLE", "请选择启用的渠道角色", 422)
     root = units["system"]
     current = (await account_channels(root.connection, [user_id])).get(user_id, [])
     if not {r["channel_id"] for r in current} <= units.keys():
@@ -185,7 +192,7 @@ async def synchronize_channels(
             # 分步开通的渠道可先授权管理员；空范围只表示待配置，不能签发业务身份。
             values = {
                 "user_id": user_id,
-                "roles": ["channel_admin"],
+                "roles": [role["id"]] if role else [],
                 "environments": sorted({r.environment for r in channel_pairs}),
                 "data_scopes": sorted({r.id for r in channel_pairs}),
                 "status": "ACTIVE",
@@ -200,7 +207,8 @@ async def synchronize_channels(
                 "resource_id": channel_id,
                 "environments": values["environments"],
                 "data_scopes": values["data_scopes"],
-                "allowed_actions": sorted(ROLE_ACTIONS["channel_admin"]),
+                # 普通授权保存资源范围与上限，不冻结角色动作；角色编辑后实时收窄或扩展。
+                "allowed_actions": sorted(ORDINARY_CHANNEL_ACTIONS),
             }
             if not grant or any(grant.get(k) != v for k, v in grant_values.items()):
                 await save(

@@ -1,4 +1,4 @@
-"""首版六类角色的动作上限；独立动作必须在资源授权中明确授予。"""
+"""服务端动作目录与作用域边界；角色定义由角色管理的数据库目录读取。"""
 
 from typing import Literal, get_args
 
@@ -78,72 +78,6 @@ PLATFORM_ACTIONS = frozenset(
         "usage:platform",
     }
 )
-BUILDER_ACTIONS = frozenset(
-    {
-        "model:manage",
-        "agent:manage",
-        "prompt:manage",
-        "tool:manage",
-        "integration:manage",
-        "mcp:manage",
-        "skill:manage",
-        "version:edit",
-        "version:freeze",
-        "version:read",
-        "run:create",
-        "run:read",
-        "run:content",
-        "evaluation:manage",
-        "evaluation:read",
-        "evaluation:content",
-        "artifact:upload",
-        "artifact:download",
-        "snapshot:read",
-        "credential:write",
-        "credential:use",
-        "content:derive",
-        "conversation:read",
-        "conversation:write",
-    }
-)
-ROLE_NAMES = {
-    "platform_admin": "平台管理员",
-    "channel_admin": "渠道管理员",
-    "builder": "开发配置人员",
-    "operator": "运营人员",
-    "analyst": "分析人员",
-    "auditor": "审计人员",
-}
-ROLE_ACTIONS = {
-    "platform_admin": PLATFORM_ACTIONS,
-    "channel_admin": frozenset(ACTION_NAMES)
-    - INDEPENDENT_ACTIONS
-    - (PLATFORM_ACTIONS - {"audit:read"}),
-    "builder": BUILDER_ACTIONS,
-    "operator": frozenset(
-        {
-            "run:create",
-            "run:read",
-            "run:content",
-            "feedback:manage",
-            "evaluation:read",
-            "evaluation:content",
-            "evaluation:review",
-            "conversation:read",
-            "conversation:write",
-            "memory:read",
-            "memory:write",
-            "memory:preferences",
-            "artifact:download",
-        }
-    ),
-    "analyst": frozenset(
-        {"metric:read", "analysis:run", "report:read", "usage:read", "artifact:download"}
-    ),
-    "auditor": frozenset(
-        {"version:read", "run:read", "usage:read", "audit:read", "evaluation:read"}
-    ),
-}
 GOVERNANCE_ACTIONS = frozenset(
     {
         "membership:read",
@@ -159,9 +93,6 @@ GOVERNANCE_ACTIONS = frozenset(
 )
 
 
-def role_actions(roles: list[str]) -> frozenset[str]:
-    return frozenset().union(*(ROLE_ACTIONS.get(role, frozenset()) for role in roles))
-
-
 # 审计动作同时用于平台和渠道，不能作为平台独占动作排除。
 PLATFORM_ONLY_ACTIONS = PLATFORM_ACTIONS - {"audit:read"}
+ORDINARY_CHANNEL_ACTIONS = frozenset(ACTION_NAMES) - PLATFORM_ONLY_ACTIONS - INDEPENDENT_ACTIONS

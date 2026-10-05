@@ -222,7 +222,7 @@ async def test_agt_a01_missing_dependencies_capabilities_and_channel_isolation(a
     assert not result.valid and any(
         i.code == "CAPABILITY_MISMATCH" for c in result.checks for i in c.issues
     )
-    other = await provision(env, "other", "playmate")
+    other = await provision(env, "other", "club")
     with pytest.raises(ServiceError):
         await env.agents.detail(other.manager.context, detail.agent.agent_id)
     response = await env.client.post(

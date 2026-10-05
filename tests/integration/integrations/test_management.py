@@ -44,7 +44,7 @@ async def test_configuration_concurrency_scope_and_redacted_tests(integration_en
     with pytest.raises(ServiceError) as failure:
         await service.test(context, env.connection.integration_id, body)
     assert failure.value.code == "REVISION_CONFLICT"
-    other = await provision(env, "other", "playmate")
+    other = await provision(env, "other", "club")
     with pytest.raises(ServiceError) as failure:
         await service.detail(other.manager.context, env.connection.integration_id)
     assert failure.value.status == 404
