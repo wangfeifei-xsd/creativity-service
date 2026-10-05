@@ -13,6 +13,7 @@ Status = Literal["ACTIVE", "DISABLED"]
 
 
 class AccountState(Contract):
+    custom_actions: frozenset[str] = Field(default_factory=frozenset)
     id: Identifier
     login_name: str
     display_name: str

@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from creativity_service.core.config import Settings
 from creativity_service.core.database.audit import audit_database
 from creativity_service.core.primitives import ServiceError
+from creativity_service.modules.iam.schemas import AuditFilter
 from creativity_service.modules.tools.schemas import (
     ToolCreate,
     ToolExecution,
@@ -48,6 +49,21 @@ async def test_create_race_freeze_release_and_disabled_metadata(tools_env):
     disabled = await service.disable(env.context, env.tool.tool_id, env.tool.revision)
     assert disabled.tool.status.label == "已停用"
     assert disabled.versions[0].unavailable_reason == "工具已停用"
+    assert "enable" in {a.action_key for a in disabled.tool.actions}
+    with pytest.raises(ServiceError) as stale:
+        await service.enable(env.context, env.tool.tool_id, env.tool.revision)
+    assert stale.value.code == "REVISION_CONFLICT"
+    enabled = await service.enable(env.context, env.tool.tool_id, disabled.tool.revision)
+    assert enabled.tool.status.value == "ACTIVE"
+    assert enabled.release_version_id == detail.release_version_id
+    assert enabled.versions[0].unavailable_reason is None
+    events = await env.iam.audit.page(
+        await env.iam.authentication.admin_session(
+            env.client.headers["Authorization"].removeprefix("Bearer "), "tool-audit"
+        ),
+        AuditFilter(),
+    )
+    assert "启用工具" in {row.action_name for row in events.items}
 
 
 async def test_management_api_schema_errors_and_no_arbitrary_execution_route(tools_env):

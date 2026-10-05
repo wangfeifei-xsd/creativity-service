@@ -14,11 +14,17 @@ from creativity_service.core.database.reading import read_connection
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import Contract, ServiceError, utcnow
+from creativity_service.modules.iam.management_tables import metadata as management_metadata
 from creativity_service.modules.iam.operations_tables import metadata as operations_metadata
 from creativity_service.modules.iam.roles import ROLE_ACTIONS, ROLE_NAMES
 from creativity_service.modules.iam.tables import metadata
 
-TABLES = {**core_metadata.tables, **metadata.tables, **operations_metadata.tables}
+TABLES = {
+    **core_metadata.tables,
+    **metadata.tables,
+    **operations_metadata.tables,
+    **management_metadata.tables,
+}
 
 
 def policy_key(channel_id: str) -> ResourceKey:
@@ -95,10 +101,14 @@ async def save(
 
 
 async def role_catalog(connection: AsyncConnection, channel_id: str) -> dict[str, dict[str, Any]]:
-    return role_catalog_rows(await rows(connection, "custom_roles", channel_id))
+    return role_catalog_rows(
+        await rows(connection, "custom_roles", channel_id), platform=channel_id == "system"
+    )
 
 
-def role_catalog_rows(custom: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def role_catalog_rows(
+    custom: list[dict[str, Any]], *, platform: bool = False
+) -> dict[str, dict[str, Any]]:
     result = {
         code: {
             "id": code,
@@ -107,9 +117,10 @@ def role_catalog_rows(custom: list[dict[str, Any]]) -> dict[str, dict[str, Any]]
             "state": "ACTIVE",
             "builtin": True,
             "revision": None,
+            "menu_ids": None,
         }
         for code, name in ROLE_NAMES.items()
-        if code != "platform_admin"
+        if (code == "platform_admin") == platform
     }
     for row in custom:
         result[row["id"]] = {**row, "builtin": False}
@@ -162,6 +173,31 @@ def membership_from_catalog(
     )
 
 
+def account_from_catalog(row: dict[str, Any], catalog: dict[str, dict[str, Any]]) -> AccountState:
+    codes = [
+        code
+        for code in row["platform_roles"]
+        if code in catalog and catalog[code]["state"] == "ACTIVE"
+    ]
+    return to_state(
+        AccountState,
+        {
+            **row,
+            "platform_roles": codes,
+            "custom_actions": frozenset(
+                a
+                for code in codes
+                if code not in ROLE_ACTIONS
+                for a in catalog[code]["allowed_actions"]
+            ),
+        },
+    )
+
+
+async def account_state(connection: AsyncConnection, row: dict[str, Any]) -> AccountState:
+    return account_from_catalog(row, await role_catalog(connection, "system"))
+
+
 class IdentityRepository:
     def __init__(self, engine: AsyncEngine) -> None:
         self.engine = engine
@@ -172,13 +208,14 @@ class IdentityRepository:
     async def account(self, user_id: str) -> AccountState | None:
         async with read_connection(self.engine) as connection:
             row = await one(connection, "platform_accounts", "system", id=user_id)
-        return to_state(AccountState, row) if row else None
+            return await account_state(connection, row) if row else None
 
     async def accounts(self, user_ids: list[str]) -> dict[str, AccountState]:
         table = TABLES["platform_accounts"]
         identifiers = list(dict.fromkeys(user_ids))
         result: dict[str, AccountState] = {}
         async with self.engine.connect() as connection:
+            catalog = await role_catalog(connection, "system")
             for start in range(0, len(identifiers), 500):
                 found = (
                     await connection.execute(
@@ -191,7 +228,7 @@ class IdentityRepository:
                 for row in found:
                     if row["id"] in result:
                         raise ServiceError("STORAGE_INVARIANT_BROKEN", "账号标识重复", 503)
-                    result[row["id"]] = to_state(AccountState, dict(row))
+                    result[row["id"]] = account_from_catalog(dict(row), catalog)
         return result
 
     async def credentials(self, login_name: str) -> dict[str, Any] | None:

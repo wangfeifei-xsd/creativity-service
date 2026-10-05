@@ -4,7 +4,7 @@ from creativity_service.core.auth.authentication import AdminSession, Authentica
 from creativity_service.core.auth.passwords import PasswordHasher, normalize_login
 from creativity_service.core.auth.types import TokenResponse, WorkspaceDirectory, WorkspaceOption
 from creativity_service.core.context import AuthContext, ControlScope, Scope, require_channel_state
-from creativity_service.core.contracts import NavigationItem, VisibleAction
+from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.database import transaction
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError, digest, new_id, unavailable
@@ -14,40 +14,23 @@ from creativity_service.modules.iam.authorization import (
     IamAuthorization,
     action_allowed,
     effective_actions,
+    platform_actions,
 )
 from creativity_service.modules.iam.captcha import CaptchaService
-from creativity_service.modules.iam.repositories import IdentityRepository, one, policy_key
+from creativity_service.modules.iam.menus import menu_rows, navigation
+from creativity_service.modules.iam.repositories import (
+    IdentityRepository,
+    one,
+    policy_key,
+    role_catalog,
+)
 from creativity_service.modules.iam.revocations import RevocationService, enqueue
-from creativity_service.modules.iam.roles import ACTION_NAMES, GOVERNANCE_ACTIONS, role_actions
+from creativity_service.modules.iam.roles import ACTION_NAMES, GOVERNANCE_ACTIONS
 from creativity_service.modules.iam.schemas import (
     ChannelContextInput,
     LoginInput,
     SessionView,
     UserView,
-)
-
-NAVIGATION = (
-    ("model-providers", "模型供应商", "channel:govern"),
-    ("models", "模型配置", "model:manage"),
-    ("model-routes", "模型路由", "model:manage"),
-    ("accounts", "账号管理", "account:manage"),
-    ("channels", "渠道管理", "channel:govern"),
-    ("platform-limits", "平台限额", "channel:govern"),
-    ("members", "成员与权限", "membership:read"),
-    ("resource-grants", "资源授权", "grant:read"),
-    ("audit-events", "操作审计", "audit:read"),
-    ("agents", "智能体", "agent:manage"),
-    ("evaluations", "效果评测", "evaluation:read"),
-    ("prompts", "提示词", "prompt:manage"),
-    ("tools", "工具", "tool:manage"),
-    ("integrations", "业务接入", "integration:manage"),
-    ("skills", "技能管理", "skill:manage"),
-    ("mcp-connections", "MCP 连接", "mcp:manage"),
-    ("runs", "运行记录", "run:read"),
-    ("conversations", "会话管理", "conversation:read"),
-    ("memories", "记忆管理", "memory:read"),
-    ("usage", "用量", "usage:read"),
-    ("concurrency-limits", "并发限额", "budget:manage"),
 )
 
 
@@ -355,24 +338,34 @@ class SessionService:
                 actions &= GOVERNANCE_ACTIONS | {"audit:read", "usage:read"}
         else:
             account = await self.authentication.active_account(session.account.id)
-            actions = role_actions(account.platform_roles)
+            actions = platform_actions(account)
+        channel_id = session.context.scope.channel_id
+        codes = member.roles if isinstance(session.context, AuthContext) else account.platform_roles
+        async with self.repository.engine.connect() as connection:
+            menus = await menu_rows(connection)
+            catalog = await role_catalog(connection, channel_id)
+        selected: set[str] | None = set()
+        for code in codes:
+            role = catalog.get(code)
+            if not role or role["state"] != "ACTIVE":
+                continue
+            if role.get("menu_ids") is None:
+                selected = None
+                break
+            assert selected is not None
+            selected.update(role["menu_ids"])
         return SessionView(
             user=UserView(
                 user_id=session.account.id,
                 display_name=session.account.display_name,
                 login_name=session.account.login_name,
             ),
-            navigation=[
-                NavigationItem(navigation_key=key, label=label)
-                for key, label, action in NAVIGATION
-                if (
-                    action in actions
-                    or (key == "channels" and "channel:manage" in actions)
-                    or (key == "prompts" and "version:read" in actions)
-                )
-                and (key != "platform-limits" or not isinstance(session.context, AuthContext))
-                and (key != "concurrency-limits" or isinstance(session.context, AuthContext))
-            ],
+            navigation=navigation(
+                menus,
+                actions,
+                "channel" if isinstance(session.context, AuthContext) else "platform",
+                selected,
+            ),
             actions=[
                 VisibleAction(action_key=action, label=ACTION_NAMES[action])
                 for action in sorted(actions)

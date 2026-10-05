@@ -1,7 +1,7 @@
 -- Creativity 全量初始化归档，适用于 PostgreSQL 17 空库或空 schema。
--- 模型版本：1.8.0；迁移基线：0034_admission_indexes。
+-- 模型版本：1.9.0；迁移基线：0035_management。
 -- 初始建库基线：alembic/versions/0001_initial.py；后续修订在其上追加。
--- 包含 110 张表、1665 个字段、244 个普通索引及全部中文注释。
+-- 包含 111 张表、1680 个字段、248 个普通索引及全部中文注释。
 -- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。
 -- 执行方式与管理员初始化见 sql/README.md；表创建在连接的当前 schema。
 -- 已有同名表时整个事务失败回滚；系统渠道和迁移基线与建表一起提交。
@@ -559,6 +559,8 @@ CREATE INDEX ix_audit_events_0 ON audit_events (channel_id, id);
 CREATE INDEX ix_audit_events_1 ON audit_events (channel_id, created_at);
 
 CREATE INDEX ix_audit_events_2 ON audit_events (channel_id, target_type, target_id);
+
+CREATE INDEX ix_audit_events_directory ON audit_events (channel_id, created_at, id);
 
 -- automation_batches：批量运行受理批次。
 CREATE TABLE automation_batches (
@@ -1609,7 +1611,7 @@ CREATE INDEX ix_credentials_0 ON credentials (channel_id, id);
 
 CREATE INDEX ix_credentials_1 ON credentials (channel_id, environment, purpose, state);
 
--- custom_roles：渠道自定义角色。
+-- custom_roles：平台与渠道自定义角色。
 CREATE TABLE custom_roles (
 	id VARCHAR(64),
 	channel_id VARCHAR(64),
@@ -1618,10 +1620,11 @@ CREATE TABLE custom_roles (
 	revision BIGINT,
 	name VARCHAR(128),
 	allowed_actions JSONB,
-	state VARCHAR(32)
+	state VARCHAR(32),
+	menu_ids JSONB
 );
 
-COMMENT ON TABLE custom_roles IS '渠道自定义角色';
+COMMENT ON TABLE custom_roles IS '平台与渠道自定义角色';
 
 COMMENT ON COLUMN custom_roles.id IS '记录标识';
 
@@ -1638,6 +1641,8 @@ COMMENT ON COLUMN custom_roles.name IS '角色名称';
 COMMENT ON COLUMN custom_roles.allowed_actions IS '角色动作上限';
 
 COMMENT ON COLUMN custom_roles.state IS '启停状态';
+
+COMMENT ON COLUMN custom_roles.menu_ids IS '可见菜单节点清单，空值沿用按动作生成';
 
 CREATE INDEX ix_custom_roles_0 ON custom_roles (channel_id, id);
 
@@ -2533,6 +2538,58 @@ COMMENT ON COLUMN evidence_refs.authorization_scope IS '授权范围摘要';
 CREATE INDEX ix_evidence_refs_0 ON evidence_refs (channel_id, id);
 
 CREATE INDEX ix_evidence_refs_1 ON evidence_refs (channel_id, source_type, source_id);
+
+-- iam_menus：平台菜单目录。
+CREATE TABLE iam_menus (
+	id VARCHAR(64),
+	channel_id VARCHAR(64),
+	created_at TIMESTAMP WITH TIME ZONE,
+	updated_at TIMESTAMP WITH TIME ZONE,
+	revision BIGINT,
+	name VARCHAR(128),
+	kind VARCHAR(16),
+	parent_id VARCHAR(64),
+	page_key VARCHAR(64),
+	action_key VARCHAR(64),
+	workspace VARCHAR(16),
+	sort_order INTEGER,
+	visible BOOLEAN,
+	active BOOLEAN
+);
+
+COMMENT ON TABLE iam_menus IS '平台菜单目录';
+
+COMMENT ON COLUMN iam_menus.id IS '记录标识';
+
+COMMENT ON COLUMN iam_menus.channel_id IS '所属渠道标识';
+
+COMMENT ON COLUMN iam_menus.created_at IS '创建时间';
+
+COMMENT ON COLUMN iam_menus.updated_at IS '更新时间';
+
+COMMENT ON COLUMN iam_menus.revision IS '并发修订号';
+
+COMMENT ON COLUMN iam_menus.name IS '菜单名称';
+
+COMMENT ON COLUMN iam_menus.kind IS '节点类型';
+
+COMMENT ON COLUMN iam_menus.parent_id IS '父节点标识';
+
+COMMENT ON COLUMN iam_menus.page_key IS '已注册页面标识';
+
+COMMENT ON COLUMN iam_menus.action_key IS '按钮动作标识';
+
+COMMENT ON COLUMN iam_menus.workspace IS '适用工作区';
+
+COMMENT ON COLUMN iam_menus.sort_order IS '显示顺序';
+
+COMMENT ON COLUMN iam_menus.visible IS '菜单可见标记';
+
+COMMENT ON COLUMN iam_menus.active IS '启用标记';
+
+CREATE INDEX ix_iam_menus_0 ON iam_menus (channel_id, id);
+
+CREATE INDEX ix_iam_menus_1 ON iam_menus (channel_id, parent_id, sort_order);
 
 -- iam_revocations：认证撤销补偿记录。
 CREATE TABLE iam_revocations (
@@ -4007,6 +4064,8 @@ COMMENT ON COLUMN platform_accounts.credential_version IS '凭据撤销代次';
 CREATE INDEX ix_platform_accounts_0 ON platform_accounts (channel_id, id);
 
 CREATE INDEX ix_platform_accounts_1 ON platform_accounts (channel_id, login_name);
+
+CREATE INDEX ix_platform_accounts_directory ON platform_accounts (channel_id, status, login_name, id);
 
 -- platform_limits：系统渠道平台总准入限额。
 CREATE TABLE platform_limits (
@@ -6156,7 +6215,190 @@ CREATE INDEX ix_webhook_endpoints_1 ON webhook_endpoints (channel_id, environmen
 -- 初始化平台系统渠道；管理员与内置角色由账号初始化服务创建。
 INSERT INTO channels (id, channel_id, created_at, updated_at, revision, channel_code, name, status, owner, archived_at, retention_policy, budget_policy_refs, rate_limit_policy_refs, business_type) VALUES ('system', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, 'system', '平台系统渠道', 'ACTIVE', '平台', NULL, CAST('{"retention_days": 365}' AS JSONB), CAST('[]' AS JSONB), CAST('[]' AS JSONB), 'system');
 
+-- 初始化菜单目录；页面绑定与权限按钮由服务端维护。
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_group_configuration', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '模型与能力', 'DIR', NULL, NULL, NULL, 'both', 0, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_model-providers', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '模型供应商', 'MENU', 'menu_group_configuration', 'model-providers', NULL, 'platform', 0, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_models', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '模型配置', 'MENU', 'menu_group_configuration', 'models', NULL, 'channel', 1, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_model-routes', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '模型路由', 'MENU', 'menu_group_configuration', 'model-routes', NULL, 'channel', 2, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_agents', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '智能体', 'MENU', 'menu_group_configuration', 'agents', NULL, 'channel', 3, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_prompts', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '提示词', 'MENU', 'menu_group_configuration', 'prompts', NULL, 'channel', 4, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_tools', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '工具', 'MENU', 'menu_group_configuration', 'tools', NULL, 'channel', 5, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_skills', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '技能管理', 'MENU', 'menu_group_configuration', 'skills', NULL, 'channel', 6, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_mcp-connections', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, 'MCP 连接', 'MENU', 'menu_group_configuration', 'mcp-connections', NULL, 'channel', 7, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_group_execution', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '运行与数据', 'DIR', NULL, NULL, NULL, 'both', 1, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_runs', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '运行记录', 'MENU', 'menu_group_execution', 'runs', NULL, 'channel', 0, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_conversations', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '会话管理', 'MENU', 'menu_group_execution', 'conversations', NULL, 'channel', 1, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_memories', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '记忆管理', 'MENU', 'menu_group_execution', 'memories', NULL, 'channel', 2, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_evaluations', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '效果评测', 'MENU', 'menu_group_execution', 'evaluations', NULL, 'channel', 3, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_group_integration', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '接入与用量', 'DIR', NULL, NULL, NULL, 'both', 2, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_integrations', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '业务接入', 'MENU', 'menu_group_integration', 'integrations', NULL, 'channel', 0, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_usage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '用量', 'MENU', 'menu_group_integration', 'usage', NULL, 'channel', 1, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_concurrency-limits', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '并发限额', 'MENU', 'menu_group_integration', 'concurrency-limits', NULL, 'channel', 2, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_group_organization', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '组织与权限', 'DIR', NULL, NULL, NULL, 'both', 3, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_channels', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '渠道管理', 'MENU', 'menu_group_organization', 'channels', NULL, 'both', 0, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_accounts', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '账号管理', 'MENU', 'menu_group_organization', 'accounts', NULL, 'platform', 1, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_roles', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '角色管理', 'MENU', 'menu_group_organization', 'roles', NULL, 'both', 2, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_menus', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '菜单管理', 'MENU', 'menu_group_organization', 'menus', NULL, 'platform', 3, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_members', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '成员与权限', 'MENU', 'menu_group_organization', 'members', NULL, 'channel', 4, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_resource-grants', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '资源授权', 'MENU', 'menu_group_organization', 'resource-grants', NULL, 'channel', 5, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_group_governance', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '平台治理', 'DIR', NULL, NULL, NULL, 'both', 4, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_platform-limits', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '平台限额', 'MENU', 'menu_group_governance', 'platform-limits', NULL, 'platform', 0, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_platform-usage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '平台用量', 'MENU', 'menu_group_governance', 'platform-usage', NULL, 'platform', 1, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_audit-events', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '操作审计', 'MENU', 'menu_group_governance', 'audit-events', NULL, 'both', 2, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('menu_shared_actions', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '其他操作权限', 'DIR', NULL, NULL, NULL, 'both', 99, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_account_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理账号', 'BUTTON', 'menu_accounts', NULL, 'account:manage', 'platform', 0, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_role_grant', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '授予平台角色', 'BUTTON', 'menu_roles', NULL, 'role:grant', 'platform', 1, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_menu_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理菜单', 'BUTTON', 'menu_menus', NULL, 'menu:manage', 'platform', 2, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_channel_create', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '开通渠道', 'BUTTON', 'menu_shared_actions', NULL, 'channel:create', 'platform', 3, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_channel_govern', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '治理渠道', 'BUTTON', 'menu_shared_actions', NULL, 'channel:govern', 'platform', 4, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_channel_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理渠道', 'BUTTON', 'menu_channels', NULL, 'channel:manage', 'channel', 5, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_environment_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理环境', 'BUTTON', 'menu_shared_actions', NULL, 'environment:manage', 'channel', 6, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_data_scope_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理数据域', 'BUTTON', 'menu_shared_actions', NULL, 'data_scope:manage', 'channel', 7, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_client_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理接入服务', 'BUTTON', 'menu_shared_actions', NULL, 'client:manage', 'channel', 8, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_key_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理接入凭据', 'BUTTON', 'menu_shared_actions', NULL, 'key:manage', 'channel', 9, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_membership_read', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '查看渠道成员', 'BUTTON', 'menu_members', NULL, 'membership:read', 'channel', 10, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_membership_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理渠道成员', 'BUTTON', 'menu_roles', NULL, 'membership:manage', 'channel', 11, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_grant_read', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '查看资源授权', 'BUTTON', 'menu_resource-grants', NULL, 'grant:read', 'channel', 12, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_grant_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理资源授权', 'BUTTON', 'menu_shared_actions', NULL, 'grant:manage', 'channel', 13, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_model_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理模型', 'BUTTON', 'menu_shared_actions', NULL, 'model:manage', 'channel', 14, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_agent_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理智能体', 'BUTTON', 'menu_agents', NULL, 'agent:manage', 'channel', 15, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_prompt_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理提示词', 'BUTTON', 'menu_prompts', NULL, 'prompt:manage', 'channel', 16, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_tool_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理工具', 'BUTTON', 'menu_tools', NULL, 'tool:manage', 'channel', 17, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_integration_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理业务接入', 'BUTTON', 'menu_integrations', NULL, 'integration:manage', 'channel', 18, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_mcp_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理 MCP 连接', 'BUTTON', 'menu_mcp-connections', NULL, 'mcp:manage', 'channel', 19, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_skill_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理技能', 'BUTTON', 'menu_skills', NULL, 'skill:manage', 'channel', 20, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_version_edit', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '编辑版本', 'BUTTON', 'menu_shared_actions', NULL, 'version:edit', 'channel', 21, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_version_freeze', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '冻结版本', 'BUTTON', 'menu_shared_actions', NULL, 'version:freeze', 'channel', 22, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_version_read', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '查看版本', 'BUTTON', 'menu_prompts', NULL, 'version:read', 'channel', 23, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_run_create', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '执行能力', 'BUTTON', 'menu_shared_actions', NULL, 'run:create', 'channel', 24, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_run_approve', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '审批运行操作', 'BUTTON', 'menu_shared_actions', NULL, 'run:approve', 'channel', 25, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_run_read', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '查看运行元数据', 'BUTTON', 'menu_runs', NULL, 'run:read', 'channel', 26, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_run_content', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '查看运行内容', 'BUTTON', 'menu_shared_actions', NULL, 'run:content', 'channel', 27, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_feedback_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '处理反馈', 'BUTTON', 'menu_shared_actions', NULL, 'feedback:manage', 'channel', 28, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_evaluation_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理评测', 'BUTTON', 'menu_shared_actions', NULL, 'evaluation:manage', 'channel', 29, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_evaluation_read', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '查看评测', 'BUTTON', 'menu_evaluations', NULL, 'evaluation:read', 'channel', 30, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_evaluation_content', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '读取评测原文', 'BUTTON', 'menu_shared_actions', NULL, 'evaluation:content', 'channel', 31, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_evaluation_review', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '审核评测标签与报告', 'BUTTON', 'menu_shared_actions', NULL, 'evaluation:review', 'channel', 32, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_metric_read', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '查看指标', 'BUTTON', 'menu_shared_actions', NULL, 'metric:read', 'channel', 33, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_analysis_run', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '执行分析', 'BUTTON', 'menu_shared_actions', NULL, 'analysis:run', 'channel', 34, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_report_read', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '查看报告', 'BUTTON', 'menu_shared_actions', NULL, 'report:read', 'channel', 35, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_usage_read', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '查看用量', 'BUTTON', 'menu_usage', NULL, 'usage:read', 'channel', 36, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_usage_platform', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '跨渠道查看用量', 'BUTTON', 'menu_platform-usage', NULL, 'usage:platform', 'platform', 37, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_budget_manage', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理预算', 'BUTTON', 'menu_concurrency-limits', NULL, 'budget:manage', 'channel', 38, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_audit_read', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '查看操作审计', 'BUTTON', 'menu_audit-events', NULL, 'audit:read', 'both', 39, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_artifact_upload', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '上传文件', 'BUTTON', 'menu_shared_actions', NULL, 'artifact:upload', 'channel', 40, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_artifact_download', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '下载文件', 'BUTTON', 'menu_shared_actions', NULL, 'artifact:download', 'channel', 41, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_snapshot_read', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '查看运行快照', 'BUTTON', 'menu_shared_actions', NULL, 'snapshot:read', 'channel', 42, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_conversation_read', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '查看会话', 'BUTTON', 'menu_conversations', NULL, 'conversation:read', 'channel', 43, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_conversation_write', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理会话与发言', 'BUTTON', 'menu_shared_actions', NULL, 'conversation:write', 'channel', 44, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_memory_read', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '查看记忆', 'BUTTON', 'menu_memories', NULL, 'memory:read', 'channel', 45, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_memory_write', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '确认与修正记忆', 'BUTTON', 'menu_shared_actions', NULL, 'memory:write', 'channel', 46, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_memory_delete', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '遗忘与清空记忆', 'BUTTON', 'menu_shared_actions', NULL, 'memory:delete', 'channel', 47, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_memory_preferences', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理长期记忆开关', 'BUTTON', 'menu_shared_actions', NULL, 'memory:preferences', 'channel', 48, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_credential_write', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '管理连接凭据', 'BUTTON', 'menu_shared_actions', NULL, 'credential:write', 'channel', 49, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_credential_use', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '使用连接凭据', 'BUTTON', 'menu_shared_actions', NULL, 'credential:use', 'channel', 50, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_content_derive', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '生成派生内容', 'BUTTON', 'menu_shared_actions', NULL, 'content:derive', 'channel', 51, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_content_delete', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '删除内容', 'BUTTON', 'menu_shared_actions', NULL, 'content:delete', 'channel', 52, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_content_cleanup', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '清理已删除内容', 'BUTTON', 'menu_shared_actions', NULL, 'content:cleanup', 'channel', 53, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_artifact_cleanup', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '清理文件', 'BUTTON', 'menu_shared_actions', NULL, 'artifact:cleanup', 'channel', 54, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_recovery_initialize', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '初始化内容范围', 'BUTTON', 'menu_shared_actions', NULL, 'recovery:initialize', 'channel', 55, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_recovery_block', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '封锁恢复范围', 'BUTTON', 'menu_shared_actions', NULL, 'recovery:block', 'channel', 56, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_recovery_complete', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '完成恢复核验', 'BUTTON', 'menu_shared_actions', NULL, 'recovery:complete', 'channel', 57, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_release_publish', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '正式发布', 'BUTTON', 'menu_shared_actions', NULL, 'release:publish', 'channel', 58, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_data_export', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '导出数据', 'BUTTON', 'menu_shared_actions', NULL, 'data:export', 'channel', 59, true, true);
+
+INSERT INTO iam_menus (id, channel_id, created_at, updated_at, revision, name, kind, parent_id, page_key, action_key, workspace, sort_order, visible, active) VALUES ('button_data_read_sensitive', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '读取敏感原文', 'BUTTON', 'menu_shared_actions', NULL, 'data:read_sensitive', 'channel', 60, true, true);
+
 -- 写入已完成的迁移基线，后续升级从此修订继续。
-INSERT INTO creativity_alembic_version (version_num, channel_id) VALUES ('0034_admission_indexes', 'system');
+INSERT INTO creativity_alembic_version (version_num, channel_id) VALUES ('0035_management', 'system');
 
 COMMIT;

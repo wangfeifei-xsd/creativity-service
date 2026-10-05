@@ -16,6 +16,7 @@ from creativity_service.modules.channels.presentation import (
     create_options,
     page_view,
 )
+from creativity_service.modules.channels.resources import ResourceCatalog, ResourceEntry
 from creativity_service.modules.channels.schemas import (
     ChannelCreate,
     ChannelUpdate,
@@ -41,7 +42,7 @@ from creativity_service.modules.channels.schemas import (
     UsageQuery,
     UsageView,
 )
-from creativity_service.modules.iam.schemas import AuditView
+from creativity_service.modules.iam.schemas import AuditFilter, AuditView, DirectoryPage
 
 router = APIRouter(tags=["渠道管理"])
 auth_router = APIRouter(tags=["服务认证"])
@@ -96,6 +97,41 @@ async def channel_page(channel_id: str, session: Session, service: Services) -> 
 @router.post("/channels", response_model=ChannelView, status_code=201)
 async def create_channel(body: ChannelCreate, session: Session, service: Services) -> ChannelView:
     return await service.channels.create(session, body)
+
+
+@router.get("/channels/page", response_model=DirectoryPage[ChannelView])
+async def channels_page(
+    session: Session,
+    service: Services,
+    limit: Annotated[int, Query(ge=1, le=200)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    search: Annotated[str, Query(max_length=128)] = "",
+    status: Annotated[str | None, Query(pattern="^(ACTIVE|SUSPENDED|ARCHIVED)$")] = None,
+) -> DirectoryPage[ChannelView]:
+    return await service.channels.list_page(session, limit, offset, search, status)
+
+
+@router.get("/channels/{channel_id}/resources", response_model=DirectoryPage[ResourceEntry])
+async def channel_resources(
+    channel_id: str,
+    session: Session,
+    service: Services,
+    limit: Annotated[int, Query(ge=1, le=200)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    search: Annotated[str, Query(max_length=128)] = "",
+    kind: str | None = None,
+) -> DirectoryPage[ResourceEntry]:
+    await service.channels.authorize(session, channel_id, "channel:manage")
+    return await ResourceCatalog(
+        service.channels.repository.engine, service.channels.iam.authorization
+    ).page(session, channel_id, search=search, kind=kind, limit=limit, offset=offset)
+
+
+@router.get("/channels/{channel_id}/audit-events/page", response_model=DirectoryPage[AuditView])
+async def channel_audit_page(
+    channel_id: str, session: Session, service: Services, query: Annotated[AuditFilter, Query()]
+) -> DirectoryPage[AuditView]:
+    return await service.channels.iam.audit.page(session, query, channel_id)
 
 
 @router.get("/channels/{channel_id}", response_model=ChannelView)
@@ -256,6 +292,17 @@ async def platform_usage(
     service: Services,
 ) -> list[UsageView]:
     return await service.channels.platform_usage(session, channel_ids, start_at, end_at)
+
+
+@router.get("/platform/usage/channels", response_model=DirectoryPage[dict[str, str]])
+async def platform_usage_channels(
+    session: Session,
+    service: Services,
+    search: Annotated[str, Query(max_length=128)] = "",
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=200)] = 20,
+) -> DirectoryPage[dict[str, str]]:
+    return await service.channels.usage_channels(session, search, offset, limit)
 
 
 @auth_router.post("/auth/token", response_model=TokenResponse)

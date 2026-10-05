@@ -48,14 +48,14 @@ class AccountCreate(Contract):
     login_name: str = Field(min_length=3, max_length=128)
     display_name: str = Field(min_length=1, max_length=128)
     initial_password: SecretStr = Field(min_length=12, max_length=256)
-    platform_roles: list[Literal["platform_admin"]] = Field(default_factory=list, max_length=1)
+    platform_roles: list[Identifier] = Field(default_factory=list, max_length=50)
 
 
 class AccountUpdate(Contract):
     revision: Revision
     display_name: str | None = Field(default=None, min_length=1, max_length=128)
     status: Status | None = None
-    platform_roles: list[Literal["platform_admin"]] | None = Field(default=None, max_length=1)
+    platform_roles: list[Identifier] | None = Field(default=None, max_length=50)
 
 
 class PasswordReset(Contract):
@@ -79,6 +79,14 @@ class AccountView(Contract):
     must_change_password: bool
     revision: int
     credential_updated_at: datetime
+    updated_at: datetime | None = None
+
+
+class DirectoryPage[T](Contract):
+    items: list[T]
+    total: int
+    offset: int
+    limit: int
 
 
 class MembershipInput(Contract):
@@ -167,3 +175,16 @@ class AuditView(Contract):
     time: datetime
     request_id: str
     changed_fields: list[str]
+    environment_name: str | None = None
+    data_scope_name: str | None = None
+    details: dict[str, str] = Field(default_factory=dict)
+
+
+class AuditFilter(Contract):
+    limit: int = Field(default=20, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+    search: str = Field(default="", max_length=128)
+    request_id: str = Field(default="", max_length=128)
+    outcome: Literal["SUCCEEDED", "DENIED"] | None = None
+    start_at: datetime | None = None
+    end_at: datetime | None = None

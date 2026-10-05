@@ -1,8 +1,36 @@
 {
+  "$defs": {
+    "NavigationGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "label"
+      ],
+      "title": "NavigationGroup",
+      "type": "object"
+    }
+  },
   "$id": "urn:creativity:core:1.2.0:NavigationItem",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "ancestors": {
+      "items": {
+        "$ref": "#/$defs/NavigationGroup"
+      },
+      "title": "Ancestors",
+      "type": "array"
+    },
     "label": {
       "title": "Label",
       "type": "string"

@@ -4,6 +4,7 @@ import argparse
 import ast
 import json
 import re
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -136,9 +137,16 @@ def audit_catalog(root: Path) -> list[str]:
     if [t for t in catalog["tables"] if t["revision"] == "0024_evaluations"] != EVALUATION_BASELINE:
         failures.append("评测模块归档与冻结实现不一致")
     archived = [t for t in catalog["tables"] if t["revision"] == "0001_core"]
-    if archived != BASELINE:
+    current_core, current_iam = deepcopy(BASELINE), deepcopy(IAM_BASELINE)
+    # 管理目录的增量索引叠加到当前归档，旧基线保持冻结供历史迁移使用。
+    for baseline, table_name, columns in (
+        (current_core, "audit_events", ["channel_id", "created_at", "id"]),
+        (current_iam, "platform_accounts", ["channel_id", "status", "login_name", "id"]),
+    ):
+        next(t for t in baseline if t["name"] == table_name)["indexes"].append(columns)
+    if archived != current_core:
         failures.append("公共表归档与冻结实现不一致")
-    if [t for t in catalog["tables"] if t["revision"] == "0002_iam"] != IAM_BASELINE:
+    if [t for t in catalog["tables"] if t["revision"] == "0002_iam"] != current_iam:
         failures.append("账号模块归档与冻结实现不一致")
     if [t for t in catalog["tables"] if t["module"] == "channels"] != CHANNEL_BASELINE:
         failures.append("渠道模块归档与冻结实现不一致")

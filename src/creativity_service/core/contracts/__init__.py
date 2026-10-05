@@ -281,9 +281,15 @@ class VersionOption(Contract):
     unavailable_reason: str | None
 
 
+class NavigationGroup(Contract):
+    key: str
+    label: str
+
+
 class NavigationItem(Contract):
     navigation_key: str
     label: str
+    ancestors: list[NavigationGroup] = Field(default_factory=list)
 
 
 class VisibleAction(Contract):

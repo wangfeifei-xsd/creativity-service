@@ -1,6 +1,6 @@
 # 数据库初始化 SQL 归档
 
-[init.sql](init.sql) 是当前已实现功能的完整空库初始化文件，直接创建最终表结构。文件头记录模型版本、Alembic 基线、表、字段和索引数量。归档包含全部已登记应用表、迁移版本表、普通索引、中文表与字段注释，以及平台系统渠道初始记录。
+[init.sql](init.sql) 是当前已实现功能的完整空库初始化文件，直接创建最终表结构。文件头记录模型版本、Alembic 基线、表、字段和索引数量。归档包含全部已登记应用表、迁移版本表、普通索引、中文表与字段注释，以及平台系统渠道和菜单目录初始记录。
 
 ## 执行
 
@@ -29,7 +29,7 @@ make storage-audit
 
 项目尚未上线，原 26 个历史迁移已合并为 [0001_initial.py](../alembic/versions/0001_initial.py)。该文件冻结模型 1.8.0 的最终结构，一次创建 109 张应用表；版本表由迁移环境创建，共 110 张表、1665 个字段、244 个普通索引。基线不读取运行时模型，后续模型修改不会改变已经冻结的建库结果。
 
-修订号保留为 `0034_admission_indexes`，与合并前最新版本相同。已到该版本的开发库执行 `make migrate` 会直接识别现有结构，不重建表、不修改版本记录，也不重复执行旧数据回填。空库可使用 `make migrate` 或本目录的 `init.sql`；前者仍由 `make channels-init` 初始化系统渠道。
+初始基线修订号保留为 `0034_admission_indexes`，与合并前最新版本相同。当前最新修订为 `0035_management`，新增菜单目录、角色可见菜单清单与管理列表索引；菜单初始目录同时进入迁移和初始化 SQL。已到初始基线的开发库执行 `make migrate` 只执行新增修订，不重建既有表。空库可使用 `make migrate` 或本目录的 `init.sql`；前者仍由 `make channels-init` 初始化系统渠道。
 
 后续结构变更通过 `uv run alembic revision -m "变更说明"` 新增修订，并同步更新模型和初始化 SQL。不要修改初始基线来替代增量升级。`downgrade base` 会删除全部应用表，只用于明确需要重建的测试库；已有数据的开发库不执行该操作。
 
@@ -37,7 +37,7 @@ make storage-audit
 
 ## 维护与验证
 
-SQL 由当前 SQLAlchemy 模型、Alembic 版本表定义及系统渠道初始配置共同生成。开发规范统一见 [rule.md](../../rule.md)，模型与模块归属见 [数据模型索引](../docs/data-model/README.md)。
+SQL 由当前 SQLAlchemy 模型、Alembic 版本表定义、系统渠道与冻结菜单初始配置共同生成。开发规范统一见 [rule.md](../../rule.md)，模型与模块归属见 [数据模型索引](../docs/data-model/README.md)。
 
 ```bash
 make sql

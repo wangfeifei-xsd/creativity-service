@@ -1,6 +1,6 @@
 # 账号与授权模型
 
-模型版本 1.8.0；负责方案 04；需求 [02-账号与权限管理.md](../../../../需求文档/02-账号与权限管理.md)。总索引见 [README](../README.md)。
+模型版本 1.9.0；负责方案 04；需求 [02-账号与权限管理.md](../../../../需求文档/02-账号与权限管理.md)。总索引见 [README](../README.md)。
 
 ## platform_accounts
 
@@ -22,7 +22,7 @@
 | `credential_updated_at` | `timestamptz` | 凭据更新时间 | 是 | 服务层校验后的业务输入 | 内部 |
 | `credential_version` | `bigint` | 凭据撤销代次 | 是 | 受信服务上下文与服务层校验 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, login_name)`。
+普通索引：`(channel_id, id)`；`(channel_id, login_name)`；`(channel_id, status, login_name, id)`。
 
 控制面用途：`accounts`；账号/角色身份引用不赋予其他渠道数据访问权。
 
@@ -107,7 +107,7 @@
 
 ## custom_roles
 
-渠道自定义角色。状态：已实现；归属：渠道；归档修订：0031_identity_operations。
+平台与渠道自定义角色。状态：已实现；归属：渠道；归档修订：0031_identity_operations。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -119,8 +119,34 @@
 | `name` | `varchar(128)` | 角色名称 | 是 | 受信上下文与服务层校验 | 内部 |
 | `allowed_actions` | `jsonb` | 角色动作上限 | 是 | 受信上下文与服务层校验 | 内部 |
 | `state` | `varchar(32)` | 启停状态 | 是 | 受信上下文与服务层校验 | 内部 |
+| `menu_ids` | `jsonb` | 可见菜单节点清单，空值沿用按动作生成 | 否 | 受信上下文与服务层校验 | 内部 |
 
 普通索引：`(channel_id, id)`。
+
+## iam_menus
+
+平台菜单目录。状态：已实现；归属：渠道；归档修订：0035_management。
+
+| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
+| --- | --- | --- | --- | --- | --- |
+| `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
+| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
+| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
+| `name` | `varchar(128)` | 菜单名称 | 是 | 受信上下文与服务层校验 | 内部 |
+| `kind` | `varchar(16)` | 节点类型 | 是 | 受信上下文与服务层校验 | 内部 |
+| `parent_id` | `varchar(64)` | 父节点标识 | 否 | 受信上下文与服务层校验 | 内部 |
+| `page_key` | `varchar(64)` | 已注册页面标识 | 否 | 受信上下文与服务层校验 | 内部 |
+| `action_key` | `varchar(64)` | 按钮动作标识 | 否 | 受信上下文与服务层校验 | 内部 |
+| `workspace` | `varchar(16)` | 适用工作区 | 是 | 受信上下文与服务层校验 | 内部 |
+| `sort_order` | `integer` | 显示顺序 | 是 | 受信上下文与服务层校验 | 内部 |
+| `visible` | `boolean` | 菜单可见标记 | 是 | 受信上下文与服务层校验 | 内部 |
+| `active` | `boolean` | 启用标记 | 是 | 受信上下文与服务层校验 | 内部 |
+
+普通索引：`(channel_id, id)`；`(channel_id, parent_id, sort_order)`。
+
+控制面用途：`roles`；账号/角色身份引用不赋予其他渠道数据访问权。
 
 ## auth_tokens
 

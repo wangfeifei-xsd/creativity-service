@@ -732,7 +732,7 @@ async def test_http_channel_key_creation_rotation_audit_and_invalid_references(
     env, channel_id, identity = channel_env, channel.channel.channel_id, service_identity
     base = f"/admin/v1/channels/{channel_id}"
     response = await env.client.get(base + "/overview", headers=headers(channel.token))
-    assert response.status_code == 200 and response.json()["resource_references"] is None
+    assert response.status_code == 200 and response.json()["resource_references"] == []
     payload = {
         "name": "接口凭据",
         "client_id": identity.client.client_id,

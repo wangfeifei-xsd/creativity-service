@@ -11,17 +11,20 @@ from creativity_service.core.context import bearer_scheme
 from creativity_service.core.primitives import ServiceError, new_id, unavailable
 from creativity_service.modules.iam.custom_roles import CustomRoles, RoleSave
 from creativity_service.modules.iam.external import ExternalIdentity, IdentityExchange
+from creativity_service.modules.iam.menus import MenuSave, MenuService
 from creativity_service.modules.iam.presentation import AccessOptions, access_options
 from creativity_service.modules.iam.schemas import (
     AccountCreate,
     AccountUpdate,
     AccountView,
+    AuditFilter,
     AuditView,
     CaptchaChallenge,
     CaptchaChallengeInput,
     CaptchaVerification,
     CaptchaVerifyInput,
     ChannelContextInput,
+    DirectoryPage,
     GrantInput,
     GrantView,
     LoginInput,
@@ -140,6 +143,24 @@ async def channel_access_options(channel_id: str, session: Session, iam: Service
     return await access_options(iam, session, channel_id)
 
 
+@router.get("/channels/{channel_id}/resource-options")
+async def resource_options(
+    channel_id: str,
+    session: Session,
+    iam: Services,
+    limit: Annotated[int, Query(ge=1, le=200)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    search: Annotated[str, Query(max_length=128)] = "",
+    kind: str | None = None,
+) -> dict[str, Any]:
+    from creativity_service.modules.channels.resources import ResourceCatalog
+
+    page = await ResourceCatalog(iam.accounts.repository.engine, iam.authorization).page(
+        session, channel_id, search=search, kind=kind, limit=limit, offset=offset, granting=True
+    )
+    return page.model_dump(mode="json")
+
+
 @router.get("/accounts", response_model=list[AccountView])
 async def accounts(
     session: Session, iam: Services, limit: Annotated[int, Query(ge=1, le=200)] = 100
@@ -150,6 +171,23 @@ async def accounts(
 @router.post("/accounts", response_model=AccountView, status_code=201)
 async def create_account(body: AccountCreate, session: Session, iam: Services) -> AccountView:
     return await iam.accounts.create(session, body)
+
+
+@router.get("/accounts/page", response_model=DirectoryPage[AccountView])
+async def account_page(
+    session: Session,
+    iam: Services,
+    limit: Annotated[int, Query(ge=1, le=200)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    search: Annotated[str, Query(max_length=128)] = "",
+    status: Annotated[str | None, Query(pattern="^(ACTIVE|DISABLED)$")] = None,
+) -> DirectoryPage[AccountView]:
+    return await iam.accounts.page(session, limit, offset, search, status)
+
+
+@router.get("/accounts/{user_id}", response_model=AccountView)
+async def account_detail(user_id: str, session: Session, iam: Services) -> AccountView:
+    return await iam.accounts.get(session, user_id)
 
 
 @router.patch("/accounts/{user_id}", response_model=AccountView)
@@ -224,6 +262,13 @@ async def audit_events(
     return await iam.audit.query(session, limit)
 
 
+@router.get("/audit-events/page", response_model=DirectoryPage[AuditView])
+async def audit_page(
+    session: Session, iam: Services, query: Annotated[AuditFilter, Query()]
+) -> DirectoryPage[AuditView]:
+    return await iam.audit.page(session, query)
+
+
 @router.get("/auth/identity-providers")
 async def identity_providers(iam: Services) -> list[dict[str, str]]:
     return ExternalIdentity(iam).profiles()
@@ -244,6 +289,47 @@ async def external_token(
 @router.get("/custom-roles")
 async def custom_roles(session: Session, iam: Services) -> list[dict[str, Any]]:
     return await CustomRoles(iam.access).list(session)
+
+
+@router.get("/custom-roles/options")
+async def role_options(session: Session, iam: Services) -> dict[str, Any]:
+    return await CustomRoles(iam.access).options(session)
+
+
+@router.delete("/custom-roles/{identifier}", status_code=204)
+async def remove_role(
+    session: Session, iam: Services, identifier: str, revision: Annotated[int, Query(ge=1)]
+) -> None:
+    await CustomRoles(iam.access).remove(session, identifier, revision)
+
+
+@router.get("/menus")
+async def menus(session: Session, iam: Services) -> list[dict[str, Any]]:
+    return await MenuService(iam.accounts.repository).list(session)
+
+
+@router.get("/menus/options")
+async def menu_options(session: Session, iam: Services) -> dict[str, Any]:
+    return MenuService(iam.accounts.repository).options(session)
+
+
+@router.post("/menus", status_code=201)
+async def create_menu(session: Session, iam: Services, body: MenuSave) -> dict[str, Any]:
+    return await MenuService(iam.accounts.repository).save(session, body)
+
+
+@router.patch("/menus/{identifier}")
+async def edit_menu(
+    session: Session, iam: Services, identifier: str, body: MenuSave
+) -> dict[str, Any]:
+    return await MenuService(iam.accounts.repository).save(session, body, identifier)
+
+
+@router.delete("/menus/{identifier}", status_code=204)
+async def remove_menu(
+    session: Session, iam: Services, identifier: str, revision: Annotated[int, Query(ge=1)]
+) -> None:
+    await MenuService(iam.accounts.repository).remove(session, identifier, revision)
 
 
 @router.post("/custom-roles", status_code=201)

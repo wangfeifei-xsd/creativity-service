@@ -131,6 +131,13 @@ async def disable(
     return await service.disable(context, tool_id, body.revision)
 
 
+@router.post("/tools/{tool_id}/enable", response_model=ToolDetail)
+async def enable(
+    context: Context, service: Services, tool_id: str, body: ToolRevision
+) -> ToolDetail:
+    return await service.enable(context, tool_id, body.revision)
+
+
 @router.get("/tool-versions/{version_id}/test-description", response_model=ToolTestDescription)
 async def test_description(
     context: Context, service: Services, version_id: str

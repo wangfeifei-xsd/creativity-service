@@ -5,21 +5,25 @@ from functools import wraps
 from typing import Any, Concatenate, Protocol
 
 from creativity_service.core.auth.authentication import AdminSession
-from creativity_service.core.context import AuthContext, ControlScope, Scope
+from creativity_service.core.context import ControlScope, Scope
 from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError, new_id
-from creativity_service.modules.iam.authorization import IamAuthorization, require_platform
-from creativity_service.modules.iam.display import resource_names
+from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.iam.repositories import IdentityRepository, save
 from creativity_service.modules.iam.roles import ACTION_NAMES
-from creativity_service.modules.iam.schemas import AuditView
+from creativity_service.modules.iam.schemas import AuditFilter, AuditView, DirectoryPage
 
 AUDIT_NAMES = {
     **ACTION_NAMES,
     "auth:login": "登录",
     "auth:external": "外部身份登录",
-    "role:edit": "修改渠道角色",
+    "role:edit": "修改角色",
+    "role:create": "创建角色",
+    "role:delete": "删除角色",
+    "menu:create": "新增菜单",
+    "menu:update": "修改菜单",
+    "menu:delete": "删除菜单",
     "usage:statement": "导入供应商账单",
     "integration:configure": "修改运行与事件配置",
     "auth:logout": "退出登录",
@@ -49,8 +53,76 @@ AUDIT_NAMES = {
     "key:create": "创建接入 Key",
     "key:rotate": "轮换接入 Key",
     "key:revoke": "吊销接入 Key",
+    "agent.version.create": "新增智能体版本",
+    "agent.version.edit": "编辑智能体版本",
+    "delegation_key.revoke": "撤销委托凭据",
+    "evaluation.dataset_version": "新增评测数据集版本",
+    "integration.save": "保存业务接入配置",
+    "integration.test": "测试业务接入",
+    "integration_credential.create": "创建业务接入凭据",
+    "mcp.oauth.authorize": "授权 MCP 连接",
+    "mcp.oauth.revoke": "撤销 MCP 连接授权",
+    "mcp.oauth.start": "发起 MCP 连接授权",
+    "prompt.sample.create": "创建提示词测试样例",
+    "prompt.test.prepare": "准备提示词测试",
+    "prompt.test.submit": "提交提示词测试",
+    "prompt.version.retire": "退役提示词版本",
+    "release.switch": "切换发布版本",
+    "skill.package.save": "保存技能包",
+    "subject_review.configure": "配置主体复核",
 }
+# 模块事件使用稳定的动作名称，审计展示不复用权限按钮文案。
+for _kind, _name in {
+    "tool": "工具",
+    "skill": "技能",
+    "prompt": "提示词",
+    "agent": "智能体",
+    "model": "模型",
+    "model_route": "模型路由",
+    "model_connection": "模型连接",
+    "mcp": "MCP 连接",
+    "mcp_connection": "MCP 连接",
+    "version": "版本",
+    "evaluation": "评测",
+    "conversation": "会话",
+    "memory": "记忆",
+    "run": "运行",
+    "release": "发布映射",
+}.items():
+    for _operation, _label in {
+        "create": "创建",
+        "edit": "编辑",
+        "update": "修改",
+        "disable": "停用",
+        "enable": "启用",
+        "delete": "删除",
+        "freeze": "冻结",
+        "publish": "发布",
+        "release": "发布",
+        "retire": "退役",
+        "rollback": "回滚",
+        "import": "导入",
+        "export": "导出",
+        "cancel": "取消",
+        "test": "测试",
+        "approve": "审批",
+        "archive": "归档",
+        "restore": "恢复",
+    }.items():
+        AUDIT_NAMES[f"{_kind}.{_operation}"] = f"{_label}{_name}"
+
 FIELD_NAMES = {
+    "purpose": "用途",
+    "description": "用途",
+    "menu_ids": "可见菜单",
+    "kind": "节点类型",
+    "parent_id": "父节点",
+    "page_key": "页面绑定",
+    "action_key": "操作权限",
+    "workspace": "适用工作区",
+    "sort_order": "排序",
+    "visible": "菜单可见性",
+    "active": "启用状态",
     "name": "名称",
     "owner": "负责人",
     "channel_code": "渠道编码",
@@ -158,12 +230,15 @@ async def append_event(
     outcome: str = "SUCCEEDED",
     affected_scopes: list[dict[str, str]] | None = None,
     channel_ids: list[str] | None = None,
+    target_name: str | None = None,
 ) -> None:
     fields = changed_fields or []
     if set(fields) - FIELD_NAMES.keys() or outcome not in {"SUCCEEDED", "DENIED"}:
         raise ValueError("审计字段未登记")
     scope = uow.scope
     summary: dict[str, Any] = {"changed_fields": fields}
+    if target_name is not None:
+        summary["target_name"] = target_name[:128]
     if channel_ids is not None:
         if not isinstance(scope, ControlScope) or not channel_ids or "system" in channel_ids:
             raise ValueError("跨渠道统计审计须明确真实渠道范围")
@@ -198,66 +273,12 @@ class AuditService:
     def __init__(self, repository: IdentityRepository, authorization: IamAuthorization) -> None:
         self.repository, self.authorization = repository, authorization
 
+    async def page(
+        self, session: AdminSession, query: AuditFilter, channel_id: str | None = None
+    ) -> DirectoryPage[AuditView]:
+        from creativity_service.modules.iam.audit_directory import audit_page
+
+        return await audit_page(self, session, query, channel_id)
+
     async def query(self, session: AdminSession, limit: int = 50) -> list[AuditView]:
-        await self.authorization.authentication.revalidate_admin(session)
-        if not 1 <= limit <= 200:
-            raise ServiceError("VALIDATION_ERROR", "查询数量须在 1 至 200 之间", 422)
-        context = session.context
-        if isinstance(context, AuthContext):
-            await self.authorization.boundary(
-                context, "audit:read", "channel", context.scope.channel_id
-            )
-            scope: Scope | ControlScope = context.scope
-        else:
-            account = await self.authorization.authentication.active_account(session.account.id)
-            require_platform(account, "audit:read")
-            scope = ControlScope(purpose="audit", actor_id=account.id)
-        records = await self.repository.audit_rows(scope, limit)
-        accounts = await self.repository.accounts(
-            [r["actor_id"] for r in records]
-            + [r["target_id"] for r in records if r["target_type"] == "account"]
-        )
-        names = {}
-        if isinstance(context, AuthContext):
-            async with self.repository.engine.connect() as connection:
-                names = await resource_names(
-                    connection,
-                    self.authorization.resources,
-                    context,
-                    [
-                        (r["target_type"], r["target_id"])
-                        for r in records
-                        if r["target_type"] != "account"
-                    ],
-                )
-        output = []
-        for row in records:
-            actor = accounts.get(row["actor_id"])
-            if row["target_type"] == "account":
-                target = accounts.get(row["target_id"])
-                target_name = target.display_name if target else None
-            else:
-                target_name = names.get((row["target_type"], row["target_id"]))
-            summary: dict[str, Any] = row["summary"]
-            output.append(
-                AuditView(
-                    event_id=row["id"],
-                    actor_id=row["actor_id"],
-                    actor_name=actor.display_name if actor else None,
-                    action=row["action"],
-                    action_name=AUDIT_NAMES.get(row["action"], "资源操作"),
-                    target_type=row["target_type"],
-                    target_id=row["target_id"],
-                    target_name=target_name,
-                    outcome=row["outcome"],
-                    outcome_label="已完成" if row["outcome"] == "SUCCEEDED" else "已拒绝",
-                    time=row["created_at"],
-                    request_id=row["request_id"],
-                    changed_fields=[
-                        FIELD_NAMES[k]
-                        for k in summary.get("changed_fields", [])
-                        if k in FIELD_NAMES
-                    ],
-                )
-            )
-        return output
+        return (await self.page(session, AuditFilter(limit=limit))).items

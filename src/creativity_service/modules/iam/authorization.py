@@ -84,10 +84,14 @@ def action_allowed(actions: frozenset[str], action: str) -> bool:
     return True
 
 
+def platform_actions(account: AccountState) -> frozenset[str]:
+    return role_actions(account.platform_roles) | account.custom_actions
+
+
 def require_platform(account: AccountState, action: str) -> None:
     if account.status != "ACTIVE" or account.must_change_password:
         raise ServiceError("FORBIDDEN", "账号当前不能执行此操作", 403)
-    if action not in role_actions(account.platform_roles):
+    if action not in platform_actions(account):
         raise ServiceError("FORBIDDEN", "无权执行此操作", 403)
 
 

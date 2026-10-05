@@ -1,12 +1,41 @@
-"""生成随机几何拼图；只向浏览器发送位图，不暴露缺口的结构化坐标。"""
+"""从系统渠道的风景图库随机生成拼图，不暴露原图路径与缺口坐标。"""
 
 import base64
 import io
 import secrets
+from functools import lru_cache
+from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
+
+from creativity_service.core.primitives import unavailable
 
 WIDTH, HEIGHT, PIECE_SIZE = 320, 160, 52
+BACKGROUND_DIRECTORY = Path(__file__).with_name("assets") / "captcha" / "system"
+LANDSCAPES = (
+    "green-hills",
+    "alpine-lake",
+    "coast",
+    "sand-dunes",
+    "waterfall",
+    "autumn",
+    "flower-field",
+    "snow-mountains",
+    "aurora",
+    "forest",
+)
+
+
+@lru_cache(maxsize=len(LANDSCAPES))
+def _landscape(name: str) -> Image.Image:
+    # 平台公共登录素材归系统渠道；有限缓存不保存用户或业务渠道数据。
+    try:
+        with Image.open(BACKGROUND_DIRECTORY / f"{name}.jpg") as source:
+            return ImageOps.fit(
+                source.convert("RGB"), (WIDTH, HEIGHT), method=Image.Resampling.LANCZOS
+            )
+    except OSError as exc:
+        raise unavailable("验证码图片") from exc
 
 
 def _data_url(image: Image.Image) -> str:
@@ -16,30 +45,8 @@ def _data_url(image: Image.Image) -> str:
 
 
 def render_puzzle(x: int, y: int) -> tuple[str, str]:
-    image = Image.new("RGB", (WIDTH, HEIGHT))
-    draw = ImageDraw.Draw(image)
-    for row in range(HEIGHT):
-        shade = int(235 - row * 0.2)
-        draw.line((0, row, WIDTH, row), fill=(shade - 9, shade - 3, shade))
-    sun_x, sun_y = 40 + secrets.randbelow(240), 15 + secrets.randbelow(40)
-    draw.ellipse((sun_x - 18, sun_y - 18, sun_x + 18, sun_y + 18), fill="#f7f3e9")
-    for layer in range(3):
-        floor = 100 + layer * 30
-        for start in range(-40, WIDTH, 60):
-            peak_x = start + 30 + secrets.randbelow(40)
-            peak_y = floor - 40 - secrets.randbelow(45)
-            draw.polygon(
-                [(start - 35, HEIGHT), (peak_x, peak_y), (start + 130, HEIGHT)],
-                fill=(135 - layer * 22, 155 - layer * 20, 169 - layer * 18),
-            )
-            draw.polygon(
-                [(peak_x, peak_y), (peak_x + 12, HEIGHT), (start + 130, HEIGHT)],
-                fill=(164 - layer * 22, 181 - layer * 20, 192 - layer * 18),
-            )
-    # 随机细线增加纹理，拼块与原图使用同一底图裁切。
-    for _ in range(12):
-        start = secrets.randbelow(WIDTH)
-        draw.line((start, 0, start - 100, HEIGHT), fill="#b1bdc8", width=1)
+    # 每次新挑战独立选图；只修改副本，避免缓存原图积累旧缺口。
+    image = _landscape(secrets.choice(LANDSCAPES)).copy()
     mask = Image.new("L", (PIECE_SIZE, PIECE_SIZE), 0)
     shape = ImageDraw.Draw(mask)
     shape.rounded_rectangle((1, 10, 41, 50), radius=4, fill=255)

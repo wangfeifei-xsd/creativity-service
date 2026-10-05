@@ -1,7 +1,7 @@
 {
-  "model_version": "1.8.0",
+  "model_version": "1.9.0",
   "requirements_version": "v0.7",
-  "date": "2026-10-03",
+  "date": "2026-10-05",
   "modules": {
     "core": {
       "title": "公共设施",
@@ -715,6 +715,11 @@
           "channel_id",
           "target_type",
           "target_id"
+        ],
+        [
+          "channel_id",
+          "created_at",
+          "id"
         ]
       ],
       "status": "已实现",
@@ -2279,6 +2284,12 @@
         [
           "channel_id",
           "login_name"
+        ],
+        [
+          "channel_id",
+          "status",
+          "login_name",
+          "id"
         ]
       ],
       "status": "已实现",
@@ -15671,7 +15682,7 @@
     {
       "module": "iam",
       "name": "custom_roles",
-      "comment": "渠道自定义角色",
+      "comment": "平台与渠道自定义角色",
       "status": "已实现",
       "revision": "0031_identity_operations",
       "scope": "渠道",
@@ -15745,6 +15756,14 @@
           "type": "varchar(32)",
           "comment": "启停状态",
           "required": true,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "menu_ids",
+          "type": "jsonb",
+          "comment": "可见菜单节点清单，空值沿用按动作生成",
+          "required": false,
           "source": "受信上下文与服务层校验",
           "sensitivity": "内部"
         }
@@ -16294,6 +16313,141 @@
       "scope": "主体",
       "control_purpose": null,
       "content": false
+    },
+    {
+      "module": "iam",
+      "name": "iam_menus",
+      "comment": "平台菜单目录",
+      "status": "已实现",
+      "revision": "0035_management",
+      "scope": "渠道",
+      "control_purpose": "roles",
+      "content": false,
+      "indexes": [
+        [
+          "channel_id",
+          "id"
+        ],
+        [
+          "channel_id",
+          "parent_id",
+          "sort_order"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "varchar(64)",
+          "comment": "记录标识",
+          "required": true,
+          "source": "服务端随机标识",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "channel_id",
+          "type": "varchar(64)",
+          "comment": "所属渠道标识",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "comment": "创建时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "comment": "更新时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "comment": "并发修订号",
+          "required": true,
+          "source": "服务层递增",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "name",
+          "type": "varchar(128)",
+          "comment": "菜单名称",
+          "required": true,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "kind",
+          "type": "varchar(16)",
+          "comment": "节点类型",
+          "required": true,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "parent_id",
+          "type": "varchar(64)",
+          "comment": "父节点标识",
+          "required": false,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "page_key",
+          "type": "varchar(64)",
+          "comment": "已注册页面标识",
+          "required": false,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "action_key",
+          "type": "varchar(64)",
+          "comment": "按钮动作标识",
+          "required": false,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "workspace",
+          "type": "varchar(16)",
+          "comment": "适用工作区",
+          "required": true,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "sort_order",
+          "type": "integer",
+          "comment": "显示顺序",
+          "required": true,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "visible",
+          "type": "boolean",
+          "comment": "菜单可见标记",
+          "required": true,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "comment": "启用标记",
+          "required": true,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        }
+      ]
     }
   ],
   "version_payloads": {

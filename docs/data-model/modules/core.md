@@ -1,6 +1,6 @@
 # 公共设施模型
 
-模型版本 1.8.0；负责方案 03；需求 [00-需求总纲.md](../../../../需求文档/00-需求总纲.md)。总索引见 [README](../README.md)。
+模型版本 1.9.0；负责方案 03；需求 [00-需求总纲.md](../../../../需求文档/00-需求总纲.md)。总索引见 [README](../README.md)。
 
 ## resource_versions
 
@@ -109,7 +109,7 @@
 | `outcome` | `varchar(32)` | 操作结果 | 是 | 服务层校验后的业务输入 | 内部 |
 | `summary` | `jsonb` | 脱敏变更摘要 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 
-普通索引：`(channel_id, id)`；`(channel_id, created_at)`；`(channel_id, target_type, target_id)`。
+普通索引：`(channel_id, id)`；`(channel_id, created_at)`；`(channel_id, target_type, target_id)`；`(channel_id, created_at, id)`。
 
 控制面用途：`audit`；账号/角色身份引用不赋予其他渠道数据访问权。
 

@@ -1,0 +1,106 @@
+{
+  "channel_id": "system",
+  "purpose": "平台登录滑块验证码背景",
+  "assets": [
+    {
+      "file": "green-hills.jpg",
+      "name": "青丘晴空",
+      "source_title": "File:Rolling hills (Unsplash).jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Rolling_hills_(Unsplash).jpg",
+      "author": "Bruno Soares muringa",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "changes": "裁切为 2:1，缩放至 640×320，移除元数据并压缩为 JPEG"
+    },
+    {
+      "file": "alpine-lake.jpg",
+      "name": "雪峰镜湖",
+      "source_title": "File:Lake Mountain Landscape.jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Lake_Mountain_Landscape.jpg",
+      "author": "Bonnie Moreland",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "changes": "裁切为 2:1，缩放至 640×320，移除元数据并压缩为 JPEG"
+    },
+    {
+      "file": "coast.jpg",
+      "name": "海岸日落",
+      "source_title": "File:Wavy ocean at beach (Unsplash).jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Wavy_ocean_at_beach_(Unsplash).jpg",
+      "author": "Sebastien Gabriel sgabriel",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "changes": "裁切为 2:1，缩放至 640×320，移除元数据并压缩为 JPEG"
+    },
+    {
+      "file": "sand-dunes.jpg",
+      "name": "沙丘暮光",
+      "source_title": "File:Sand dunes landscape before sunset, Lençóis Maranhenses.jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Sand_dunes_landscape_before_sunset,_Len%C3%A7%C3%B3is_Maranhenses.jpg",
+      "author": "Gerda Arendt",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "changes": "裁切为 2:1，缩放至 640×320，移除元数据并压缩为 JPEG"
+    },
+    {
+      "file": "waterfall.jpg",
+      "name": "林间瀑布",
+      "source_title": "File:Waterfall in forest.jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Waterfall_in_forest.jpg",
+      "author": "Martin Eklund",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "changes": "裁切为 2:1，缩放至 640×320，移除元数据并压缩为 JPEG"
+    },
+    {
+      "file": "autumn.jpg",
+      "name": "秋色湖畔",
+      "source_title": "File:Autumn Lake Landscape.jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Autumn_Lake_Landscape.jpg",
+      "author": "Holly's Coastal View",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "changes": "裁切为 2:1，缩放至 640×320，移除元数据并压缩为 JPEG"
+    },
+    {
+      "file": "flower-field.jpg",
+      "name": "薰衣草田",
+      "source_title": "File:Lavender field and railings, Oregon - Flickr - Bonnie Moreland (free images).jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Lavender_field_and_railings,_Oregon_-_Flickr_-_Bonnie_Moreland_(free_images).jpg",
+      "author": "Bonnie Moreland from Oregon, United States",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "changes": "裁切为 2:1，缩放至 640×320，移除元数据并压缩为 JPEG"
+    },
+    {
+      "file": "snow-mountains.jpg",
+      "name": "雪山松林",
+      "source_title": "File:Imposing mountain under snow (Unsplash).jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Imposing_mountain_under_snow_(Unsplash).jpg",
+      "author": "Maximilian Wachter motive_watcher",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "changes": "裁切为 2:1，缩放至 640×320，移除元数据并压缩为 JPEG"
+    },
+    {
+      "file": "aurora.jpg",
+      "name": "极光山影",
+      "source_title": "File:Lofoten, Norway (Unsplash).jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Lofoten,_Norway_(Unsplash).jpg",
+      "author": "Johannes Groll followhansi",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "changes": "裁切为 2:1，缩放至 640×320，移除元数据并压缩为 JPEG"
+    },
+    {
+      "file": "forest.jpg",
+      "name": "雾凇森林",
+      "source_title": "File:Mist above forest (Unsplash).jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Mist_above_forest_(Unsplash).jpg",
+      "author": "Ciprian Boiciuc ciprian",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "changes": "裁切为 2:1，缩放至 640×320，移除元数据并压缩为 JPEG"
+    }
+  ]
+}

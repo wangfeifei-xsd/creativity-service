@@ -16,6 +16,7 @@ from creativity_service.modules.iam.authorization import (
     IamAuthorization,
     action_allowed,
     effective_actions,
+    platform_actions,
     require_platform,
 )
 from creativity_service.modules.iam.display import resource_names
@@ -35,7 +36,6 @@ from creativity_service.modules.iam.roles import (
     ACTION_NAMES,
     INDEPENDENT_ACTIONS,
     ROLE_ACTIONS,
-    ROLE_NAMES,
     role_actions,
 )
 from creativity_service.modules.iam.schemas import (
@@ -684,10 +684,10 @@ class AccessService:
     async def roles(self, session: AdminSession) -> list[RoleView]:
         await self.authentication.revalidate_admin(session)
         if not isinstance(session.context, AuthContext):
-            require_platform(
-                await self.authentication.active_account(session.account.id), "role:grant"
-            )
-            codes = ["platform_admin"]
+            account = await self.authentication.active_account(session.account.id)
+            require_platform(account, "role:grant")
+            actions = platform_actions(account)
+            channel_id, scope, label = "system", "platform", "平台"
         else:
             context = session.context
             member = await self.authentication.active_member(context)
@@ -700,46 +700,25 @@ class AccessService:
                 "channel",
                 context.scope.channel_id,
             )
-            codes = [
-                code
-                for code, ceiling in ROLE_ACTIONS.items()
-                if code != "platform_admin"
-                and "membership:manage" in actions
-                and ceiling <= actions
-            ]
-        result = [
+            if "membership:manage" not in actions:
+                return []
+            channel_id, scope, label = context.scope.channel_id, "channel", "渠道"
+        async with self.repository.engine.connect() as connection:
+            catalog = await role_catalog(connection, channel_id)
+        return [
             RoleView(
                 role_code=code,
-                name=ROLE_NAMES[code],
-                grant_scope="platform" if code == "platform_admin" else "channel",
-                grant_scope_name="平台" if code == "platform_admin" else "渠道",
+                name=value["name"],
+                grant_scope=scope,
+                grant_scope_name=label,
                 actions=[
                     VisibleAction(action_key=a, label=ACTION_NAMES[a])
-                    for a in sorted(ROLE_ACTIONS[code])
+                    for a in value["allowed_actions"]
                 ],
             )
-            for code in codes
+            for code, value in catalog.items()
+            if value["state"] == "ACTIVE" and set(value["allowed_actions"]) <= actions
         ]
-        if isinstance(session.context, AuthContext) and "membership:manage" in actions:
-            async with self.repository.engine.connect() as connection:
-                catalog = await role_catalog(connection, session.context.scope.channel_id)
-            result.extend(
-                RoleView(
-                    role_code=code,
-                    name=value["name"],
-                    grant_scope="channel",
-                    grant_scope_name="渠道",
-                    actions=[
-                        VisibleAction(action_key=a, label=ACTION_NAMES[a])
-                        for a in value["allowed_actions"]
-                    ],
-                )
-                for code, value in catalog.items()
-                if not value["builtin"]
-                and value["state"] == "ACTIVE"
-                and set(value["allowed_actions"]) <= actions
-            )
-        return result
 
     def provisioning_keys(self, channel_id: str, user_id: str) -> list[ResourceKey]:
         return self.member_keys(channel_id, user_id) + [

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from creativity_service.modules.channels.keys import KeyService
 from creativity_service.modules.channels.lifecycle import LifecycleService
 from creativity_service.modules.channels.repositories import ChannelRepository
+from creativity_service.modules.channels.resources import ResourceCatalog
 from creativity_service.modules.channels.services import ChannelService
 from creativity_service.modules.channels.state import (
     ChannelDirectory,
@@ -45,5 +46,5 @@ def build_channel_services(
         directory=ChannelDirectory(repository),
         resources=ChannelResourceReader(repository),
     )
-    channels = ChannelService(repository, iam)
+    channels = ChannelService(repository, iam, resources=ResourceCatalog(engine, iam.authorization))
     return iam, ChannelServices(channels, KeyService(channels), LifecycleService(channels))

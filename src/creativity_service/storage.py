@@ -9,6 +9,7 @@ from creativity_service.modules.channels.tables import metadata as channel_metad
 from creativity_service.modules.conversations.tables import metadata as conversation_metadata
 from creativity_service.modules.data_lifecycle.tables import metadata as lifecycle_metadata
 from creativity_service.modules.evaluations.tables import metadata as evaluation_metadata
+from creativity_service.modules.iam.management_tables import metadata as management_metadata
 from creativity_service.modules.iam.operations_tables import metadata as operations_metadata
 from creativity_service.modules.iam.tables import metadata as iam_metadata
 from creativity_service.modules.integrations.automation_tables import (
@@ -40,6 +41,7 @@ for source in (
     core_metadata,
     run_metadata,
     iam_metadata,
+    management_metadata,
     operations_metadata,
     channel_metadata,
     prompt_metadata,

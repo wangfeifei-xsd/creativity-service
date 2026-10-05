@@ -90,6 +90,14 @@ def render() -> str:
             **values,
         )
     )
+    lines.append("-- 初始化菜单目录；页面绑定与权限按钮由服务端维护。")
+    seed = ROOT / "src/creativity_service/modules/iam/menu_seed_v0035.json"
+    for row in json.loads(seed.read_text(encoding="utf-8")):
+        append(
+            insert(metadata.tables["iam_menus"]).values(
+                **row, created_at=func.current_timestamp(), updated_at=func.current_timestamp()
+            )
+        )
     lines.append("-- 写入已完成的迁移基线，后续升级从此修订继续。")
     append(version.insert().values(version_num=revision))
     lines += ["COMMIT;", ""]

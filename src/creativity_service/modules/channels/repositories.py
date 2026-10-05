@@ -4,7 +4,7 @@ import re
 from functools import lru_cache
 from typing import Any
 
-from sqlalchemy import Select, and_, bindparam, insert, select, update
+from sqlalchemy import Select, and_, bindparam, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from creativity_service.core.context import ControlScope, Scope
@@ -176,35 +176,57 @@ class ChannelRepository:
         self.engine = engine
 
     async def directory_records(
-        self, connection: AsyncConnection, limit: int
+        self,
+        connection: AsyncConnection,
+        limit: int,
+        offset: int = 0,
+        search: str = "",
+        status: str | None = None,
     ) -> list[dict[str, Any]]:
-        """平台治理入口先限定目录，再关联精确目标渠道，不把系统渠道当业务通配。"""
-        index = metadata.tables["channel_code_index"]
-        channel = metadata.tables["channels"]
-        directory = (
-            select(index.c.target_channel_id)
-            .where(index.c.channel_id == "system", index.c.target_channel_id != "system")
-            .order_by(index.c.created_at, index.c.id)
-            .limit(limit)
-            .subquery()
+        return (await self.directory_page(connection, limit, offset, search, status))[0]
+
+    async def directory_page(
+        self,
+        connection: AsyncConnection,
+        limit: int,
+        offset: int = 0,
+        search: str = "",
+        status: str | None = None,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """平台先限定系统目录，再关联目标渠道；筛选在分页前执行。"""
+        index, channel = metadata.tables["channel_code_index"], metadata.tables["channels"]
+        source = index.join(
+            channel,
+            (channel.c.id == index.c.target_channel_id)
+            & (channel.c.channel_id == index.c.target_channel_id),
         )
+        predicates = [index.c.channel_id == "system", index.c.target_channel_id != "system"]
+        if search.strip():
+            predicates.append(
+                or_(
+                    channel.c.name.icontains(search.strip(), autoescape=True),
+                    channel.c.channel_code.icontains(search.strip(), autoescape=True),
+                )
+            )
+        if status:
+            predicates.append(channel.c.status == status)
+        total = await connection.scalar(select(func.count()).select_from(source).where(*predicates))
         records = [
             dict(row)
             for row in (
                 await connection.execute(
-                    select(channel).select_from(
-                        directory.join(
-                            channel,
-                            (channel.c.channel_id == directory.c.target_channel_id)
-                            & (channel.c.id == directory.c.target_channel_id),
-                        )
-                    )
+                    select(channel)
+                    .select_from(source)
+                    .where(*predicates)
+                    .order_by(channel.c.name, channel.c.id)
+                    .offset(offset)
+                    .limit(limit)
                 )
             ).mappings()
         ]
         if len({row["id"] for row in records}) != len(records):
             raise ServiceError("STORAGE_INVARIANT_BROKEN", "渠道记录重复，请联系管理员", 503)
-        return records
+        return records, total or 0
 
     async def record_use(self, uow: UnitOfWork, key_id: str) -> None:
         """使用时间是观测元数据，不递增配置修订，避免繁忙 Key 的管理操作饥饿。"""

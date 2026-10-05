@@ -189,7 +189,15 @@ class PromptService:
             await repository("prompts", scope).change(
                 uow, prompt_id, body.revision, {"name": body.name, "purpose": body.purpose}
             )
-            await append_audit(uow, context, audit_id, "prompt.edit", "prompt", prompt_id)
+            await append_audit(
+                uow,
+                context,
+                audit_id,
+                "prompt.edit",
+                "prompt",
+                prompt_id,
+                changed_fields=("name", "purpose"),
+            )
         return await self.detail(context, prompt_id)
 
     async def list_items(self, context: AuthContext) -> PromptListView:

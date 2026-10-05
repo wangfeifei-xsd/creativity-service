@@ -3,6 +3,7 @@
 ACTION_NAMES = {
     "account:manage": "管理账号",
     "role:grant": "授予平台角色",
+    "menu:manage": "管理菜单",
     "channel:create": "开通渠道",
     "channel:govern": "治理渠道",
     "channel:manage": "管理渠道",
@@ -69,6 +70,7 @@ PLATFORM_ACTIONS = frozenset(
     {
         "account:manage",
         "role:grant",
+        "menu:manage",
         "channel:create",
         "channel:govern",
         "audit:read",
@@ -158,3 +160,7 @@ GOVERNANCE_ACTIONS = frozenset(
 
 def role_actions(roles: list[str]) -> frozenset[str]:
     return frozenset().union(*(ROLE_ACTIONS.get(role, frozenset()) for role in roles))
+
+
+# 审计动作同时用于平台和渠道，不能作为平台独占动作排除。
+PLATFORM_ONLY_ACTIONS = PLATFORM_ACTIONS - {"audit:read"}

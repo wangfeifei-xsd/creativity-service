@@ -4,6 +4,7 @@ from typing import Protocol
 
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import Scope
 from creativity_service.core.locking import ResourceKey
 from creativity_service.modules.channels.schemas import ResourceReference, UsageQuery, UsageView
@@ -14,7 +15,9 @@ class UsageReader(Protocol):
 
 
 class ResourceReferenceReader(Protocol):
-    async def references(self, scope: Scope) -> list[ResourceReference]: ...
+    async def references(
+        self, session: AdminSession, channel_id: str
+    ) -> list[ResourceReference]: ...
 
 
 class TaskLifecycleGuard(Protocol):

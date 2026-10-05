@@ -1,5 +1,6 @@
 """在真实 PostgreSQL 隔离 schema 验证全量 SQL、迁移衔接及失败回滚。"""
 
+import json
 from pathlib import Path
 from shutil import copytree, ignore_patterns
 from types import SimpleNamespace
@@ -81,6 +82,14 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
     assert system["revision"] == 1
     assert system["created_at"] == system["updated_at"]
     assert {name: system[name] for name in system_channel_values()} == system_channel_values()
+    seed_path = ARCHIVE.parents[1] / "src/creativity_service/modules/iam/menu_seed_v0035.json"
+    expected_menus = sorted(json.loads(seed_path.read_text()), key=lambda row: row["id"])
+    initialized_menus = (
+        connection.execute(text("SELECT * FROM iam_menus ORDER BY id")).mappings().all()
+    )
+    assert [
+        {key: row[key] for key in expected_menus[0]} for row in initialized_menus
+    ] == expected_menus
 
     migrated = database.schema + "_migrated"
     try:
@@ -91,6 +100,14 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
             config.attributes["connection"] = migrated_connection
             command.upgrade(config, "head")
             assert snapshot(migrated_connection, migrated) == actual
+            migrated_menus = (
+                migrated_connection.execute(text("SELECT * FROM iam_menus ORDER BY id"))
+                .mappings()
+                .all()
+            )
+            assert [
+                {key: row[key] for key in expected_menus[0]} for row in migrated_menus
+            ] == expected_menus
     finally:
         connection.exec_driver_sql(f'DROP SCHEMA IF EXISTS "{migrated}" CASCADE')
 

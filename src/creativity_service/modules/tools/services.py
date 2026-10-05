@@ -15,8 +15,10 @@ from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id, unavailable
 from creativity_service.core.versioning import VersionService, version_view
 from creativity_service.integrations.tools import EFFECT_LABELS, SOURCE_LABELS, AdapterRegistry
+from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.iam.reading import require_action, resource_state, visible_actions
+from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.tools.ports import ToolDebugPort
 from creativity_service.modules.tools.reading import ToolReadData
 from creativity_service.modules.tools.repositories import ToolRepository
@@ -184,7 +186,15 @@ class ToolService:
             row = await Repository(metadata.tables["tools"], scope).change(
                 uow, tool_id, body.revision, body.model_dump(exclude={"revision"})
             )
-            await append_audit(uow, context, audit_id, "tool.edit", "tool", tool_id, {})
+            await append_audit(
+                uow,
+                context,
+                audit_id,
+                "tool.edit",
+                "tool",
+                tool_id,
+                changed_fields=("name", "description", "owner"),
+            )
         return await self.view(context, row, [])
 
     async def view(
@@ -213,7 +223,11 @@ class ToolService:
                 [
                     ("edit", "编辑", "tool:manage"),
                     ("create_version", "新增版本", "version:edit"),
-                    *(([("disable", "停用", "tool:manage")]) if row["status"] == "ACTIVE" else []),
+                    *(
+                        ([("disable", "停用", "tool:manage")])
+                        if row["status"] == "ACTIVE"
+                        else [("enable", "启用", "tool:manage")]
+                    ),
                 ],
                 permissions,
             ),
@@ -588,6 +602,14 @@ class ToolService:
         return (await self.impacts(context, [tool_id]))[tool_id]
 
     async def disable(self, context: AuthContext, tool_id: str, revision: int) -> ToolDetail:
+        return await self.set_enabled(context, tool_id, revision, False)
+
+    async def enable(self, context: AuthContext, tool_id: str, revision: int) -> ToolDetail:
+        return await self.set_enabled(context, tool_id, revision, True)
+
+    async def set_enabled(
+        self, context: AuthContext, tool_id: str, revision: int, enabled: bool
+    ) -> ToolDetail:
         await self.require(context, "tool:manage", tool_id)
         scope, audit_id = context.scope, new_id("audit")
         async with transaction(
@@ -595,14 +617,27 @@ class ToolService:
             scope,
             [
                 content_key(scope),
+                policy_key("system"),
+                policy_key(scope.channel_id),
                 record_key(scope.channel_id, "tools", tool_id),
                 record_key(scope.channel_id, "audit_events", audit_id),
             ],
         ) as uow:
+            await locked_require(uow, context, "tool:manage", "tool", tool_id)
             await Repository(metadata.tables["tools"], scope).change(
-                uow, tool_id, revision, {"status": "DISABLED"}
+                uow, tool_id, revision, {"status": "ACTIVE" if enabled else "DISABLED"}
             )
-            await append_audit(uow, context, audit_id, "tool.disable", "tool", tool_id, {})
+            # 恢复仅改变资源开关；发布映射、依赖绑定和执行时的当前权限校验均继续生效。
+            await append_audit(
+                uow,
+                context,
+                audit_id,
+                "tool.enable" if enabled else "tool.disable",
+                "tool",
+                tool_id,
+                {"state": "ACTIVE" if enabled else "DISABLED"},
+                changed_fields=("status",),
+            )
         return await self.detail(context, tool_id)
 
     async def execution_options(

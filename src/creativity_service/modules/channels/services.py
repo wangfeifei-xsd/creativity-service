@@ -46,7 +46,11 @@ from creativity_service.modules.channels.schemas import (
 from creativity_service.modules.iam.access import ENVIRONMENT_NAMES
 from creativity_service.modules.iam.accounts import current_actor
 from creativity_service.modules.iam.audit import append_event
-from creativity_service.modules.iam.authorization import effective_actions, require_platform
+from creativity_service.modules.iam.authorization import (
+    effective_actions,
+    platform_actions,
+    require_platform,
+)
 from creativity_service.modules.iam.repositories import (
     membership_state,
     policy_key,
@@ -58,8 +62,8 @@ from creativity_service.modules.iam.repositories import (
 from creativity_service.modules.iam.repositories import (
     rows as identity_rows,
 )
-from creativity_service.modules.iam.roles import ACTION_NAMES, role_actions
-from creativity_service.modules.iam.schemas import AuditView
+from creativity_service.modules.iam.roles import ACTION_NAMES
+from creativity_service.modules.iam.schemas import AuditView, DirectoryPage
 from creativity_service.modules.iam.services import IamServices
 
 STATUS_LABELS = {"ACTIVE": "启用", "DISABLED": "停用", "SUSPENDED": "已暂停", "ARCHIVED": "已归档"}
@@ -470,9 +474,7 @@ class ChannelService:
     def channel_view(
         self, row: dict[str, Any], session: AdminSession, actions: set[str] | None = None
     ) -> ChannelView:
-        allowed = (
-            actions if actions is not None else set(role_actions(session.account.platform_roles))
-        )
+        allowed = actions if actions is not None else set(platform_actions(session.account))
         return ChannelView(
             channel_id=row["id"],
             channel_code=row["channel_code"],
@@ -523,16 +525,51 @@ class ChannelService:
             )
         return self.channel_view(row, session, actions)
 
-    async def list_items(self, session: AdminSession, limit: int = 100) -> list[ChannelView]:
+    async def list_items(
+        self,
+        session: AdminSession,
+        limit: int = 100,
+        offset: int = 0,
+        search: str = "",
+        status: str | None = None,
+    ) -> list[ChannelView]:
+        return (await self.list_page(session, limit, offset, search, status)).items
+
+    async def list_page(
+        self,
+        session: AdminSession,
+        limit: int = 20,
+        offset: int = 0,
+        search: str = "",
+        status: str | None = None,
+    ) -> DirectoryPage[ChannelView]:
         await self.iam.authentication.revalidate_admin(session, governance=True)
+        if (
+            not 1 <= limit <= 200
+            or offset < 0
+            or status not in {None, "ACTIVE", "SUSPENDED", "ARCHIVED"}
+        ):
+            raise ServiceError("VALIDATION_ERROR", "分页或状态条件不正确", 422)
         if isinstance(session.context, AuthContext):
-            return [await self.detail(session, session.context.scope.channel_id)]
+            row = await self.detail(session, session.context.scope.channel_id)
+            matched = (not search or search in row.name) and (not status or row.status == status)
+            return DirectoryPage(
+                items=[row] if matched and offset == 0 else [],
+                total=int(matched),
+                offset=offset,
+                limit=limit,
+            )
         require_platform(session.account, "channel:govern")
-        if not 1 <= limit <= 200:
-            raise ServiceError("VALIDATION_ERROR", "查询数量须在 1 至 200 之间", 422)
         async with self.repository.engine.connect() as connection:
-            result = await self.repository.directory_records(connection, limit)
-        return [self.channel_view(r, session) for r in result]
+            result, total = await self.repository.directory_page(
+                connection, limit, offset, search, status
+            )
+        return DirectoryPage(
+            items=[self.channel_view(r, session) for r in result],
+            total=total,
+            offset=offset,
+            limit=limit,
+        )
 
     async def update(
         self, session: AdminSession, channel_id: str, body: ChannelUpdate
@@ -960,17 +997,7 @@ class ChannelService:
             ]
         references = None
         if self.resource_reader:
-            references = []
-            for domain in domains:
-                references.extend(
-                    await self.resource_reader.references(
-                        Scope(
-                            channel_id=channel_id,
-                            environment=domain["environment"],
-                            data_scope_id=domain["id"],
-                        )
-                    )
-                )
+            references = await self.resource_reader.references(session, channel_id)
         return OverviewView(
             channel=channel,
             environments=len(envs),
@@ -983,8 +1010,10 @@ class ChannelService:
         )
 
     async def usage(self, session: AdminSession, channel_id: str, query: UsageQuery) -> UsageView:
-        await self.authorize(session, channel_id, "usage:read")
-        if not isinstance(session.context, AuthContext):
+        if isinstance(session.context, AuthContext):
+            await self.authorize(session, channel_id, "usage:read")
+        else:
+            await self.iam.authentication.revalidate_admin(session, governance=True)
             require_platform(session.account, "usage:platform")
         if query.start_at >= query.end_at:
             raise ServiceError("VALIDATION_ERROR", "结束时间须晚于开始时间", 422)
@@ -1012,73 +1041,9 @@ class ChannelService:
     async def audit(
         self, session: AdminSession, channel_id: str, limit: int = 50
     ) -> list[AuditView]:
-        from creativity_service.modules.iam.audit import AUDIT_NAMES, FIELD_NAMES
+        from creativity_service.modules.iam.schemas import AuditFilter
 
-        await self.authorize(session, channel_id, "audit:read")
-        if not 1 <= limit <= 200:
-            raise ServiceError("VALIDATION_ERROR", "查询数量须在 1 至 200 之间", 422)
-        async with self.repository.engine.connect() as connection:
-            await required(connection, "channels", channel_id, id=channel_id)
-            result = await identity_rows(connection, "audit_events", channel_id)
-            output = []
-            for row in sorted(result, key=lambda r: (r["created_at"], r["id"]), reverse=True):
-                if isinstance(session.context, AuthContext):
-                    scope = session.context.scope
-                    ranges = row["summary"].get(
-                        "affected_scopes",
-                        [
-                            {
-                                "environment": row["environment"],
-                                "data_scope_id": row["data_scope_id"],
-                            }
-                        ],
-                    )
-                    if {
-                        "environment": scope.environment,
-                        "data_scope_id": scope.data_scope_id,
-                    } not in ranges:
-                        continue
-                actor = await self.iam.authentication.identities.account(row["actor_id"])
-                name = None
-                table = {
-                    "channel": "channels",
-                    "environment": "channel_environments",
-                    "data_scope": "data_scopes",
-                    "client": "service_clients",
-                    "key": "channel_keys",
-                }.get(row["target_type"])
-                if table:
-                    target = await one(connection, table, channel_id, id=row["target_id"])
-                    name = target["name"] if target else None
-                elif row["target_type"] == "account":
-                    target_account = await self.iam.authentication.identities.account(
-                        row["target_id"]
-                    )
-                    name = target_account.display_name if target_account else None
-                output.append(
-                    AuditView(
-                        event_id=row["id"],
-                        actor_id=row["actor_id"],
-                        actor_name=actor.display_name if actor else None,
-                        action=row["action"],
-                        action_name=AUDIT_NAMES.get(row["action"], "渠道操作"),
-                        target_type=row["target_type"],
-                        target_id=row["target_id"],
-                        target_name=name,
-                        outcome=row["outcome"],
-                        outcome_label="已完成" if row["outcome"] == "SUCCEEDED" else "已拒绝",
-                        time=row["created_at"],
-                        request_id=row["request_id"],
-                        changed_fields=[
-                            FIELD_NAMES[k]
-                            for k in row["summary"].get("changed_fields", [])
-                            if k in FIELD_NAMES
-                        ],
-                    )
-                )
-                if len(output) == limit:
-                    break
-            return output
+        return (await self.iam.audit.page(session, AuditFilter(limit=limit), channel_id)).items
 
     async def platform_usage(
         self, session: AdminSession, channel_ids: list[str], start_at: str, end_at: str
@@ -1113,3 +1078,21 @@ class ChannelService:
                 channel_ids=channel_ids,
             )
         return result
+
+    async def usage_channels(
+        self, session: AdminSession, search: str, offset: int, limit: int
+    ) -> DirectoryPage[dict[str, str]]:
+        await self.iam.authentication.revalidate_admin(session, governance=True)
+        if isinstance(session.context, AuthContext):
+            raise ServiceError("FORBIDDEN", "平台用量须使用平台工作区", 403)
+        require_platform(session.account, "usage:platform")
+        if not 1 <= limit <= 200 or offset < 0:
+            raise ServiceError("VALIDATION_ERROR", "分页条件不正确", 422)
+        async with self.repository.engine.connect() as connection:
+            records, total = await self.repository.directory_page(connection, limit, offset, search)
+        return DirectoryPage(
+            items=[{"value": r["id"], "label": r["name"]} for r in records],
+            total=total,
+            offset=offset,
+            limit=limit,
+        )
