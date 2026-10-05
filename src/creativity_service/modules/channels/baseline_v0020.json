@@ -49,7 +49,7 @@
         "type": "varchar(64)",
         "comment": "渠道稳定编码",
         "required": true,
-        "source": "服务层校验后的业务输入",
+        "source": "服务层根据渠道名称生成",
         "sensitivity": "内部"
       },
       {

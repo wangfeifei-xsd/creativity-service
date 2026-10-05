@@ -55,6 +55,39 @@ async def test_every_channel_create_action_option_is_accepted(channel_env):
     assert response.status_code == 201, response.text
 
 
+@pytest.mark.parametrize("name, expected", [("超级赚钱俱乐部", "CJZQ"), ("租号", "ZHZH")])
+async def test_channel_create_generates_code_from_name(channel_env, name, expected):
+    env = channel_env
+    body = channel_body(env).model_dump(mode="json")
+    body["name"] = name
+    response = await env.client.post(
+        "/admin/v1/channels", json=body, headers=headers(env.admin_token)
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["channel_code"] == expected
+    channel_id = response.json()["channel_id"]
+    async with env.engine.connect() as connection:
+        index = (
+            (
+                await connection.execute(
+                    select(metadata.tables["channel_code_index"]).where(
+                        metadata.tables["channel_code_index"].c.target_channel_id == channel_id
+                    )
+                )
+            )
+            .mappings()
+            .one()
+        )
+        assert index["channel_code"] == expected
+    renamed = await env.client.patch(
+        f"/admin/v1/channels/{channel_id}",
+        json={"name": "更新名称", "revision": response.json()["revision"]},
+        headers=headers(env.admin_token),
+    )
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["channel_code"] == expected
+
+
 async def test_two_real_channels_token_binding_masks_and_index(
     channel_env, channel, service_identity
 ):
@@ -136,9 +169,7 @@ async def test_no_context_override_or_direct_key_bearer(channel_env, channel, se
     assert result.status_code == 404
 
 
-async def test_concurrent_generated_channel_code_and_first_member_rollback(
-    channel_env, monkeypatch
-):
+async def test_concurrent_channel_code_and_first_member_rollback(channel_env, monkeypatch):
     env = channel_env
     results = await asyncio.gather(
         *(

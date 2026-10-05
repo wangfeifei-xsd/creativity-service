@@ -82,7 +82,7 @@ async def test_twenty_clients_management_and_admission(runtime_env):
             if index == 0
             else await provision(
                 env,
-                f"perf_{index}",
+                f"{index}性能测试",
                 None,
                 independent_actions=["release:publish", "data:read_sensitive"],
             )

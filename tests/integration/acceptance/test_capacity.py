@@ -35,7 +35,7 @@ async def test_channel_five_platform_twenty_and_fair_admission(usage_env):
     env = usage_env
     tenants = [env.channel]
     for index in range(1, 5):
-        tenants.append(await provision(env, f"capacity_{index}", None))
+        tenants.append(await provision(env, f"{index}容量测试", None))
     for tenant in tenants:
         await env.usage.management.save_budget(
             tenant.manager,
