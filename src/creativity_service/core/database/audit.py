@@ -148,6 +148,7 @@ def audit_catalog(root: Path) -> list[str]:
     for table_name, name, type_, comment, required in (
         ("platform_accounts", "role_id", "varchar(64)", "账号选择的管理角色", False),
         ("builtin_roles", "account_assignable", "boolean", "可用于账号管理", True),
+        ("builtin_roles", "menu_ids", "jsonb", "可见菜单节点清单，空值沿用按动作生成", False),
     ):
         next(t for t in current_iam if t["name"] == table_name)["columns"].append(
             {

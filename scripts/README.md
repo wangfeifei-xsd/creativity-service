@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | [start-local.sh](start-local.sh) | 定位服务目录，准备配置与 Python 环境，调用本地启动器 | `make local`、`make local-check`、`make local-prepare`、`make infra-up`、`make infra-down`；启动集成测试 |
 | [render_data_model.py](render_data_model.py) | 从模型清单生成字段文档，或检查文档是否过期 | `uv run python scripts/render_data_model.py`；检查已纳入 `make check` 和 `make model-check` |
-| [render_init_sql.py](render_init_sql.py) | 从当前模型与迁移基线生成完整初始化 SQL，或检查归档一致性 | `make sql`、`make sql-check`；检查已纳入 `make check` 和 `make model-check` |
+| [render_init_sql.py](render_init_sql.py) | 从当前模型、迁移基线与冻结数据源分别生成表结构和初始数据 SQL，或同时检查两份归档 | `make sql`、`make sql-check`；检查已纳入 `make check` 和 `make model-check` |
 
 ## 组合验收
 

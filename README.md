@@ -71,7 +71,7 @@ uv run creativity-iam init-admin --login-name admin --display-name 管理员
 
 密码通过终端交互输入，首次登录后需要修改初始密码。
 
-空库也可直接执行完整归档 [sql/init.sql](sql/init.sql)，一次创建当前全部表、索引、中文注释、系统渠道和迁移版本记录。执行方式与后续管理员初始化见 [SQL 初始化说明](sql/README.md)。
+空库也可依次执行表结构归档 [sql/init.sql](sql/init.sql) 与初始数据归档 [sql/init_data.sql](sql/init_data.sql)，创建当前结构及 admin、角色、菜单和关联。执行方式与首次登录改密见 [SQL 初始化说明](sql/README.md)。
 
 ### 3. 按需单独启动
 

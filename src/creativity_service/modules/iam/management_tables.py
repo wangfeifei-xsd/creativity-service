@@ -63,6 +63,15 @@ identity.tables["builtin_roles"].append_column(
         info={"required": True, "source": "受信上下文与服务层校验", "sensitivity": "内部"},
     )
 )
+identity.tables["builtin_roles"].append_column(
+    Column(
+        "menu_ids",
+        JSONB(),
+        nullable=True,
+        comment="可见菜单节点清单，空值沿用按动作生成",
+        info={"required": False, "source": "受信上下文与服务层校验", "sensitivity": "内部"},
+    )
+)
 Index(
     "ix_platform_accounts_directory",
     *(

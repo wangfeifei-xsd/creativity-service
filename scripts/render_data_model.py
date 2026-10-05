@@ -36,10 +36,11 @@ def render():
         "各模块归档中的 `revision` 保留原始修订来源，供模型归属与一致性检查使用。"
         "全部已实现 PostgreSQL 表统一由 "
         "[初始基线](../../alembic/versions/0001_initial.py) 建库，"
-        "当前修订号为 `0037_remove_business_type`。"
+        "当前修订号为 `0038_builtin_role_menus`。"
         "开发规范引用 [rule.md](../../../rule.md)。",
         "",
-        "完整空库初始化脚本：[sql/init.sql](../../sql/init.sql)；"
+        "空库初始化按顺序执行表结构 [sql/init.sql](../../sql/init.sql) 和"
+        "数据 [sql/init_data.sql](../../sql/init_data.sql)；"
         "执行、维护与验证方法见 [初始化说明](../../sql/README.md)。",
         "",
         "需求 15–17 为可选配置示例，原 12 张领域表设计已撤销，不属于待建库清单。"

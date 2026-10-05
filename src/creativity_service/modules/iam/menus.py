@@ -3,7 +3,7 @@
 from typing import Any, Literal
 
 from pydantic import Field
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, union_all
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.auth.authentication import AdminSession
@@ -223,10 +223,17 @@ class MenuService:
                 raise ServiceError("REVISION_CONFLICT", "菜单已变化，请刷新后重试", 409)
             if old["page_key"] in PROTECTED_PAGES:
                 raise ServiceError("MENU_PROTECTED", "账号、角色和菜单管理入口不能删除", 409)
-            roles = TABLES["custom_roles"]
             # 平台菜单治理只核查引用是否存在，不读取其他渠道的业务内容。
             referenced = await uow.connection.scalar(
-                select(roles.c.id).where(roles.c.menu_ids.contains([identifier])).limit(1)
+                union_all(
+                    select(TABLES["custom_roles"].c.id).where(
+                        TABLES["custom_roles"].c.menu_ids.contains([identifier])
+                    ),
+                    select(TABLES["builtin_roles"].c.id).where(
+                        TABLES["builtin_roles"].c.channel_id == "system",
+                        TABLES["builtin_roles"].c.menu_ids.contains([identifier]),
+                    ),
+                ).limit(1)
             )
             if referenced or any(r["parent_id"] == identifier for r in catalog.values()):
                 raise ServiceError("MENU_REFERENCED", "菜单仍有子节点或关联角色，请先处理引用", 409)

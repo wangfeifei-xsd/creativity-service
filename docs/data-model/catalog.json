@@ -1,5 +1,5 @@
 {
-  "model_version": "1.9.1",
+  "model_version": "1.9.2",
   "requirements_version": "v0.7",
   "date": "2026-10-06",
   "modules": {
@@ -2380,6 +2380,14 @@
           "type": "boolean",
           "comment": "可用于账号管理",
           "required": true,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "menu_ids",
+          "type": "jsonb",
+          "comment": "可见菜单节点清单，空值沿用按动作生成",
+          "required": false,
           "source": "受信上下文与服务层校验",
           "sensitivity": "内部"
         }

@@ -144,7 +144,7 @@ def role_catalog_rows(
             "id": row["role_code"],
             "state": "ACTIVE",
             "builtin": True,
-            "menu_ids": None,
+            "menu_ids": row.get("menu_ids"),
         }
         for row in builtin
         if all_scopes or row["grant_scope"] == scope

@@ -10,6 +10,7 @@
 | budget_policies → resource_versions | 业务预算归实际渠道 | 周期、限额变更冻结 budget_policy 版本，预占固定 policy_version_id |
 | channel_keys → key_identity_index / key_rotations | 身份索引归 system，通过 target_channel_id + key_id 定位真实渠道 | Key、索引同事务创建；轮换新增 Key；不覆盖历史调用归属 |
 | platform_accounts / builtin_roles → channel_memberships → resource_grants | 系统身份；成员/资源授权在真实渠道按 user_id 或 grantee_id 关联 | 账号/成员 ACTIVE ↔ DISABLED；撤销即影响下一次授权边界 |
+| platform_accounts → builtin_roles / custom_roles → iam_menus | 系统账号的 role_id 为所选角色，platform_roles 为有效平台授权；内置角色以 role_code 关联，自定义角色以 id 关联；menu_ids 引用系统菜单 | 菜单清单只控制入口，不扩大接口权限；旧角色空值按动作生成；被角色引用的菜单不能直接删除 |
 | provider_catalog → model_connections → models → model_routes | 字典仅描述供应商；连接和模型属于同一真实渠道，连接凭据按环境绑定 | 实际版本固定供应商名称、能力及参数；价格仅引用 price_versions |
 | prompts / agents / tools / skills / model_routes / models → resource_versions | resource_type + resource_id；版本 id 用于依赖，输出结构单独固定 | DRAFT 按 revision 修改；冻结为 PUBLISHED；退役为 RETIRED，禁止新绑定 |
 | resource_versions → resource_references → resource_versions | source_version_id → target_version_id，均同渠道 | 发布时依赖必须已发布；被引用版本保留追溯；退休前检查引用 |
