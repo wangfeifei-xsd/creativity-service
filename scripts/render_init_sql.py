@@ -43,6 +43,7 @@ def render() -> str:
     lines = [
         "-- Creativity 全量初始化归档，适用于 PostgreSQL 17 空库或空 schema。",
         f"-- 模型版本：{catalog['model_version']}；迁移基线：{revision}。",
+        "-- 初始建库基线：alembic/versions/0001_initial.py；后续修订在其上追加。",
         f"-- 包含 {len(tables)} 张表、{sum(len(t.c) for t in tables)} 个字段、"
         f"{sum(len(t.indexes) for t in tables)} 个普通索引及全部中文注释。",
         "-- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。",

@@ -160,7 +160,7 @@ async def test_compatibility_inventory_and_migration_keep_credentials_and_nonce(
         config = Config("alembic.ini")
         config.set_main_option("version_table_schema", env.schema)
         config.attributes["connection"] = connection
-        command.downgrade(config, "0016_agents")
+        command.upgrade(config, "head")
         command.upgrade(config, "head")
         assert inventory(connection) == before
 

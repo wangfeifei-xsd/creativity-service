@@ -132,10 +132,15 @@ def junit_outcomes(output):
 def release_gate(output, report, failures):
     faults = fault_evidence(output)
     if not (output / "providers.json").exists():
-        providers = json.loads((ROOT / "docs/runtime-providers.json").read_text())
-        providers["recorded_at"] = datetime.now(UTC).isoformat()
-        providers["reason"] = "本轮仅运行模型替身；没有提供并验证两种真实模型供应商或协议组合。"
-        write_json(output / "providers.json", providers)
+        write_json(
+            output / "providers.json",
+            {
+                "recorded_at": datetime.now(UTC).isoformat(),
+                "acceptance_complete": False,
+                "reason": "本轮未提供真实模型供应商或协议组合的验证记录。",
+                "combinations": [],
+            },
+        )
     providers = json.loads((output / "providers.json").read_text())
     blockers = []
     verified = [

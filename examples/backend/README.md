@@ -2,7 +2,7 @@
 
 此目录可复制到任意 Python 3.12 后端，唯一第三方依赖为 `httpx>=0.28,<1`。客户端不导入 Creativity 服务代码或任何业务仓库，Agent 编码、输入、平台地址与当前主体全部由调用方提供。业务前端只调用自己的后端；API Key、委托密钥和服务 Token 留在后端。
 
-平台准备、权限清单、错误处理见 [接入指南](../../docs/unified-api.md)，原理与向量见 [委托协议](../../docs/integrations.md)。可交付契约为 [OpenAPI](../../contracts/backend/openapi-v1.json)。这是可运行示例，官方多语言 SDK 仍属于后续范围。
+平台准备、权限清单、错误处理见 [接入指南](../../docs/integration.md#unified-api)，原理与向量见 [委托协议](../../docs/integration.md#integrations)。可交付契约为 [OpenAPI](../../contracts/backend/openapi-v1.json)。这是可运行示例，官方多语言 SDK 仍属于后续范围。
 
 ## 配置
 

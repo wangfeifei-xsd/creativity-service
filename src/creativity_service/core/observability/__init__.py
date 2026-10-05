@@ -2,8 +2,10 @@
 
 import json
 import logging
+import os
 from contextvars import ContextVar
 from datetime import UTC, datetime
+from logging.handlers import RotatingFileHandler
 from typing import Literal
 
 from opentelemetry import trace
@@ -41,12 +43,33 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(data, ensure_ascii=False)
 
 
-def configure_logging(level: str) -> None:
-    handler = logging.StreamHandler()
-    handler.setFormatter(JsonFormatter())
+def configure_logging(
+    settings: Settings,
+    role: Literal["api", "worker", "scheduler", "launcher"] = "api",
+    *,
+    child_process: bool = False,
+) -> None:
+    settings.log_directory.mkdir(parents=True, exist_ok=True)
+    # 预派生 Worker 的子进程独立轮转，避免多个进程同时重命名同一日志文件。
+    suffix = f"-{os.getpid()}" if child_process else ""
+    file_handler = RotatingFileHandler(
+        settings.log_directory / f"{role}{suffix}.log",
+        maxBytes=settings.log_max_bytes,
+        backupCount=settings.log_backup_count,
+        encoding="utf-8",
+    )
+    handlers: list[logging.Handler] = [logging.StreamHandler(), file_handler]
+    for handler in handlers:
+        handler.setFormatter(JsonFormatter())
+    if role == "launcher":
+        handlers[0].setFormatter(logging.Formatter("%(message)s"))
     root = logging.getLogger()
-    root.handlers = [handler]
-    root.setLevel(level)
+    for previous in root.handlers[:]:
+        root.removeHandler(previous)
+        previous.close()
+    for handler in handlers:
+        root.addHandler(handler)
+    root.setLevel(settings.log_level)
     for name in ("uvicorn", "uvicorn.error", "uvicorn.access", "celery"):
         logger = logging.getLogger(name)
         logger.handlers.clear()

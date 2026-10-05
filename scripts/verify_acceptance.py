@@ -245,7 +245,7 @@ def main():
     parser.add_argument("--workspace", type=Path, help="独立检出汇总时，对比并链接原工作区根目录")
     args = parser.parse_args()
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    output = (args.output or ROOT / "docs/acceptance/runs" / stamp).resolve()
+    output = (args.output or ROOT / ".local/acceptance" / stamp).resolve()
     (output / "logs").mkdir(parents=True, exist_ok=True)
     env = command_environment()
     env.pop("CREATIVITY_ACCEPTANCE_PERFORMANCE", None)

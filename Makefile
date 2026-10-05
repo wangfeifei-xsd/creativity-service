@@ -1,7 +1,16 @@
-.PHONY: install dev worker check format test integration openapi migrate sql sql-check infra-up infra-down contracts model-check storage-audit dependency-audit iam-reconcile
+.PHONY: install local local-check local-prepare dev worker check format test integration openapi migrate sql sql-check infra-up infra-down contracts model-check storage-audit dependency-audit iam-reconcile
 
 install:
 	uv sync --locked
+
+local:
+	./scripts/start-local.sh
+
+local-check:
+	./scripts/start-local.sh --check
+
+local-prepare:
+	./scripts/start-local.sh --prepare-only
 
 dev:
 	uv run uvicorn creativity_service.app:create_app --factory --reload --host 127.0.0.1 --port 8000 --no-access-log
@@ -58,11 +67,10 @@ sql-check:
 	uv run python scripts/render_init_sql.py --check
 
 infra-up:
-	docker compose --env-file .env -f deploy/compose.dev.yml up -d --wait postgres redis minio
-	docker compose --env-file .env -f deploy/compose.dev.yml run --rm minio-init
+	./scripts/start-local.sh --infra-only
 
 infra-down:
-	docker compose --env-file .env -f deploy/compose.dev.yml down
+	./scripts/start-local.sh --stop-infra
 
 contracts:
 	uv run python -m creativity_service.core.contracts.export

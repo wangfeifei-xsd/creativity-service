@@ -33,7 +33,7 @@ def prompt_database_schema():
         config = Config("alembic.ini")
         config.set_main_option("version_table_schema", name)
         config.attributes["connection"] = connection
-        command.upgrade(config, "0009_prompts")
+        command.upgrade(config, "head")
     yield name
     with engine.begin() as connection:
         connection.execute(text(f'DROP SCHEMA "{name}" CASCADE'))

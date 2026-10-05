@@ -82,7 +82,7 @@ def test_version_storage_has_channel_comments_and_no_unique_index(tmp_path):
         engine.dispose()
 
 
-def test_run_subscription_upgrade_preserves_existing_scope_and_is_reversible():
+def test_baseline_upgrade_preserves_existing_subscription_scope():
     schema = f"test_subscription_migration_{uuid4().hex}"
     config = Config("alembic.ini")
     config.set_main_option("version_table_schema", schema)
@@ -92,28 +92,31 @@ def test_run_subscription_upgrade_preserves_existing_scope_and_is_reversible():
             connection.execute(text(f'CREATE SCHEMA "{schema}"'))
             connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
             config.attributes["connection"] = connection
-            command.upgrade(config, "0031_identity_operations")
+            command.upgrade(config, "head")
             for name in ("webhook_endpoints", "alert_rules"):
-                # 只验证旧存储记录的范围回填，不通过业务入口创建此迁移夹具。
+                # 已有配置的显式订阅范围不能因基线合并而再次回填或清空。
                 connection.execute(
-                    text(f"INSERT INTO {name} (id, channel_id) VALUES ('legacy', 'test')")
+                    text(
+                        f"INSERT INTO {name} (id, channel_id, client_ids) "
+                        "VALUES ('legacy', 'test', '[\"service-original\"]'::jsonb)"
+                    )
                 )
             command.upgrade(config, "head")
             for name in ("webhook_endpoints", "alert_rules"):
-                assert connection.execute(text(f"SELECT client_ids FROM {name}")).scalar_one() == []
-            command.downgrade(config, "0031_identity_operations")
+                assert connection.execute(text(f"SELECT client_ids FROM {name}")).scalar_one() == [
+                    "service-original"
+                ]
             command.upgrade(config, "head")
-            assert (
-                connection.execute(text("SELECT client_ids FROM webhook_endpoints")).scalar_one()
-                == []
-            )
+            assert connection.execute(
+                text("SELECT client_ids FROM webhook_endpoints")
+            ).scalar_one() == ["service-original"]
     finally:
         with engine.begin() as connection:
             connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
         engine.dispose()
 
 
-def test_layered_memory_migration_preserves_configured_and_implicit_legacy_attributes():
+def test_baseline_upgrade_preserves_memory_and_explicit_or_implicit_policy():
     schema = f"test_memory_migration_{uuid4().hex}"
     config = Config("alembic.ini")
     config.set_main_option("version_table_schema", schema)
@@ -123,17 +126,19 @@ def test_layered_memory_migration_preserves_configured_and_implicit_legacy_attri
             connection.execute(text(f'CREATE SCHEMA "{schema}"'))
             connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
             config.attributes["connection"] = connection
-            command.upgrade(config, "0032_run_subscriptions")
+            command.upgrade(config, "head")
             connection.execute(
                 text(
-                    "INSERT INTO memories (id, channel_id, key, value) "
-                    "VALUES ('legacy', 'implicit', 'play_style', '\"休闲\"'::jsonb)"
+                    "INSERT INTO memories (id, channel_id, key, value, source_mode) "
+                    "VALUES ('legacy', 'implicit', 'play_style', '\"休闲\"'::jsonb, 'ANY')"
                 )
             )
             connection.execute(
                 text(
-                    "INSERT INTO memory_policies (id, channel_id, agent_id, max_items) "
-                    "VALUES ('policy', 'configured', NULL, 25)"
+                    "INSERT INTO memory_policies "
+                    "(id, channel_id, agent_id, max_items, attributes, consolidation) "
+                    "VALUES ('policy', 'configured', NULL, 25, "
+                    '\'[{"key":"custom_attribute"}]\'::jsonb, \'{"enabled": true}\'::jsonb)'
                 )
             )
             command.upgrade(config, "head")
@@ -143,21 +148,21 @@ def test_layered_memory_migration_preserves_configured_and_implicit_legacy_attri
             )
             policies = connection.execute(
                 text(
-                    "SELECT channel_id, max_items, attributes FROM memory_policies "
+                    "SELECT channel_id, max_items, attributes, consolidation FROM memory_policies "
                     "ORDER BY channel_id"
                 )
             ).all()
-            assert len(policies) == 2
+            assert len(policies) == 1
             assert [(p.channel_id, p.max_items) for p in policies] == [
                 ("configured", 25),
-                ("implicit", 100),
             ]
-            assert all("play_style" in {v["key"] for v in p.attributes} for p in policies)
+            assert policies[0].attributes == [{"key": "custom_attribute"}]
+            assert policies[0].consolidation == {"enabled": True}
             assert (
                 connection.execute(text("SELECT count(*) FROM memory_consolidations")).scalar_one()
                 == 0
             )
-            command.downgrade(config, "0032_run_subscriptions")
+            command.upgrade(config, "head")
             assert connection.execute(text("SELECT value FROM memories")).scalar_one() == "休闲"
             command.upgrade(config, "head")
             assert (
@@ -167,7 +172,7 @@ def test_layered_memory_migration_preserves_configured_and_implicit_legacy_attri
                         "AND agent_id IS NULL"
                     )
                 ).scalar_one()
-                == 1
+                == 0
             )
     finally:
         with engine.begin() as connection:

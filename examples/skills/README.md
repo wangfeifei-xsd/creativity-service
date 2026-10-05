@@ -1,20 +1,10 @@
-# 技能包格式样例
+# 技能包示例
 
-这四个包用于验证文件格式、变量、按需加载和证据结构，不包含已经确认的业务政策、风险阈值或指标口径。业务正文由方案 22/23 确认后另建版本。
-
-| 包 | 用途 | 资料 |
+| 技能 | 用途 | 导入包 |
 | --- | --- | --- |
-| rental-intent | 租赁诉求字段提取 | 用户条件结构 |
-| service-comparison | 服务商品比较 | 已授权候选字段结构 |
-| speech-risk | 话术证据整理 | 原文证据与待绑定政策引用 |
-| metric-reading | 经营指标说明 | 数值、单位和待绑定口径引用 |
+| [text-brief](text-brief/SKILL.md) | 文本摘要与输出约定，始终加载 | [text-brief.zip](packages/text-brief.zip) |
+| [archive-answer](archive-answer/SKILL.md) | MCP 查询与引用规则，按需加载 | [archive-answer.zip](packages/archive-answer.zip) |
 
-在技能管理页选择“导入技能包”，上传 `packages/` 中对应 ZIP，填写本地技能编码和负责人。导入生成独立草稿；输入变量在包编辑器中声明，测试页面按 JSON 提供。ZIP 内 `.platform/skill.json` 只包含可移植加载设置，工具依赖使用编码与版本名称，导入后由目标渠道重新绑定。
+每套包含技能正文、参考资料和 `.platform/skill.json`；测试核对源码与 ZIP 字节一致。在技能管理页上传 ZIP，填写本地编码与负责人，并显式绑定本渠道的工具版本。导入生成独立草稿，缺少依赖时不能冻结、发布或加载。
 
-样例不声明工具或模型依赖，因此加载验证只确认文件和上下文行为。连接实际业务工具、选择模型和取得真实运行证据在后续 Agent 配置与方案 17 完成。
-
-## 21 的可复现配置包
-
-新增 `text-brief`（文本摘要与输出约定）和 `archive-answer`（MCP 档案查询与引用规则）。二者包含源码、`.platform/skill.json` 和确定性 ZIP，测试核对源码与包字节一致。Agent、提示词、依赖清单和输入样本见 [Agent 配置](../agents/README.md)。
-
-新导入不再按工具编码自动匹配本地版本；归档保留可移植名称和契约，导入预览后显式选择目标渠道工具。缺绑定可保留草稿，但冻结、发布和加载都会失败。导出不会携带本地工具绑定或 Agent 授权。四个早期格式样例继续保留，完整操作约定以 [21 交接](../../docs/configuration-delivery.md) 为准。
+Agent、提示词、依赖清单和输入样本见 [Agent 配置](../agents/README.md)，完整操作见 [配置交付](../../docs/configuration.md#configuration-delivery)。样例用于验证配置流程，业务政策和真实数据由接入方提供。

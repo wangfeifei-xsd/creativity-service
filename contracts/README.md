@@ -22,22 +22,22 @@ Python 类型为唯一来源：`core/context`、`core/auth/types`、`core/contra
 
 Money 以十进制字符串传输，numeric(24,8) 保存，禁止客户端浮点数充当计价输入；时间使用带时区 ISO 8601。分页游标由服务签名并绑定 Scope 和查询摘要；查询变化、跨范围或签名错误拒绝。事件游标的时间窗口与补发服务由 17 实现，失效响应保留运行结果查询路径。
 
-1.1.0 新增 IdentitySource，用于 11/17 保存并恢复原始运行身份；不包含 Token、session_id 或权限快照。04 的 TokenResponse、SessionView、账号/成员/授权/审计响应进入 OpenAPI 和前端生成类型。具体行为见 [IAM 交接](../docs/iam.md)。
+1.1.0 新增 IdentitySource，用于 11/17 保存并恢复原始运行身份；不包含 Token、session_id 或权限快照。04 的 TokenResponse、SessionView、账号/成员/授权/审计响应进入 OpenAPI 和前端生成类型。具体行为见 [IAM 交接](../docs/development.md#iam)。
 
-1.2.0 为 ChannelState 增加可选 channel_status，使暂停/归档的业务拒绝具有明确状态；治理入口的当前授权不变。渠道生命周期和用量查询契约另见 [channels](channels/)，由 `modules/channels/export.py` 生成，接口和语义见 [05 交接](../docs/channels.md)。
+1.2.0 为 ChannelState 增加可选 channel_status，使暂停/归档的业务拒绝具有明确状态；治理入口的当前授权不变。渠道生命周期和用量查询契约另见 [channels](channels/)，由 `modules/channels/export.py` 生成，接口和语义见 [05 交接](../docs/development.md#channels)。
 
-08 的 AttemptPlan、ReservationReceipt 和管理查询结构由 `modules/usage/export.py` 导出至 `contracts/usage/`，供 11/17 内部受信调用使用。03 UsageEvent 继续复用原样例。渠道 UsageView 的 Token 字段现在允许 null，新增暂估费用和完整性字段；消费者需使用缺失展示，见 [08 交接](../docs/usage.md)。
+08 的 AttemptPlan、ReservationReceipt 和管理查询结构由 `modules/usage/export.py` 导出至 `contracts/usage/`，供 11/17 内部受信调用使用。03 UsageEvent 继续复用原样例。渠道 UsageView 的 Token 字段现在允许 null，新增暂估费用和完整性字段；消费者需使用缺失展示，见 [08 交接](../docs/operations.md#usage)。
 
-07 的 FrozenModel、DebugExecution、TestCompletion、ModelRequest 和 ModelEvent 由 `modules/models/export.py` 导出至 `contracts/models/`，供 16/17 内部受信调用使用。ModelEvent 保留供应商请求标识和发送边界；原始 usage 及缓存子集样例见 [models/usage-examples.json](models/usage-examples.json)，执行、取消和版本复核约定见 [07 交接](../docs/models.md)。
+07 的 FrozenModel、DebugExecution、TestCompletion、ModelRequest 和 ModelEvent 由 `modules/models/export.py` 导出至 `contracts/models/`，供 16/17 内部受信调用使用。ModelEvent 保留供应商请求标识和发送边界；原始 usage 及缓存子集样例见 [models/usage-examples.json](models/usage-examples.json)，执行、取消和版本复核约定见 [07 交接](../docs/configuration.md#models)。
 
 `contracts/runs/` 为 11 的独立交接契约，包含待 17 挂载的运行 OpenAPI、受理回执、租约、轨迹及服务端冻结定义。`ResolvedDefinition` 仅供内部解析器使用，不接受 HTTP 上传。通过 `python -m creativity_service.modules.runs.export --check` 核验。
 
-接入契约位于 `integrations/`：当前 OpenAPI 为 `openapi-v1.1.json`，委托载荷为 `DelegationClaims-v1.1.schema.json`，解除外部数据域的平台 ID 格式限制。旧 `openapi-v1.json`、`DelegationClaims.schema.json` 及实体/事实/指标 schema 保留兼容；HMAC 签名串、版本头和跨语言向量不变。调用约定与迁移见 [19 交接](../docs/access-decoupling.md)。生成与核对入口：`python -m creativity_service.modules.integrations.export [--check]`。
+接入契约位于 `integrations/`：当前 OpenAPI 为 `openapi-v1.1.json`，委托载荷为 `DelegationClaims-v1.1.schema.json`，解除外部数据域的平台 ID 格式限制。旧 `openapi-v1.json`、`DelegationClaims.schema.json` 及实体/事实/指标 schema 保留兼容；HMAC 签名串、版本头和跨语言向量不变。调用约定与迁移见 [19 交接](../docs/integration.md#access-decoupling)。生成与核对入口：`python -m creativity_service.modules.integrations.export [--check]`。
 
 MCP 的发现、差异及草稿导入契约位于 `contracts/mcp/`，由 `python -m creativity_service.modules.mcp.export` 生成，`--check` 已进入 `make check`。连接管理以主 OpenAPI 为准，执行继续使用 `contracts/tools/` 的统一入口。
 
-技能包契约位于 `skills/`：固定依赖摘要、内部加载请求、加载结果、可移植设置及加载测试快照。运行授权字段只由 16/17 受信服务构造，不作为业务请求参数。导出命令为 `python -m creativity_service.modules.skills.export`；加载语义与边界见 [技能交接](../docs/skills.md)。
+技能包契约位于 `skills/`：固定依赖摘要、内部加载请求、加载结果、可移植设置及加载测试快照。运行授权字段只由 16/17 受信服务构造，不作为业务请求参数。导出命令为 `python -m creativity_service.modules.skills.export`；加载语义与边界见 [技能交接](../docs/configuration.md#skills)。
 
-会话契约位于 `conversations/`，HTTP 路由同时进入主 OpenAPI。`ConversationRunRequest` 与 `SelectedContext` 为 12/17 内部交接对象，客户端只提交 `MessageInput`。导出及过期核对：`python -m creativity_service.modules.conversations.export [--check]`；语义见 [会话交接](../docs/conversations.md)。
+会话契约位于 `conversations/`，HTTP 路由同时进入主 OpenAPI。`ConversationRunRequest` 与 `SelectedContext` 为 12/17 内部交接对象，客户端只提交 `MessageInput`。导出及过期核对：`python -m creativity_service.modules.conversations.export [--check]`；语义见 [会话交接](../docs/runtime.md#conversations)。
 
 22 的 `backend/openapi-v1.json` 从正式 `/api/v1` 路由裁剪，覆盖 Token、运行/SSE、会话与产物。通过 `uv run creativity-openapi --backend` 生成，`--backend --check` 校验；已纳入 `make contracts/openapi/check` 对应目标。签名仍采用 integrations 目录的版本化协议和向量。

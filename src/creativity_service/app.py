@@ -100,7 +100,7 @@ def create_app(
     current_subjects: CurrentSubjectReader | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
-    configure_logging(settings.log_level)
+    configure_logging(settings, "api")
     provider = create_tracer_provider(settings, "api")
 
     @asynccontextmanager

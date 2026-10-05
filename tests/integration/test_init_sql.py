@@ -1,6 +1,7 @@
 """在真实 PostgreSQL 隔离 schema 验证全量 SQL、迁移衔接及失败回滚。"""
 
 from pathlib import Path
+from shutil import copytree, ignore_patterns
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -62,7 +63,7 @@ def snapshot(connection, schema):
     }
 
 
-def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_database):
+def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_database, tmp_path):
     database = isolated_database
     connection = database.connection
     connection.exec_driver_sql(ARCHIVE.read_text(encoding="utf-8"))
@@ -92,14 +93,35 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
     finally:
         connection.exec_driver_sql(f'DROP SCHEMA IF EXISTS "{migrated}" CASCADE')
 
+    # 临时追加真实增量，验证归档可接续升级；不能降到空库来代替增量兼容验证。
+    scripts = tmp_path / "alembic"
+    copytree("alembic", scripts, ignore=ignore_patterns("__pycache__"))
+    (scripts / "versions" / "next_test_revision.py").write_text(
+        '"""验证初始基线之后的字段增量。"""\n'
+        "from alembic import op\nimport sqlalchemy as sa\n"
+        'revision = "test_after_initial"\n'
+        f"down_revision = {head!r}\n"
+        "def upgrade():\n"
+        "    op.add_column('channels', sa.Column('migration_test_value', "
+        "sa.String(64), nullable=True, comment='迁移衔接测试字段'))\n"
+        "def downgrade():\n"
+        "    op.drop_column('channels', 'migration_test_value')\n",
+        encoding="utf-8",
+    )
+    config.set_main_option("script_location", str(scripts))
     with database.engine.begin() as upgrade_connection:
         upgrade_connection.execute(text(f'SET LOCAL search_path TO "{database.schema}"'))
         config.set_main_option("version_table_schema", database.schema)
         config.attributes["connection"] = upgrade_connection
-        # 已归档的版本应直接识别；再回退一个修订并升级，验证后续迁移可正常衔接。
         command.upgrade(config, "head")
-        command.downgrade(config, "-1")
+        upgraded_system = (
+            upgrade_connection.execute(text("SELECT * FROM channels")).mappings().one()
+        )
+        assert upgraded_system["migration_test_value"] is None
+        assert {key: upgraded_system[key] for key in system} == system
+        command.downgrade(config, head)
         command.upgrade(config, "head")
+        command.downgrade(config, head)
         assert snapshot(upgrade_connection, database.schema) == actual
 
     # 重复导入失败后，原结构、系统渠道和迁移记录必须完整保留。

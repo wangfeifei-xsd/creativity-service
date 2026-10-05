@@ -1,5 +1,6 @@
 """进程配置加载与启动校验。"""
 
+from pathlib import Path
 from typing import Literal, Self
 from urllib.parse import urlsplit
 
@@ -20,6 +21,9 @@ class Settings(BaseSettings):
     environment: Literal["development", "test", "production"] = "development"
     service_name: str = "creativity-service"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    log_directory: Path = Path("log")
+    log_max_bytes: int = Field(default=10 * 1024 * 1024, ge=1024)
+    log_backup_count: int = Field(default=5, ge=1, le=30)
     database_url: SecretStr
     redis_cache_url: SecretStr
     redis_auth_url: SecretStr

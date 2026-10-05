@@ -1,6 +1,0 @@
-<testsuites id="" name="" tests="1" failures="0" skipped="0" errors="0" time="23.257006999999998">
-<testsuite name="workspace-live.spec.ts" timestamp="2026-10-03T03:36:57.883Z" hostname="chromium" tests="1" failures="0" skipped="0" time="21.393" errors="0">
-<testcase name="真实 IAM/渠道：首次改密、开通、成员双入口、签发和轮换 Key、暂停与归档" classname="workspace-live.spec.ts" time="21.393">
-</testcase>
-</testsuite>
-</testsuites>

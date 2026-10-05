@@ -1,5 +1,13 @@
 # 模型变更记录
 
+## 2026-10-05：未上线阶段合并初始迁移
+
+将 26 个历史迁移合并为 [0001_initial.py](../../alembic/versions/0001_initial.py)，冻结模型 1.8.0 的完整建库定义；表、字段、中文注释、普通索引及应用模型保持一致。修订号继续使用 `0034_admission_indexes`，已完成旧迁移的开发库无需重建、重新标记版本或再次回填数据。原始迁移和旧数据回填资源随源码备份保留，不再进入当前迁移目录。
+
+`catalog.json` 和模块基线中的历史修订来源继续用于模型归属检查，以下历史变更记录也保持可追溯。新建数据库通过单一基线或完整初始化 SQL 建库；后续新增修订直接接续当前基线。执行及旧开发库衔接见 [初始化说明](../../sql/README.md#初始迁移基线)。
+
+核验结果：新基线与原完整迁移建库结果的 110 张表、1665 个字段和 244 个索引完全一致；开发库升级识别在只读事务中通过，结构及逐表数据摘要未变。数据库备份已恢复到独立临时库核验。64 项相关集成测试、211 项非集成测试及完整工程检查配方通过。
+
 ## 2026-10-05：完整初始化 SQL 归档
 
 新增 [sql/init.sql](../../sql/init.sql)，按当前最终结构一次创建 109 张应用表与 1 张迁移版本表、1665 个字段、244 个普通索引及全部中文注释，包含系统渠道初始记录。对应模型版本 1.8.0、迁移基线 `0034_admission_indexes`；此次归档不改变表结构或历史迁移。生成与一致性检查纳入工程命令，空库 SQL 与完整迁移链的等价性由真实 PostgreSQL 集成测试核验。执行方式见 [初始化说明](../../sql/README.md)。
@@ -34,11 +42,11 @@
 
 ## 2026-10-02 · 方案 11
 
-新增 `0011_runs` 与运行冻结基线：落地运行、幂等、投递、步骤、尝试、事件、租约及 checkpoint，新增 `run_contents`、`run_recoveries`、`run_occupancies`。运行增加稳定身份、冻结执行策略、deadline 来源、事件序号与释放标记；幂等补充管理操作者范围；投递和租约均记录代次。`0019_parallel_runs` 汇合同期迁移分支。完整验收见 [运行验证](../runs-validation.md)。
+新增 `0011_runs` 与运行冻结基线：落地运行、幂等、投递、步骤、尝试、事件、租约及 checkpoint，新增 `run_contents`、`run_recoveries`、`run_occupancies`。运行增加稳定身份、冻结执行策略、deadline 来源、事件序号与释放标记；幂等补充管理操作者范围；投递和租约均记录代次。`0019_parallel_runs` 汇合同期迁移分支。回归用例见 [运行测试](../../tests/integration/runs/)。
 
 ## 2026-10-02：14 MCP 连接与工具发现
 
-实现 `mcp_connections`、`mcp_checks`、`mcp_discoveries`、`mcp_imports`，迁移 `0014_mcp`。连接补配置/凭据修订、当前测试有效性、健康阈值与检查租约、原授权成员/数据域；快照补协商协议与凭据版本；导入补本地固定输入、影响类型、可读名称及契约可用状态。导入与 10 的草稿、版本、来源关联在同一短事务写入，重复导入按渠道、环境、连接、快照、远端名加锁处理。字段清单与实现冻结在 MCP 模块档案及 `baseline_v0014.json`，执行记录见 [MCP 交接](../mcp.md)。
+实现 `mcp_connections`、`mcp_checks`、`mcp_discoveries`、`mcp_imports`，迁移 `0014_mcp`。连接补配置/凭据修订、当前测试有效性、健康阈值与检查租约、原授权成员/数据域；快照补协商协议与凭据版本；导入补本地固定输入、影响类型、可读名称及契约可用状态。导入与 10 的草稿、版本、来源关联在同一短事务写入，重复导入按渠道、环境、连接、快照、远端名加锁处理。字段清单与实现冻结在 MCP 模块档案及 `baseline_v0014.json`，执行记录见 [MCP 交接](../integration.md#mcp)。
 
 ## 18 业务接入与身份委托实现 / 2026-10-02
 
@@ -53,15 +61,15 @@
 
 ## 2026-10-02：12 会话管理
 
-`0012_conversations` 接在 `0019_parallel_runs` 后，实现五张会话表及共享 `deletion_jobs`。增加固定 Agent 编码/名称、主体名称、保存期限、消息与轮次序号、不可变输入和版本契约、普通追问来源及已确认条件、摘要生成来源和截断记录、实际上下文来源。字段冻结在 `modules/conversations/baseline_v0012.json`，删除任务归属仍为 25，交接见 [会话管理](../conversations.md)。
+`0012_conversations` 接在 `0019_parallel_runs` 后，实现五张会话表及共享 `deletion_jobs`。增加固定 Agent 编码/名称、主体名称、保存期限、消息与轮次序号、不可变输入和版本契约、普通追问来源及已确认条件、摘要生成来源和截断记录、实际上下文来源。字段冻结在 `modules/conversations/baseline_v0012.json`，删除任务归属仍为 25，交接见 [会话管理](../runtime.md#conversations)。
 
 ## 2026-10-02：13 结构化记忆管理
 
-`0013_memory` 接在 `0012_conversations` 后，落地六张记忆表及主体级 `memory_deletion_jobs`。新增确认依据、来源等级、观测时间、使用次数、版本状态与序号、读取/建议开关、降级策略和检索 warnings；清理意图记录单项/清空范围，用于阻断旧运行回写。所有主体记录要求完整 Scope。历史 `value` 只保留显式空槽位，不保存可恢复的已改/已删原文。工具调用的既有 `result_summary` JSON 增加 `data_digest`，用于校验事实确实来自已登记结果，不存工具原文。冻结模型见 `modules/memory/baseline_v0013.json`，无需历史数据回填。交接见 [结构化记忆管理](../memory.md)。
+`0013_memory` 接在 `0012_conversations` 后，落地六张记忆表及主体级 `memory_deletion_jobs`。新增确认依据、来源等级、观测时间、使用次数、版本状态与序号、读取/建议开关、降级策略和检索 warnings；清理意图记录单项/清空范围，用于阻断旧运行回写。所有主体记录要求完整 Scope。历史 `value` 只保留显式空槽位，不保存可恢复的已改/已删原文。工具调用的既有 `result_summary` JSON 增加 `data_digest`，用于校验事实确实来自已登记结果，不存工具原文。冻结模型见 `modules/memory/baseline_v0013.json`，无需历史数据回填。交接见 [结构化记忆管理](../runtime.md#memory)。
 
 ## 16 Agent 定义与发布实现增量 / 2026-10-02
 
-`0016_agents` 接在 `0013_memory` 后，新增 `agents`、`agent_candidates`、`agent_release_records`、`agent_environment_states`；冻结字段见 `modules/agents/baseline_v0016.json`。版本、依赖引用及环境映射继续复用公共表，不回填历史数据。候选按完整 Scope 保存不可变定义与摘要，环境状态和发布记录按渠道/环境保存；发布草稿生成独立版本并保留原草稿。运行既有 `execution_policy` JSON 新增可空 `frozen_spec_id`，旧运行读取兼容。配置和候选均登记公共删除来源图；候选清理后保留摘要，清空正文。实现见 [Agent 交接](../agents.md)。
+`0016_agents` 接在 `0013_memory` 后，新增 `agents`、`agent_candidates`、`agent_release_records`、`agent_environment_states`；冻结字段见 `modules/agents/baseline_v0016.json`。版本、依赖引用及环境映射继续复用公共表，不回填历史数据。候选按完整 Scope 保存不可变定义与摘要，环境状态和发布记录按渠道/环境保存；发布草稿生成独立版本并保留原草稿。运行既有 `execution_policy` JSON 新增可空 `frozen_spec_id`，旧运行读取兼容。配置和候选均登记公共删除来源图；候选清理后保留摘要，清空正文。实现见 [Agent 交接](../configuration.md#agents)。
 
 ## 17 运行编排实现增量 / 2026-10-02
 
@@ -81,7 +89,7 @@
 
 先修订模型归档，再以 `0020_access_decoupling` 接在 `0016_agents` 后更新三列中文注释。`channels.business_type` 改为可选展示文本，保留历史分类；外部数据域类型/编号保留原长度与显式配置值，不推导默认映射。原列已经允许空值，不需回填、重建或改写数据；所有渠道、Key、client、数据域、运行来源和版本快照保持原值。旧 `0003_channels` 继续使用冻结基线，新运行元数据使用 `baseline_v0020.json`。
 
-Agent 增加通用 `workflow.v1` 配置入口，历史 `matching.v1/risk.v1/analysis.v1` 仍按原规则解析，不改写版本内容、摘要或运行快照。旧 HTTP 表和委托凭据无存储变更，工具目录归 MCP；兼容清单见 [19 交接](../access-decoupling.md)。
+Agent 增加通用 `workflow.v1` 配置入口，历史 `matching.v1/risk.v1/analysis.v1` 仍按原规则解析，不改写版本内容、摘要或运行快照。旧 HTTP 表和委托凭据无存储变更，工具目录归 MCP；兼容清单见 [19 交接](../integration.md#access-decoupling)。
 
 ## 1.5.0 / 2026-10-02：20 MCP 业务工具配置接入
 
@@ -89,17 +97,17 @@ Agent 增加通用 `workflow.v1` 配置入口，历史 `matching.v1/risk.v1/anal
 
 ## 2026-10-03：21 Skills 与 Agent 配置交付
 
-复用现有 JSONB 内容，无新表、列、迁移或历史数据回写。技能 `resource_versions.content` 新增可移植依赖的来源与输入输出契约、本地 `tool_bindings`；导出剥离本地映射，旧定义仅恢复原来已固定的工具引用。Agent 内容新增 `bindings.skill_loading` 和步骤 `operator`，进入既有版本摘要及 `agent_candidates.spec`。运行上下文的 JSON 内容新增 `tool_results`，保存实际查询的来源、时间和数据版本；与配置冻结时间分开。包文件 SHA-256、引用闭包、授权锁和运行来源关系沿用现有实现，详见 [21 交接](../configuration-delivery.md)。
+复用现有 JSONB 内容，无新表、列、迁移或历史数据回写。技能 `resource_versions.content` 新增可移植依赖的来源与输入输出契约、本地 `tool_bindings`；导出剥离本地映射，旧定义仅恢复原来已固定的工具引用。Agent 内容新增 `bindings.skill_loading` 和步骤 `operator`，进入既有版本摘要及 `agent_candidates.spec`。运行上下文的 JSON 内容新增 `tool_results`，保存实际查询的来源、时间和数据版本；与配置冻结时间分开。包文件 SHA-256、引用闭包、授权锁和运行来源关系沿用现有实现，详见 [21 交接](../configuration.md#configuration-delivery)。
 
 ## 1.6.0 / 2026-10-03：24 效果评测与发布门禁
 
-`0024_evaluations` 接在 `0021_mcp_subject_review` 后，新增样本集、不可变样本版本、样本、工具夹具、评测任务、历次结果及报告七表。冻结定义为 `modules/evaluations/baseline_v0024.json`，不改旧迁移，无历史数据回填。固定资料清单含版本与内容摘要；候选继续复用 `agent_candidates`，子 run、费用和工具证据继续复用既有模块。来源删除可清除正文及人工理由，保留非原文状态、摘要和用量关系。交接见 [评测模块](../evaluations.md)。
+`0024_evaluations` 接在 `0021_mcp_subject_review` 后，新增样本集、不可变样本版本、样本、工具夹具、评测任务、历次结果及报告七表。冻结定义为 `modules/evaluations/baseline_v0024.json`，不改旧迁移，无历史数据回填。固定资料清单含版本与内容摘要；候选继续复用 `agent_candidates`，子 run、费用和工具证据继续复用既有模块。来源删除可清除正文及人工理由，保留非原文状态、摘要和用量关系。交接见 [评测模块](../operations.md#evaluations)。
 
 ## 1.7.0 / 2026-10-03：25 删除传播与数据保留
 
 `0025_data_lifecycle` 接在 `0024_evaluations` 后，新建 `deletion_work_items`、`deletion_receipts`，沿用共享 `deletion_jobs`、公共标记、来源及屏障。冻结定义为 `modules/data_lifecycle/baseline_v0025.json`；存量任务由扫描幂等生成步骤，旧标记在当前可信数据库上导出到独立卷后启用清理。
 
-渠道 `retention_policy` JSON 增加运行/元数据/SSE/暂存/导出周期，旧 JSON 通过服务默认值兼容，无列回填。评测样本增加 `source_mode`，独立依据的等价摘要使用既有来源版本字段。工具缓存增加来源运行引用；旧缓存无有效来源时失效。账本 `raw_usage` 与事件载荷收敛为计量白名单。独立删除清单不进入数据库恢复快照；恢复步骤见 [删除生命周期交接](../data-lifecycle.md)。
+渠道 `retention_policy` JSON 增加运行/元数据/SSE/暂存/导出周期，旧 JSON 通过服务默认值兼容，无列回填。评测样本增加 `source_mode`，独立依据的等价摘要使用既有来源版本字段。工具缓存增加来源运行引用；旧缓存无有效来源时失效。账本 `raw_usage` 与事件载荷收敛为计量白名单。独立删除清单不进入数据库恢复快照；恢复步骤见 [删除生命周期交接](../operations.md#data-lifecycle)。
 
 2026-10-04：新增 `0033_layered_memory`，增加 `memory_consolidations` 持久化后台批次；`memory_policies` 增加通用画像属性与整理配置，`memories` 增加联合来源有效性模式。已有业务属性迁为已有渠道的显式配置，原模型迁移函数保持冻结；数据库不承担业务默认值或约束。
 ## 2026-10-04 受理并发与配额查询

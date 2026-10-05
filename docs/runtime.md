@@ -1,55 +1,61 @@
-# 17 运行编排与流式交付
+# 运行、会话与记忆
 
-实现日期：2026-10-02。依据 [方案 17](../../代码编写执行方案/17-运行编排与流式交付.md)。本单元把 [运行受理](runs.md)、[Agent 冻结定义](agents.md)、模型、工具、提示词、技能、会话和记忆装配为统一执行链路。检查见 [验证记录](runtime-validation.md)，事件协议见 [SSE 契约](runtime-sse.md)，外部供应商状态见 [兼容记录](runtime-providers.json)。
+API、Worker 与 Beat 共同提供持久化受理、执行、恢复和交付。启动方式见 [本地开发](local-development.md)，业务调用见 [接入指南](integration.md)。
 
-代码实现和自动验证不代表真实模型验收通过。本次环境没有可用模型凭据，两个真实供应商或协议组合仍待验证；生产发布仍须通过 24 的评测门禁。
+<a id="runs"></a>
+<a id="runtime"></a>
 
-## 装配和受理入口
+## 任务执行
 
-API 的 `create_app` 和 Celery 的 `worker_services` 均调用 `install_runtime`。API、Worker 和 Beat 使用相同数据库、模型加密主密钥、出站白名单及资源配置；Beat 继续补偿持久化投递意图。路由已经正式挂载。
+受理固定 Agent 发布版本、依赖、输入、身份和执行限额，同一事务保存运行、幂等、预算准入、会话占用和投递意图。Worker 从持久化记录恢复身份和当前授权；消息只是执行唤醒。
 
-| 入口 | 解析与用途 |
+模型或工具调用按步骤创建独立 Attempt，调用前复核取消、授权、删除、租约、时限和预算。成功响应与尝试一同保存，恢复优先复用已保存响应；已发送但结果未知的模型调用不自动重发。终态不会因迟到用量或响应反转。
+
+| 开发端口 | 用途 |
 | --- | --- |
-| `POST /api/v1/runs` | 只接收 Agent 编码及业务输入，由 `RuntimeResolver` 解析当前环境发布映射；用途为 production |
-| Agent 版本测试 | `AgentService.freeze_candidate` 固定 revision 和依赖，`RuntimeAdmission.submit` 创建 debug |
-| 评测服务内部端口 | 受控 `FrozenExecutionSpec` 使用 purpose=evaluation；24 的批量派发通过冻结解析器将样本占位与统一 run 原子关联；无公共上传执行定义的 HTTP 接口 |
-| 模型验证、提示词、工具、技能测试 | 模块端口生成冻结测试描述，无需已经存在正式 Agent；统一创建 debug 及独立 Attempt/用量 |
-| 管理重新执行 | 新建 run 并记录 parent_run_id；正式运行重新解析发布，Agent 调试重新冻结当前版本；24 管理的评测子 run 须从评测报告重跑，保留原候选、夹具和预算关联；模块测试创建新冻结描述 |
+| `RunService.admit_run` | 已认证上下文、业务输入和幂等键受理 |
+| `claim_lease/heartbeat` | 领取与续租，受 deadline 和当前状态限制 |
+| `start_step/start_attempt/mark_sent` | 准备执行并持久化发送意图 |
+| `finish_attempt/commit_step/finish_run` | 保存响应、步骤、结果及终态 |
+| `get_run/list_runs/trace/events` | 查询与事件交付 |
+| `cancel/rerun` | 请求取消，或创建关联原运行的新任务 |
 
-模块测试重新执行只形成新的运行记录，不改写原模块测试的能力认证结果；需要更新能力验证记录时，从模型管理重新发起测试。
+`finish_run` 的 `commit_result(uow)` 可在成功事务中回写模块数据，所需锁通过 `commit_keys` 声明。端口定义见 [运行服务](../src/creativity_service/modules/runs/)，字段见 [运行模型](data-model/modules/runs.md)。
 
-冻结测试的公共 `resource_versions` 只保存执行结构和描述摘要。样例原文、模型请求、加载文件和测试描述进入 `run_contents`，测试/样例到运行的来源关联在受理事务内登记，避免个人内容被放入不具备主体归属的配置版本。已有运行的冻结快照不随环境映射改变。
+运行详情展示步骤、实际模型输入、依赖、证据、用量完整性与产物。轨迹需要 `run:read`，原文与事件另需内容权限。Token 自然到期或连接断开不会取消任务，当前账号、渠道、Key 或源主体权限失效会阻止后续执行。
 
-## 执行与计量
+<a id="runtime-sse"></a>
 
-`RuntimeExecutor` 用普通服务循环执行结构化、固定模板和工具循环；stateful 流程用 LangGraph。计算节点通过 `StepRegistry.register(entrypoint, node_key, handler)` 加载，未注册明确报错，不执行用户上传代码。现有固定场景入口是旧基线遗留，方案 19 处理兼容。新增任务通过 Skills/Agent 配置表达，领域计算通过业务 MCP；不再要求 21–23 为每种场景注册代码处理器。通用算子扩展仍需独立实现与验证。
+## SSE
 
-API 可传入 `create_app(runtime_registry=..., current_subjects=...)`；Worker 在启动模块配置 `workers.runs.step_registry` 和 `workers.runs.current_subject_reader`。受信工厂也可直接传入 `worker_services(..., registry=..., current_subjects=...)`。业务主体权限读取器遵循 18 的 `CurrentSubjectReader`，必须向源系统复核当前权限；未装配时服务身份的后台执行拒绝继续，不能拿原 Token 或委托历史声明替代当前授权。20 的配置式主体复核仍是服务身份联调前置，不按业务仓库实现专用读取器。
+业务路径为 `GET /api/v1/runs/{run_id}/events`，管理路径为 `/admin/v1/runs/{run_id}/events`。使用带 Authorization 的流式请求；业务请求同时签署委托，Token 不放入 URL。
 
-每次调用前复核运行身份、冻结白名单、当前资源授权、取消、删除、deadline、次数和预算。模型按冻结路由顺序选择候选，单步骤默认最多重试 2 次，总模型交互默认 6 次、工具默认 10 次；冻结路由和工具策略可以收紧重试次数。结构修复占用同一重试及运行限额，崩溃恢复从已有 Attempt 计算已用次数。
+每个运行事件有递增 `sequence`，SSE `id` 使用该序号。重连携带 `Last-Event-ID` 或 `after_sequence`，请求头优先。客户端去重；事件缺口或 410 `EVENTS_EXPIRED` 时回查原运行快照。
 
-实际模型参数按 UTF-8 字节数保守估算，预算预占提交后再发送。每次重试有独立 Attempt 和账本记录；失败且实际用量不明时保留待核实，不计作零。流已输出正文后失败不启动回退拼接。取消、租约失效、删除和步骤超时会发出取消信号，消费者最多等待 5 秒收取适配器取消尾部用量；不能取得的用量继续 PENDING。
+`text_delta` 为未校验片段，`result` 才包含经过输出 schema 校验的结果，`completed` 表示技术终态。默认事件保留 24 小时，每 15 秒发送心跳。身份失效后发送无序号 `control` 并关闭，重新认证后可查询原运行。
 
-工具使用冻结白名单和独立 Attempt，输出 schema、来源时间、证据及产物权限通过校验后才保存成功响应。证据登记先于成功响应提交；恢复可以复用保存的响应，不跳过证据。最终结果仅引用本运行已登记且字段一致的工具证据，产物下载单独授权。
+响应使用 `text/event-stream`、`Cache-Control: no-store`、`X-Accel-Buffering: no`；代理需要支持流式转发。客户端解析示例见 [后端客户端](../examples/backend/client.py)。
 
-计算结果先校验再提交。`failure_policy=partial` 仅在冻结最终 schema 接受时返回 `PARTIAL`，数据为 `{"steps": 已完成步骤结果}`，并附失败步骤说明；schema 不接受此结构则失败。成功的技术状态和部分完成的业务状态分别展示。
+<a id="conversations"></a>
 
-## 上下文与恢复
+## 会话
 
-提示词只接收已声明且来源匹配的变量；指令段和输入/工具/记忆数据使用不同消息角色。技能按冻结绑定加载并记录文件路径和哈希，会话只读取受本次运行占用保护的上下文。记忆将当前策略与冻结的类型、读取开关、检索数量、TTL 和降级方式取交集；降级提示从持久化加载记录合并至最终业务 warnings，恢复后仍保留。实际消息、模型版本和加载来源可在运行详情查看。
+会话绑定已发布且允许会话的 Agent。消息以 `client_message_id` 去重，同一会话的不同请求同时受理返回 `SESSION_BUSY`；重发保持消息标识与内容。轮次、消息和运行通过受理事务关联，结果与片段投影受同一租约保护。
 
-会话创建目录列出当前环境已发布、启用会话并获执行授权的 Agent，创建和每轮受理再次验证。当前上下文策略提供近期消息与已有有效摘要的读取；不自动触发新的摘要模型调用。
+上下文读取近期消息和有效摘要，附件、导出及历史均复核当前权限与来源。会话归档控制状态，删除沿来源图传播；删除处理见 [运维指南](operations.md#data-lifecycle)。
 
-`integrations/checkpoints.SQLAlchemySaver` 复用 `checkpoints` 和 `run_contents`，支持 LangGraph checkpoint、父节点和 pending writes。每次读写都绑定完整 Scope、run 和 lease_version；不调用框架建表或 upsert。相同恢复点重复提交必须内容一致。取消、终态、授权失效、来源删除和旧租约均不能恢复或提交。
+<a id="memory"></a>
 
-模型响应与成功 Attempt 同事务保存。进程在响应保存后、步骤提交前崩溃时复用该响应；已发送但响应未保存的模型尝试保留 UNKNOWN，恢复停止自动重发。流断开和访问 Token 自然到期不取消任务；当前账号、成员、Key、渠道或源业务权限失效会阻止后续执行。
+## 记忆
 
-## 页面与契约
+| 层级 | 内容 |
+| --- | --- |
+| 会话 | 当前消息、上下文与摘要 |
+| 归档 | 后台整理已完成轮次，保留全部来源依赖 |
+| 人物画像 | 通用或渠道配置的偏好与事实；模型推断先待确认 |
 
-执行中心提供任务名称、状态、用途、智能体、调用密钥、错误类别、主体和时间筛选，环境/数据域沿用工作区。`RunViewer` 供执行中心和各模块调试区复用，展示步骤与尝试、输入权限、部分内容、实际加载、工具证据、依赖版本、用量完整性、产物、取消及新运行链接。内部编号只出现在可展开的排障区。
+通过 `/admin/v1/memory-policy` 配置画像属性与后台整理策略。Beat 每 60 秒扫描，默认会话空闲 1800 秒后按完整轮次整理，每批最多 20 条消息。生成复用原 Agent 冻结模型路由、统一运行和用量；事实来源仍需受控证据。
 
-`RunDetail`、`RunFilterOptions`、公开运行路由、SSE 响应类型、JSON Schema 和前端生成类型已同步。详情原文需要 `run:content` 与敏感数据权限，轨迹元数据只需 `run:read`。产物枚举和下载分别复核授权。前端使用带 Authorization 的 fetch 流，游标去重；过期回到原运行快照，网络断线重连，不创建新任务。
+关闭长期记忆暂停整理及跨会话读取，清空则删除长期内容并阻断旧消息再次生成。`/memory-consolidations` 查看后台任务，失败后可显式重试；限流等待与生成失败次数分别处理。来源删除后对应归档、画像候选、向量及恢复内容失效。
 
-## 存储增量
-
-本单元复用既有表，无 DDL 迁移。`execution_policy` JSON 补充步骤名称、token_limit、cost_limit；`run_contents.kind` 增加 execution_spec、inputs:* 和部分文本；`checkpoints.namespace` 使用 `langgraph:<namespace>` 与 `langgraph:<namespace>:writes`。运行删除清理器同时删除 checkpoint 和受控原文，用量、终态及脱敏元数据继续保留。详见 [数据模型增量](data-model/changes.md)。
+属性及接口字段见 [记忆契约](../contracts/memory/)，可选向量环境见 [部署说明](../deploy/vector.md)。

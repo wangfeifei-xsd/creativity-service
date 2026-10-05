@@ -370,15 +370,13 @@ async def test_legacy_and_generic_entrypoints_execute_frozen_configuration(runti
     assert original.definition.entrypoint == entrypoint
 
 
-async def test_decoupling_migration_preserves_saved_identity_versions_and_runs(runtime_env):
+async def test_baseline_upgrade_preserves_saved_identity_versions_and_runs(runtime_env):
     from alembic.config import Config
-    from alembic.script import ScriptDirectory
     from sqlalchemy import select
 
     from alembic import command
     from creativity_service.core.database.audit import audit_database
     from creativity_service.core.primitives import digest
-    from creativity_service.modules.memory.tables import build_metadata as frozen_memory_tables
     from creativity_service.modules.runtime.storage import load_spec
     from creativity_service.storage import metadata
 
@@ -395,23 +393,10 @@ async def test_decoupling_migration_preserves_saved_identity_versions_and_runs(r
         config = Config("alembic.ini")
         config.set_main_option("version_table_schema", env.schema)
         config.attributes["connection"] = connection
-        revisions = {
-            revision.revision
-            for revision in ScriptDirectory.from_config(config).walk_revisions(
-                base="base", head="0016_agents"
-            )
-        }
 
         def contents():
             result = {}
             for table in metadata.tables.values():
-                # 兼容盘点只比较降级目标已有表；后续新增表由完整迁移往返用例核验。
-                if table.info["revision"] not in revisions:
-                    continue
-                # 旧修订的数据比较使用当时的列，不能查询尚未存在的增量字段。
-                frozen = frozen_memory_tables().tables.get(table.name)
-                if frozen is not None:
-                    table = frozen
                 rows = (
                     connection.execute(
                         select(table).where(
@@ -427,8 +412,6 @@ async def test_decoupling_migration_preserves_saved_identity_versions_and_runs(r
             return digest(result)
 
         before = contents()
-        command.downgrade(config, "0016_agents")
-        assert contents() == before
         command.upgrade(config, "head")
         command.upgrade(config, "head")
         assert contents() == before

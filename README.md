@@ -47,35 +47,35 @@ Creativity AI 能力平台的后端服务，提供模型接入、Agent 编排、
 | Docker | 支持 Docker Compose v2 |
 | Make | 用于执行项目开发命令 |
 
-以下命令均在 `creativity-service` 项目目录执行。开发依赖由 Docker Compose 启动，API、Worker 和调度器在本地 Python 环境运行。
+以下命令均在 `creativity-service` 项目目录执行。优先复用本机已有依赖，缺少时按需使用 Docker Compose 启动；API、Worker 和调度器在本地 Python 环境运行。
 
 ## 快速开始
 
-### 1. 安装依赖
+### 1. 启动本地环境
 
-首次使用时复制配置模板，再安装锁定版本的依赖：
+准备好 Python 3.12 和 uv 后执行：
 
 ```bash
-cp .env.example .env
-uv sync --locked
+./scripts/start-local.sh
 ```
 
-### 2. 初始化本地环境
+脚本会自动准备配置与 Python 依赖，检查并复用 PostgreSQL、Redis、pgvector 和对象存储，缺少时启动对应 Docker 服务，再执行迁移、初始化系统渠道，启动 API、Worker 和调度器。日志写入 `log/`，默认每个文件 10 MiB、保留 5 份历史。依赖识别、命令参数和日志说明见 [本地启动文档](docs/local-development.md)。
+
+### 2. 初始化管理员
+
+首次安装时另开终端执行：
 
 ```bash
-make infra-up
-make migrate
-make channels-init
 uv run creativity-iam init-admin --login-name admin --display-name 管理员
 ```
 
-上述命令依次启动 PostgreSQL、Redis 和 MinIO，创建开发存储桶，执行数据库迁移，初始化系统渠道和平台管理员。管理员初始化仅在首次安装时执行；密码通过终端交互输入，首次登录后需要修改初始密码。
+密码通过终端交互输入，首次登录后需要修改初始密码。
 
 空库也可直接执行完整归档 [sql/init.sql](sql/init.sql)，一次创建当前全部表、索引、中文注释、系统渠道和迁移版本记录。执行方式与后续管理员初始化见 [SQL 初始化说明](sql/README.md)。
 
-### 3. 启动服务
+### 3. 按需单独启动
 
-在一个终端启动 API：
+需要分别调试进程时，可先执行 `./scripts/start-local.sh --prepare-only`，再分别在终端运行以下命令。一键脚本已在运行时无需重复执行：
 
 ```bash
 make dev
@@ -107,16 +107,17 @@ Worker 执行后台任务，调度器触发运行补偿、用量导出、连接�
 curl -fsS http://127.0.0.1:8000/health/ready
 ```
 
-就绪检查会报告数据库、Redis 和对象存储状态，必要依赖不可用时返回 HTTP 503。管理接口使用 `/admin/v1` 前缀，业务调用接口使用 `/api/v1` 前缀；认证及调用示例见 [统一 API 接入指南](docs/unified-api.md)。
+就绪检查会报告数据库、Redis 和对象存储状态，必要依赖不可用时返回 HTTP 503。管理接口使用 `/admin/v1` 前缀，业务调用接口使用 `/api/v1` 前缀；认证及调用示例见 [统一 API 接入指南](docs/integration.md#unified-api)。
 
-结束开发时，在各终端按 `Ctrl+C` 停止进程，再执行 `make infra-down` 停止开发依赖；数据库和对象存储的命名卷会保留。
+结束开发时按 `Ctrl+C`，一键脚本会停止本次启动的应用进程。Docker 依赖继续保留，需要停止时执行 `make infra-down`；数据库和对象存储的命名卷会保留。
 
 ## 配置
 
-服务从当前目录读取 `.env`，进程环境变量优先。基础配置模板见 [.env.example](.env.example)，详细说明见 [工程配置文档](docs/bootstrap.md)。
+服务从当前目录读取 `.env`，进程环境变量优先。基础配置模板见 [.env.example](.env.example)，详细说明见 [工程配置文档](docs/development.md#bootstrap)。
 
 | 配置项 | 用途 |
 | --- | --- |
+| `CREATIVITY_LOG_DIRECTORY`、`CREATIVITY_LOG_MAX_BYTES`、`CREATIVITY_LOG_BACKUP_COUNT` | 日志目录、文件大小上限及轮转保留数量 |
 | `CREATIVITY_DATABASE_URL` | PostgreSQL 连接地址 |
 | `CREATIVITY_REDIS_CACHE_URL`、`CREATIVITY_REDIS_AUTH_URL` | 缓存与认证 Redis 连接 |
 | `CREATIVITY_CELERY_BROKER_URL`、`CREATIVITY_CELERY_RESULT_URL` | 任务队列与结果 Redis 连接 |
@@ -127,12 +128,14 @@ curl -fsS http://127.0.0.1:8000/health/ready
 
 本地默认端口为 PostgreSQL `55432`、Redis `56379`、MinIO API `59000`、MinIO 控制台 `59001`。缓存、认证、任务队列和任务结果分别使用独立的 Redis 数据库。
 
-示例凭据用于本地开发，部署时通过环境注入实际凭据。删除清单的共享持久卷要求见 [数据生命周期文档](docs/data-lifecycle.md)；向量检索、MCP OAuth、脚本执行和外部身份等可选能力见 [扩展配置](docs/enhancements/configuration.md)。
+示例凭据用于本地开发，部署时通过环境注入实际凭据。删除清单的共享持久卷要求见 [数据生命周期文档](docs/operations.md#data-lifecycle)；向量检索、MCP OAuth、脚本执行和外部身份等可选能力见 [扩展配置](docs/configuration.md#enhancements)。
 
 ## 开发与测试
 
 | 命令 | 说明 |
 | --- | --- |
+| `make local` | 检查并准备依赖，启动 API、Worker 和调度器 |
+| `make local-check` / `make local-prepare` | 仅检查依赖 / 准备依赖与数据 |
 | `make dev` | 启动支持热重载的 API |
 | `make worker` | 启动本地单进程 Worker |
 | `make scheduler` | 启动 Celery Beat 调度器 |
@@ -151,7 +154,9 @@ curl -fsS http://127.0.0.1:8000/health/ready
 
 `make check` 无需启动外部服务。执行 `make integration` 或 `make storage-audit` 前，需要准备 `.env` 并启动开发依赖；数据库结构检查还需先运行迁移。集成测试使用隔离测试环境，相关用例会启动独立 Worker。
 
-接口变更后执行 `make openapi`，再按 [前端接口类型生成说明](../creativity-web/README.md#接口类型生成) 更新前端类型。完整命令以 [Makefile](Makefile) 为准，真实模型和组合场景的验证范围见 [验收文档](docs/acceptance/README.md)。
+未上线阶段的历史迁移已合并为一个完整初始基线，保留最新修订号以直接识别现有开发库。空库初始化及后续升级见 [数据库初始化说明](sql/README.md#初始迁移基线)。
+
+接口变更后执行 `make openapi`，再按 [前端接口类型生成说明](../creativity-web/README.md#接口类型生成) 更新前端类型。完整命令以 [Makefile](Makefile) 为准，真实模型和组合场景的验证方式见 [测试指南](docs/testing.md)。
 
 ## 项目结构
 
@@ -168,31 +173,26 @@ creativity-service/
 ├── alembic/             # 数据库迁移
 ├── contracts/           # OpenAPI、JSON Schema 与示例
 ├── deploy/              # 开发依赖及可选能力的容器配置
-├── docs/                # 模块说明、数据模型与验证记录
-├── examples/            # 接入和配置示例
-├── scripts/             # 文档、契约及验收工具
+├── docs/                # 常用指南与数据模型
+├── examples/            # 后端调用、两套配置与验收脚本
+├── scripts/             # 本地启动、模型和 SQL 生成及验收工具
 ├── sql/                 # 完整空库初始化 SQL 与执行说明
 ├── sdks/                # 调用 SDK
 ├── tests/               # 单元、契约、集成及端到端测试
+├── log/                 # 本地日志，不提交 Git
 ├── .env.example         # 本地配置模板
 ├── Makefile             # 常用开发命令
 └── pyproject.toml       # Python 依赖与工具配置
 ```
 
+各脚本的用途、入口与调用关系见 [脚本说明](scripts/README.md)。
+
 ## 文档
 
-| 主题 | 入口 |
-| --- | --- |
-| API 与客户端 | [接入指南](docs/unified-api.md) · [调用示例](examples/backend/README.md) · [SDK](sdks/README.md) |
-| 账号与渠道 | [认证与授权](docs/iam.md) · [渠道管理](docs/channels.md) |
-| 模型与配置 | [模型](docs/models.md) · [提示词](docs/prompts.md) · [Skills](docs/skills.md) · [Agent](docs/agents.md) |
-| 工具与业务接入 | [MCP](docs/mcp.md) · [工具](docs/tools.md) · [业务接入](docs/integrations.md) · [配置示例](docs/configuration-delivery.md) |
-| 运行与会话 | [任务运行](docs/runs.md) · [运行编排](docs/runtime.md) · [SSE 协议](docs/runtime-sse.md) · [会话](docs/conversations.md) |
-| 记忆与数据 | [记忆](docs/memory.md) · [数据生命周期](docs/data-lifecycle.md) · [数据模型](docs/data-model/README.md) |
-| 用量与质量 | [用量和预算](docs/usage.md) · [效果评测](docs/evaluations.md) |
-| 扩展能力 | [配置说明](docs/enhancements/configuration.md) · [向量环境](deploy/vector.md) |
-| 验证与验收 | [组合验收](docs/acceptance/README.md) · [业务接入验证](docs/business-independence-validation.md) · [扩展验证](docs/enhancements/verification.md) |
+日常使用从 [文档目录](docs/README.md) 进入：本地开发、开发、配置、接入、运行、运维和测试共 7 份指南。调用和配置样例见 [示例索引](examples/README.md)，客户端见 [SDK](sdks/README.md)。
+
+字段查 [数据模型](docs/data-model/README.md)，验收复现方式查 [测试指南](docs/testing.md)。
 
 ## 参与开发
 
-开发前阅读 [项目规则](../rule.md)、[技术方案](../技术方案.md) 和对应的 [模块需求](../需求文档/00-需求总纲.md)。公共设施与模块接入方式见 [开发文档](docs/core.md)。提交变更前执行 `make check`，涉及基础设施或跨模块行为时补充相应集成验证。
+开发前阅读 [项目规则](../rule.md)、[技术方案](../技术方案.md) 和对应的 [模块需求](../需求文档/00-需求总纲.md)。公共设施与模块接入方式见 [开发文档](docs/development.md#core)。提交变更前执行 `make check`，涉及基础设施或跨模块行为时补充相应集成验证。

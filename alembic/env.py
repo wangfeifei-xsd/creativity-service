@@ -1,4 +1,4 @@
-"""迁移命令入口，空修订链不创建任何数据库表。"""
+"""显式迁移命令入口，在线与离线执行共用版本存储及事务锁。"""
 
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
@@ -15,7 +15,7 @@ target_metadata = metadata
 def run_migrations() -> None:
     scripts = ScriptDirectory.from_config(context.config)
     if not scripts.get_heads():
-        print("当前没有数据库修订；方案 03 接入公共数据模型后开始迁移。")
+        print("当前没有数据库修订，无需迁移。")
         return
     database_url = Settings().database_url.get_secret_value()
     options = {

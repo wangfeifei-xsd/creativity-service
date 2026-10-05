@@ -1,5 +1,7 @@
 """Celery 独立进程装配，当前不登记业务任务。"""
 
+import os
+import sys
 from typing import Any
 
 from celery import Celery, signals
@@ -11,6 +13,7 @@ from creativity_service.core.observability import configure_logging, create_trac
 
 settings = Settings()
 provider: TracerProvider | None = None
+worker_main_pid = os.getpid()
 
 app = Celery("creativity_service")
 app.conf.update(
@@ -35,7 +38,7 @@ app.conf.update(
 
 
 def setup_worker_logging(**_kwargs: Any) -> None:
-    configure_logging(settings.log_level)
+    configure_logging(settings, "scheduler" if "beat" in sys.argv[1:] else "worker")
 
 
 def start_tracing() -> None:
@@ -46,12 +49,14 @@ def start_tracing() -> None:
 
 
 def init_worker(sender: Any, **_kwargs: Any) -> None:
-    # 单进程池没有子进程初始化信号；预派生池在各子进程内初始化导出线程。
+    # 单进程池提前初始化；重复到达的初始化信号复用同一个追踪导出器。
     if not sender.pool_cls.__module__.endswith("prefork"):
         start_tracing()
 
 
 def init_worker_process(**_kwargs: Any) -> None:
+    # solo 池也发送此信号，但仍在主进程内；只有真正的子进程使用独立日志文件。
+    configure_logging(settings, "worker", child_process=os.getpid() != worker_main_pid)
     start_tracing()
 
 

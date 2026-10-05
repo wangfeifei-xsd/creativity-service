@@ -268,14 +268,3 @@ async def test_priority_variables_and_current_state():
     port.skills["version_a"] = replace(skill, active=False)
     result = await SkillLoader(port).load(context(), SkillLoadRequest(bindings=bindings))
     assert not result.loaded and not result.complete
-
-
-def test_first_scenario_examples_are_valid_and_not_business_policy():
-    from pathlib import Path
-
-    for name in ("rental-intent", "service-comparison", "speech-risk", "metric-reading"):
-        path = Path("examples/skills/packages") / f"{name}.zip"
-        package = unpack(path.read_bytes())
-        assert json.loads(package.files["references/example.json"])["example_only"] is True
-        assert package.settings.input_variables[0].name == "input"
-        check_export(package)

@@ -14,6 +14,6 @@ uv run python examples/mcp/server.py --profile archive --port 18081 --identity-f
 uv run python examples/mcp/server.py --profile matrix --port 18082 --identity-file /absolute/path/identity.json
 ```
 
-每条连接单独登记，测试服务令牌为 `fixture-service-only`；此常量仅用于本机受控测试。平台出站策略需显式允许两端口。按 [配置指南](../../docs/mcp-business.md) 完成发现、启用、身份绑定、导入、发布、Agent 绑定及 API 调用。
+每条连接单独登记，测试服务令牌为 `fixture-service-only`；此常量仅用于本机受控测试。平台出站策略需显式允许两端口。按 [配置指南](../../docs/integration.md#mcp-business) 完成发现、启用、身份绑定、导入、发布、Agent 绑定及 API 调用。
 
 自动验证使用同一 `serve()` 启动独立随机端口，将 scope 与权限绑定到临时 PostgreSQL/Redis 测试环境。可注入 schema 变化、当前授权撤销、复核过期、范围错误、结果错误、空/缺失/部分结果及真实副作用。真实网络不等于真实业务验收；模型响应为既有替身，不冒充真实供应商能力。

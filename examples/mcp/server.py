@@ -16,8 +16,8 @@ from creativity_service.modules.integrations.subject_contracts import (
 )
 
 
-@contextmanager
-def serve(profile="archive", port=0, token="fixture-service-only"):
+def fixture(profile="archive", token="fixture-service-only"):
+    """创建受控工具状态，供离线配置生成与 MCP 服务共用。"""
     state = SimpleNamespace(
         profile=profile,
         token=token,
@@ -83,6 +83,13 @@ def serve(profile="archive", port=0, token="fixture-service-only"):
             "required": ["total", "unit"],
         }
     )
+
+    return state
+
+
+@contextmanager
+def serve(profile="archive", port=0, token="fixture-service-only"):
+    state = fixture(profile, token)
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"

@@ -1,4 +1,4 @@
-"""完整迁移链在独立 schema 内升级并审查实际表、字段注释和普通索引。"""
+"""初始基线在独立 schema 内往返迁移并审查实际表、字段注释和普通索引。"""
 
 from uuid import uuid4
 
@@ -13,7 +13,7 @@ from creativity_service.core.database.audit import audit_database
 pytestmark = pytest.mark.integration
 
 
-def test_parallel_migration_head_and_actual_database_audit():
+def test_initial_baseline_roundtrip_and_actual_database_audit():
     schema = f"test_runs_migration_{uuid4().hex}"
     engine = create_engine(Settings().database_url.get_secret_value())
     try:
@@ -25,7 +25,7 @@ def test_parallel_migration_head_and_actual_database_audit():
             config.attributes["connection"] = connection
             command.upgrade(config, "head")
             assert audit_database(connection, schema) == []
-            command.downgrade(config, "0010_tools")
+            command.downgrade(config, "base")
             command.upgrade(config, "head")
             assert audit_database(connection, schema) == []
     finally:

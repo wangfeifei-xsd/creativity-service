@@ -1,9 +1,13 @@
 """将受控 MCP 契约制成可导入技能包与 Agent 配置，不注册平台业务模块。"""
 
+import argparse
 import copy
+import hashlib
 import json
 import zipfile
 from pathlib import Path
+
+from examples.mcp.server import fixture
 
 
 def prepare(source, folder):
@@ -75,3 +79,32 @@ def prepare(source, folder):
     }
     (folder / "agent.json").write_text(json.dumps(definition, ensure_ascii=False, indent=2) + "\n")
     return archive, definition
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="生成三渠道验收配置")
+    parser.add_argument("--output", type=Path, default=Path(".local/examples/onboarding"))
+    args = parser.parse_args()
+    scenarios = json.loads(Path(__file__).with_name("scenarios.json").read_text())
+    manifest = []
+    for scenario in scenarios:
+        source = fixture(scenario["profile"])
+        source.input_schema = copy.deepcopy(scenario.get("input_schema", source.input_schema))
+        folder = args.output / scenario["code"]
+        prepare(source, folder)
+        manifest.append(
+            {
+                "scenario": scenario["code"],
+                "files": {
+                    name: hashlib.sha256((folder / name).read_bytes()).hexdigest()
+                    for name in ("skill.zip", "agent.json")
+                },
+            }
+        )
+    (args.output / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
+    )
+
+
+if __name__ == "__main__":
+    main()

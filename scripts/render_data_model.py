@@ -33,8 +33,10 @@ def render():
         "本档案覆盖全部 P0 持久化对象。机器清单为 [catalog.json](catalog.json)，"
         "字段文档由 `scripts/render_data_model.py` 生成。"
         "共享基础的代码定义位于 `core/database/baseline_v0001.json`；"
-        "公共表对应 `0001_core`，账号模块对应 `0002_iam`，渠道模块对应 `0003_channels`；"
-        "其余通用平台表按所属方案建库。"
+        "各模块归档中的 `revision` 保留原始修订来源，供模型归属与一致性检查使用。"
+        "全部已实现 PostgreSQL 表统一由 "
+        "[初始基线](../../alembic/versions/0001_initial.py) 建库，"
+        "当前修订号沿用 `0034_admission_indexes`。"
         "开发规范引用 [rule.md](../../../rule.md)。",
         "",
         "完整空库初始化脚本：[sql/init.sql](../../sql/init.sql)；"
@@ -73,7 +75,7 @@ def render():
                 f"## {t['name']}",
                 "",
                 f"{t['comment']}。状态：{t['status']}；归属：{t['scope']}；"
-                f"迁移：{t['revision'] or '由所属方案新增'}。",
+                f"归档修订：{t['revision'] or '由所属方案新增'}。",
                 "",
                 *field_table(t["columns"]),
                 "",

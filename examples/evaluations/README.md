@@ -1,14 +1,14 @@
 # 通用评测装配
 
-本目录为方案 24/26 提供两个不同输入输出结构的 Agent 及 12 条经技术审阅的固定样本。实现边界见 [评测交接](../../docs/evaluations.md)。
+本目录为方案 24/26 提供两个不同输入输出结构的 Agent 及 12 条经技术审阅的固定样本。实现边界见 [评测交接](../../docs/operations.md#evaluations)。
 
 在 `creativity-service` 目录执行：
 
 ```sh
-.venv/bin/python -m examples.evaluations.prepare
+uv run python -m examples.evaluations.prepare
 ```
 
-默认写入 `generated/`，可用 `--output` 指定其他目录。每组包含 Agent 定义、JSONL 样本及固定模型响应；`manifest.json` 登记样本数、标签来源及适用范围。
+默认写入 `.local/examples/evaluations/`，可用 `--output` 指定其他目录；生成产物不提交 Git。每组包含 Agent 定义、JSONL 样本及固定模型响应；`manifest.json` 登记样本数、标签来源及适用范围。
 
 | 配置 | 输入 | 输出 data | 样本 |
 | --- | --- | --- | --- |
@@ -26,4 +26,4 @@ CREATIVITY_EVALUATION_EVIDENCE_DIR=.logs/24 \
   .venv/bin/pytest tests/integration/evaluations -k two_shapes -q
 ```
 
-测试使用固定模型响应，不访问真实模型供应商。报告带有本次测试渠道、任务、候选、子 run、依赖及数据摘要；测试数据库在结束后清理。已归档报告见 [evaluations-evidence](../../docs/evaluations-evidence)。26 应用同一份样本契约接入真实模型与 MCP，并另存实际报告及标签审阅依据。
+测试使用固定模型响应，不访问真实模型供应商。报告带有本次测试渠道、任务、候选、子 run、依赖及数据摘要；测试数据库在结束后清理。26 应用同一份样本契约接入真实模型与 MCP，并保存本轮实际报告及标签审阅依据；运行方式见 [测试指南](../../docs/testing.md)。

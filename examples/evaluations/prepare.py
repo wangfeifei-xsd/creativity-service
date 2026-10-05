@@ -143,7 +143,7 @@ def bundle(kind: str) -> tuple[AgentCreate, list[CaseInput], dict[str, dict]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="装配方案 24 通用评测样本")
-    parser.add_argument("--output", type=Path, default=Path("examples/evaluations/generated"))
+    parser.add_argument("--output", type=Path, default=Path(".local/examples/evaluations"))
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     for name in ("text_items", "numeric_summary"):

@@ -1,5 +1,6 @@
 -- Creativity 全量初始化归档，适用于 PostgreSQL 17 空库或空 schema。
 -- 模型版本：1.8.0；迁移基线：0034_admission_indexes。
+-- 初始建库基线：alembic/versions/0001_initial.py；后续修订在其上追加。
 -- 包含 110 张表、1665 个字段、244 个普通索引及全部中文注释。
 -- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。
 -- 执行方式与管理员初始化见 sql/README.md；表创建在连接的当前 schema。

@@ -12,7 +12,15 @@ Agent 流程定义沿用现有内联 schema 契约，矩阵配置把 MCP 原样�
 
 第三渠道在前两组完成运行、完成一次构建比对后才创建。三组均使用 `shared-user-001`、外部编号 `shared-001`、Agent 编码 `shared_agent`、技能编码 `shared_skill` 和相同幂等键；额外用相同本地工具编码 `shared_lookup` 完成独立调用。
 
-已生成的配置分别位于 [文档查询](configurations/documents/)、[矩阵计算](configurations/matrix/) 和 [第三渠道](configurations/third/)，文件摘要见 [配置清单](configurations/manifest.json)。各目录含可导入的 `skill.zip` 与 `agent.json`；后者的输入输出、步骤和流转内容可填入管理向导，`bind_*` 必须替换为目标渠道选择的资源版本。运行限时为 180 秒，其余运行限制采用通用向导默认值，未写入测试运行的临时绑定编号。
+在服务工程目录按需生成配置：
+
+```sh
+uv run python -m examples.onboarding.prepare
+```
+
+默认写入 `.local/examples/onboarding/`，可用 `--output` 指定其他目录；生成产物不提交 Git。`documents/`、`matrix/`、`third/` 各含可导入的 `skill.zip` 与 `agent.json`，根目录 `manifest.json` 记录文件摘要。生成过程只读取本地契约，不启动 MCP 或连接数据库。
+
+Agent 的输入输出、步骤和流转内容可填入管理向导，`bind_*` 必须替换为目标渠道选择的资源版本。运行限时为 180 秒，其余运行限制采用通用向导默认值。
 
 ## 固定版本复现
 

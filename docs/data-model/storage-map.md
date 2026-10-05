@@ -25,4 +25,4 @@
 
 04 认证索引采用 `creativity:auth:index:{channel_id}:{account|member|key}:{id}`，账号索引归 system，成员和 Key 索引归各业务渠道。登录限速键为 `creativity:auth:limit:system:{login|ip}:{摘要}`，TTL 300 秒。Token KV 必含 channel_id；使用固定期限且不自动续期。PostgreSQL 的 iam_revocations 保存补偿元数据及退出意图，不保存 Token 明文，也不代替 Redis 会话真值。
 
-25 已实现默认运行 30 天、会话 90 天、元数据 365 天，以及 SSE 24 小时、暂存/孤儿对象 1 小时、普通导出 7 天。记忆使用自身到期时间；待结算用量受保护。具体覆盖与恢复命令见 [生命周期交接](../data-lifecycle.md)。系统控制面的汇总导出仍由用量模块自身授权及到期任务管理，不从业务渠道扫描跨渠道清理。
+25 已实现默认运行 30 天、会话 90 天、元数据 365 天，以及 SSE 24 小时、暂存/孤儿对象 1 小时、普通导出 7 天。记忆使用自身到期时间；待结算用量受保护。具体覆盖与恢复命令见 [生命周期交接](../operations.md#data-lifecycle)。系统控制面的汇总导出仍由用量模块自身授权及到期任务管理，不从业务渠道扫描跨渠道清理。
