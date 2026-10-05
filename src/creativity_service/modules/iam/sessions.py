@@ -136,6 +136,10 @@ class SessionService:
     async def channels(self, session: AdminSession) -> list[WorkspaceOption]:
         await self.authentication.revalidate_admin(session, governance=True)
         await self.authentication.active_account(session.account.id)
+        return await self.channel_options(session)
+
+    async def channel_options(self, session: AdminSession) -> list[WorkspaceOption]:
+        """复用当前调用已经验证的身份；各渠道授权仍由目录核准。"""
         if self.directory is None:
             raise unavailable("渠道工作区目录")
         from creativity_service.modules.channels.state import ChannelDirectory
@@ -249,6 +253,8 @@ class SessionService:
         """返回系统登录范围并撤销旧工作区；平台操作仍逐接口验证授权。"""
         await self.authentication.revalidate_admin(session, governance=True)
         account = await self.authentication.active_account(session.account.id)
+        if not platform_actions(account):
+            raise ServiceError("FORBIDDEN", "无权访问平台管理", 403)
         response, record = await self.authentication.tokens.issue(
             purpose="login",
             principal_id=account.id,
@@ -295,6 +301,18 @@ class SessionService:
     async def view(self, session: AdminSession) -> SessionView:
         await self.authentication.revalidate_admin(session, governance=True)
         context = session.context
+        account = await self.authentication.active_account(session.account.id)
+        can_access_platform = bool(platform_actions(account))
+        options = await self.channel_options(session) if self.directory is not None else []
+        options.sort(
+            key=lambda option: (
+                option.channel_name,
+                option.channel_id,
+                ("test", "dev", "fat", "prod").index(option.environment),
+                option.data_scope_name,
+                option.data_scope_id,
+            )
+        )
         workspace = None
         if isinstance(context, AuthContext):
             member = await self.authentication.active_member(context)
@@ -315,7 +333,6 @@ class SessionService:
                     ]
                 )
             )
-            options = await self.channels(session)
             workspace = next(
                 (
                     o
@@ -337,7 +354,6 @@ class SessionService:
             if not (state.channel_active and state.environment_active and state.data_scope_active):
                 actions &= GOVERNANCE_ACTIONS | {"audit:read", "usage:read"}
         else:
-            account = await self.authentication.active_account(session.account.id)
             actions = platform_actions(account)
         channel_id = session.context.scope.channel_id
         codes = member.roles if isinstance(session.context, AuthContext) else account.platform_roles
@@ -371,5 +387,10 @@ class SessionService:
                 for action in sorted(actions)
             ],
             workspace=workspace,
+            workspace_options=options,
+            default_workspace=(
+                options[0] if options and workspace is None and not can_access_platform else None
+            ),
+            can_access_platform=can_access_platform,
             expires_at=session.token.expires_at,
         )

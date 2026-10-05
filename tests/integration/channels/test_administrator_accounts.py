@@ -1,0 +1,373 @@
+"""两种管理身份、多渠道授权、默认渠道及撤销的真实集成验证。"""
+
+import asyncio
+
+import pytest
+
+from creativity_service.core.primitives import ServiceError, new_id
+from creativity_service.modules.channels.schemas import ChannelCreate
+from creativity_service.modules.iam.repositories import rows
+from creativity_service.modules.iam.schemas import (
+    AccountCreate,
+    AccountUpdate,
+    ChannelContextInput,
+    LoginInput,
+    MembershipInput,
+    PasswordChange,
+)
+from tests.support.captcha import captcha_token
+
+from .conftest import INITIAL, PASSWORD, provision
+
+pytestmark = pytest.mark.integration
+
+
+async def login_user(env, account, *, password=PASSWORD, initial=False):
+    result = await env.iam.sessions.login(
+        LoginInput(
+            login_name=account.login_name,
+            password=password,
+            captcha_token=await captcha_token(env.iam, account.login_name, "admin-accounts"),
+        ),
+        "admin-accounts",
+        new_id("request"),
+    )
+    session = await env.iam.authentication.admin_session(
+        result.access_token,
+        new_id("request"),
+        allow_initial=initial,
+    )
+    return result, session
+
+
+async def activate(env, account):
+    _, initial = await login_user(env, account, password=INITIAL, initial=True)
+    await env.iam.accounts.change_password(
+        initial,
+        PasswordChange(current_password=INITIAL, new_password=PASSWORD),
+    )
+    return await login_user(env, account)
+
+
+async def test_two_account_roles_multichannel_default_and_revocation(channel_env):
+    env = channel_env
+    a = await provision(env, "alpha", None)
+    b = await provision(env, "beta", None)
+    foreign = await provision(env, "foreign", None)
+    assert [r.role_code for r in await env.iam.accounts.role_options(env.admin)] == [
+        "platform_admin",
+        "channel_admin",
+    ]
+    platform = await env.iam.sessions.view(env.admin)
+    assert platform.can_access_platform and platform.default_workspace is None
+    account = await env.iam.accounts.create(
+        env.admin,
+        AccountCreate(
+            login_name="channel-manager",
+            display_name="渠道管理员",
+            initial_password=INITIAL,
+            role="channel_admin",
+            channel_ids=[b.channel.channel_id, a.channel.channel_id],
+        ),
+    )
+    assert account.role_name == "渠道管理员" and account.platform_roles == []
+    assert set(account.channel_ids) == {a.channel.channel_id, b.channel.channel_id}
+    assert set(account.channel_names) == {a.channel.name, b.channel.name}
+    _, session = await activate(env, account)
+    view = await env.iam.sessions.view(session)
+    assert not view.can_access_platform
+    assert view.default_workspace.channel_id == a.channel.channel_id
+    assert {o.channel_id for o in view.workspace_options} == set(account.channel_ids)
+    first = await env.iam.sessions.enter(
+        session,
+        ChannelContextInput(
+            **{
+                key: getattr(view.default_workspace, key)
+                for key in ("channel_id", "environment", "data_scope_id")
+            }
+        ),
+    )
+    manager = await env.iam.authentication.admin_session(first.access_token, new_id("request"))
+    active = await env.iam.sessions.view(manager)
+    assert active.workspace.channel_id == a.channel.channel_id
+    assert active.default_workspace is None and not active.can_access_platform
+    with pytest.raises(ServiceError) as no_platform:
+        await env.iam.sessions.enter_platform(manager)
+    assert no_platform.value.status == 403
+    with pytest.raises(ServiceError) as denied:
+        await env.iam.sessions.enter(
+            manager,
+            ChannelContextInput(
+                channel_id=foreign.channel.channel_id,
+                environment="test",
+                data_scope_id=foreign.domain.data_scope_id,
+            ),
+        )
+    assert denied.value.status == 404
+    auth = {"Authorization": "Bearer " + first.access_token}
+    assert (await env.client.get("/admin/v1/accounts/roles", headers=auth)).status_code == 403
+    assert (await env.client.get("/admin/v1/accounts/page", headers=auth)).status_code == 403
+    current = await env.iam.accounts.get(env.admin, account.user_id)
+    updated = await env.iam.accounts.update(
+        env.admin,
+        account.user_id,
+        AccountUpdate(
+            revision=current.revision,
+            role="channel_admin",
+            channel_ids=[b.channel.channel_id],
+        ),
+    )
+    assert updated.channel_ids == [b.channel.channel_id]
+    assert (await env.client.get("/admin/v1/auth/session", headers=auth)).status_code == 401
+    _, fresh = await login_user(env, account)
+    fresh_view = await env.iam.sessions.view(fresh)
+    assert fresh_view.default_workspace.channel_id == b.channel.channel_id
+    assert {o.channel_id for o in fresh_view.workspace_options} == {b.channel.channel_id}
+    async with env.engine.connect() as connection:
+        members = await rows(
+            connection,
+            "channel_memberships",
+            a.channel.channel_id,
+            user_id=account.user_id,
+        )
+    assert members[0]["status"] == "DISABLED"
+
+
+async def test_multichannel_validation_and_revision_conflict_roll_back_all_channels(channel_env):
+    env = channel_env
+    a = await provision(env, "alpha", None)
+    b = await provision(env, "beta", None)
+    with pytest.raises(ServiceError) as invalid:
+        await env.iam.accounts.create(
+            env.admin,
+            AccountCreate(
+                login_name="invalid-admin",
+                display_name="无效管理员",
+                initial_password=INITIAL,
+                role="channel_admin",
+                channel_ids=[a.channel.channel_id, "missing-channel"],
+            ),
+        )
+    assert invalid.value.status == 422
+    async with env.engine.connect() as connection:
+        assert (
+            await rows(
+                connection,
+                "platform_accounts",
+                "system",
+                login_name="invalid-admin",
+            )
+            == []
+        )
+    account = await env.iam.accounts.create(
+        env.admin,
+        AccountCreate(
+            login_name="atomic-admin",
+            display_name="原名称",
+            initial_password=INITIAL,
+            role="channel_admin",
+            channel_ids=[a.channel.channel_id],
+        ),
+    )
+    current = await env.iam.accounts.update(
+        env.admin,
+        account.user_id,
+        AccountUpdate(revision=account.revision, display_name="最新名称"),
+    )
+    with pytest.raises(ServiceError) as conflict:
+        await env.iam.accounts.update(
+            env.admin,
+            account.user_id,
+            AccountUpdate(
+                revision=account.revision,
+                role="channel_admin",
+                channel_ids=[b.channel.channel_id],
+            ),
+        )
+    assert conflict.value.status == 409
+    loaded = await env.iam.accounts.get(env.admin, account.user_id)
+    assert loaded.revision == current.revision
+    assert loaded.display_name == "最新名称" and loaded.channel_ids == [a.channel.channel_id]
+    async with env.engine.connect() as connection:
+        assert (
+            await rows(
+                connection,
+                "channel_memberships",
+                b.channel.channel_id,
+                user_id=account.user_id,
+            )
+            == []
+        )
+        grants = await rows(
+            connection,
+            "resource_grants",
+            b.channel.channel_id,
+            grantee_id=account.user_id,
+        )
+        assert grants == []
+    headers = {"Authorization": "Bearer " + env.admin_token.access_token}
+    for role, selected in (
+        ("channel_admin", [a.channel.channel_id, a.channel.channel_id]),
+        ("channel_admin", ["system"]),
+        ("platform_admin", [a.channel.channel_id]),
+        ("builder", []),
+    ):
+        response = await env.client.post(
+            "/admin/v1/accounts",
+            headers=headers,
+            json={
+                "login_name": "rejected-role",
+                "display_name": "无效角色",
+                "initial_password": INITIAL,
+                "role": role,
+                "channel_ids": selected,
+            },
+        )
+        assert response.status_code == 422
+
+
+async def test_concurrent_channel_assignments_and_role_conversion(channel_env):
+    env = channel_env
+    a = await provision(env, "alpha", None)
+    b = await provision(env, "beta", None)
+    account = await env.iam.accounts.create(
+        env.admin,
+        AccountCreate(
+            login_name="concurrent-admin",
+            display_name="并发管理员",
+            initial_password=INITIAL,
+            role="channel_admin",
+            channel_ids=[a.channel.channel_id],
+        ),
+    )
+    outcomes = await asyncio.wait_for(
+        asyncio.gather(
+            *(
+                env.iam.accounts.update(
+                    env.admin,
+                    account.user_id,
+                    AccountUpdate(
+                        revision=account.revision,
+                        role="channel_admin",
+                        channel_ids=ids,
+                    ),
+                )
+                for ids in ([a.channel.channel_id, b.channel.channel_id], [b.channel.channel_id])
+            ),
+            return_exceptions=True,
+        ),
+        timeout=15,
+    )
+    assert sum(not isinstance(result, Exception) for result in outcomes) == 1
+    assert (
+        sum(isinstance(result, ServiceError) and result.status == 409 for result in outcomes) == 1
+    )
+    current = await env.iam.accounts.get(env.admin, account.user_id)
+    converted = await env.iam.accounts.update(
+        env.admin,
+        account.user_id,
+        AccountUpdate(
+            revision=current.revision,
+            role="platform_admin",
+            channel_ids=[],
+        ),
+    )
+    assert converted.role == "platform_admin" and converted.channel_ids == []
+    assert converted.platform_roles == ["platform_admin"]
+    _, session = await activate(env, converted)
+    view = await env.iam.sessions.view(session)
+    assert view.can_access_platform and view.default_workspace is None
+    assert view.workspace_options == []
+
+
+async def test_pending_channel_assignment_never_creates_unscoped_access(channel_env):
+    env = channel_env
+    channel = await env.services.channels.create(
+        env.admin,
+        ChannelCreate(
+            name="待配置渠道",
+            owner="负责人",
+            first_admin_user_id=env.user_id,
+        ),
+    )
+    account = await env.iam.accounts.create(
+        env.admin,
+        AccountCreate(
+            login_name="pending-channel-admin",
+            display_name="待配置管理员",
+            initial_password=INITIAL,
+            role="channel_admin",
+            channel_ids=[channel.channel_id],
+        ),
+    )
+    assert account.channel_ids == [channel.channel_id]
+    _, session = await activate(env, account)
+    view = await env.iam.sessions.view(session)
+    assert view.workspace is None and view.default_workspace is None
+    assert view.workspace_options == [] and not view.can_access_platform
+    async with env.engine.connect() as connection:
+        member = (
+            await rows(
+                connection,
+                "channel_memberships",
+                channel.channel_id,
+                user_id=account.user_id,
+            )
+        )[0]
+        grant = (
+            await rows(
+                connection,
+                "resource_grants",
+                channel.channel_id,
+                grantee_id=account.user_id,
+            )
+        )[0]
+    assert member["environments"] == [] and member["data_scopes"] == []
+    assert grant["environments"] == [] and grant["data_scopes"] == []
+
+
+async def test_channel_multiselect_does_not_leave_hidden_legacy_memberships(channel_env):
+    env = channel_env
+    a = await provision(env, "alpha", None)
+    b = await provision(env, "beta", None)
+    account = await env.iam.accounts.create(
+        env.admin,
+        AccountCreate(
+            login_name="legacy-scoped-admin",
+            display_name="历史授权管理员",
+            initial_password=INITIAL,
+            role="channel_admin",
+            channel_ids=[a.channel.channel_id],
+        ),
+    )
+    await env.iam.access.put_member(
+        b.manager,
+        b.channel.channel_id,
+        account.user_id,
+        MembershipInput(
+            roles=["auditor"],
+            environments=["test"],
+            data_scopes=[b.domain.data_scope_id],
+        ),
+    )
+    current = await env.iam.accounts.get(env.admin, account.user_id)
+    assert set(current.channel_ids) == {a.channel.channel_id, b.channel.channel_id}
+    await env.iam.accounts.update(
+        env.admin,
+        account.user_id,
+        AccountUpdate(
+            revision=current.revision,
+            role="channel_admin",
+            channel_ids=[a.channel.channel_id],
+        ),
+    )
+    async with env.engine.connect() as connection:
+        member = (
+            await rows(
+                connection,
+                "channel_memberships",
+                b.channel.channel_id,
+                user_id=account.user_id,
+            )
+        )[0]
+    assert member["status"] == "DISABLED"

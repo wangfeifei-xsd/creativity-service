@@ -168,6 +168,11 @@ async def accounts(
     return await iam.accounts.list(session, limit)
 
 
+@router.get("/accounts/roles", response_model=list[RoleView])
+async def administrator_roles(session: Session, iam: Services) -> list[RoleView]:
+    return await iam.accounts.role_options(session)
+
+
 @router.post("/accounts", response_model=AccountView, status_code=201)
 async def create_account(body: AccountCreate, session: Session, iam: Services) -> AccountView:
     return await iam.accounts.create(session, body)

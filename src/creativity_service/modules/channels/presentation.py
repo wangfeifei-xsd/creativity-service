@@ -27,6 +27,7 @@ class ChannelPage(Contract):
     tabs: list[NavigationItem]
     actions: list[VisibleAction]
     service_actions: list[VisibleAction]
+    pending_administrator: NamedOption | None = None
 
 
 async def create_options(service: ChannelService, session: AdminSession) -> ChannelCreateOptions:
@@ -45,6 +46,14 @@ async def create_options(service: ChannelService, session: AdminSession) -> Chan
 async def page_view(service: ChannelService, session: AdminSession, channel_id: str) -> ChannelPage:
     channel = await service.detail(session, channel_id)
     governance = not isinstance(session.context, AuthContext)
+    pending_administrator = None
+    if governance:
+        async with service.repository.engine.connect() as connection:
+            pending = await service.iam.access.pending_first_member(connection, channel_id)
+        if pending:
+            pending_administrator = NamedOption(
+                value=pending["user_id"], label=pending["display_name"] or "账号名称不可用"
+            )
     allowed = {a.action_key for a in channel.actions}
     effective: frozenset[str] = frozenset()
     if isinstance(session.context, AuthContext):
@@ -86,6 +95,7 @@ async def page_view(service: ChannelService, session: AdminSession, channel_id: 
     return ChannelPage(
         channel=channel,
         actions=actions,
+        pending_administrator=pending_administrator,
         tabs=[
             NavigationItem(navigation_key=k, label=v)
             for k, v, required in (

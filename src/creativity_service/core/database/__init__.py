@@ -130,6 +130,50 @@ async def transaction(
         current_manifest.reset(manifest_token)
 
 
+@asynccontextmanager
+async def control_transaction(
+    engine: AsyncEngine,
+    scope: ControlScope,
+    scopes: list[Scope],
+    keys: list[ResourceKey],
+) -> AsyncIterator[dict[str, UnitOfWork]]:
+    """平台账号授权专用：明确列出目标渠道，共享一次提交但各自保持独立工作单元。"""
+    if not isinstance(scope, ControlScope) or scope.purpose != "accounts":
+        raise ServiceError("CONTEXT_REQUIRED", "缺少账号治理范围", 403)
+    if transaction_active.get():
+        raise RuntimeError("不能嵌套独立事务；请传入调用方的工作单元")
+    located: dict[str, Scope | ControlScope] = {scope.channel_id: scope}
+    for target in scopes:
+        if target.channel_id == "system" or target.channel_id in located:
+            raise ServiceError("SCOPE_MISMATCH", "账号授权渠道范围重复或无效", 403)
+        located[target.channel_id] = target
+    if not keys or any(key.channel_id not in located for key in keys):
+        raise ServiceError("LOCK_SCOPE_MISMATCH", "锁渠道与显式治理范围不符", 403)
+    if any(key.resource_type == "content-graph" for key in keys):
+        raise ServiceError("SCOPE_MISMATCH", "账号治理事务不能执行业务内容操作", 403)
+    token = transaction_active.set(True)
+    units: dict[str, UnitOfWork] = {}
+    try:
+        async with engine.begin() as connection:
+            if connection.dialect.name != "postgresql":
+                raise RuntimeError("事务互斥只支持 PostgreSQL")
+            locked = normalize_keys(frozenset(keys))
+            await acquire_locks(connection, locked)
+            units = {
+                channel_id: UnitOfWork(
+                    connection,
+                    target,
+                    frozenset(k for k in locked if k.channel_id in {channel_id, "system"}),
+                )
+                for channel_id, target in located.items()
+            }
+            yield units
+    finally:
+        for unit in units.values():
+            unit.active = False
+        transaction_active.reset(token)
+
+
 def scope_values(table: Table, scope: Scope | ControlScope) -> dict[str, Any]:
     return {key: value for key, value in scope.model_dump().items() if key in table.c}
 

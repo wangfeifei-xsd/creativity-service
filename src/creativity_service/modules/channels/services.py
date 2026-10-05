@@ -365,27 +365,36 @@ class ChannelService:
         require_platform(session.account, "channel:create")
         name = clean_name(body.name)
         code = channel_code(name)
-        self.validate_mapping(
-            body.data_scope.external_scope_type,
-            body.data_scope.external_scope_id,
-        )
+        if (body.environment is None) != (body.data_scope is None):
+            raise ServiceError("VALIDATION_ERROR", "初始环境和数据域须同时配置或稍后配置", 422)
+        if body.data_scope:
+            self.validate_mapping(
+                body.data_scope.external_scope_type,
+                body.data_scope.external_scope_id,
+            )
         channel_id, domain_id, index_id, event_id = (
             new_id("channel"),
             new_id("scope"),
             new_id("code"),
             new_id("audit"),
         )
-        env_id = environment_id(channel_id, body.environment)
-        scope = Scope(channel_id=channel_id, environment=body.environment, data_scope_id=domain_id)
+        scope = self.scope(session, channel_id, body.environment or "dev")
         keys = (
             self.keys(channel_id, "channels", channel_id, event_id)
             + self.iam.access.provisioning_keys(channel_id, body.first_admin_user_id)
-            + RecoveryService.keys(scope)
             + [
-                record_key(channel_id, "channel_environments", env_id),
-                record_key(channel_id, "data_scopes", domain_id),
                 record_key("system", "channel_code_index", index_id),
                 ResourceKey("system", "channel_code_index", (code,)),
+            ]
+        )
+        if body.environment and body.data_scope:
+            scope = Scope(
+                channel_id=channel_id, environment=body.environment, data_scope_id=domain_id
+            )
+            env_id = environment_id(channel_id, body.environment)
+            keys += RecoveryService.keys(scope) + [
+                record_key(channel_id, "channel_environments", env_id),
+                record_key(channel_id, "data_scopes", domain_id),
                 mapping_key(
                     channel_id,
                     body.environment,
@@ -393,7 +402,6 @@ class ChannelService:
                     body.data_scope.external_scope_id,
                 ),
             ]
-        )
         async with transaction(self.repository.engine, scope, keys) as uow:
             await current_actor(uow, session, "channel:create")
             if await one(uow.connection, "channels", "system", id="system") is None:
@@ -420,36 +428,37 @@ class ChannelService:
                     "rate_limit_policy_refs": [],
                 },
             )
-            await save(
-                uow,
-                "channel_environments",
-                env_id,
-                {
-                    "environment": body.environment,
-                    "name": ENVIRONMENT_NAMES[body.environment],
-                    "status": "ACTIVE",
-                    "release_policy": {"approval_required": True},
-                    "retention_policy": body.retention_policy.model_dump(),
-                },
-            )
-            await save(
-                uow,
-                "data_scopes",
-                domain_id,
-                {
-                    **body.data_scope.model_dump(),
-                    "name": clean_name(body.data_scope.name),
-                    "environment": body.environment,
-                    "status": "ACTIVE",
-                },
-            )
-            await RecoveryService.initialize_fresh_in(uow, scope)
+            if body.environment and body.data_scope:
+                await save(
+                    uow,
+                    "channel_environments",
+                    env_id,
+                    {
+                        "environment": body.environment,
+                        "name": ENVIRONMENT_NAMES[body.environment],
+                        "status": "ACTIVE",
+                        "release_policy": {"approval_required": True},
+                        "retention_policy": body.retention_policy.model_dump(),
+                    },
+                )
+                await save(
+                    uow,
+                    "data_scopes",
+                    domain_id,
+                    {
+                        **body.data_scope.model_dump(),
+                        "name": clean_name(body.data_scope.name),
+                        "environment": body.environment,
+                        "status": "ACTIVE",
+                    },
+                )
+                await RecoveryService.initialize_fresh_in(uow, scope)
             await self.iam.access.provision_first_member(
                 uow,
                 session,
                 body.first_admin_user_id,
-                [body.environment],
-                [domain_id],
+                [body.environment] if body.environment else [],
+                [domain_id] if body.data_scope else [],
                 list(body.independent_actions),
             )
             await self.event(uow, event_id, session, "channel:create", "channel", row)
@@ -733,9 +742,14 @@ class ChannelService:
                 raise ServiceError("FORBIDDEN", "新工作区管理员须由平台治理入口明确授权", 403)
             keys += self.iam.access.workspace_provisioning_keys(
                 channel_id, body.administrator_id, domain_id
-            )
+            ) + self.iam.access.provisioning_keys(channel_id, body.administrator_id)
         async with transaction(self.repository.engine, fresh_scope, keys) as uow:
             await self.locked(uow, session, "data_scope:manage")
+            pending = await self.iam.access.pending_first_member(uow.connection, channel_id)
+            if pending and body.administrator_id != pending["user_id"]:
+                raise ServiceError(
+                    "INITIAL_ADMIN_REQUIRED", "请为首位管理员配置第一个业务数据域", 422
+                )
             env = await required(
                 uow.connection, "channel_environments", channel_id, environment=body.environment
             )

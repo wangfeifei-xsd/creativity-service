@@ -139,6 +139,7 @@ FIELD_NAMES = {
     "status": "状态",
     "state": "状态",
     "platform_roles": "平台角色",
+    "channel_ids": "授权渠道",
     "password": "密码凭据",
     "roles": "渠道角色",
     "environments": "可用环境",

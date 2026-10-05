@@ -3,6 +3,9 @@
 import re
 from typing import Any
 
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncConnection
+
 from creativity_service.core.auth.authentication import AdminSession, AuthenticationService
 from creativity_service.core.auth.types import GrantState, MembershipState, WorkspaceDirectory
 from creativity_service.core.context import AuthContext, Scope, require_channel_state
@@ -21,7 +24,9 @@ from creativity_service.modules.iam.authorization import (
 )
 from creativity_service.modules.iam.display import resource_names
 from creativity_service.modules.iam.repositories import (
+    TABLES,
     IdentityRepository,
+    membership_id,
     membership_state,
     one,
     policy_key,
@@ -47,10 +52,6 @@ from creativity_service.modules.iam.schemas import (
 )
 
 ENVIRONMENT_NAMES = {"dev": "开发", "test": "测试", "fat": "验收", "prod": "生产"}
-
-
-def membership_id(channel_id: str, user_id: str) -> str:
-    return "member_" + digest([channel_id, user_id])[:40]
 
 
 class AccessService:
@@ -741,7 +742,7 @@ class AccessService:
         actor = await current_actor(uow, session, "channel:create")
         require_platform(actor, "channel:govern")
         channel_id = uow.scope.channel_id
-        if channel_id == "system" or not environments or not data_scopes:
+        if channel_id == "system" or bool(environments) != bool(data_scopes):
             raise ServiceError("VALIDATION_ERROR", "首位成员必须归有效业务范围", 422)
         independent = set(independent_actions or [])
         if not independent <= INDEPENDENT_ACTIONS:
@@ -752,15 +753,16 @@ class AccessService:
         account = await one(uow.connection, "platform_accounts", "system", id=user_id)
         if not account or account["status"] != "ACTIVE":
             raise ServiceError("NOT_FOUND", "可用账号不存在", 404)
-        body = MembershipInput(
-            roles=["channel_admin"], environments=environments, data_scopes=data_scopes
-        )
+        # 分步开通只登记管理员身份；空范围不产生工作区访问权，也不代表全部数据域。
         await save(
             uow,
             "channel_memberships",
             membership_id(channel_id, user_id),
             {
-                **body.model_dump(exclude={"revision"}),
+                "roles": ["channel_admin"],
+                "environments": environments,
+                "data_scopes": data_scopes,
+                "status": "ACTIVE",
                 "user_id": user_id,
                 "granted_by": actor.id,
             },
@@ -788,8 +790,53 @@ class AccessService:
             "account",
             user_id,
             ["roles", "environments", "data_scopes", "allowed_actions"],
-            affected_scopes=audit_ranges((environments, data_scopes)),
+            affected_scopes=audit_ranges((environments, data_scopes)) or None,
         )
+
+    async def pending_first_member(
+        self, connection: AsyncConnection, channel_id: str
+    ) -> dict[str, Any] | None:
+        """只读取本渠道尚未配置范围的首位管理员，不能据此签发管理身份。"""
+        members, grants, accounts = (
+            TABLES[name] for name in ("channel_memberships", "resource_grants", "platform_accounts")
+        )
+        source = members.join(
+            grants,
+            and_(
+                grants.c.channel_id == members.c.channel_id,
+                grants.c.id == "initial_" + members.c.id,
+                grants.c.grantee_type == "account",
+                grants.c.grantee_id == members.c.user_id,
+                grants.c.resource_type == "channel",
+                grants.c.resource_id == channel_id,
+            ),
+        ).outerjoin(
+            accounts,
+            and_(accounts.c.channel_id == "system", accounts.c.id == members.c.user_id),
+        )
+        found = (
+            (
+                await connection.execute(
+                    select(members.c.user_id, accounts.c.display_name)
+                    .select_from(source)
+                    .where(
+                        members.c.channel_id == channel_id,
+                        members.c.status == "ACTIVE",
+                        members.c.roles.contains(["channel_admin"]),
+                        members.c.environments == [],
+                        members.c.data_scopes == [],
+                        grants.c.environments == [],
+                        grants.c.data_scopes == [],
+                    )
+                    .limit(2)
+                )
+            )
+            .mappings()
+            .all()
+        )
+        if len(found) > 1:
+            raise ServiceError("STORAGE_INVARIANT_BROKEN", "首位管理员记录重复", 503)
+        return dict(found[0]) if found else None
 
     def workspace_provisioning_keys(
         self, channel_id: str, user_id: str, domain_id: str
@@ -814,6 +861,24 @@ class AccessService:
         existing = await one(uow.connection, "channel_memberships", channel_id, user_id=user_id)
         if existing and existing["status"] != "ACTIVE":
             raise ServiceError("MEMBERSHIP_DISABLED", "请先恢复目标渠道成员", 409)
+        initial_id = "initial_" + membership_id(channel_id, user_id)
+        initial = await one(uow.connection, "resource_grants", channel_id, id=initial_id)
+        if (
+            existing
+            and not existing["environments"]
+            and not existing["data_scopes"]
+            and initial
+            and not initial["environments"]
+            and not initial["data_scopes"]
+        ):
+            # 平台明确选择首位管理员后，只激活当前新数据域中的初始授权。
+            await save(
+                uow,
+                "resource_grants",
+                initial_id,
+                {"environments": [environment], "data_scopes": [domain_id]},
+                initial["revision"],
+            )
         await save(
             uow,
             "channel_memberships",

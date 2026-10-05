@@ -85,6 +85,24 @@
       "AccountCreate": {
         "additionalProperties": false,
         "properties": {
+          "channel_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel Ids"
+          },
           "display_name": {
             "maxLength": 128,
             "minLength": 1,
@@ -115,6 +133,21 @@
             "maxItems": 50,
             "title": "Platform Roles",
             "type": "array"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "platform_admin",
+                  "channel_admin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
           }
         },
         "required": [
@@ -128,6 +161,24 @@
       "AccountUpdate": {
         "additionalProperties": false,
         "properties": {
+          "channel_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel Ids"
+          },
           "display_name": {
             "anyOf": [
               {
@@ -164,6 +215,21 @@
             "title": "Revision",
             "type": "integer"
           },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "platform_admin",
+                  "channel_admin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
           "status": {
             "anyOf": [
               {
@@ -189,6 +255,27 @@
       "AccountView": {
         "additionalProperties": false,
         "properties": {
+          "channel_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Channel Ids",
+            "type": "array"
+          },
+          "channel_names": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Channel Names",
+            "type": "array"
+          },
           "credential_updated_at": {
             "format": "date-time",
             "title": "Credential Updated At",
@@ -223,6 +310,18 @@
           "revision": {
             "title": "Revision",
             "type": "integer"
+          },
+          "role": {
+            "enum": [
+              "platform_admin",
+              "channel_admin"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "role_name": {
+            "title": "Role Name",
+            "type": "string"
           },
           "status": {
             "enum": [
@@ -259,6 +358,8 @@
           "display_name",
           "platform_roles",
           "platform_role_names",
+          "role",
+          "role_name",
           "status",
           "status_label",
           "must_change_password",
@@ -4048,17 +4149,35 @@
             "title": "Business Type"
           },
           "data_scope": {
-            "$ref": "#/components/schemas/InitialDataScope"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InitialDataScope"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "deprecated": true,
+            "description": "兼容一次性开通；新流程在详情中配置数据域"
           },
           "environment": {
-            "enum": [
-              "dev",
-              "test",
-              "fat",
-              "prod"
+            "anyOf": [
+              {
+                "enum": [
+                  "dev",
+                  "test",
+                  "fat",
+                  "prod"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Environment",
-            "type": "string"
+            "deprecated": true,
+            "description": "兼容一次性开通；须与初始数据域同时提供",
+            "title": "Environment"
           },
           "first_admin_user_id": {
             "maxLength": 128,
@@ -4100,9 +4219,7 @@
         "required": [
           "name",
           "owner",
-          "first_admin_user_id",
-          "environment",
-          "data_scope"
+          "first_admin_user_id"
         ],
         "title": "ChannelCreate",
         "type": "object"
@@ -4161,6 +4278,16 @@
           },
           "channel": {
             "$ref": "#/components/schemas/ChannelView"
+          },
+          "pending_administrator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NamedOption"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "service_actions": {
             "items": {
@@ -16121,6 +16248,21 @@
             "title": "Actions",
             "type": "array"
           },
+          "can_access_platform": {
+            "default": false,
+            "title": "Can Access Platform",
+            "type": "boolean"
+          },
+          "default_workspace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceOption"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "expires_at": {
             "format": "date-time",
             "title": "Expires At",
@@ -16145,6 +16287,13 @@
                 "type": "null"
               }
             ]
+          },
+          "workspace_options": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceOption"
+            },
+            "title": "Workspace Options",
+            "type": "array"
           }
         },
         "required": [
@@ -21011,6 +21160,224 @@
           }
         ],
         "summary": "Account Page",
+        "tags": [
+          "账号与权限"
+        ]
+      }
+    },
+    "/admin/v1/accounts/roles": {
+      "get": {
+        "operationId": "administrator_roles_admin_v1_accounts_roles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoleView"
+                  },
+                  "title": "Response Administrator Roles Admin V1 Accounts Roles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Administrator Roles",
         "tags": [
           "账号与权限"
         ]

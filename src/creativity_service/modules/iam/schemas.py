@@ -11,6 +11,7 @@ from creativity_service.core.contracts import NavigationItem, VisibleAction
 from creativity_service.core.primitives import Contract, Identifier, Revision
 
 ChannelRole = Identifier
+AdministratorRole = Literal["platform_admin", "channel_admin"]
 
 
 class LoginInput(Contract):
@@ -49,6 +50,8 @@ class AccountCreate(Contract):
     display_name: str = Field(min_length=1, max_length=128)
     initial_password: SecretStr = Field(min_length=12, max_length=256)
     platform_roles: list[Identifier] = Field(default_factory=list, max_length=50)
+    role: AdministratorRole | None = None
+    channel_ids: list[Identifier] | None = Field(default=None, max_length=200)
 
 
 class AccountUpdate(Contract):
@@ -56,6 +59,8 @@ class AccountUpdate(Contract):
     display_name: str | None = Field(default=None, min_length=1, max_length=128)
     status: Status | None = None
     platform_roles: list[Identifier] | None = Field(default=None, max_length=50)
+    role: AdministratorRole | None = None
+    channel_ids: list[Identifier] | None = Field(default=None, max_length=200)
 
 
 class PasswordReset(Contract):
@@ -74,6 +79,10 @@ class AccountView(Contract):
     display_name: str
     platform_roles: list[str]
     platform_role_names: list[str]
+    role: AdministratorRole
+    role_name: str
+    channel_ids: list[str] = Field(default_factory=list)
+    channel_names: list[str | None] = Field(default_factory=list)
     status: Status
     status_label: str
     must_change_password: bool
@@ -158,6 +167,9 @@ class SessionView(Contract):
     navigation: list[NavigationItem]
     actions: list[VisibleAction]
     workspace: WorkspaceOption | None
+    workspace_options: list[WorkspaceOption] = Field(default_factory=list)
+    default_workspace: WorkspaceOption | None = None
+    can_access_platform: bool = False
     expires_at: datetime
 
 

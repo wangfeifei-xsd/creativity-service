@@ -13,7 +13,7 @@ from creativity_service.core.database.queries import scoped_select
 from creativity_service.core.database.reading import read_connection
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.locking import ResourceKey, record_key
-from creativity_service.core.primitives import Contract, ServiceError, utcnow
+from creativity_service.core.primitives import Contract, ServiceError, digest, utcnow
 from creativity_service.modules.iam.management_tables import metadata as management_metadata
 from creativity_service.modules.iam.operations_tables import metadata as operations_metadata
 from creativity_service.modules.iam.roles import ROLE_ACTIONS, ROLE_NAMES
@@ -29,6 +29,10 @@ TABLES = {
 
 def policy_key(channel_id: str) -> ResourceKey:
     return ResourceKey(channel_id, "iam-policy", ("all",))
+
+
+def membership_id(channel_id: str, user_id: str) -> str:
+    return "member_" + digest([channel_id, user_id])[:40]
 
 
 def to_state[T: Contract](model: type[T], row: dict[str, Any]) -> T:
@@ -72,7 +76,12 @@ async def save(
     protected = {"id", "channel_id", "created_at", "updated_at", "revision"}
     if protected & values.keys():
         raise ServiceError("CONTEXT_OVERRIDE", "不能覆盖身份归属", 422)
-    current = await one(uow.connection, name, channel_id, id=record_id)
+    cache_key = f"iam:{name}:{record_id}"
+    current = (
+        uow.read_cache[cache_key]
+        if cache_key in uow.read_cache
+        else await one(uow.connection, name, channel_id, id=record_id)
+    )
     if (current is None and expected_revision is not None) or (
         current is not None and current["revision"] != expected_revision
     ):
@@ -97,6 +106,8 @@ async def save(
         )
     else:
         await uow.connection.execute(insert(table).values(**value))
+    if cache_key in uow.read_cache:
+        uow.read_cache[cache_key] = value
     return value
 
 

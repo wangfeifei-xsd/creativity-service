@@ -34,6 +34,10 @@ Python 3.12、uv 0.10.12；基础设施为 PostgreSQL、Redis 和 S3 兼容对�
 
 首次管理员通过 `uv run creativity-iam init-admin --login-name admin --display-name 管理员` 创建。管理端登录后使用服务端保存的 Token；操作权限、资源授权及工作区由 IAM 服务恢复。账号停用、角色或成员撤销会影响后续访问；认证 Redis 不可用时返回 503。
 
+管理账号单选 `platform_admin` 或 `channel_admin`；`GET /admin/v1/accounts/roles` 返回可授予的两种身份。创建和修改账号提交 `role`、`channel_ids`，渠道管理员支持多渠道，平台管理员不提交渠道。IAM 在显式目标渠道的独立工作单元中共享一个数据库事务，统一取锁，原子更新账号、渠道成员、普通资源授权及审计；无效渠道或 revision 冲突全部回滚。列表批量装配当前页账号的渠道名称；整组授权改变时撤销原会话。既有 `platform_roles` 和细粒度授权接口保持兼容，不新增数据库表或权限副本。
+
+平台管理员登录后直接显示平台导航；渠道管理员根据会话的 `default_workspace` 自动取得渠道 Token。`workspace_options` 返回当前有效范围，`can_access_platform` 控制平台入口展示，返回平台接口仍独立鉴权。默认渠道及范围稳定排序，不把缺失授权回退到系统渠道。浏览器顶部直接切换渠道、环境、数据域；旧 Token 及迟到响应不能进入新页面范围。
+
 账号密码登录须先完成滑块拼图：`POST /admin/v1/auth/captcha/challenges` 提交 `login_name` 获取 PNG 底图、拼块和挑战标识；`POST /admin/v1/auth/captcha/verify` 提交 `challenge_id` 与原图坐标中的横向 `offset`，成功后将返回的 `captcha_token` 随登录请求提交。前端复用 antd 表单、弹窗与滑块，支持鼠标、触屏和方向键调整、回车确认；验证码失败不清空账号密码。
 
 每次打开验证、点击“换一张”或验证失败后生成新挑战，服务端从系统渠道内置的 10 张风景照片随机选图，并随机确定缺口位置。底图随 Python 包分发，运行时无外部图片请求；解码后的缓存仅包含这组公共素材，每个挑战在独立副本上生成拼图。照片已裁切为 2:1，覆盖草丘、雪峰湖泊、海岸、沙丘、瀑布、秋湖、花田、雪林、极光和雾凇。原图、作者与 CC0 许可见 [风景图库来源](../src/creativity_service/modules/iam/assets/captcha/system/README.md)。

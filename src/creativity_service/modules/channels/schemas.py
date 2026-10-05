@@ -41,8 +41,16 @@ class ChannelCreate(Contract):
         default=None, min_length=1, max_length=32, description="可选业务分类，仅用于展示"
     )
     first_admin_user_id: Identifier
-    environment: Environment
-    data_scope: InitialDataScope
+    environment: Environment | None = Field(
+        default=None,
+        description="兼容一次性开通；须与初始数据域同时提供",
+        json_schema_extra={"deprecated": True},
+    )
+    data_scope: InitialDataScope | None = Field(
+        default=None,
+        description="兼容一次性开通；新流程在详情中配置数据域",
+        json_schema_extra={"deprecated": True},
+    )
     retention_policy: RetentionPolicy = Field(default_factory=RetentionPolicy)
     independent_actions: list[IndependentAction] = Field(
         default_factory=list, max_length=len(INDEPENDENT_ACTIONS)

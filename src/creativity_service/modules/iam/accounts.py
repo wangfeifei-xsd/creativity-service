@@ -8,10 +8,17 @@ from sqlalchemy import func, or_, select
 from creativity_service.core.auth.authentication import AdminSession, AuthenticationService
 from creativity_service.core.auth.passwords import PasswordHasher, normalize_login
 from creativity_service.core.auth.types import AccountState
-from creativity_service.core.context import ControlScope
-from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.context import ControlScope, Scope
+from creativity_service.core.contracts import VisibleAction
+from creativity_service.core.database import UnitOfWork, control_transaction, transaction
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import ServiceError, new_id, utcnow
+from creativity_service.modules.iam.account_channels import (
+    account_channels,
+    assignment_keys,
+    assignment_scopes,
+    synchronize_channels,
+)
 from creativity_service.modules.iam.audit import append_event, audit_denials
 from creativity_service.modules.iam.authorization import platform_actions, require_platform
 from creativity_service.modules.iam.repositories import (
@@ -25,20 +32,25 @@ from creativity_service.modules.iam.repositories import (
     save,
 )
 from creativity_service.modules.iam.revocations import RevocationService, enqueue
-from creativity_service.modules.iam.roles import ROLE_ACTIONS, ROLE_NAMES
+from creativity_service.modules.iam.roles import ACTION_NAMES, ROLE_ACTIONS, ROLE_NAMES
 from creativity_service.modules.iam.schemas import (
     AccountCreate,
     AccountUpdate,
     AccountView,
+    AdministratorRole,
     DirectoryPage,
     PasswordChange,
     PasswordReset,
+    RoleView,
 )
 
 
 def account_view(
-    row: dict[str, Any], catalog: dict[str, dict[str, Any]] | None = None
+    row: dict[str, Any],
+    catalog: dict[str, dict[str, Any]] | None = None,
+    channels: list[dict[str, Any]] | None = None,
 ) -> AccountView:
+    role: AdministratorRole = "platform_admin" if row["platform_roles"] else "channel_admin"
     return AccountView(
         user_id=row["id"],
         login_name=row["login_name"],
@@ -48,6 +60,10 @@ def account_view(
             (catalog or {}).get(r, {}).get("name", ROLE_NAMES.get(r, "角色不可用"))
             for r in row["platform_roles"]
         ],
+        role=role,
+        role_name=ROLE_NAMES[role],
+        channel_ids=[c["channel_id"] for c in channels or []],
+        channel_names=[c["channel_name"] for c in channels or []],
         status=row["status"],
         status_label="启用" if row["status"] == "ACTIVE" else "停用",
         must_change_password=row["must_change_password"],
@@ -107,6 +123,31 @@ class AccountService:
         self.repository, self.authentication = repository, authentication
         self.passwords, self.revocations = passwords, revocations
 
+    async def role_options(self, session: AdminSession) -> list[RoleView]:
+        await self.authentication.revalidate_admin(session)
+        actor = await self.authentication.active_account(session.account.id)
+        require_platform(actor, "account:manage")
+        actions = platform_actions(actor)
+        return [
+            RoleView(
+                role_code=code,
+                name=ROLE_NAMES[code],
+                grant_scope="platform" if code == "platform_admin" else "channel",
+                grant_scope_name="平台" if code == "platform_admin" else "渠道",
+                actions=[
+                    VisibleAction(action_key=a, label=ACTION_NAMES[a])
+                    for a in sorted(ROLE_ACTIONS[code])
+                ],
+            )
+            for code in ("platform_admin", "channel_admin")
+            if "role:grant" in actions
+            and (
+                ROLE_ACTIONS[code] <= actions
+                if code == "platform_admin"
+                else "channel:govern" in actions
+            )
+        ]
+
     async def page(
         self,
         session: AdminSession,
@@ -146,7 +187,9 @@ class AccountService:
                     .limit(limit)
                 )
             ).mappings()
-            items = [account_view(dict(row), catalog) for row in found]
+            page_rows = [dict(row) for row in found]
+            channels = await account_channels(connection, [row["id"] for row in page_rows])
+            items = [account_view(row, catalog, channels.get(row["id"], [])) for row in page_rows]
         return DirectoryPage(items=items, total=total or 0, offset=offset, limit=limit)
 
     async def list(
@@ -168,7 +211,31 @@ class AccountService:
             row = await one(connection, "platform_accounts", "system", id=user_id)
             if not row:
                 raise ServiceError("NOT_FOUND", "账号不存在", 404)
-            return account_view(row, await role_catalog(connection, "system"))
+            channels = await account_channels(connection, [user_id])
+            return account_view(
+                row, await role_catalog(connection, "system"), channels.get(user_id, [])
+            )
+
+    @staticmethod
+    def administrator_values(
+        body: AccountCreate | AccountUpdate,
+    ) -> tuple[Sequence[str] | None, Sequence[str] | None]:
+        """两种管理身份映射到既有平台角色与渠道成员，兼容已有细粒度授权接口。"""
+        if body.role is None:
+            if body.channel_ids is not None:
+                raise ServiceError("VALIDATION_ERROR", "配置渠道时须选择管理员角色", 422)
+            return None, None
+        roles = ["platform_admin"] if body.role == "platform_admin" else []
+        if body.platform_roles and body.platform_roles != roles:
+            raise ServiceError("VALIDATION_ERROR", "管理员角色与平台授权不一致", 422)
+        channels = body.channel_ids
+        if body.role == "platform_admin":
+            if channels:
+                raise ServiceError("VALIDATION_ERROR", "请为渠道管理员配置授权渠道", 422)
+            channels = []
+        if channels is not None and (len(channels) != len(set(channels)) or "system" in channels):
+            raise ServiceError("VALIDATION_ERROR", "授权渠道重复或无效", 422)
+        return roles, channels
 
     @staticmethod
     async def validate_roles(uow: UnitOfWork, actor: AccountState, codes: Sequence[str]) -> None:
@@ -227,23 +294,42 @@ class AccountService:
         name = normalize_login(body.login_name)
         password_hash = await self.passwords.hash(body.initial_password.get_secret_value())
         user_id, event_id = new_id("user"), new_id("audit")
+        roles, selected = self.administrator_values(body)
+        if roles is not None:
+            body = body.model_copy(update={"platform_roles": roles})
+        selected = list(selected or [])
+        async with self.repository.engine.connect() as connection:
+            scopes = await assignment_scopes(connection, user_id, selected)
         keys = [
             policy_key("system"),
             ResourceKey("system", "login-name", (name,)),
             record_key("system", "platform_accounts", user_id),
             record_key("system", "audit_events", event_id),
+            *(
+                key
+                for scope in scopes
+                for key in assignment_keys(scope.channel_id, user_id, event_id)
+            ),
         ]
-        async with transaction(
+        async with control_transaction(
             self.repository.engine,
             ControlScope(purpose="accounts", actor_id=session.account.id),
+            scopes,
             keys,
-        ) as uow:
+        ) as units:
+            uow = units["system"]
             actor = await current_actor(uow, session, "account:manage")
+            if roles is not None:
+                require_platform(actor, "role:grant")
             if body.platform_roles:
                 await self.validate_roles(uow, actor, body.platform_roles)
             if await one(uow.connection, "platform_accounts", "system", login_name=name):
                 raise ServiceError("LOGIN_NAME_EXISTS", "登录名已存在", 409)
             row = await self._insert(uow, user_id, body, name, password_hash)
+            if selected:
+                await synchronize_channels(
+                    units, actor, user_id, selected, event_id, session.context.request_id
+                )
             await append_event(
                 uow,
                 event_id,
@@ -254,7 +340,10 @@ class AccountService:
                 user_id,
             )
         async with self.repository.engine.connect() as connection:
-            return account_view(row, await role_catalog(connection, "system"))
+            channels = await account_channels(connection, [user_id])
+            return account_view(
+                row, await role_catalog(connection, "system"), channels.get(user_id, [])
+            )
 
     async def _insert(
         self, uow: UnitOfWork, user_id: str, body: AccountCreate, name: str, password_hash: str
@@ -280,35 +369,64 @@ class AccountService:
     @audit_denials("account:update", "account", 0)
     async def update(self, session: AdminSession, user_id: str, body: AccountUpdate) -> AccountView:
         await self.authentication.revalidate_admin(session)
+        roles, selected = self.administrator_values(body)
+        selected = list(selected) if selected is not None else None
         event_id, revoke_id = new_id("audit"), new_id("revoke")
+        async with self.repository.engine.connect() as connection:
+            scopes: Sequence[Scope] = (
+                await assignment_scopes(connection, user_id, selected)
+                if selected is not None
+                else []
+            )
         keys = [
             policy_key("system"),
             record_key("system", "platform_accounts", user_id),
             record_key("system", "audit_events", event_id),
             record_key("system", "iam_revocations", revoke_id),
+            *(
+                key
+                for scope in scopes
+                for key in assignment_keys(scope.channel_id, user_id, event_id)
+            ),
         ]
         revocation = None
-        async with transaction(
+        async with control_transaction(
             self.repository.engine,
             ControlScope(purpose="accounts", actor_id=session.account.id),
+            list(scopes),
             keys,
-        ) as uow:
+        ) as units:
+            uow = units["system"]
             actor = await current_actor(uow, session, "account:manage")
             row = await one(uow.connection, "platform_accounts", "system", id=user_id)
             if row is None:
                 raise ServiceError("NOT_FOUND", "账号不存在", 404)
             await self.validate_target(uow, actor, row)
-            values = body.model_dump(exclude={"revision"}, exclude_none=True)
+            values = body.model_dump(exclude={"revision", "role", "channel_ids"}, exclude_none=True)
+            if roles is not None:
+                values["platform_roles"] = roles
+                require_platform(actor, "role:grant")
             if "display_name" in values:
                 values["display_name"] = values["display_name"].strip()
                 if not values["display_name"]:
                     raise ServiceError("VALIDATION_ERROR", "显示名称不能为空", 422)
-            if body.platform_roles is not None:
-                await self.validate_roles(uow, actor, body.platform_roles)
+            if "platform_roles" in values:
+                await self.validate_roles(uow, actor, values["platform_roles"])
             await self.protect_last_admin(uow, row, values)
             changed_fields = list(values)
-            if any(
-                key in values and values[key] != row[key] for key in ("status", "platform_roles")
+            channel_changed = False
+            if selected is not None:
+                channel_changed = await synchronize_channels(
+                    units, actor, user_id, selected, event_id, session.context.request_id
+                )
+                if channel_changed:
+                    changed_fields.append("channel_ids")
+            if (
+                any(
+                    key in values and values[key] != row[key]
+                    for key in ("status", "platform_roles")
+                )
+                or channel_changed
             ):
                 values["credential_version"] = row["credential_version"] + 1
                 revocation = await enqueue(uow, revoke_id, "account", user_id)
@@ -326,7 +444,10 @@ class AccountService:
         if revocation:
             await self.revocations.complete(revocation)
         async with self.repository.engine.connect() as connection:
-            return account_view(row, await role_catalog(connection, "system"))
+            channels = await account_channels(connection, [user_id])
+            return account_view(
+                row, await role_catalog(connection, "system"), channels.get(user_id, [])
+            )
 
     @audit_denials("account:reset", "account", 0)
     async def reset(self, session: AdminSession, user_id: str, body: PasswordReset) -> None:
