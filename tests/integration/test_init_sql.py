@@ -22,6 +22,7 @@ from creativity_service.modules.channels.initialization import system_channel_va
 from creativity_service.modules.iam.roles import ROLE_NAMES
 from creativity_service.modules.iam.schemas import AccountCreate, LoginInput
 from creativity_service.storage import metadata
+from tests.support.captcha import captcha_token
 
 pytestmark = pytest.mark.integration
 ARCHIVE = Path(__file__).resolve().parents[2] / "sql/init.sql"
@@ -172,7 +173,11 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
             )
         )
         login = await iam.sessions.login(
-            LoginInput(login_name="sql-admin", password=password),
+            LoginInput(
+                login_name="sql-admin",
+                password=password,
+                captcha_token=await captcha_token(iam, "sql-admin", "sql-init-test"),
+            ),
             "sql-init-test",
             new_id("request"),
         )

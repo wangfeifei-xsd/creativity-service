@@ -25,6 +25,7 @@ from creativity_service.modules.iam.schemas import (
     PasswordChange,
 )
 from tests.integration.channels.conftest import INITIAL, PASSWORD, provision
+from tests.support.captcha import captcha_token
 
 pytestmark = pytest.mark.integration
 
@@ -123,7 +124,13 @@ async def test_custom_role_scope_revision_and_immediate_revocation(channel_env):
         AccountCreate(login_name="role-test", display_name="角色验收", initial_password=INITIAL),
     )
     issued = await env.iam.sessions.login(
-        LoginInput(login_name="role-test", password=INITIAL), "test", new_id("request")
+        LoginInput(
+            login_name="role-test",
+            password=INITIAL,
+            captcha_token=await captcha_token(env.iam, "role-test", "test"),
+        ),
+        "test",
+        new_id("request"),
     )
     initial = await env.iam.authentication.admin_session(
         issued.access_token, new_id("request"), allow_initial=True

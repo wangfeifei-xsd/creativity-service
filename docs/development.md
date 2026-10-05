@@ -34,6 +34,10 @@ Python 3.12、uv 0.10.12；基础设施为 PostgreSQL、Redis 和 S3 兼容对�
 
 首次管理员通过 `uv run creativity-iam init-admin --login-name admin --display-name 管理员` 创建。管理端登录后使用服务端保存的 Token；操作权限、资源授权及工作区由 IAM 服务恢复。账号停用、角色或成员撤销会影响后续访问；认证 Redis 不可用时返回 503。
 
+账号密码登录须先完成滑块拼图：`POST /admin/v1/auth/captcha/challenges` 提交 `login_name` 获取 PNG 底图、拼块和挑战标识；`POST /admin/v1/auth/captcha/verify` 提交 `challenge_id` 与原图坐标中的横向 `offset`，成功后将返回的 `captcha_token` 随登录请求提交。前端复用 antd 表单、弹窗与滑块，支持鼠标、触屏和方向键调整、回车确认；验证码失败不清空账号密码。
+
+挑战有效期 120 秒，允许横向误差 4 像素；验证凭据有效期 60 秒，绑定规范化登录名与服务端获取的客户端 IP。Redis 键与记录归系统渠道，挑战及凭据通过原子消费防止并发重放，无 TTL 的记录拒绝使用。每次挑战只允许验证一次，账号密码登录尝试会消费验证凭据，错误密码也须重新验证。挑战签发限每 IP 每分钟 30 次，验证限每 IP 每分钟 60 次，并保留原账号/IP 登录限速。该模块提供基础自动化请求拦截；缺口仅包含在位图中，浏览器不接收正确偏移量。外部身份交换继续由配置的身份源校验，初始密码修改属于已认证流程。
+
 `uv run creativity-iam reconcile-revocations` 补偿未完成的撤销。业务 Key 换 Token 和主体委托见 [接入指南](integration.md#integrations)。接口详情查 [完整 OpenAPI](../contracts/openapi.json)。
 
 <a id="channels"></a>

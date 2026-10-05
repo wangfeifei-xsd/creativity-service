@@ -17,6 +17,10 @@ from creativity_service.modules.iam.schemas import (
     AccountUpdate,
     AccountView,
     AuditView,
+    CaptchaChallenge,
+    CaptchaChallengeInput,
+    CaptchaVerification,
+    CaptchaVerifyInput,
     ChannelContextInput,
     GrantInput,
     GrantView,
@@ -67,6 +71,24 @@ async def admin_session(
 
 Session = Annotated[AdminSession, Depends(admin_session)]
 Services = Annotated[IamServices, Depends(services)]
+
+
+@router.post("/auth/captcha/challenges", response_model=CaptchaChallenge)
+async def captcha_challenge(
+    body: CaptchaChallengeInput, request: Request, response: Response, iam: Services
+) -> CaptchaChallenge:
+    response.headers["Cache-Control"] = "no-store"
+    return await iam.captcha.challenge(
+        body.login_name, request.client.host if request.client else "unknown"
+    )
+
+
+@router.post("/auth/captcha/verify", response_model=CaptchaVerification)
+async def captcha_verify(
+    body: CaptchaVerifyInput, request: Request, response: Response, iam: Services
+) -> CaptchaVerification:
+    response.headers["Cache-Control"] = "no-store"
+    return await iam.captcha.verify(body, request.client.host if request.client else "unknown")
 
 
 @router.post("/auth/login", response_model=TokenResponse)

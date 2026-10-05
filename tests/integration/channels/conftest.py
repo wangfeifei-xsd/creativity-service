@@ -30,6 +30,7 @@ from creativity_service.modules.iam.schemas import (
     LoginInput,
     PasswordChange,
 )
+from tests.support.captcha import captcha_token
 
 INITIAL = "Initial-password-1234"
 PASSWORD = "Changed-password-5678"
@@ -37,7 +38,13 @@ PASSWORD = "Changed-password-5678"
 
 async def login(env):
     response = await env.iam.sessions.login(
-        LoginInput(login_name="root-admin", password=PASSWORD), "channel-test", new_id("request")
+        LoginInput(
+            login_name="root-admin",
+            password=PASSWORD,
+            captcha_token=await captcha_token(env.iam, "root-admin", "channel-test"),
+        ),
+        "channel-test",
+        new_id("request"),
     )
     return response, await env.iam.authentication.admin_session(
         response.access_token, new_id("request"), governance=True
@@ -79,7 +86,13 @@ async def channel_env():
             )
         )
         initial = await iam.sessions.login(
-            LoginInput(login_name="root-admin", password=INITIAL), "channel-test", new_id("request")
+            LoginInput(
+                login_name="root-admin",
+                password=INITIAL,
+                captcha_token=await captcha_token(iam, "root-admin", "channel-test"),
+            ),
+            "channel-test",
+            new_id("request"),
         )
         session = await iam.authentication.admin_session(
             initial.access_token, new_id("request"), allow_initial=True

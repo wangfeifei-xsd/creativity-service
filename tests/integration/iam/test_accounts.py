@@ -15,6 +15,7 @@ from creativity_service.modules.iam.schemas import (
     LoginInput,
     PasswordReset,
 )
+from tests.support.captcha import captcha_token
 
 from .conftest import INITIAL, PASSWORD, create_user, login
 
@@ -27,7 +28,12 @@ async def test_initial_credentials_only_allow_change_and_logout(iam_env):
         AccountCreate(login_name="first-admin", display_name="管理员", initial_password=INITIAL)
     )
     response = await client.post(
-        "/admin/v1/auth/login", json={"login_name": "FIRST-ADMIN", "password": INITIAL}
+        "/admin/v1/auth/login",
+        json={
+            "login_name": "FIRST-ADMIN",
+            "password": INITIAL,
+            "captcha_token": await captcha_token(iam, "FIRST-ADMIN", "127.0.0.1"),
+        },
     )
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
@@ -129,6 +135,7 @@ async def test_redis_unavailable_is_503_and_errors_are_distinct(iam_env, admin, 
     iam, client, _, _, _ = iam_env
     assert (await client.get("/admin/v1/auth/session")).status_code == 401
     _, (response, _) = await create_user(iam, admin[1])
+    proof = await captcha_token(iam, "root-admin", "127.0.0.1")
     denied = await client.get(
         "/admin/v1/accounts", headers={"Authorization": f"Bearer {response.access_token}"}
     )
@@ -144,7 +151,8 @@ async def test_redis_unavailable_is_503_and_errors_are_distinct(iam_env, admin, 
         )
         assert response.status_code == 503
     response = await client.post(
-        "/admin/v1/auth/login", json={"login_name": "root-admin", "password": PASSWORD}
+        "/admin/v1/auth/login",
+        json={"login_name": "root-admin", "password": PASSWORD, "captcha_token": proof},
     )
     assert response.status_code == 503
 
@@ -161,13 +169,23 @@ async def test_login_rate_limit_and_initialization_is_explicit(iam_env, admin):
     for _ in range(10):
         with pytest.raises(ServiceError) as exc:
             await iam.sessions.login(
-                LoginInput(login_name="missing-user", password="wrong"),
+                LoginInput(
+                    login_name="missing-user",
+                    password="wrong",
+                    captcha_token=await captcha_token(iam, "missing-user", "another-ip"),
+                ),
                 "another-ip",
                 new_id("request"),
             )
         assert exc.value.status == 401
     with pytest.raises(ServiceError) as exc:
         await iam.sessions.login(
-            LoginInput(login_name="missing-user", password="wrong"), "another-ip", new_id("request")
+            LoginInput(
+                login_name="missing-user",
+                password="wrong",
+                captcha_token=await captcha_token(iam, "missing-user", "another-ip"),
+            ),
+            "another-ip",
+            new_id("request"),
         )
     assert exc.value.status == 429

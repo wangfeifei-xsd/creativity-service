@@ -3,6 +3,7 @@
 import pytest
 
 from creativity_service.modules.iam.schemas import AccountCreate, ChannelContextInput, LoginInput
+from tests.support.captcha import captcha_token
 
 from .conftest import INITIAL, channel_body, login, provision
 
@@ -48,7 +49,13 @@ async def test_initial_password_and_creation_options_require_server_authority(ch
         ),
     )
     token = await env.iam.sessions.login(
-        LoginInput(login_name="initial-user", password=INITIAL), "ui", "ui-request"
+        LoginInput(
+            login_name="initial-user",
+            password=INITIAL,
+            captcha_token=await captcha_token(env.iam, "initial-user", "ui"),
+        ),
+        "ui",
+        "ui-request",
     )
     auth = {"Authorization": f"Bearer {token.access_token}"}
     initial = await env.client.get("/admin/v1/auth/session", headers=auth)

@@ -19,6 +19,7 @@ from creativity_service.modules.iam.access import AccessService
 from creativity_service.modules.iam.accounts import AccountService
 from creativity_service.modules.iam.audit import AuditService
 from creativity_service.modules.iam.authorization import IamAuthorization
+from creativity_service.modules.iam.captcha import CaptchaService
 from creativity_service.modules.iam.repositories import IdentityRepository
 from creativity_service.modules.iam.revocations import RevocationService
 from creativity_service.modules.iam.sessions import SessionService
@@ -33,6 +34,7 @@ class IamServices:
     sessions: SessionService
     audit: AuditService
     revocations: RevocationService
+    captcha: CaptchaService
 
 
 def build_iam_services(
@@ -54,14 +56,16 @@ def build_iam_services(
     authentication = AuthenticationService(tokens, repository, channels, services)
     authorization = IamAuthorization(authentication, resources, subjects)
     revocations = RevocationService(repository, tokens)
+    captcha = CaptchaService(redis, prefix)
     return IamServices(
         authentication,
         authorization,
         AccountService(repository, authentication, passwords, revocations),
         AccessService(repository, authentication, authorization, revocations, directory),
         SessionService(
-            repository, authentication, authorization, passwords, revocations, directory
+            repository, authentication, authorization, passwords, revocations, captcha, directory
         ),
         AuditService(repository, authorization),
         revocations,
+        captcha,
     )

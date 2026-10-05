@@ -30,6 +30,7 @@ from creativity_service.modules.iam.schemas import (
     PasswordChange,
 )
 from creativity_service.modules.iam.services import build_iam_services
+from tests.support.captcha import captcha_token
 
 INITIAL = "Initial-password-1234"
 PASSWORD = "Changed-password-5678"
@@ -168,7 +169,13 @@ async def iam_env():
 
 async def login(iam, name, password=PASSWORD, *, initial=False):
     response = await iam.sessions.login(
-        LoginInput(login_name=name, password=password), "test-ip", new_id("request")
+        LoginInput(
+            login_name=name,
+            password=password,
+            captcha_token=await captcha_token(iam, name, "test-ip"),
+        ),
+        "test-ip",
+        new_id("request"),
     )
     session = await iam.authentication.admin_session(
         response.access_token, new_id("request"), allow_initial=initial

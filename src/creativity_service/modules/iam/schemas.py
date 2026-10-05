@@ -16,6 +16,32 @@ ChannelRole = Identifier
 class LoginInput(Contract):
     login_name: str = Field(min_length=1, max_length=128)
     password: SecretStr = Field(min_length=1, max_length=256)
+    captcha_token: SecretStr = Field(min_length=43, max_length=43)
+
+
+class CaptchaChallengeInput(Contract):
+    login_name: str = Field(min_length=1, max_length=128)
+
+
+class CaptchaChallenge(Contract):
+    challenge_id: str
+    background: str
+    piece: str
+    width: int
+    height: int
+    piece_size: int
+    piece_y: int
+    expires_in: int
+
+
+class CaptchaVerifyInput(Contract):
+    challenge_id: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$")
+    offset: float = Field(ge=0, le=268, allow_inf_nan=False)
+
+
+class CaptchaVerification(Contract):
+    captcha_token: str
+    expires_in: int
 
 
 class AccountCreate(Contract):

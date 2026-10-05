@@ -15,6 +15,7 @@ from creativity_service.modules.iam.authorization import (
     action_allowed,
     effective_actions,
 )
+from creativity_service.modules.iam.captcha import CaptchaService
 from creativity_service.modules.iam.repositories import IdentityRepository, one, policy_key
 from creativity_service.modules.iam.revocations import RevocationService, enqueue
 from creativity_service.modules.iam.roles import ACTION_NAMES, GOVERNANCE_ACTIONS, role_actions
@@ -58,6 +59,7 @@ class SessionService:
         authorization: IamAuthorization,
         passwords: PasswordHasher,
         revocations: RevocationService,
+        captcha: CaptchaService,
         directory: WorkspaceDirectory | None = None,
     ) -> None:
         self.repository, self.authentication, self.authorization = (
@@ -66,10 +68,12 @@ class SessionService:
             authorization,
         )
         self.passwords, self.revocations, self.directory = passwords, revocations, directory
+        self.captcha = captcha
 
     async def login(self, body: LoginInput, remote_ip: str, request_id: str) -> TokenResponse:
         name = normalize_login(body.login_name)
         await self.authentication.tokens.limit_login(name, remote_ip)
+        await self.captcha.consume(body.captcha_token.get_secret_value(), name, remote_ip)
         candidate = await self.repository.credentials(name)
         verified = await self.passwords.verify(
             body.password.get_secret_value(), candidate["password_hash"] if candidate else None
