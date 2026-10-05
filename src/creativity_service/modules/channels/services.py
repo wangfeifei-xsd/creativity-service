@@ -1,6 +1,5 @@
 """渠道开通与配置服务；检查、授权、写入和审计共用互斥事务。"""
 
-import re
 import unicodedata
 from typing import Any
 
@@ -14,6 +13,7 @@ from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.deletion import RecoveryService
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import Contract, ServiceError, new_id, unavailable, utcnow
+from creativity_service.modules.channels.codes import channel_code
 from creativity_service.modules.channels.initialization import system_channel_values
 from creativity_service.modules.channels.ports import ResourceReferenceReader, UsageReader
 from creativity_service.modules.channels.reading import ChannelReadData
@@ -363,11 +363,8 @@ class ChannelService:
         if isinstance(session.context, AuthContext):
             raise ServiceError("FORBIDDEN", "开通渠道须使用平台管理会话", 403)
         require_platform(session.account, "channel:create")
-        code = unicodedata.normalize("NFKC", body.channel_code).strip().lower()
-        if not re.fullmatch(r"[a-z][a-z0-9_-]{0,63}", code) or code == "system":
-            raise ServiceError(
-                "VALIDATION_ERROR", "渠道编码须以字母开头，使用小写字母、数字、下划线或短横线", 422
-            )
+        name = clean_name(body.name)
+        code = channel_code(name)
         self.validate_mapping(
             body.data_scope.external_scope_type,
             body.data_scope.external_scope_id,
@@ -413,7 +410,7 @@ class ChannelService:
                 channel_id,
                 {
                     "channel_code": code,
-                    "name": clean_name(body.name),
+                    "name": name,
                     "owner": clean_name(body.owner),
                     "business_type": clean_name(body.business_type) if body.business_type else None,
                     "status": "ACTIVE",

@@ -21,6 +21,7 @@ from creativity_service.modules.channels.schemas import (
     TokenExchange,
 )
 from creativity_service.modules.channels.tables import metadata
+from creativity_service.modules.iam.roles import INDEPENDENT_ACTIONS
 from creativity_service.modules.iam.schemas import ChannelContextInput
 
 from .conftest import channel_body, credential, login, provision
@@ -36,6 +37,22 @@ async def current_key(env, channel_id, key_id):
     return next(
         k for k in await env.services.keys.list_items(env.admin, channel_id) if k.key_id == key_id
     )
+
+
+async def test_every_channel_create_action_option_is_accepted(channel_env):
+    env = channel_env
+    options = await env.client.get(
+        "/admin/v1/channel-create-options", headers=headers(env.admin_token)
+    )
+    assert options.status_code == 200
+    actions = [item["action_key"] for item in options.json()["independent_actions"]]
+    assert set(actions) == INDEPENDENT_ACTIONS
+    body = channel_body(env, "all-actions").model_dump(mode="json")
+    body["independent_actions"] = actions
+    response = await env.client.post(
+        "/admin/v1/channels", json=body, headers=headers(env.admin_token)
+    )
+    assert response.status_code == 201, response.text
 
 
 async def test_two_real_channels_token_binding_masks_and_index(
@@ -119,7 +136,9 @@ async def test_no_context_override_or_direct_key_bearer(channel_env, channel, se
     assert result.status_code == 404
 
 
-async def test_concurrent_channel_code_and_first_member_rollback(channel_env, monkeypatch):
+async def test_concurrent_generated_channel_code_and_first_member_rollback(
+    channel_env, monkeypatch
+):
     env = channel_env
     results = await asyncio.gather(
         *(
@@ -130,7 +149,11 @@ async def test_concurrent_channel_code_and_first_member_rollback(channel_env, mo
     )
     assert sum(not isinstance(r, Exception) for r in results) == 1
     assert all(
-        isinstance(r, ServiceError) and r.status == 409 for r in results if isinstance(r, Exception)
+        isinstance(r, ServiceError)
+        and r.status == 409
+        and r.message == "渠道名称生成的编码已存在，请调整渠道名称"
+        for r in results
+        if isinstance(r, Exception)
     )
     before = await env.services.channels.list_items(env.admin)
 
@@ -144,7 +167,7 @@ async def test_concurrent_channel_code_and_first_member_rollback(channel_env, mo
     async with env.engine.connect() as connection:
         assert (
             await connection.scalar(
-                text("SELECT count(*) FROM channel_code_index WHERE channel_code='must-rollback'")
+                text("SELECT count(*) FROM channel_code_index WHERE channel_code='MUST'")
             )
             == 0
         )

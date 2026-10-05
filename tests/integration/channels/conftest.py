@@ -114,9 +114,15 @@ async def channel_env():
 
 
 def channel_body(env, code="rental", business_type="gamerental"):
+    name = (
+        "租号渠道"
+        if code == "rental" and business_type == "gamerental"
+        else "陪玩渠道"
+        if code == "playmate" and business_type == "playmate"
+        else f"{code.strip()}渠道"
+    )
     return ChannelCreate(
-        channel_code=code,
-        name="租号渠道" if business_type == "gamerental" else "陪玩渠道",
+        name=name,
         owner="业务负责人",
         business_type=business_type,
         first_admin_user_id=env.user_id,

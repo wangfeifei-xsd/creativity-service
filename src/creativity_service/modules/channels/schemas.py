@@ -9,6 +9,7 @@ from creativity_service.core.auth.types import Status
 from creativity_service.core.context import Environment
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.primitives import Contract, Identifier, Money, Revision
+from creativity_service.modules.iam.roles import INDEPENDENT_ACTIONS, IndependentAction
 
 ChannelStatus = Literal["ACTIVE", "SUSPENDED", "ARCHIVED"]
 LifecycleAction = Literal["suspend", "resume", "archive"]
@@ -34,7 +35,6 @@ class InitialDataScope(Contract):
 
 
 class ChannelCreate(Contract):
-    channel_code: str = Field(min_length=1, max_length=64)
     name: str = Field(min_length=1, max_length=128)
     owner: str = Field(min_length=1, max_length=128)
     business_type: str | None = Field(
@@ -44,8 +44,8 @@ class ChannelCreate(Contract):
     environment: Environment
     data_scope: InitialDataScope
     retention_policy: RetentionPolicy = Field(default_factory=RetentionPolicy)
-    independent_actions: list[Literal["release:publish", "data:export", "data:read_sensitive"]] = (
-        Field(default_factory=list, max_length=3)
+    independent_actions: list[IndependentAction] = Field(
+        default_factory=list, max_length=len(INDEPENDENT_ACTIONS)
     )
 
 

@@ -4047,12 +4047,6 @@
             "description": "可选业务分类，仅用于展示",
             "title": "Business Type"
           },
-          "channel_code": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Channel Code",
-            "type": "string"
-          },
           "data_scope": {
             "$ref": "#/components/schemas/InitialDataScope"
           },
@@ -4078,11 +4072,12 @@
               "enum": [
                 "release:publish",
                 "data:export",
-                "data:read_sensitive"
+                "data:read_sensitive",
+                "run:approve"
               ],
               "type": "string"
             },
-            "maxItems": 3,
+            "maxItems": 4,
             "title": "Independent Actions",
             "type": "array"
           },
@@ -4103,7 +4098,6 @@
           }
         },
         "required": [
-          "channel_code",
           "name",
           "owner",
           "first_admin_user_id",

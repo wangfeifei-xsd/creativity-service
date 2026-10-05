@@ -13,7 +13,7 @@
 | `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
-| `channel_code` | `varchar(64)` | 渠道稳定编码 | 是 | 服务层校验后的业务输入 | 内部 |
+| `channel_code` | `varchar(64)` | 渠道稳定编码 | 是 | 服务层根据渠道名称生成 | 内部 |
 | `name` | `varchar(128)` | 渠道名称 | 是 | 服务层校验后的业务输入 | 内部 |
 | `status` | `varchar(32)` | 渠道状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `owner` | `varchar(128)` | 负责人名称 | 是 | 服务层校验后的业务输入 | 内部 |

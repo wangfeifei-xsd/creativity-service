@@ -27,6 +27,7 @@ dependencies = [
   "opentelemetry-instrumentation-fastapi>=0.60b0,<1",
   "opentelemetry-instrumentation-celery>=0.60b0,<1",
   "pillow>=12,<13",
+  "pypinyin>=0.55,<1",
 ]
 
 [dependency-groups]

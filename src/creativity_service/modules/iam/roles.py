@@ -1,5 +1,7 @@
 """首版六类角色的动作上限；独立动作必须在资源授权中明确授予。"""
 
+from typing import Literal, get_args
+
 ACTION_NAMES = {
     "account:manage": "管理账号",
     "role:grant": "授予平台角色",
@@ -63,9 +65,8 @@ ACTION_NAMES = {
     "data:export": "导出数据",
     "data:read_sensitive": "读取敏感原文",
 }
-INDEPENDENT_ACTIONS = frozenset(
-    {"release:publish", "data:export", "data:read_sensitive", "run:approve"}
-)
+IndependentAction = Literal["release:publish", "data:export", "data:read_sensitive", "run:approve"]
+INDEPENDENT_ACTIONS: frozenset[str] = frozenset(get_args(IndependentAction))
 PLATFORM_ACTIONS = frozenset(
     {
         "account:manage",

@@ -269,16 +269,37 @@ class ChannelRepository:
         uow.require_lock(policy_key("system"))
         uow.require_lock(record_key("system", name, record_id))
         column = "key_lookup_digest" if name == "key_identity_index" else "channel_code"
-        uow.require_lock(ResourceKey("system", name, (values[column],)))
-        existing = await ControlRepository(
-            metadata.tables[name],
-            ControlScope(
-                purpose="identity_lookup" if name == "key_identity_index" else "channel_directory",
-                actor_id="channel_index_writer",
-            ),
-        ).lookup(uow.connection, column, values[column])
+        lock_value = values[column].upper() if name == "channel_code_index" else values[column]
+        uow.require_lock(ResourceKey("system", name, (lock_value,)))
+        existing: object | None
+        if name == "channel_code_index":
+            table = metadata.tables[name]
+            existing = (
+                (
+                    await uow.connection.execute(
+                        select(table).where(
+                            table.c.channel_id == "system",
+                            table.c.channel_code.in_(
+                                {values[column].upper(), values[column].lower()}
+                            ),
+                        )
+                    )
+                )
+                .mappings()
+                .first()
+            )
+        else:
+            existing = await ControlRepository(
+                metadata.tables[name],
+                ControlScope(purpose="identity_lookup", actor_id="channel_index_writer"),
+            ).lookup(uow.connection, column, values[column])
         if existing:
-            raise ServiceError("CODE_EXISTS", "编码或凭据已存在", 409)
+            message = (
+                "渠道名称生成的编码已存在，请调整渠道名称"
+                if name == "channel_code_index"
+                else "接入凭据已存在"
+            )
+            raise ServiceError("CODE_EXISTS", message, 409)
         table = metadata.tables[name]
         now = utcnow()
         row = {

@@ -27,8 +27,7 @@ pytestmark = pytest.mark.integration
 
 async def open_workspace(env, code="research", category=None):
     body = {
-        "channel_code": code,
-        "name": "资料工作区",
+        "name": "资料工作区" if code == "research" else f"{code}工作区",
         "owner": "资料管理员",
         "first_admin_user_id": env.user_id,
         "environment": "test",
