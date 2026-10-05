@@ -63,17 +63,21 @@ def register_error_handlers(app: FastAPI) -> None:
         messages = {
             "missing": "请填写此项",
             "extra_forbidden": "不支持此字段",
-            "string_too_short": "内容长度不足",
-            "string_too_long": "内容长度超出限制",
             "json_invalid": "请求内容不是有效的 JSON",
         }
-        fields = [
-            FieldError(
-                path=cast(list[str | int], list(item["loc"])[1:]),
-                message=messages.get(item["type"], "字段值不符合要求"),
+        fields = []
+        for item in exc.errors():
+            message = messages.get(item["type"], "字段值不符合要求")
+            context = item.get("ctx", {})
+            # 密码等秘密字符串使用通用长度错误类型，仅读取限制，不回显输入值。
+            if isinstance(item.get("input"), str):
+                if item["type"] in {"string_too_short", "too_short"}:
+                    message = f"至少输入 {context['min_length']} 个字符"
+                elif item["type"] in {"string_too_long", "too_long"}:
+                    message = f"最多输入 {context['max_length']} 个字符"
+            fields.append(
+                FieldError(path=cast(list[str | int], list(item["loc"])[1:]), message=message)
             )
-            for item in exc.errors()
-        ]
         return error_response(422, "VALIDATION_ERROR", "请检查填写内容", fields)
 
     @app.exception_handler(HTTPException)

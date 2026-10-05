@@ -14,6 +14,7 @@ from creativity_service.app import create_app
 from creativity_service.core.config import Settings
 from creativity_service.core.infrastructure import Infrastructure
 from creativity_service.core.observability import JsonFormatter, request_id_context
+from creativity_service.modules.iam.schemas import PasswordChange
 
 
 def test_missing_config_fails_before_startup(settings, monkeypatch, tmp_path):
@@ -69,6 +70,30 @@ def test_liveness_errors_validation_and_cors(settings):
         assert response.json()["error"]["fields"] == [{"path": ["name"], "message": "请填写此项"}]
         assert "input" not in response.text
     assert request_id_context.get() is None
+
+
+@pytest.mark.parametrize(
+    ("new_password", "message"),
+    [("short-pass", "至少输入 12 个字符"), ("p" * 257, "最多输入 256 个字符")],
+)
+def test_password_length_errors_explain_limits_without_exposing_input(
+    settings, new_password, message
+):
+    app = create_app(settings)
+
+    @app.post("/admin/v1/test-password")
+    async def validate_password(body: PasswordChange):
+        return {"valid": True}
+
+    current_password = "current-test-password"
+    with TestClient(app) as client:
+        response = client.post(
+            "/admin/v1/test-password",
+            json={"current_password": current_password, "new_password": new_password},
+        )
+    assert response.status_code == 422
+    assert response.json()["error"]["fields"] == [{"path": ["new_password"], "message": message}]
+    assert current_password not in response.text and new_password not in response.text
 
 
 @pytest.mark.parametrize("failed", ["database", "redis_auth", "object_storage"])
