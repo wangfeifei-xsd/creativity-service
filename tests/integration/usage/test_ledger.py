@@ -326,9 +326,6 @@ async def test_export_real_permissions_and_csv_formula_protection(usage_env):
         ChannelContextInput(
             channel_id=ch.channel_id,
             environment="test",
-            data_scope_id=(await env.services.channels.data_scopes(env.admin, ch.channel_id))[
-                0
-            ].data_scope_id,
         ),
     )
     session = await env.iam.authentication.admin_session(
@@ -468,7 +465,7 @@ async def test_query_and_export_cannot_expand_scope_and_conversion_keeps_source(
         "/admin/v1/usage/records",
         params={
             **query.model_dump(mode="json", exclude_none=True),
-            "data_scope_id": "not-authorized",
+            "environment": "prod",
         },
         headers=headers,
     )

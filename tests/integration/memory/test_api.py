@@ -23,14 +23,12 @@ async def test_http_real_iam_current_domain_revision_subject_and_token_revocatio
         env.admin,
         channel_body(env).model_copy(update={"independent_actions": ["data:read_sensitive"]}),
     )
-    domains = await env.services.channels.data_scopes(env.admin, channel.channel_id)
     _, session = await login(env)
     token = await env.iam.sessions.enter(
         session,
         ChannelContextInput(
             channel_id=channel.channel_id,
             environment="test",
-            data_scope_id=domains[0].data_scope_id,
         ),
     )
     context = (
@@ -109,21 +107,19 @@ async def test_business_delegation_controls_own_memory_without_subject_filters(c
         env.admin,
         channel_body(env).model_copy(update={"independent_actions": ["data:read_sensitive"]}),
     )
-    domains = await env.services.channels.data_scopes(env.admin, created_channel.channel_id)
     _, session = await login(env)
     entered = await env.iam.sessions.enter(
         session,
         ChannelContextInput(
             channel_id=created_channel.channel_id,
             environment="test",
-            data_scope_id=domains[0].data_scope_id,
         ),
     )
     manager = await env.iam.authentication.admin_session(
         entered.access_token, new_id("request"), governance=True
     )
     env.context = manager.context
-    channel = SimpleNamespace(channel=created_channel, domain=domains[0], manager=manager)
+    channel = SimpleNamespace(channel=created_channel, manager=manager)
     env.bundle = build_integration_services(env.engine, env.iam.authorization, provider=TestKeys())
     env.client._transport.app.state.delegation = env.bundle.delegation
     actions = [
@@ -140,7 +136,6 @@ async def test_business_delegation_controls_own_memory_without_subject_filters(c
             name="记忆业务后端",
             environment="test",
             scopes=actions,
-            data_scopes=[channel.domain.data_scope_id],
         ),
     )
     key = await env.services.keys.create(

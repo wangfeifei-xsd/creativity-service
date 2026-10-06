@@ -10,7 +10,9 @@ from creativity_service.core.deletion import ContentRef, DeletionGuard, content_
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError, digest, new_id, unavailable
 from creativity_service.core.versioning import version_view
+from creativity_service.modules.iam.reading import require_action
 from creativity_service.modules.iam.repositories import policy_key
+from creativity_service.modules.iam.schemas import AccessAction
 from creativity_service.modules.models.policy import (
     PROTOCOLS,
     attempt_order,
@@ -24,10 +26,11 @@ from creativity_service.modules.models.schemas import (
     RouteInput,
     RouteList,
     RouteVersionInput,
+    RouteVersionView,
     RouteView,
 )
 from creativity_service.modules.models.services import ModelService, action
-from creativity_service.modules.models.versioning import freeze, version_keys
+from creativity_service.modules.models.versioning import freeze, history_rows, version_keys
 
 
 class ModelRouting:
@@ -75,6 +78,77 @@ class ModelRouting:
             ]
         return RouteList(items=result, actions=[action("create", "新增路由")])
 
+    async def versions(self, session: AdminSession, identifier: str) -> list[RouteVersionView]:
+        service = self.service
+        if not isinstance(session.context, AuthContext):
+            raise ServiceError("FORBIDDEN", "请先进入渠道环境", 403)
+        context = session.context
+        scope = context.scope
+        policy = await service.iam.authorization.read_policy(context)
+        permissions = policy.actions("channel", scope.channel_id)
+        require_action(permissions, "model:manage")
+        permission_reason = None
+        if "release:publish" not in permissions:
+            permission_reason = "当前角色未获此环境的发布权限，请联系有授权权限的管理员"
+        async with transaction(service.engine, scope, [content_key(scope)]) as uow:
+            route, rows = await history_rows(uow, context, "model_route", identifier)
+            releases = await repository(scope, "release_mappings").find(
+                uow.connection, resource_type="model_route", resource_id=identifier
+            )
+            released_ids = {row["version_id"] for row in releases}
+            snapshots = {
+                row["id"]: [FrozenModel.model_validate(s) for s in row["content"]["models"]]
+                for row in rows
+            }
+            # 本次列表只读取候选引用，不逐版本查库或复用完整发布流程。
+            candidates = [s for items in snapshots.values() for s in items]
+            models = await repository(scope, "models").get_many(
+                uow.connection,
+                [s.model_id for s in candidates] if permission_reason is None else [],
+            )
+            connections = await repository(scope, "model_connections").get_many(
+                uow.connection,
+                [s.connection_id for s in candidates] if permission_reason is None else [],
+            )
+            result = []
+            for row in rows:
+                reason = permission_reason
+                if row["id"] in released_ids:
+                    reason = "该版本已是当前发布版本"
+                elif row["state"] != "PUBLISHED" or route["status"] != "ACTIVE":
+                    reason = "路由或版本已停用"
+                elif reason is None:
+                    for snapshot in snapshots[row["id"]]:
+                        model = models.get(snapshot.model_id)
+                        connection = connections.get(snapshot.connection_id)
+                        try:
+                            if model is None or connection is None:
+                                raise ServiceError("NOT_FOUND", "模型或连接不存在", 404)
+                            self.validate_release_candidate(
+                                context,
+                                snapshot,
+                                model,
+                                connection,
+                                row["content"]["required_capabilities"],
+                            )
+                        except ServiceError as exc:
+                            reason = f"{snapshot.model_name}：{exc.message}"
+                            break
+                result.append(
+                    RouteVersionView(
+                        **version_view(row).model_dump(),
+                        actions=[
+                            AccessAction(
+                                action_key="release",
+                                label="发布",
+                                enabled=reason is None,
+                                disabled_reason=reason,
+                            )
+                        ],
+                    )
+                )
+            return result
+
     async def create_version(
         self, session: AdminSession, identifier: str, body: RouteVersionInput
     ) -> ResourceVersion:
@@ -118,16 +192,20 @@ class ModelRouting:
                 version_label=body.label,
             ):
                 raise ServiceError("VERSION_LABEL_CONFLICT", "版本名称已存在", 409)
-            await service.locked_use(uow, session, ids)
+            # 保存未发布配置只需模型管理权限；运行授权和能力证据在发布、执行边界校验。
+            current_models = await repository(context.scope, "models").get_many(uow.connection, ids)
+            current_connections = await repository(context.scope, "model_connections").get_many(
+                uow.connection, [s.connection_id for s in snapshots]
+            )
             for snapshot in snapshots:
-                model = await required(uow.connection, context.scope, "models", snapshot.model_id)
-                conn = await required(
-                    uow.connection, context.scope, "model_connections", snapshot.connection_id
-                )
+                model = current_models.get(snapshot.model_id)
+                conn = current_connections.get(snapshot.connection_id)
+                if model is None or conn is None:
+                    raise ServiceError("NOT_FOUND", "模型或连接不存在", 404)
                 current = service.snapshot(context, model, conn)
                 if current != snapshot:
                     raise ServiceError("REVISION_CONFLICT", "模型配置已变更，请重新创建路由", 409)
-                self.validate_current(model, conn, current, list(body.required_capabilities))
+                self.validate_current(model, conn, current, [])
                 validate_parameters(
                     current.protocol,
                     current.parameter_allowlist,
@@ -168,6 +246,25 @@ class ModelRouting:
             raise ServiceError("MODEL_PROTOCOL_DISABLED", "该模型协议尚未启用", 422)
         require_capabilities(model["capabilities"], snapshot.config_digest, capabilities)
 
+    def validate_release_candidate(
+        self,
+        context: AuthContext,
+        snapshot: FrozenModel,
+        model: dict[str, Any],
+        connection: dict[str, Any],
+        capabilities: list[str],
+    ) -> None:
+        """展示发布状态和实际发布共用无查询校验，提交时使用事务内最新配置。"""
+        if (
+            snapshot.scope.channel_id != context.scope.channel_id
+            or snapshot.scope.environment != context.scope.environment
+        ):
+            raise ServiceError("SCOPE_MISMATCH", "路由连接不属于当前渠道环境", 403)
+        current = self.service.snapshot(context, model, connection)
+        if current.config_digest != snapshot.config_digest:
+            raise ServiceError("MODEL_CONFIGURATION_STALE", "路由引用的模型配置已变更", 409)
+        self.validate_current(model, connection, current, capabilities)
+
     async def release(
         self, session: AdminSession, identifier: str, body: ReleaseInput
     ) -> ResourceVersion:
@@ -199,21 +296,14 @@ class ModelRouting:
                 raise ServiceError("MODEL_ROUTE_INVALID", "路由版本不可发布", 422)
             await DeletionGuard(context.scope).check(uow, [ContentRef("version", body.version_id)])
             snapshots = [FrozenModel.model_validate(s) for s in row["content"]["models"]]
-            await service.locked_use(uow, session, [s.model_id for s in snapshots])
             for s in snapshots:
-                if (
-                    s.scope.channel_id != context.scope.channel_id
-                    or s.scope.environment != context.scope.environment
-                ):
-                    raise ServiceError("SCOPE_MISMATCH", "路由连接不属于当前渠道环境", 403)
                 model = await required(uow.connection, context.scope, "models", s.model_id)
                 conn = await required(
                     uow.connection, context.scope, "model_connections", s.connection_id
                 )
-                current = service.snapshot(context, model, conn)
-                if current.config_digest != s.config_digest:
-                    raise ServiceError("MODEL_CONFIGURATION_STALE", "路由引用的模型配置已变更", 409)
-                self.validate_current(model, conn, current, row["content"]["required_capabilities"])
+                self.validate_release_candidate(
+                    context, s, model, conn, row["content"]["required_capabilities"]
+                )
                 await DeletionGuard(context.scope).check(
                     uow,
                     [

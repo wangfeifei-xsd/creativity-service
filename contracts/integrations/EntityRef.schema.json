@@ -18,13 +18,6 @@
       "title": "Environment",
       "type": "string"
     },
-    "data_scope_id": {
-      "maxLength": 128,
-      "minLength": 1,
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-      "title": "Data Scope Id",
-      "type": "string"
-    },
     "source_type": {
       "maxLength": 128,
       "minLength": 1,
@@ -43,7 +36,6 @@
   "required": [
     "channel_id",
     "environment",
-    "data_scope_id",
     "source_type",
     "source_id"
   ],

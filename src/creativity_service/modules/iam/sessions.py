@@ -141,7 +141,7 @@ class SessionService:
     async def channel_options(self, session: AdminSession) -> list[WorkspaceOption]:
         """复用当前调用已经验证的身份；各渠道授权仍由目录核准。"""
         if self.directory is None:
-            raise unavailable("渠道工作区目录")
+            raise unavailable("渠道环境目录")
         from creativity_service.modules.channels.state import ChannelDirectory
 
         if isinstance(self.directory, ChannelDirectory):
@@ -153,7 +153,6 @@ class SessionService:
                 member is None
                 or member.status != "ACTIVE"
                 or option.environment not in member.environments
-                or option.data_scope_id not in member.data_scopes
             ):
                 continue
             grants = await self.repository.grants(option.channel_id)
@@ -162,7 +161,6 @@ class SessionService:
                     member,
                     grants,
                     option.environment,
-                    option.data_scope_id,
                     grant.resource_type,
                     grant.resource_id,
                 )
@@ -173,7 +171,6 @@ class SessionService:
                 scope=Scope(
                     channel_id=option.channel_id,
                     environment=option.environment,
-                    data_scope_id=option.data_scope_id,
                 ),
                 principal_type="management",
                 principal_id=session.account.id,
@@ -185,7 +182,6 @@ class SessionService:
                     member,
                     grants,
                     option.environment,
-                    option.data_scope_id,
                     "channel",
                     option.channel_id,
                 )
@@ -206,11 +202,9 @@ class SessionService:
         await self.authentication.revalidate_admin(session, governance=True)
         options = await self.channels(session)
         if not any(
-            (o.channel_id, o.environment, o.data_scope_id)
-            == (body.channel_id, body.environment, body.data_scope_id)
-            for o in options
+            (o.channel_id, o.environment) == (body.channel_id, body.environment) for o in options
         ):
-            raise ServiceError("NOT_FOUND", "可进入的工作区不存在", 404)
+            raise ServiceError("NOT_FOUND", "可进入的渠道环境不存在", 404)
         member = await self.repository.membership(body.channel_id, session.account.id)
         account = await self.authentication.active_account(session.account.id)
         if account.credential_version != session.token.credential_version:
@@ -223,7 +217,6 @@ class SessionService:
             principal_id=account.id,
             channel_id=body.channel_id,
             environment=body.environment,
-            data_scope_id=body.data_scope_id,
             credential_version=account.credential_version,
             membership_version=member.revision,
             replace=session.token,
@@ -233,7 +226,6 @@ class SessionService:
         scope = Scope(
             channel_id=body.channel_id,
             environment=body.environment,
-            data_scope_id=body.data_scope_id,
         )
         async with transaction(
             self.repository.engine, scope, [record_key(body.channel_id, "audit_events", event_id)]
@@ -309,8 +301,6 @@ class SessionService:
                 option.channel_name,
                 option.channel_id,
                 ("test", "dev", "fat", "prod").index(option.environment),
-                option.data_scope_name,
-                option.data_scope_id,
             )
         )
         workspace = None
@@ -326,7 +316,6 @@ class SessionService:
                             member,
                             grants,
                             context.scope.environment,
-                            context.scope.data_scope_id or "",
                             grant.resource_type,
                             grant.resource_id,
                         )
@@ -337,21 +326,20 @@ class SessionService:
                 (
                     o
                     for o in options
-                    if (o.channel_id, o.environment, o.data_scope_id)
+                    if (o.channel_id, o.environment)
                     == (
                         context.scope.channel_id,
                         context.scope.environment,
-                        context.scope.data_scope_id,
                     )
                 ),
                 None,
             )
             if workspace is None:
-                raise ServiceError("FORBIDDEN", "当前工作区授权已失效", 403)
+                raise ServiceError("FORBIDDEN", "当前渠道环境授权已失效", 403)
             state = await require_channel_state(
                 context, self.authentication.channels, governance=True
             )
-            if not (state.channel_active and state.environment_active and state.data_scope_active):
+            if not (state.channel_active and state.environment_active):
                 actions &= GOVERNANCE_ACTIONS | {"audit:read", "usage:read"}
         else:
             actions = platform_actions(account)

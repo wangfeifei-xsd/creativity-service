@@ -97,7 +97,7 @@ class MenuService:
     @staticmethod
     def authorize(session: AdminSession) -> None:
         if isinstance(session.context, AuthContext):
-            raise ServiceError("FORBIDDEN", "请在平台工作区管理菜单", 403)
+            raise ServiceError("FORBIDDEN", "请在平台管理入口管理菜单", 403)
         require_platform(session.account, "menu:manage")
 
     def options(self, session: AdminSession) -> dict[str, Any]:
@@ -120,7 +120,7 @@ class MenuService:
                     "MENU_PAGE_INVALID", "请选择已注册页面，页面节点不能绑定按钮动作", 422
                 )
             if not compatible(PAGES[row["page_key"]][1], row["workspace"]):
-                raise ServiceError("MENU_SCOPE_INVALID", "页面与工作区不匹配", 422)
+                raise ServiceError("MENU_SCOPE_INVALID", "页面与适用范围不匹配", 422)
         elif row["kind"] == "BUTTON":
             if row["action_key"] not in ACTION_NAMES or row["page_key"]:
                 raise ServiceError(
@@ -129,7 +129,7 @@ class MenuService:
             if (row["action_key"] in PLATFORM_ONLY_ACTIONS and row["workspace"] != "platform") or (
                 row["action_key"] not in PLATFORM_ACTIONS and row["workspace"] != "channel"
             ):
-                raise ServiceError("MENU_SCOPE_INVALID", "操作权限与工作区不匹配", 422)
+                raise ServiceError("MENU_SCOPE_INVALID", "操作权限与适用范围不匹配", 422)
         elif row["page_key"] or row["action_key"]:
             raise ServiceError("MENU_KIND_INVALID", "目录不能绑定页面或按钮权限", 422)
         parents = ancestors(row, catalog)
@@ -140,7 +140,7 @@ class MenuService:
                     "MENU_PARENT_INVALID", "目录下可添加菜单，菜单下只能添加按钮", 422
                 )
             if any(not compatible(p["workspace"], row["workspace"]) for p in parents):
-                raise ServiceError("MENU_SCOPE_INVALID", "父级工作区不能小于子级范围", 422)
+                raise ServiceError("MENU_SCOPE_INVALID", "父级适用范围不能小于子级范围", 422)
         if row["page_key"] in PROTECTED_PAGES and any(
             not n["active"] or not n["visible"] for n in [*parents, row]
         ):

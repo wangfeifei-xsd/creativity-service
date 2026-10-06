@@ -28,7 +28,7 @@ class ReleaseService:
     ) -> AgentDetail:
         s, scope = self.agents, context.scope
         if body.environment != scope.environment:
-            raise ServiceError("FORBIDDEN", "请进入目标环境工作区后发布", 403)
+            raise ServiceError("FORBIDDEN", "请进入目标渠道环境后发布", 403)
         await s.require(context, "release:publish", agent_id)
         _, initial = await s.raw(context, body.version_id)
         definition = AgentDefinition.model_validate(initial["content"])

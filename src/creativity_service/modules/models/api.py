@@ -30,6 +30,7 @@ from creativity_service.modules.models.schemas import (
     RouteInput,
     RouteList,
     RouteVersionInput,
+    RouteVersionView,
     RouteView,
     TestInput,
     TestView,
@@ -168,9 +169,9 @@ async def create_route(body: RouteInput, session: Session, service: Services) ->
     return await service.routing.create(session, body)
 
 
-@router.get("/model-routes/{route_id}/versions", response_model=list[ResourceVersion])
-async def versions(route_id: str, session: Session, service: Services) -> list[ResourceVersion]:
-    return await service.configuration.history(session, "model_route", route_id)
+@router.get("/model-routes/{route_id}/versions", response_model=list[RouteVersionView])
+async def versions(route_id: str, session: Session, service: Services) -> list[RouteVersionView]:
+    return await service.routing.versions(session, route_id)
 
 
 @router.post("/model-routes/{route_id}/versions", response_model=ResourceVersion, status_code=201)

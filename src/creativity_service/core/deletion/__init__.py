@@ -364,7 +364,7 @@ class RecoveryService:
 
     @staticmethod
     async def initialize_fresh_in(uow: UnitOfWork, scope: Scope) -> None:
-        """仅供已核准的新数据域创建事务复用；已有屏障或历史内容始终拒绝。"""
+        """仅供已核准的新环境创建事务复用；已有屏障或历史内容始终拒绝。"""
         uow.require_scope(scope)
         uow.require_lock(content_key(scope))
         repo = Repository(metadata.tables["recovery_barriers"], scope)

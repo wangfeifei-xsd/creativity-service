@@ -62,7 +62,7 @@ from creativity_service.modules.models.schemas import (
     ProviderView,
 )
 from creativity_service.modules.models.tables import metadata
-from creativity_service.modules.models.versioning import freeze, version_keys
+from creativity_service.modules.models.versioning import freeze, history_rows, version_keys
 
 
 def action(key: str, label: str) -> VisibleAction:
@@ -84,7 +84,7 @@ class ModelService:
 
     async def context(self, session: AdminSession) -> AuthContext:
         if not isinstance(session.context, AuthContext):
-            raise ServiceError("FORBIDDEN", "请先进入渠道工作区", 403)
+            raise ServiceError("FORBIDDEN", "请先进入渠道环境", 403)
         context = session.context
         await self.iam.authorization.boundary(
             context, "model:manage", "channel", context.scope.channel_id
@@ -96,14 +96,13 @@ class ModelService:
     ) -> None:
         member, grants = await self.iam.access.locked_policy(uow, session, "model:manage")
         if not isinstance(session.context, AuthContext):
-            raise ServiceError("FORBIDDEN", "请先进入渠道工作区", 403)
+            raise ServiceError("FORBIDDEN", "请先进入渠道环境", 403)
         scope = session.context.scope
         for model_id in model_ids:
             actions = effective_actions(
                 member,
                 grants,
                 scope.environment,
-                scope.data_scope_id or "",
                 "model",
                 model_id,
             )
@@ -173,7 +172,7 @@ class ModelService:
     async def save_provider(self, session: AdminSession, body: ProviderInput) -> ProviderView:
         require_platform(session.account, "channel:govern")
         if not isinstance(session.context, ControlAuthContext):
-            raise ServiceError("FORBIDDEN", "请在平台工作区维护供应商字典", 403)
+            raise ServiceError("FORBIDDEN", "请在平台管理入口维护供应商字典", 403)
         if len(set(body.protocols)) != len(body.protocols) or set(body.template_content) - {
             "protocol",
             "endpoint",
@@ -571,7 +570,7 @@ class ModelService:
         from creativity_service.modules.iam.reading import require_action, resource_state
 
         if not isinstance(session.context, AuthContext):
-            raise ServiceError("FORBIDDEN", "请先进入渠道工作区", 403)
+            raise ServiceError("FORBIDDEN", "请先进入渠道环境", 403)
         context = session.context
         policy = await self.iam.authorization.read_policy(context)
         require_action(policy.actions("channel", context.scope.channel_id), "model:manage")
@@ -631,37 +630,8 @@ class ModelService:
     ) -> list[ResourceVersion]:
         context = await self.context(session)
         async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
-            await DeletionGuard(context.scope).check(uow, [ContentRef(resource_type, identifier)])
-            table = {
-                "model": "models",
-                "model_connection": "model_connections",
-                "model_route": "model_routes",
-            }.get(resource_type)
-            if table is None:
-                raise ServiceError("NOT_FOUND", "模型资源不存在", 404)
-            current = await required(uow.connection, context.scope, table, identifier)
-            # 公共版本表按渠道保存；连接所属环境仍须由当前资源显式核验。
-            if resource_type == "model":
-                await required(
-                    uow.connection, context.scope, "model_connections", current["connection_id"]
-                )
-            rows = await repository(context.scope, "resource_versions").find(
-                uow.connection, resource_type=resource_type, resource_id=identifier
-            )
-            visible = [
-                row
-                for row in rows
-                if resource_type != "model_route"
-                or not any(
-                    m["scope"]["environment"] != context.scope.environment
-                    for m in row["content"].get("models", [])
-                )
-            ]
-            await DeletionGuard(context.scope).check(
-                uow, [ContentRef("version", r["id"]) for r in visible]
-            )
-            result = [version_view(row) for row in visible]
-            return result
+            _, rows = await history_rows(uow, context, resource_type, identifier)
+            return [version_view(row) for row in rows]
 
     def snapshot(
         self, context: AuthContext, model: dict[str, Any], connection: dict[str, Any]
@@ -719,7 +689,6 @@ class ModelService:
                 resource_id=model_id,
                 allowed_actions=["run:create"],
                 environments=[context.scope.environment],
-                data_scopes=[context.scope.data_scope_id or ""],
                 revision=body.revision,
             ),
         )
@@ -735,8 +704,5 @@ class ModelService:
             and (
                 (g.resource_type == "model" and g.resource_id in {model_id, "*"})
                 or (g.resource_type == "channel" and g.resource_id == context.scope.channel_id)
-                or (
-                    g.resource_type == "data_scope" and g.resource_id == context.scope.data_scope_id
-                )
             )
         ]

@@ -1,10 +1,10 @@
 # 业务接入与身份委托模型
 
-模型版本 1.9.3；负责方案 18/19/20；需求 [14-业务接入与适配.md](../../../../需求文档/14-业务接入与适配.md)。总索引见 [README](../README.md)。
+模型版本 2.0.0；负责方案 18/19/20；需求 [14-业务接入与适配.md](../../../../需求文档/14-业务接入与适配.md)。总索引见 [README](../README.md)。
 
 ## integrations
 
-业务系统适配连接。状态：已实现；归属：数据域；归档修订：0018_integrations。
+业务系统适配连接。状态：已实现；归属：环境；归档修订：0018_integrations。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -14,7 +14,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 所属业务数据域 | 是 | 服务层校验与受信上下文 | 内部 |
 | `name` | `varchar(128)` | 接入名称 | 是 | 服务层校验与受信上下文 | 内部 |
 | `adapter_code` | `varchar(64)` | 适配器编码 | 是 | 服务层校验与受信上下文 | 内部 |
 | `adapter_version` | `varchar(64)` | 适配器版本 | 是 | 服务层校验与受信上下文 | 内部 |
@@ -23,12 +22,11 @@
 | `allowed_operations` | `jsonb` | 已授权能力 | 是 | 服务层校验与受信上下文 | 内部 |
 | `operation_paths` | `jsonb` | 固定能力接口路径 | 是 | 服务层校验与受信上下文 | 内部 |
 | `field_mapping` | `jsonb` | 源字段转换配置 | 是 | 服务层校验与受信上下文 | 内部 |
-| `scope_mapping_ref` | `varchar(64)` | 渠道数据域映射引用 | 是 | 服务层校验与受信上下文 | 内部 |
 | `health` | `varchar(32)` | 连接健康状态 | 是 | 服务层校验与受信上下文 | 内部 |
 | `contract_version` | `varchar(64)` | 标准契约版本 | 是 | 服务层校验与受信上下文 | 内部 |
 | `status` | `varchar(32)` | 启用状态 | 是 | 服务层校验与受信上下文 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, status)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, status)`。
 
 ## delegation_keys
 
@@ -58,7 +56,7 @@
 
 ## integration_tests
 
-接入契约验证。状态：已实现；归属：数据域；归档修订：0018_integrations。
+接入契约验证。状态：已实现；归属：环境；归档修订：0018_integrations。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -68,7 +66,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 所属业务数据域 | 是 | 服务层校验与受信上下文 | 内部 |
 | `integration_id` | `varchar(64)` | 连接标识 | 是 | 服务层校验与受信上下文 | 内部 |
 | `config_revision` | `bigint` | 测试对应配置修订 | 是 | 服务层校验与受信上下文 | 内部 |
 | `cases` | `jsonb` | 验证能力清单 | 是 | 服务层校验与受信上下文 | 内部 |
@@ -76,7 +73,7 @@
 | `capabilities` | `jsonb` | 通过验证的能力 | 是 | 服务层校验与受信上下文 | 内部 |
 | `state` | `varchar(32)` | 验证状态 | 是 | 服务层校验与受信上下文 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, integration_id)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, integration_id)`。
 
 ## delegation_nonces
 
@@ -96,7 +93,7 @@
 | `request_digest` | `varchar(64)` | 实际请求绑定摘要 | 是 | 服务层校验与受信上下文 | 内部 |
 | `claims_digest` | `varchar(64)` | 完整委托声明摘要 | 是 | 服务层校验与受信上下文 | 内部 |
 | `claims` | `jsonb` | 验签后权限声明 | 是 | 服务层校验与受信上下文 | 敏感内容 |
-| `resolved_scope` | `jsonb` | 验签后渠道数据域主体 | 是 | 服务层校验与受信上下文 | 内部 |
+| `resolved_scope` | `jsonb` | 验签后渠道环境主体 | 是 | 服务层校验与受信上下文 | 内部 |
 | `expires_at` | `timestamptz` | 防重放声明有效时间 | 是 | 服务层校验与受信上下文 | 内部 |
 | `retain_until` | `timestamptz` | 防重放记录最早清理时间 | 是 | 服务层校验与受信上下文 | 内部 |
 
@@ -104,17 +101,16 @@
 
 ## subject_review_bindings
 
-当前主体复核的固定 MCP 绑定。状态：已实现；归属：数据域；归档修订：0021_mcp_subject_review。
+当前主体复核的固定 MCP 绑定。状态：已实现；归属：环境；归档修订：0021_mcp_subject_review。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
-| `id` | `varchar(64)` | 记录标识 | 是 | 渠道、环境、数据域与接入服务的确定性摘要 | 内部 |
+| `id` | `varchar(64)` | 记录标识 | 是 | 渠道、环境与接入服务的确定性摘要 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
 | `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 所属业务数据域 | 是 | 服务层校验与受信上下文 | 内部 |
 | `client_id` | `varchar(64)` | 受限接入服务标识 | 是 | 服务层校验后的受信配置 | 内部 |
 | `connection_id` | `varchar(64)` | 固定身份复核连接 | 是 | 服务层校验后的受信配置 | 内部 |
 | `discovery_id` | `varchar(64)` | 授权时发现快照 | 是 | 服务层校验后的受信配置 | 内部 |
@@ -125,7 +121,7 @@
 | `timeout_seconds` | `integer` | 身份复核超时秒数 | 是 | 服务层校验后的受信配置 | 内部 |
 | `enabled` | `boolean` | 是否允许身份复核 | 是 | 服务层校验后的受信配置 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, client_id)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, client_id)`。
 
 ## automation_schedules
 
@@ -139,7 +135,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `name` | `varchar(128)` | 计划名称 | 是 | 受信上下文与服务层校验 | 内部 |
@@ -150,7 +145,7 @@
 | `next_at` | `timestamptz` | 下次触发时间 | 是 | 受信上下文与服务层校验 | 内部 |
 | `last_error` | `jsonb` | 最近派发错误 | 否 | 受信上下文与服务层校验 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id)`；`(channel_id, state, next_at)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`；`(channel_id, state, next_at)`。
 
 ## automation_batches
 
@@ -164,7 +159,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `name` | `varchar(128)` | 批次名称 | 是 | 受信上下文与服务层校验 | 内部 |
@@ -174,7 +168,7 @@
 | `identity` | `jsonb` | 原执行身份快照 | 是 | 受信上下文与服务层校验 | 内部 |
 | `state` | `varchar(32)` | 当前处理状态 | 是 | 受信上下文与服务层校验 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`。
 
 ## automation_items
 
@@ -188,7 +182,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `batch_id` | `varchar(64)` | 来源批次标识 | 否 | 受信上下文与服务层校验 | 内部 |
@@ -205,7 +198,7 @@
 | `run_id` | `varchar(64)` | 关联运行标识 | 否 | 受信上下文与服务层校验 | 内部 |
 | `error` | `jsonb` | 最近受理错误 | 否 | 受信上下文与服务层校验 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id)`；`(channel_id, state, lease_until)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`；`(channel_id, state, lease_until)`。
 
 ## webhook_endpoints
 
@@ -219,7 +212,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `name` | `varchar(128)` | 端点名称 | 是 | 受信上下文与服务层校验 | 内部 |
@@ -231,7 +223,7 @@
 | `state` | `varchar(32)` | 当前处理状态 | 是 | 受信上下文与服务层校验 | 内部 |
 | `client_ids` | `jsonb` | 订阅的调用服务列表；空列表仅包含配置者运行 | 是 | 管理配置 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`。
 
 ## webhook_deliveries
 
@@ -245,7 +237,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `endpoint_id` | `varchar(64)` | 投递端点标识 | 是 | 受信上下文与服务层校验 | 内部 |
@@ -262,7 +253,7 @@
 | `http_status` | `bigint` | 最近响应状态 | 否 | 受信上下文与服务层校验 | 内部 |
 | `cycle_attempts` | `bigint` | 本轮自动投递次数，人工重投重新计数 | 是 | 受信上下文与服务层校验 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id)`；`(channel_id, state, next_at)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`；`(channel_id, state, next_at)`。
 
 ## alert_rules
 
@@ -276,7 +267,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `name` | `varchar(128)` | 规则名称 | 是 | 受信上下文与服务层校验 | 内部 |

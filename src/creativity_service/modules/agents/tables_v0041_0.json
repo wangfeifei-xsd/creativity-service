@@ -1,0 +1,526 @@
+[
+  {
+    "module": "agents",
+    "name": "agents",
+    "comment": "智能体资源",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "agent_code",
+        "type": "varchar(64)",
+        "comment": "调用编码",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "name",
+        "type": "varchar(128)",
+        "comment": "智能体名称",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "comment": "用途说明",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "owner",
+        "type": "varchar(128)",
+        "comment": "负责人标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "status",
+        "type": "varchar(32)",
+        "comment": "启用状态",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "agent_code"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0016_agents",
+    "scope": "渠道",
+    "control_purpose": null,
+    "content": false
+  },
+  {
+    "module": "agents",
+    "name": "agent_candidates",
+    "comment": "冻结智能体候选快照",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_type",
+        "type": "varchar(64)",
+        "comment": "业务主体类型",
+        "required": false,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_id",
+        "type": "varchar(128)",
+        "comment": "业务主体编号",
+        "required": false,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "agent_id",
+        "type": "varchar(64)",
+        "comment": "智能体标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "source_version_id",
+        "type": "varchar(64)",
+        "comment": "来源版本标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "source_revision",
+        "type": "bigint",
+        "comment": "来源草稿修订号",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "purpose",
+        "type": "varchar(32)",
+        "comment": "候选用途",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "content_digest",
+        "type": "varchar(64)",
+        "comment": "内容摘要",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "dependencies_digest",
+        "type": "varchar(64)",
+        "comment": "完整依赖摘要",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "candidate_digest",
+        "type": "varchar(64)",
+        "comment": "候选组合摘要",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "spec",
+        "type": "jsonb",
+        "comment": "不可变执行定义",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "agent_id",
+        "created_at"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0016_agents",
+    "scope": "主体",
+    "control_purpose": null,
+    "content": false
+  },
+  {
+    "module": "agents",
+    "name": "agent_release_records",
+    "comment": "智能体发布检查与操作记录",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "目标环境",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "agent_id",
+        "type": "varchar(64)",
+        "comment": "智能体标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "version_id",
+        "type": "varchar(64)",
+        "comment": "生效版本标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "version_label",
+        "type": "varchar(128)",
+        "comment": "版本名称",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "previous_version_id",
+        "type": "varchar(64)",
+        "comment": "原生效版本标识",
+        "required": false,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "source_revision",
+        "type": "bigint",
+        "comment": "发布来源修订号",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "operation",
+        "type": "varchar(32)",
+        "comment": "操作类型",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "note",
+        "type": "varchar(1024)",
+        "comment": "操作说明",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "actor_id",
+        "type": "varchar(128)",
+        "comment": "操作人标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "actor_name",
+        "type": "varchar(128)",
+        "comment": "操作人名称",
+        "required": false,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "content_digest",
+        "type": "varchar(64)",
+        "comment": "内容摘要",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "dependencies_digest",
+        "type": "varchar(64)",
+        "comment": "完整依赖摘要",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "evidence_refs",
+        "type": "jsonb",
+        "comment": "评测报告引用",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "checks",
+        "type": "jsonb",
+        "comment": "发布检查证据",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "agent_id",
+        "created_at"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0016_agents",
+    "scope": "环境",
+    "control_purpose": null,
+    "content": false
+  },
+  {
+    "module": "agents",
+    "name": "agent_environment_states",
+    "comment": "智能体各环境停用状态",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "目标环境",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "agent_id",
+        "type": "varchar(64)",
+        "comment": "智能体标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "status",
+        "type": "varchar(32)",
+        "comment": "当前环境启用状态",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "reason",
+        "type": "varchar(1024)",
+        "comment": "状态变更原因",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "agent_id"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0016_agents",
+    "scope": "环境",
+    "control_purpose": null,
+    "content": false
+  }
+]

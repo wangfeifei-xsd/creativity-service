@@ -6,12 +6,7 @@ from creativity_service.core.context import ControlScope
 from creativity_service.core.database import transaction
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError
-from creativity_service.modules.channels.repositories import management_scope_id
-from creativity_service.modules.channels.schemas import (
-    ChannelCreate,
-    DataScopeCreate,
-    EnvironmentCreate,
-)
+from creativity_service.modules.channels.schemas import ChannelCreate, EnvironmentCreate
 from creativity_service.modules.iam.custom_roles import CustomRoles, RoleSave
 from creativity_service.modules.iam.repositories import policy_key, rows, save
 from creativity_service.modules.iam.schemas import (
@@ -20,7 +15,7 @@ from creativity_service.modules.iam.schemas import (
     ChannelContextInput,
     PasswordReset,
 )
-from tests.integration.channels.test_administrator_accounts import activate, login_user
+from tests.integration.channels.test_administrator_accounts import activate
 
 from .conftest import INITIAL, provision
 
@@ -56,48 +51,20 @@ async def test_mixed_roles_require_configured_and_authorized_channel_range(chann
     with pytest.raises(ServiceError) as missing:
         await env.iam.sessions.enter(
             session,
-            ChannelContextInput(
-                channel_id=channel.channel_id, environment="test", data_scope_id="missing"
-            ),
+            ChannelContextInput(channel_id=channel.channel_id, environment="test"),
         )
     assert missing.value.status == 404
     await env.services.channels.create_environment(
         env.admin, channel.channel_id, EnvironmentCreate(environment="test", name="测试")
     )
-    assert [
-        option.data_scope_id for option in (await env.iam.sessions.view(session)).workspace_options
-    ] == [management_scope_id(channel.channel_id, "test")]
-    domain = await env.services.channels.create_data_scope(
-        env.admin,
-        channel.channel_id,
-        DataScopeCreate(
-            name="业务数据域",
-            environment="test",
-            external_scope_type="org",
-            external_scope_id="001",
-            administrator_id=account.user_id,
-        ),
-    )
-    _, session = await login_user(env, account)
     view = await env.iam.sessions.view(session)
     assert view.can_access_platform and view.default_workspace is None
-    assert {option.data_scope_id for option in view.workspace_options} == {
-        management_scope_id(channel.channel_id, "test"),
-        domain.data_scope_id,
-    }
-    option = next(
-        option for option in view.workspace_options if option.data_scope_id == domain.data_scope_id
-    )
-    assert (option.channel_id, option.environment, option.data_scope_id) == (
-        channel.channel_id,
-        "test",
-        domain.data_scope_id,
-    )
+    assert len(view.workspace_options) == 1
+    option = view.workspace_options[0]
+    assert (option.channel_id, option.environment) == (channel.channel_id, "test")
     token = await env.iam.sessions.enter(
         session,
-        ChannelContextInput(
-            **option.model_dump(include={"channel_id", "environment", "data_scope_id"})
-        ),
+        ChannelContextInput(**option.model_dump(include={"channel_id", "environment"})),
     )
     manager = await env.iam.authentication.admin_session(
         token.access_token, "configured-multi-role"
@@ -148,7 +115,6 @@ async def test_account_can_select_platform_and_multiple_channel_roles(channel_en
             ChannelContextInput(
                 channel_id=channel.channel.channel_id,
                 environment="test",
-                data_scope_id=channel.domain.data_scope_id,
             ),
         )
         session = await env.iam.authentication.admin_session(
@@ -325,7 +291,6 @@ async def test_custom_channel_role_assigns_multiple_channels_and_changes_live(ch
         ChannelContextInput(
             channel_id=a.channel.channel_id,
             environment="test",
-            data_scope_id=a.domain.data_scope_id,
         ),
     )
     manager = await env.iam.authentication.admin_session(token.access_token, "role-catalog-test")
@@ -339,7 +304,6 @@ async def test_custom_channel_role_assigns_multiple_channels_and_changes_live(ch
             ChannelContextInput(
                 channel_id=foreign.channel.channel_id,
                 environment="test",
-                data_scope_id=foreign.domain.data_scope_id,
             ),
         )
     with pytest.raises(ServiceError) as readonly:

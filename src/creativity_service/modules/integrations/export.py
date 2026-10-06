@@ -42,7 +42,6 @@ def vectors() -> list[dict[str, Any]]:
         claims = DelegationClaims(
             subject_type="MEMBER",
             subject_id="member-001",
-            data_scope={"type": "club", "id": "club-001"},
             actions=["run:create", "run:read"],
             resources={"agent": ["agent-match"], "run": ["*"]},
             issuer="playmate-backend",
@@ -76,7 +75,7 @@ def artifacts() -> dict[str, object]:
 
     app = create_schema_app()
     schema = app.openapi()
-    schema["info"] = {"title": "身份委托与旧 HTTP 接入兼容", "version": "1.1.0"}
+    schema["info"] = {"title": "渠道环境身份委托与业务接入", "version": "2.0.0"}
     schema["paths"] = {
         p: v
         for p, v in schema["paths"].items()
@@ -114,7 +113,7 @@ def artifacts() -> dict[str, object]:
         "DELEGATION_REQUIRED": ("缺少业务主体委托", 401),
         "DELEGATION_INVALID": ("签名、签发者、受众或声明格式无效", 401),
         "DELEGATION_EXPIRED": ("委托过期或时间不合法", 401),
-        "DELEGATION_SCOPE_INVALID": ("委托归属或源数据域不符", 403),
+        "DELEGATION_SCOPE_INVALID": ("委托归属或委托范围不符", 403),
         "DELEGATION_FORBIDDEN": ("委托超过当前权限或匿名范围", 403),
         "DELEGATION_REQUEST_MISMATCH": ("委托未绑定当前实际请求", 403),
         "DELEGATION_REPLAY": ("同一随机数已用于不同请求或身份", 409),
@@ -126,7 +125,7 @@ def artifacts() -> dict[str, object]:
     return {
         **{
             (
-                "DelegationClaims-v1.1.schema.json"
+                "DelegationClaims-v2.schema.json"
                 if model is DelegationClaims
                 else f"{model.__name__}.schema.json"
             ): model.model_json_schema(mode="serialization")
@@ -148,7 +147,7 @@ def artifacts() -> dict[str, object]:
             code: {"message": name, "http_status": status}
             for code, (name, status) in (ERRORS | delegation_errors).items()
         },
-        "openapi-v1.1.json": schema,
+        "openapi-v2.json": schema,
     }
 
 

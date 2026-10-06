@@ -16,7 +16,7 @@ async def configuration_counts(
     *,
     scope: Scope | None = None,
 ) -> dict[str, dict[str, int]]:
-    """仅统计当前页启用环境；渠道工作区只展示当前环境。"""
+    """仅统计当前页启用环境；渠道环境只展示当前环境。"""
     result: dict[str, dict[str, int]] = {channel_id: {} for channel_id in channel_ids}
     if not channel_ids:
         return result

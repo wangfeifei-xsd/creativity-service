@@ -217,7 +217,7 @@ class DeletionOperations(ConversationKernel):
 
     async def deletion(self, context: AuthContext, deletion_id: str) -> DeletionView:
         async with self.engine.connect() as connection:
-            # 管理员可定位当前工作区主体的删除任务，随后恢复范围并重新授权。
+            # 管理员可定位当前渠道环境主体的删除任务，随后恢复范围并重新授权。
             table = metadata.tables["deletion_jobs"]
             row = (
                 (

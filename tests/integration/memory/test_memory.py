@@ -83,7 +83,6 @@ async def test_mem_a03_a08_identical_subjects_do_not_cross_scopes_or_clear(env):
     for changed in (
         {"channel_id": "foreign"},
         {"environment": "prod"},
-        {"data_scope_id": "other-club"},
         {"subject_type": "member"},
         {"subject_id": "other-user"},
     ):
@@ -326,7 +325,7 @@ async def test_management_scope_restore_and_cursor_binding(env):
         await env.memory.clear(manager)
     page = await env.memory.list_memories(env.context, limit=1)
     other = env.context.model_copy(
-        update={"scope": env.context.scope.model_copy(update={"data_scope_id": "other"})}
+        update={"scope": env.context.scope.model_copy(update={"environment": "prod"})}
     )
     with pytest.raises(ServiceError) as error:
         await env.memory.list_memories(other, cursor=page.next_cursor)

@@ -25,7 +25,6 @@ Environment = Literal["dev", "test", "fat", "prod"]
 class Scope(Contract):
     channel_id: Identifier
     environment: Environment
-    data_scope_id: Identifier | None = None
     subject_type: Identifier | None = None
     subject_id: Identifier | None = None
 
@@ -35,8 +34,6 @@ class Scope(Contract):
             raise ValueError("系统渠道不能作为业务范围")
         if (self.subject_type is None) != (self.subject_id is None):
             raise ValueError("主体类型与编号必须同时存在")
-        if self.subject_id is not None and self.data_scope_id is None:
-            raise ValueError("主体必须属于明确数据域")
         return self
 
 
@@ -95,7 +92,6 @@ class ChannelState(Contract):
     membership_active: bool | None
     client_active: bool | None
     key_active: bool | None
-    data_scope_active: bool | None
     channel_status: Literal["ACTIVE", "SUSPENDED", "ARCHIVED"] | None = None
 
 
@@ -226,6 +222,4 @@ def verify_channel_state(
         raise ServiceError("MEMBERSHIP_DISABLED", "渠道成员不可用", 403)
     if context.client_id and (state.client_active is not True or state.key_active is not True):
         raise ServiceError("CLIENT_REVOKED", "接入身份不可用", 403)
-    if not governed and context.scope.data_scope_id and state.data_scope_active is not True:
-        raise ServiceError("DATA_SCOPE_DISABLED", "业务数据域不可用", 403)
     return state

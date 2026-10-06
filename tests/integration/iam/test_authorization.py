@@ -22,7 +22,7 @@ async def builder(iam, admin, manager, channel="channel_a"):
         manager,
         channel,
         account.user_id,
-        MembershipInput(roles=["builder"], environments=["test", "prod"], data_scopes=["domain_a"]),
+        MembershipInput(roles=["builder"], environments=["test", "prod"]),
     )
     await iam.access.put_grant(
         manager,
@@ -35,7 +35,6 @@ async def builder(iam, admin, manager, channel="channel_a"):
             resource_id="version_a",
             allowed_actions=["version:edit", "version:read"],
             environments=["test", "prod"],
-            data_scopes=["domain_a"],
         ),
     )
     return account, await enter(iam, session, channel)
@@ -54,9 +53,7 @@ async def test_builder_can_edit_but_not_publish_self_grant_or_cross_scope(iam_en
             session,
             "channel_a",
             account.user_id,
-            MembershipInput(
-                roles=["channel_admin"], environments=["test"], data_scopes=["domain_a"]
-            ),
+            MembershipInput(roles=["channel_admin"], environments=["test"]),
         )
     assert exc.value.status == 403
     headers = {
@@ -71,7 +68,7 @@ async def test_builder_can_edit_but_not_publish_self_grant_or_cross_scope(iam_en
     response = await client.post(
         "/admin/v1/auth/channel-context",
         headers=headers,
-        json={"channel_id": "channel_a", "environment": "test", "data_scope_id": "domain_b"},
+        json={"channel_id": "channel_a", "environment": "dev"},
     )
     assert response.status_code == 404
     view = await iam.sessions.view(session)
@@ -155,7 +152,7 @@ async def test_concurrent_members_and_grants_accept_once_and_revision_conflicts(
             manager[1],
             "channel_a",
             account.user_id,
-            MembershipInput(roles=["builder"], environments=["test"], data_scopes=["domain_a"]),
+            MembershipInput(roles=["builder"], environments=["test"]),
         )
 
     results = await asyncio.gather(*(add() for _ in range(8)), return_exceptions=True)
@@ -179,7 +176,6 @@ async def test_concurrent_members_and_grants_accept_once_and_revision_conflicts(
                 resource_id="version_a",
                 allowed_actions=["version:edit"],
                 environments=["test"],
-                data_scopes=["domain_a"],
             ),
         )
 
@@ -203,7 +199,6 @@ async def test_scope_escalation_and_foreign_resources_are_rejected(iam_env, admi
                     resource_id="version_a",
                     allowed_actions=[action],
                     environments=["prod"],
-                    data_scopes=["domain_a"],
                 ),
             )
         assert exc.value.status == 403
@@ -219,7 +214,6 @@ async def test_scope_escalation_and_foreign_resources_are_rejected(iam_env, admi
                 resource_id="foreign",
                 allowed_actions=["version:read"],
                 environments=["test"],
-                data_scopes=["domain_a"],
             ),
         )
     assert exc.value.status == 404
@@ -230,7 +224,7 @@ async def test_latent_role_grant_cannot_be_activated_by_member_edit(iam_env, adm
     account, _ = await create_user(iam, admin[1])
     # 夹具模拟另一个合法授权人以前给 builder 角色授予过独立发布权限。
     grant_id = new_id("grant")
-    scope = Scope(channel_id="channel_a", environment="prod", data_scope_id="domain_a")
+    scope = Scope(channel_id="channel_a", environment="prod")
     async with transaction(
         engine,
         scope,
@@ -247,7 +241,6 @@ async def test_latent_role_grant_cannot_be_activated_by_member_edit(iam_env, adm
                 resource_id="version_a",
                 allowed_actions=["release:publish"],
                 environments=["prod"],
-                data_scopes=["domain_a"],
             ),
         )
     with pytest.raises(ServiceError) as exc:
@@ -255,7 +248,7 @@ async def test_latent_role_grant_cannot_be_activated_by_member_edit(iam_env, adm
             manager[1],
             "channel_a",
             account.user_id,
-            MembershipInput(roles=["builder"], environments=["prod"], data_scopes=["domain_a"]),
+            MembershipInput(roles=["builder"], environments=["prod"]),
         )
     assert exc.value.status == 403
     async with engine.connect() as connection:
@@ -280,14 +273,13 @@ async def test_audit_filters_actual_changed_scope_and_records_denied_result(
             resource_id="version_a",
             allowed_actions=["version:read"],
             environments=["prod"],
-            data_scopes=["domain_b"],
         ),
     )
     assert "production_grant" not in {
         event.target_id for event in await iam.audit.query(manager[1])
     }
     _, temporary = await login(iam, "root-admin")
-    _, production = await enter(iam, temporary, environment="prod", data_scope_id="domain_b")
+    _, production = await enter(iam, temporary, environment="prod")
     assert "production_grant" in {event.target_id for event in await iam.audit.query(production)}
     with pytest.raises(ServiceError):
         await iam.access.put_grant(
@@ -301,7 +293,6 @@ async def test_audit_filters_actual_changed_scope_and_records_denied_result(
                 resource_id="version_a",
                 allowed_actions=["data:read_sensitive"],
                 environments=["test"],
-                data_scopes=["domain_a"],
             ),
         )
     assert any(

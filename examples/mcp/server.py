@@ -188,7 +188,7 @@ def serve(profile="archive", port=0, token="fixture-service-only"):
             if state.review_mode == "widen":
                 actions.add("memory:write")
             if state.review_mode == "wrong_scope":
-                scope = {**scope, "data_scope_id": "foreign"}
+                scope = {**scope, "environment": "prod"}
             if state.review_mode == "expired":
                 now -= timedelta(minutes=1)
             result = {
@@ -214,7 +214,6 @@ def serve(profile="archive", port=0, token="fixture-service-only"):
                 for key in (
                     "channel_id",
                     "environment",
-                    "data_scope_id",
                     "subject_type",
                     "subject_id",
                 )
@@ -267,7 +266,7 @@ def serve(profile="archive", port=0, token="fixture-service-only"):
                     coverage={"returned_count": 1, "verification": "controlled_fixture"},
                 )
             if state.mode == "wrong_scope":
-                meta["scope"] = {**scope, "data_scope_id": "foreign"}
+                meta["scope"] = {**scope, "environment": "prod"}
             if state.mode == "bad_schema":
                 data = {"unknown": True}
             meta["evidence"] = [

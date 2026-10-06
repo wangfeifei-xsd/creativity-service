@@ -32,14 +32,12 @@ async def test_real_token_scope_attachments_retention_and_expiration(channel_env
         }
     )
     channel = await env.services.channels.create(env.admin, body)
-    domains = await env.services.channels.data_scopes(env.admin, channel.channel_id)
     _, session = await login(env)
     token = await env.iam.sessions.enter(
         session,
         ChannelContextInput(
             channel_id=channel.channel_id,
             environment="test",
-            data_scope_id=domains[0].data_scope_id,
         ),
     )
     context = (

@@ -8,7 +8,9 @@ from sqlalchemy import Column, Index, MetaData, Table
 from creativity_service.core.database.tables import column_type
 from creativity_service.modules.integrations.subscription_columns import extend_subscription
 
-BASELINE = json.loads(Path(__file__).with_name("baseline_v0030.json").read_text(encoding="utf-8"))
+BASELINE = json.loads(
+    Path(__file__).with_name("automation_tables_v0041_0.json").read_text(encoding="utf-8")
+)
 
 
 def build_metadata() -> MetaData:

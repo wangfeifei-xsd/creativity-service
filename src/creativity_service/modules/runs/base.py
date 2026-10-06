@@ -101,9 +101,8 @@ class RunKernel:
             context.principal_type == "management"
             and scope.subject_id is None
             and row["environment"] == scope.environment
-            and row["data_scope_id"] == scope.data_scope_id
         ):
-            # 管理员的数据域来自当前工作区；具体主体只从已存运行恢复并重新授权。
+            # 管理员的环境来自当前上下文；具体主体只从已存运行恢复并重新授权。
             return context.model_copy(
                 update={
                     "scope": Scope.model_validate({key: row[key] for key in Scope.model_fields})

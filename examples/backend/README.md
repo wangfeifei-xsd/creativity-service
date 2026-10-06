@@ -17,7 +17,7 @@
 | `CREATIVITY_DELEGATION_ISSUER` | 委托密钥配置的签发者 |
 | `CREATIVITY_DELEGATION_AUDIENCE` | 委托密钥配置的受众 |
 
-将 [principal.example.json](principal.example.json) 复制为仅后端可读的身份文件，替换为当前源系统验证的主体、数据域及权限。文件仅用于联调，不能接受浏览器上传。生产集成实现 `PrincipalService.current()`，从当前后端登录会话与权限服务读取身份；该回调每次发送和重连都会执行。MCP 当前主体复核仍由平台独立执行。
+将 [principal.example.json](principal.example.json) 复制为仅后端可读的身份文件，替换为当前源系统验证的主体及权限。文件仅用于联调，不能接受浏览器上传。生产集成实现 `PrincipalService.current()`，从当前后端登录会话与权限服务读取身份；该回调每次发送和重连都会执行。MCP 当前主体复核仍由平台独立执行。
 
 `resources.agent` 使用管理端返回的 Agent 资源标识；创建运行的 `agent_code` 使用已发布 Agent 编码，两者含义不同。其他依赖资源也应替换为本渠道已授权资源。`run:content` 需要 `data:read_sensitive`；只授予 `run:read` 不能读取结果和 SSE。
 

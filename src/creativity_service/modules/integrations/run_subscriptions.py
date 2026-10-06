@@ -32,9 +32,7 @@ class RunSubscriptions:
             statement = statement.where(table.c.id.in_(client_ids))
         rows = (await connection.execute(statement)).mappings()
         return {
-            row["id"]: dict(row)
-            for row in rows
-            if context.scope.data_scope_id in row["data_scopes"]
+            row["id"]: dict(row) for row in rows if row["environment"] == context.scope.environment
         }
 
     async def options(self, context: AuthContext) -> list[dict[str, Any]]:
@@ -54,11 +52,11 @@ class RunSubscriptions:
             raise ServiceError("SUBSCRIPTION_INVALID", "调用服务不能重复", 422)
         if not client_ids:
             return
-        # 订阅未来运行需要当前工作区的运行读取授权，不能由配置权限隐式扩权。
+        # 订阅未来运行需要当前渠道环境的运行读取授权，不能由配置权限隐式扩权。
         await require_management(uow, context, "run:read")
         clients = await self.clients(uow.connection, context, client_ids)
         if any(key not in clients or clients[key]["status"] != "ACTIVE" for key in client_ids):
-            raise ServiceError("SUBSCRIPTION_INVALID", "请选择当前工作区内启用的调用服务", 422)
+            raise ServiceError("SUBSCRIPTION_INVALID", "请选择当前渠道环境内启用的调用服务", 422)
 
     async def require_clients(self, context: AuthContext, client_ids: list[str]) -> None:
         if not client_ids:
@@ -76,11 +74,10 @@ class RunSubscriptions:
         table = metadata.tables["runs"]
         if not client_ids:
             return Repository(table, context.scope).predicate()
-        # 只对显式订阅服务展开主体，渠道、环境和数据域始终固定。
+        # 只对显式订阅服务展开主体，渠道和环境始终固定。
         return and_(
             table.c.channel_id == context.scope.channel_id,
             table.c.environment == context.scope.environment,
-            table.c.data_scope_id == context.scope.data_scope_id,
             table.c.client_id.in_(client_ids),
         )
 
@@ -108,7 +105,7 @@ class RunSubscriptions:
         source = AuthContext.model_validate(run["identity"])
         if not context.actor_id or any(
             getattr(actual, key) != getattr(context.scope, key)
-            for key in ("channel_id", "environment", "data_scope_id")
+            for key in ("channel_id", "environment")
         ):
             raise ServiceError("NOT_FOUND", "运行不属于当前订阅范围", 404)
         if client_ids:

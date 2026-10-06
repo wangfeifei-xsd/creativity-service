@@ -1,0 +1,1334 @@
+[
+  {
+    "name": "admissions",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "运行准入配额占用",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "agent_candidates",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "冻结智能体候选快照",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "alert_rules",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "外部告警规则",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "artifacts",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "受控文件与产物元数据",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "attempts",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "外部实际尝试",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "audit_events",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "操作审计元数据",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "automation_batches",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "批量运行受理批次",
+    "old_indexes": [
+      {
+        "name": "ix_automation_batches_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_automation_batches_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "automation_items",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "逐项运行派发记录",
+    "old_indexes": [
+      {
+        "name": "ix_automation_items_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_automation_items_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "automation_schedules",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "通用运行定时计划",
+    "old_indexes": [
+      {
+        "name": "ix_automation_schedules_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_automation_schedules_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "channel_memberships",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scopes",
+        "type": "JSONB",
+        "comment": "授权数据域"
+      }
+    ],
+    "comment": "渠道成员关系",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "checkpoints",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "自有流程恢复点",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "context_snapshots",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "实际模型上下文快照",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "conversation_summaries",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "可溯源会话摘要",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "conversation_turns",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "会话轮次与消息幂等",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "conversations",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "业务会话",
+    "old_indexes": [
+      {
+        "name": "ix_conversations_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id",
+          "updated_at"
+        ]
+      },
+      {
+        "name": "ix_conversations_2",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "created_at",
+          "id"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_conversations_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id",
+          "updated_at"
+        ]
+      },
+      {
+        "name": "ix_conversations_2",
+        "columns": [
+          "channel_id",
+          "environment",
+          "created_at",
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "data_scopes",
+    "drop": true,
+    "columns": [
+      {
+        "name": "id",
+        "type": "VARCHAR(64)",
+        "comment": "记录标识"
+      },
+      {
+        "name": "channel_id",
+        "type": "VARCHAR(64)",
+        "comment": "所属渠道标识"
+      },
+      {
+        "name": "created_at",
+        "type": "TIMESTAMP",
+        "comment": "创建时间"
+      },
+      {
+        "name": "updated_at",
+        "type": "TIMESTAMP",
+        "comment": "更新时间"
+      },
+      {
+        "name": "revision",
+        "type": "BIGINT",
+        "comment": "并发修订号"
+      },
+      {
+        "name": "environment",
+        "type": "VARCHAR(16)",
+        "comment": "所属环境"
+      },
+      {
+        "name": "name",
+        "type": "VARCHAR(128)",
+        "comment": "数据域名称"
+      },
+      {
+        "name": "external_scope_type",
+        "type": "VARCHAR(64)",
+        "comment": "显式配置的外部数据域类型"
+      },
+      {
+        "name": "external_scope_id",
+        "type": "VARCHAR(128)",
+        "comment": "显式配置的外部数据域编号"
+      },
+      {
+        "name": "status",
+        "type": "VARCHAR(32)",
+        "comment": "数据域状态"
+      }
+    ],
+    "comment": "业务数据域映射",
+    "old_indexes": [
+      {
+        "name": "ix_data_scopes_0",
+        "columns": [
+          "channel_id",
+          "id"
+        ]
+      },
+      {
+        "name": "ix_data_scopes_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "external_scope_type",
+          "external_scope_id"
+        ]
+      }
+    ],
+    "new_indexes": []
+  },
+  {
+    "name": "deletion_jobs",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "删除传播任务",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "deletion_markers",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "不可恢复使用的删除标记",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "deletion_receipts",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "删除清理完成证明",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "deletion_work_items",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "可重试模块清理步骤",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "evaluation_cases",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "不可变评测样本",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "evaluation_dataset_versions",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "不可变评测样本及标签版本",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "evaluation_datasets",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "评测样本集",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "evaluation_fixtures",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "评测工具夹具",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "evaluation_reports",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "可追溯评测报告",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "evaluation_results",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "评测单例及重跑记录",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "evaluations",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "批量评测调度任务",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "evidence_refs",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "证据定位与授权范围",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "integration_tests",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "所属业务数据域"
+      }
+    ],
+    "comment": "接入契约验证",
+    "old_indexes": [
+      {
+        "name": "ix_integration_tests_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "integration_id"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_integration_tests_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "integration_id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "integrations",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "所属业务数据域"
+      },
+      {
+        "name": "scope_mapping_ref",
+        "type": "VARCHAR(64)",
+        "comment": "渠道数据域映射引用"
+      }
+    ],
+    "comment": "业务系统适配连接",
+    "old_indexes": [
+      {
+        "name": "ix_integrations_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "status"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_integrations_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "status"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "mcp_connections",
+    "drop": false,
+    "columns": [
+      {
+        "name": "health_data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "健康检查授权数据域"
+      }
+    ],
+    "comment": "远程工具连接",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "mcp_oauth_flows",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "MCP 一次性授权流程",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "mcp_oauth_tokens",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "MCP 分身份委托凭据",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "memories",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "主体结构化记忆",
+    "old_indexes": [
+      {
+        "name": "ix_memories_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id",
+          "key",
+          "status"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_memories_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id",
+          "key",
+          "status"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "memory_consolidations",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "会话归档与人物画像后台整理任务",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "memory_deletion_jobs",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "主体记忆删除清理意图",
+    "old_indexes": [
+      {
+        "name": "ix_memory_deletion_jobs_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id",
+          "state"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_memory_deletion_jobs_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id",
+          "state"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "memory_embeddings",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "按主体和模型版本隔离的记忆向量",
+    "old_indexes": [
+      {
+        "name": "ix_memory_embeddings_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id",
+          "model_version_id"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_memory_embeddings_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id",
+          "model_version_id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "memory_preferences",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "主体长期记忆开关",
+    "old_indexes": [
+      {
+        "name": "ix_memory_preferences_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_memory_preferences_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "memory_retrievals",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "运行记忆召回记录",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "memory_sources",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "记忆有效来源",
+    "old_indexes": [
+      {
+        "name": "ix_memory_sources_2",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id",
+          "source_type",
+          "source_id"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_memory_sources_2",
+        "columns": [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id",
+          "source_type",
+          "source_id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "memory_versions",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "记忆变更版本",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "messages",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "会话消息",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "prompt_samples",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "提示词调试样例",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "prompt_tests",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "提示词调试记录",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "provider_statements",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "供应商账单核查批次",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "recovery_barriers",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "内容恢复屏障",
+    "old_indexes": [
+      {
+        "name": "ix_recovery_barriers_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_recovery_barriers_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "release_snapshots",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "执行依赖冻结快照",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "resource_grants",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scopes",
+        "type": "JSONB",
+        "comment": "授权数据域"
+      }
+    ],
+    "comment": "资源授权",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "run_contents",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "运行敏感内容引用",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "run_events",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "可补发运行事件",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "run_idempotency",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "接入请求幂等",
+    "old_indexes": [
+      {
+        "name": "ix_run_idempotency_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id",
+          "client_id",
+          "agent_id",
+          "key"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_run_idempotency_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id",
+          "client_id",
+          "agent_id",
+          "key"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "run_occupancies",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "运行会话执行占用",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "run_recoveries",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "执行租约恢复判断记录",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "run_steps",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "执行步骤",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "runs",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "逻辑执行任务",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "service_clients",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scopes",
+        "type": "JSONB",
+        "comment": "授权业务数据域清单"
+      }
+    ],
+    "comment": "业务接入服务",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "skill_tests",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "技能加载测试",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "source_links",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "内容来源与派生关系",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "subject_review_bindings",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "所属业务数据域"
+      }
+    ],
+    "comment": "当前主体复核的固定 MCP 绑定",
+    "old_indexes": [
+      {
+        "name": "ix_subject_review_bindings_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "client_id"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_subject_review_bindings_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "client_id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "tool_calls",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "工具实际调用",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "usage_exports",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "用量导出请求",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "usage_records",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "实际尝试用量账本",
+    "old_indexes": [],
+    "new_indexes": []
+  },
+  {
+    "name": "webhook_deliveries",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "持久化事件投递",
+    "old_indexes": [
+      {
+        "name": "ix_webhook_deliveries_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_webhook_deliveries_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "webhook_endpoints",
+    "drop": false,
+    "columns": [
+      {
+        "name": "data_scope_id",
+        "type": "VARCHAR(64)",
+        "comment": "业务数据域标识"
+      }
+    ],
+    "comment": "事件投递端点",
+    "old_indexes": [
+      {
+        "name": "ix_webhook_endpoints_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "data_scope_id",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ],
+    "new_indexes": [
+      {
+        "name": "ix_webhook_endpoints_1",
+        "columns": [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    ]
+  }
+]

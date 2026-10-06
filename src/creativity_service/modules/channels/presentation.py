@@ -1,12 +1,9 @@
 """渠道页面入口、操作和字段选项的服务端组装。"""
 
-from pydantic import Field
-
 from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import NavigationItem, VisibleAction
 from creativity_service.core.primitives import Contract
-from creativity_service.modules.channels.repositories import management_scope_id, rows
 from creativity_service.modules.channels.schemas import ChannelView
 from creativity_service.modules.channels.services import SERVICE_ACTIONS, ChannelService
 from creativity_service.modules.iam.authorization import effective_actions
@@ -25,8 +22,6 @@ class ChannelPage(Contract):
     tabs: list[NavigationItem]
     actions: list[VisibleAction]
     service_actions: list[VisibleAction]
-    pending_administrator: NamedOption | None = None
-    management_missing_environments: list[str] = Field(default_factory=list)
 
 
 async def create_options(service: ChannelService, session: AdminSession) -> ChannelCreateOptions:
@@ -45,24 +40,6 @@ async def create_options(service: ChannelService, session: AdminSession) -> Chan
 async def page_view(service: ChannelService, session: AdminSession, channel_id: str) -> ChannelPage:
     channel = await service.detail(session, channel_id)
     governance = not isinstance(session.context, AuthContext)
-    pending_administrator = None
-    missing_management: list[str] = []
-    if governance:
-        async with service.repository.engine.connect() as connection:
-            first = await service.iam.access.first_administrator(connection, channel_id)
-            if first:
-                missing_management = [
-                    env["environment"]
-                    for env in await rows(connection, "channel_environments", channel_id)
-                    if management_scope_id(channel_id, env["environment"])
-                    not in first["data_scopes"]
-                ]
-                if all(scope.startswith("manage_") for scope in first["data_scopes"]) and all(
-                    scope.startswith("manage_") for scope in first["initial_data_scopes"]
-                ):
-                    pending_administrator = NamedOption(
-                        value=first["user_id"], label=first["display_name"] or "账号名称不可用"
-                    )
     allowed = {a.action_key for a in channel.actions}
     effective: frozenset[str] = frozenset()
     if isinstance(session.context, AuthContext):
@@ -71,7 +48,6 @@ async def page_view(service: ChannelService, session: AdminSession, channel_id: 
             await service.iam.authentication.active_member(session.context),
             await service.iam.authentication.identities.grants(channel_id),
             scope.environment,
-            scope.data_scope_id or "",
             "channel",
             channel_id,
         )
@@ -80,8 +56,6 @@ async def page_view(service: ChannelService, session: AdminSession, channel_id: 
         ("channel:edit", "编辑渠道", "channel:manage", False),
         ("environment:create", "创建环境", "environment:manage", False),
         ("environment:edit", "编辑", "environment:manage", False),
-        ("data_scope:create", "创建数据域", "data_scope:manage", False),
-        ("data_scope:edit", "编辑", "data_scope:manage", False),
         ("client:create", "登记接入服务", "client:manage", True),
         ("client:edit", "编辑", "client:manage", False),
         ("key:create", "创建 Key", "key:manage", True),
@@ -104,14 +78,11 @@ async def page_view(service: ChannelService, session: AdminSession, channel_id: 
     return ChannelPage(
         channel=channel,
         actions=actions,
-        pending_administrator=pending_administrator,
-        management_missing_environments=missing_management,
         tabs=[
             NavigationItem(navigation_key=k, label=v)
             for k, v, required in (
                 ("overview", "概览", "channel:manage"),
                 ("environments", "环境", "environment:manage"),
-                ("data-scopes", "业务数据域", "data_scope:manage"),
                 ("clients", "接入服务", "client:manage"),
                 ("keys", "接入 Key", "key:manage"),
                 ("members", "成员与权限", "membership:read"),

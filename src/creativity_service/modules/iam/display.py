@@ -24,11 +24,7 @@ async def resource_names(
             tables.setdefault(kind, []).extend(names)
         current = getattr(current, "previous", getattr(current, "fallback", None))
     result: dict[tuple[str, str], str] = {}
-    requested = {
-        (kind, identifier)
-        for kind, identifier in references
-        if kind != "data_scope" or identifier == context.scope.data_scope_id
-    }
+    requested = {(kind, identifier) for kind, identifier in references}
     connection_ids: set[str] = set()
     loaded: dict[str, dict[str, dict[str, Any]]] = {}
     for name in {name for kind, _ in requested for name in tables.get(kind, [])}:

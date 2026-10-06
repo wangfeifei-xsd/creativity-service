@@ -3,15 +3,14 @@
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, bindparam, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.auth.types import AccountState
 from creativity_service.core.context import Scope
 from creativity_service.core.database import UnitOfWork
 from creativity_service.core.locking import ResourceKey, record_key
-from creativity_service.core.primitives import ServiceError, digest
-from creativity_service.modules.channels.repositories import management_scope_id
+from creativity_service.core.primitives import ServiceError, digest, utcnow
 from creativity_service.modules.channels.tables import metadata as channel_metadata
 from creativity_service.modules.iam.audit import append_event, audit_ranges
 from creativity_service.modules.iam.authorization import require_platform
@@ -21,6 +20,111 @@ from creativity_service.modules.iam.roles import ORDINARY_CHANNEL_ACTIONS
 
 def administrator_grant_id(channel_id: str, user_id: str) -> str:
     return "administrator_" + digest([channel_id, user_id])[:40]
+
+
+async def extend_environment_assignments(uow: UnitOfWork, environment: str) -> int:
+    """环境开通时延续整渠道账号分配，按页批量写入并保留原有动作上限。"""
+    channel_id = uow.scope.channel_id
+    uow.require_lock(policy_key("system"))
+    uow.require_lock(policy_key(channel_id))
+    if channel_id == "system":
+        raise ServiceError("SCOPE_MISMATCH", "系统渠道不能分配业务环境", 403)
+    environments = channel_metadata.tables["channel_environments"]
+    enabled = set(
+        (
+            await uow.connection.execute(
+                select(environments.c.environment).where(
+                    environments.c.channel_id == channel_id, environments.c.status == "ACTIVE"
+                )
+            )
+        ).scalars()
+    )
+    if environment not in enabled:
+        raise ServiceError("ENVIRONMENT_DISABLED", "环境不存在或已停用", 409)
+    members, grants, accounts = (
+        TABLES[name] for name in ("channel_memberships", "resource_grants", "platform_accounts")
+    )
+    source = members.join(
+        grants,
+        and_(
+            grants.c.channel_id == members.c.channel_id,
+            grants.c.grantee_type == "account",
+            grants.c.grantee_id == members.c.user_id,
+            grants.c.resource_type == "channel",
+            grants.c.resource_id == channel_id,
+        ),
+    ).join(accounts, and_(accounts.c.channel_id == "system", accounts.c.id == members.c.user_id))
+    statement = (
+        select(
+            members,
+            grants.c.id.label("grant_id"),
+            grants.c.environments.label("grant_environments"),
+            grants.c.allowed_actions.label("grant_actions"),
+        )
+        .select_from(source)
+        .where(
+            members.c.channel_id == channel_id,
+            members.c.status == "ACTIVE",
+            accounts.c.status == "ACTIVE",
+        )
+        .order_by(grants.c.id)
+        .limit(200)
+    )
+    cursor, changed = "", 0
+    while True:
+        batch = (
+            (await uow.connection.execute(statement.where(grants.c.id > cursor))).mappings().all()
+        )
+        if not batch:
+            break
+        if len({row["grant_id"] for row in batch}) != len(batch):
+            raise ServiceError("STORAGE_INVARIANT_BROKEN", "渠道成员授权重复", 503)
+        updates: dict[str, dict[str, dict[str, Any]]] = {
+            "channel_memberships": {},
+            "resource_grants": {},
+        }
+        for row in batch:
+            first = row["grant_id"] == "initial_" + membership_id(channel_id, row["user_id"])
+            assigned = row["grant_id"] == administrator_grant_id(channel_id, row["user_id"])
+            if not first and not assigned:
+                continue
+            if (assigned and set(row["grant_actions"]) != ORDINARY_CHANNEL_ACTIONS) or not (
+                enabled - {environment}
+            ) <= set(row["grant_environments"]):
+                continue
+            if not set(row["grant_environments"]) <= set(row["environments"]):
+                continue
+            edited = False
+            for name, prefix, identifier in (
+                ("channel_memberships", "", row["id"]),
+                ("resource_grants", "grant_", row["grant_id"]),
+            ):
+                values = sorted(set(row[prefix + "environments"]) | {environment})
+                if values != row[prefix + "environments"]:
+                    updates[name][identifier] = {
+                        "assignment_id": identifier,
+                        "environments": values,
+                    }
+                    edited = True
+            changed += edited
+        # 全部身份写入口都持有策略锁；批量更新避免逐个成员查询和往返。
+        for name, pending in updates.items():
+            if pending:
+                table = TABLES[name]
+                await uow.connection.execute(
+                    update(table)
+                    .where(
+                        table.c.channel_id == channel_id, table.c.id == bindparam("assignment_id")
+                    )
+                    .values(
+                        environments=bindparam("environments"),
+                        updated_at=utcnow(),
+                        revision=table.c.revision + 1,
+                    ),
+                    list(pending.values()),
+                )
+        cursor = batch[-1]["grant_id"]
+    return changed
 
 
 async def account_channels(
@@ -132,36 +236,16 @@ async def synchronize_channels(
         ).all()
     }
     environments = channel_metadata.tables["channel_environments"]
-    domains = channel_metadata.tables["data_scopes"]
-    pairs_by_channel: dict[str, set[tuple[str, str]]] = {}
-    pairs = (
+    environments_by_channel: dict[str, set[str]] = {}
+    configured = (
         await root.connection.execute(
-            select(environments.c.channel_id, environments.c.environment, domains.c.id)
-            .select_from(
-                environments.outerjoin(
-                    domains,
-                    and_(
-                        environments.c.channel_id == domains.c.channel_id,
-                        environments.c.environment == domains.c.environment,
-                        domains.c.status == "ACTIVE",
-                    ),
-                )
+            select(environments.c.channel_id, environments.c.environment).where(
+                environments.c.channel_id.in_(selected), environments.c.status == "ACTIVE"
             )
-            .where(
-                environments.c.channel_id.in_(selected),
-                environments.c.status == "ACTIVE",
-            )
-            .order_by(environments.c.channel_id, environments.c.environment, domains.c.id)
         )
     ).all()
-    for pair in pairs:
-        channel_pairs = pairs_by_channel.setdefault(pair.channel_id, set())
-        # 账号分配覆盖启用环境的管理范围；外部映射缺失不能吞掉渠道管理授权。
-        channel_pairs.add(
-            (pair.environment, management_scope_id(pair.channel_id, pair.environment))
-        )
-        if pair.id is not None:
-            channel_pairs.add((pair.environment, pair.id))
+    for configured_channel, environment in configured:
+        environments_by_channel.setdefault(configured_channel, set()).add(environment)
     grants = TABLES["resource_grants"]
     loaded_grants = {
         row["channel_id"]: dict(row)
@@ -197,13 +281,12 @@ async def synchronize_channels(
             channel = states.get(channel_id)
             if channel not in {"ACTIVE", "SUSPENDED"}:
                 raise ServiceError("CHANNEL_UNAVAILABLE", "授权渠道不存在或已归档", 422)
-            channel_pairs = pairs_by_channel.get(channel_id, set())
-            # 尚无启用环境时可先登记渠道；管理范围不能签发外部业务身份。
+            channel_environments = environments_by_channel.get(channel_id, set())
+            # 尚无启用环境时可先登记渠道；空环境不能签发执行上下文。
             values = {
                 "user_id": user_id,
                 "roles": [role["id"] for role in channel_roles],
-                "environments": sorted({environment for environment, _ in channel_pairs}),
-                "data_scopes": sorted({scope_id for _, scope_id in channel_pairs}),
+                "environments": sorted(channel_environments),
                 "status": "ACTIVE",
                 "granted_by": actor.id,
             }
@@ -215,7 +298,6 @@ async def synchronize_channels(
                 "resource_type": "channel",
                 "resource_id": channel_id,
                 "environments": values["environments"],
-                "data_scopes": values["data_scopes"],
                 # 普通授权保存资源范围与上限，不冻结角色动作；角色编辑后实时收窄或扩展。
                 "allowed_actions": sorted(ORDINARY_CHANNEL_ACTIONS),
             }
@@ -248,7 +330,7 @@ async def synchronize_channels(
             "membership:put",
             "account",
             user_id,
-            ["roles", "environments", "data_scopes", "status"],
-            affected_scopes=audit_ranges((ranges["environments"], ranges["data_scopes"])) or None,
+            ["roles", "environments", "status"],
+            affected_scopes=audit_ranges(ranges["environments"]) or None,
         )
     return changed

@@ -101,7 +101,7 @@ class DelegationKeys:
                 client = clients.get(row["client_id"])
                 if client is None:
                     raise ServiceError("NOT_FOUND", "接入服务不存在", 404)
-                if set(client["data_scopes"]) <= set(member.data_scopes):
+                if client["environment"] in member.environments:
                     visible.append(
                         await self.view(context, row, client, successors.get(row["id"], []))
                     )
@@ -123,7 +123,7 @@ class DelegationKeys:
             clients=[
                 NamedOption(value=client["id"], label=client["name"])
                 for client in clients
-                if set(client["data_scopes"]) <= set(member.data_scopes)
+                if client["environment"] in member.environments
             ]
         )
 
@@ -166,7 +166,7 @@ class DelegationKeys:
                 id=body.client_id,
                 environment=scope.environment,
             )
-            await require_management(uow, context, "key:manage", client["data_scopes"])
+            await require_management(uow, context, "key:manage")
             if client["status"] != "ACTIVE":
                 raise ServiceError("CLIENT_REVOKED", "接入服务不可用", 403)
             repo = repository(scope, "delegation_keys")
@@ -269,14 +269,14 @@ class DelegationKeys:
             row = await repo.get(uow.connection, kid)
             if row is None:
                 raise ServiceError("NOT_FOUND", "委托密钥不存在", 404)
-            client = await required(
+            await required(
                 uow.connection,
                 "service_clients",
                 scope.channel_id,
                 id=row["client_id"],
                 environment=scope.environment,
             )
-            await require_management(uow, context, "key:manage", client["data_scopes"])
+            await require_management(uow, context, "key:manage")
             row = await repo.change(uow, kid, revision, {"status": "REVOKED"})
             await append_audit(
                 uow,

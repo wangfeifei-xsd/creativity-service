@@ -1,6 +1,6 @@
 # 渠道管理模型
 
-模型版本 1.9.3；负责方案 05；需求 [01-渠道管理.md](../../../../需求文档/01-渠道管理.md)。总索引见 [README](../README.md)。
+模型版本 2.0.0；负责方案 05；需求 [01-渠道管理.md](../../../../需求文档/01-渠道管理.md)。总索引见 [README](../README.md)。
 
 ## channels
 
@@ -43,25 +43,6 @@
 
 普通索引：`(channel_id, id)`；`(channel_id, environment)`。
 
-## data_scopes
-
-业务数据域映射。状态：已实现；归属：环境；归档修订：0020_access_decoupling。
-
-| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
-| --- | --- | --- | --- | --- | --- |
-| `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
-| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
-| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
-| `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `name` | `varchar(128)` | 数据域名称 | 是 | 服务层校验后的业务输入 | 内部 |
-| `external_scope_type` | `varchar(64)` | 显式配置的外部数据域类型 | 是 | 管理员配置，验签后按原值精确匹配 | 内部 |
-| `external_scope_id` | `varchar(128)` | 显式配置的外部数据域编号 | 是 | 管理员配置，验签后按原值精确匹配 | 内部 |
-| `status` | `varchar(32)` | 数据域状态 | 是 | 服务层校验后的业务输入 | 内部 |
-
-普通索引：`(channel_id, id)`；`(channel_id, environment, external_scope_type, external_scope_id)`。
-
 ## service_clients
 
 业务接入服务。状态：已实现；归属：环境；归档修订：0003_channels。
@@ -77,7 +58,6 @@
 | `name` | `varchar(128)` | 服务名称 | 是 | 服务层校验后的业务输入 | 内部 |
 | `scopes` | `jsonb` | 权限上限 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `status` | `varchar(32)` | 服务状态 | 是 | 服务层校验后的业务输入 | 内部 |
-| `data_scopes` | `jsonb` | 授权业务数据域清单 | 是 | 服务层校验后的业务输入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, status)`。
 

@@ -1,6 +1,6 @@
 # 账号与授权模型
 
-模型版本 1.9.3；负责方案 04；需求 [02-账号与权限管理.md](../../../../需求文档/02-账号与权限管理.md)。总索引见 [README](../README.md)。
+模型版本 2.0.0；负责方案 04；需求 [02-账号与权限管理.md](../../../../需求文档/02-账号与权限管理.md)。总索引见 [README](../README.md)。
 
 ## platform_accounts
 
@@ -64,7 +64,6 @@
 | `user_id` | `varchar(64)` | 平台账号标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `roles` | `jsonb` | 角色清单 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `environments` | `jsonb` | 授权环境 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `data_scopes` | `jsonb` | 授权数据域 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `status` | `varchar(32)` | 成员状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `granted_by` | `varchar(128)` | 授权人标识 | 是 | 服务层校验后的业务输入 | 内部 |
 
@@ -87,7 +86,6 @@
 | `resource_id` | `varchar(64)` | 资源标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `allowed_actions` | `jsonb` | 允许动作 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `environments` | `jsonb` | 授权环境 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `data_scopes` | `jsonb` | 授权数据域 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 
 普通索引：`(channel_id, id)`；`(channel_id, grantee_type, grantee_id)`；`(channel_id, resource_type, resource_id)`。
 
@@ -172,6 +170,5 @@
 | `purpose` | `varchar(32)` | 令牌用途 | 是 | 受信服务上下文与服务层校验 | 内部 |
 | `credential_version` | `bigint` | 签发时凭据代次 | 否 | 受信服务上下文与服务层校验 | 内部 |
 | `membership_version` | `bigint` | 签发时成员修订 | 否 | 受信服务上下文与服务层校验 | 内部 |
-| `data_scope_id` | `varchar(64)` | 绑定数据域 | 否 | 受信服务上下文与服务层校验 | 内部 |
 | `index_keys` | `jsonb` | 服务端撤销索引键 | 是 | 受信服务上下文与服务层校验 | 内部 |
 | `issued_at_ms` | `bigint` | 撤销比较使用的签发毫秒时间 | 是 | 服务端时钟 | 内部 |

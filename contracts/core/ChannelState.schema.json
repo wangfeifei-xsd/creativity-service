@@ -42,17 +42,6 @@
       ],
       "title": "Client Active"
     },
-    "data_scope_active": {
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "title": "Data Scope Active"
-    },
     "environment": {
       "enum": [
         "dev",
@@ -97,8 +86,7 @@
     "environment_active",
     "membership_active",
     "client_active",
-    "key_active",
-    "data_scope_active"
+    "key_active"
   ],
   "title": "ChannelState",
   "type": "object"

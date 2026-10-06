@@ -60,7 +60,7 @@ async def account_options(
 
 async def access_options(iam: IamServices, session: AdminSession, channel_id: str) -> AccessOptions:
     if not isinstance(session.context, AuthContext):
-        raise ServiceError("FORBIDDEN", "请先进入获授权的渠道工作区", 403)
+        raise ServiceError("FORBIDDEN", "请先进入获授权的渠道环境", 403)
     context = session.context
     if context.scope.channel_id != channel_id:
         raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
@@ -98,7 +98,6 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
             for g in policy.grants
             if g.allowed_actions
             and set(g.environments) <= set(member.environments)
-            and set(g.data_scopes) <= set(member.data_scopes)
             and g.resource_type != "channel"
         ]
         async with iam.accounts.repository.engine.connect() as connection:
@@ -138,26 +137,12 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
             members = await rows(connection, "channel_memberships", channel_id, status="ACTIVE")
         accounts = await iam.accounts.repository.accounts([t["user_id"] for t in members])
         for target in members:
-            if set(target["environments"]) <= set(member.environments) and set(
-                target["data_scopes"]
-            ) <= set(member.data_scopes):
+            if set(target["environments"]) <= set(member.environments):
                 account = accounts.get(target["user_id"])
                 if account and account.status == "ACTIVE":
                     member_accounts.append(
                         NamedOption(value=account.id, label=account.display_name)
                     )
-    for workspace in options:
-        if not any(
-            r.resource_type == "data_scope" and r.resource_id == workspace.data_scope_id
-            for r in resources
-        ):
-            resources.append(
-                ResourceOption(
-                    resource_type="data_scope",
-                    resource_id=workspace.data_scope_id,
-                    label=f"{workspace.environment_name} · {workspace.data_scope_name}",
-                )
-            )
     async with iam.accounts.repository.engine.connect() as connection:
         catalog = await role_catalog(connection, channel_id)
         account_rows = (

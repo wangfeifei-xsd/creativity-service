@@ -103,11 +103,7 @@ async def test_cross_scope_same_name_credential_rotation_and_revocation(mcp_env,
     b = await env.mcp.import_tool(env.context, another.connection_id, import_body(second))
     assert a.local_tool_id != b.local_tool_id
     denied = env.context.model_copy(
-        update={
-            "scope": Scope(
-                channel_id="another_channel", environment="test", data_scope_id="other_domain"
-            )
-        }
+        update={"scope": Scope(channel_id="another_channel", environment="test")}
     )
     with pytest.raises(ServiceError):
         await env.mcp.get(denied, "mcp_connections", conn.connection_id)

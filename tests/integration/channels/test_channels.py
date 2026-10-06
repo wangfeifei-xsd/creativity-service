@@ -12,8 +12,6 @@ from creativity_service.core.primitives import ServiceError, new_id, unavailable
 from creativity_service.modules.channels.keys import secret_digest
 from creativity_service.modules.channels.schemas import (
     ClientUpdate,
-    DataScopeCreate,
-    DataScopeUpdate,
     EnvironmentCreate,
     EnvironmentUpdate,
     KeyCreate,
@@ -300,7 +298,7 @@ async def test_overlap_deadline_invalidates_old_token_without_redis_cleanup(
     assert exc.value.status == 401
 
 
-@pytest.mark.parametrize("target", ["environment", "domain", "client"])
+@pytest.mark.parametrize("target", ["environment", "client"])
 async def test_state_disable_rejects_existing_token_and_worker(
     channel_env, channel, service_identity, target
 ):
@@ -313,13 +311,6 @@ async def test_state_disable_rejects_existing_token_and_worker(
             channel_id,
             "test",
             EnvironmentUpdate(revision=env_view.revision, status="DISABLED"),
-        )
-    elif target == "domain":
-        await env.services.channels.update_data_scope(
-            env.admin,
-            channel_id,
-            channel.domain.data_scope_id,
-            DataScopeUpdate(revision=channel.domain.revision, status="DISABLED"),
         )
     else:
         await env.services.channels.update_client(
@@ -430,53 +421,31 @@ async def test_suspend_governance_resume_archive_and_durable_events(
         await env.services.lifecycle.change(env.admin, channel_id, "resume", archived.revision)
 
 
-async def test_mapping_concurrency_environment_ownership_and_new_workspace(channel_env):
+async def test_environment_concurrency_ownership_and_new_context(channel_env):
     env = channel_env
-    channel = await provision(env, "playmate", "club")
+    channel = await provision(env)
     channel_id = channel.channel.channel_id
-    body = DataScopeCreate(
-        name="俱乐部乙",
-        environment="test",
-        external_scope_type="club",
-        external_scope_id="same-club",
-    )
     results = await asyncio.gather(
-        *(env.services.channels.create_data_scope(env.admin, channel_id, body) for _ in range(6)),
+        *(
+            env.services.channels.create_environment(
+                env.admin, channel_id, EnvironmentCreate(environment="prod", name="生产")
+            )
+            for _ in range(6)
+        ),
         return_exceptions=True,
     )
     assert sum(not isinstance(r, Exception) for r in results) == 1
     assert all(r.status == 409 for r in results if isinstance(r, ServiceError))
-    await env.services.channels.create_environment(
-        env.admin, channel_id, EnvironmentCreate(environment="prod", name="生产")
-    )
-    domain = await env.services.channels.create_data_scope(
-        env.admin,
-        channel_id,
-        body.model_copy(update={"environment": "prod", "administrator_id": env.user_id}),
-    )
     _, session = await login(env)
     token = await env.iam.sessions.enter(
-        session,
-        ChannelContextInput(
-            channel_id=channel_id, environment="prod", data_scope_id=domain.data_scope_id
-        ),
+        session, ChannelContextInput(channel_id=channel_id, environment="prod")
     )
-    manager = await env.iam.authentication.admin_session(token.access_token, new_id("request"))
-    assert (await env.services.channels.detail(manager, channel_id)).channel_id == channel_id
-    path = f"/admin/v1/channels/{channel_id}/data-scopes/{domain.data_scope_id}"
-    result = await env.client.patch(
-        path,
+    response = await env.client.patch(
+        f"/admin/v1/channels/{channel_id}/environments/prod",
         headers=headers(token),
-        json={"revision": domain.revision, "external_scope_id": "moved"},
+        json={"revision": 1, "environment": "test"},
     )
-    assert result.status_code == 422
-    assert (
-        await env.client.patch(
-            f"/admin/v1/channels/{channel_id}/environments/prod",
-            headers=headers(token),
-            json={"revision": 1, "environment": "test"},
-        )
-    ).status_code == 422
+    assert response.status_code == 422
 
 
 async def test_cross_channel_reference_and_governance_does_not_grant_data(
@@ -525,12 +494,11 @@ async def test_workspace_atomic_switch_failure_and_session_indexes(
     body = ChannelContextInput(
         channel_id=other.channel.channel_id,
         environment="test",
-        data_scope_id=other.domain.data_scope_id,
     )
     original = env.iam.authentication.tokens._eval
 
     async def fail_issue(script, *args):
-        if "redis.call('SET'" in script:
+        if "local old = nil" in script:
             raise RedisConnectionError("认证存储中断")
         return await original(script, *args)
 
@@ -610,7 +578,6 @@ async def test_identity_lookup_queries_always_scoped(channel_env, service_identi
                 "channel_keys",
                 "channels",
                 "service_clients",
-                "data_scopes",
                 "channel_environments",
             )
         ):
@@ -649,23 +616,10 @@ async def test_real_environment_scope_pairs_work_with_iam_delegation(channel_env
     await env.services.channels.create_environment(
         env.admin, channel_id, EnvironmentCreate(environment="prod", name="生产")
     )
-    prod = await env.services.channels.create_data_scope(
-        env.admin,
-        channel_id,
-        DataScopeCreate(
-            name="生产默认域",
-            environment="prod",
-            external_scope_type="default",
-            external_scope_id="default",
-            administrator_id=env.user_id,
-        ),
-    )
     _, session = await login(env)
     token = await env.iam.sessions.enter(
         session,
-        ChannelContextInput(
-            channel_id=channel_id, environment="test", data_scope_id=channel.domain.data_scope_id
-        ),
+        ChannelContextInput(channel_id=channel_id, environment="test"),
     )
     manager = await env.iam.authentication.admin_session(token.access_token, new_id("request"))
     target = await env.iam.accounts.create(
@@ -676,14 +630,13 @@ async def test_real_environment_scope_pairs_work_with_iam_delegation(channel_env
             initial_password="Auditor-password-1234",
         ),
     )
-    domains = [channel.domain.data_scope_id, prod.data_scope_id]
     member = await env.iam.access.put_member(
         manager,
         channel_id,
         target.user_id,
-        MembershipInput(roles=["auditor"], environments=["test", "prod"], data_scopes=domains),
+        MembershipInput(roles=["auditor"], environments=["test", "prod"]),
     )
-    assert member.data_scopes == domains
+    assert member.environments == ["test", "prod"]
     grant = await env.iam.access.put_grant(
         manager,
         channel_id,
@@ -695,31 +648,34 @@ async def test_real_environment_scope_pairs_work_with_iam_delegation(channel_env
             resource_id=channel_id,
             allowed_actions=["run:read"],
             environments=["test", "prod"],
-            data_scopes=domains,
         ),
     )
-    assert grant.data_scopes == domains
+    assert grant.environments == ["test", "prod"]
     assert len(await env.iam.sessions.channels(manager)) == 2
 
 
-async def test_full_channel_governance_requires_all_data_domains(channel_env, channel):
+async def test_full_channel_governance_requires_all_environments(channel_env, channel):
+    from creativity_service.modules.iam.repositories import TABLES
+
     env, channel_id = channel_env, channel.channel.channel_id
     await env.services.channels.create_environment(
         env.admin, channel_id, EnvironmentCreate(environment="prod", name="生产")
     )
-    await env.services.channels.create_data_scope(
-        env.admin,
-        channel_id,
-        DataScopeCreate(
-            name="未授权生产域",
-            environment="prod",
-            external_scope_type="default",
-            external_scope_id="default",
-        ),
+    table = TABLES["channel_memberships"]
+    async with env.engine.begin() as db:
+        await db.execute(
+            update(table).where(table.c.channel_id == channel_id).values(environments=["test"])
+        )
+    _, session = await login(env)
+    token = await env.iam.sessions.enter(
+        session, ChannelContextInput(channel_id=channel_id, environment="test")
+    )
+    manager = await env.iam.authentication.admin_session(
+        token.access_token, "restricted-environment"
     )
     with pytest.raises(ServiceError) as exc:
         await env.services.lifecycle.change(
-            channel.manager, channel_id, "suspend", channel.channel.revision
+            manager, channel_id, "suspend", channel.channel.revision
         )
     assert exc.value.status == 404
     assert (await env.services.channels.detail(env.admin, channel_id)).status == "ACTIVE"
@@ -759,7 +715,6 @@ async def test_usage_delegates_explicit_authorized_scopes_and_records_platform_r
                 Scope(
                     channel_id=channel_id,
                     environment="test",
-                    data_scope_id=channel.domain.data_scope_id,
                 )
             ],
         )

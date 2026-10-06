@@ -49,7 +49,6 @@ def business_error(code: str) -> ServiceError:
 class EntityRef(Contract):
     channel_id: Identifier
     environment: Environment
-    data_scope_id: Identifier
     source_type: Identifier
     source_id: Identifier
 

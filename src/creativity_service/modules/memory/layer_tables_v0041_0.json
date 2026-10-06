@@ -1,0 +1,181 @@
+[
+  {
+    "module": "memory",
+    "name": "memory_consolidations",
+    "comment": "会话归档与人物画像后台整理任务",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_type",
+        "type": "varchar(64)",
+        "comment": "业务主体类型",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_id",
+        "type": "varchar(128)",
+        "comment": "业务主体编号",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "个人"
+      },
+      {
+        "name": "conversation_id",
+        "type": "varchar(128)",
+        "comment": "来源会话标识",
+        "required": true,
+        "source": "后台整理",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "source_run_id",
+        "type": "varchar(128)",
+        "comment": "恢复授权与冻结策略的来源运行",
+        "required": true,
+        "source": "后台整理",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "source_message_ids",
+        "type": "jsonb",
+        "comment": "本批完整消息引用",
+        "required": true,
+        "source": "后台整理",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "memory_ids",
+        "type": "jsonb",
+        "comment": "已生成的归档及画像引用",
+        "required": true,
+        "source": "后台整理",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "generation_run_id",
+        "type": "varchar(128)",
+        "comment": "后台生成运行标识",
+        "required": false,
+        "source": "后台整理",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "state",
+        "type": "varchar(32)",
+        "comment": "后台整理状态",
+        "required": true,
+        "source": "后台整理",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "attempt",
+        "type": "integer",
+        "comment": "生成轮次",
+        "required": true,
+        "source": "后台整理",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "next_attempt_at",
+        "type": "timestamptz",
+        "comment": "下次允许整理时间",
+        "required": true,
+        "source": "后台整理",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "error_code",
+        "type": "varchar(128)",
+        "comment": "最后失败原因编码",
+        "required": false,
+        "source": "后台整理",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "settings",
+        "type": "jsonb",
+        "comment": "冻结策略与属性，不包含会话原文",
+        "required": true,
+        "source": "后台整理",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "preference_revision",
+        "type": "integer",
+        "comment": "受理时主体偏好修订",
+        "required": true,
+        "source": "后台整理",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "state",
+        "next_attempt_at"
+      ],
+      [
+        "channel_id",
+        "conversation_id"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0033_layered_memory",
+    "scope": "主体",
+    "control_purpose": null,
+    "content": false
+  }
+]

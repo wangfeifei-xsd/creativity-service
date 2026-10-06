@@ -17,7 +17,6 @@ class Principals:
         return Principal(
             "user",
             "a",
-            {"type": "workspace", "id": "space"},
             ["run:create", "run:read", "run:content"],
             {"run": ["*"], "agent": ["*"]},
         )

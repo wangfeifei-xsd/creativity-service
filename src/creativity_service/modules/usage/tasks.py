@@ -32,13 +32,12 @@ async def sweep() -> None:
             channel_ids = await channels.channels.repository.directory(connection)
         for channel_id in ["system", *channel_ids]:
             async with infrastructure.engine.connect() as connection:
-                domains = await channel_rows(connection, "data_scopes", channel_id)
+                environments = await channel_rows(connection, "channel_environments", channel_id)
                 exports = await rows(connection, "usage_exports", channel_id)
-            if domains:
+            if environments:
                 scope = Scope(
                     channel_id=channel_id,
-                    environment=domains[0]["environment"],
-                    data_scope_id=domains[0]["id"],
+                    environment=environments[0]["environment"],
                 )
                 await services.ledger.compensate(scope)
             for job in exports:

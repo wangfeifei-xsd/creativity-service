@@ -44,12 +44,9 @@ class ChannelFixture:
                 channel_name=name,
                 environment=env,
                 environment_name="测试" if env == "test" else "生产",
-                data_scope_id=scope,
-                data_scope_name="数据域甲" if scope == "domain_a" else "数据域乙",
             )
             for c, name in (("channel_a", "渠道甲"), ("channel_b", "渠道乙"))
             for env in ("test", "prod")
-            for scope in ("domain_a", "domain_b")
         ]
         self.active = True
         self.key_active = True
@@ -64,9 +61,7 @@ class ChannelFixture:
         return [
             option
             for option in self.options
-            if option.channel_id == member.channel_id
-            and option.environment in member.environments
-            and option.data_scope_id in member.data_scopes
+            if option.channel_id == member.channel_id and option.environment in member.environments
         ]
 
     async def read_current(self, context):
@@ -78,7 +73,6 @@ class ChannelFixture:
             membership_active=True,
             client_active=True,
             key_active=self.key_active,
-            data_scope_active=True,
         )
 
 
@@ -111,7 +105,6 @@ class ServiceFixture:
             expires_at=self.channels.key_expires,
             client_actions=self.channels.service_actions,
             key_actions=self.channels.service_actions,
-            data_scopes=frozenset({"domain_a"}),
         )
 
 
@@ -218,21 +211,19 @@ async def create_user(iam, admin, name="builder-user"):
 
 
 async def provision(iam, admin, channel_id, user_id, independent_actions=None):
-    scope = Scope(channel_id=channel_id, environment="test", data_scope_id="domain_a")
+    scope = Scope(channel_id=channel_id, environment="test")
     async with transaction(
         iam.accounts.repository.engine, scope, iam.access.provisioning_keys(channel_id, user_id)
     ) as uow:
         await iam.access.provision_first_member(
-            uow, admin, user_id, ["test", "prod"], ["domain_a", "domain_b"], independent_actions
+            uow, admin, user_id, ["test", "prod"], independent_actions
         )
 
 
-async def enter(iam, session, channel_id="channel_a", environment="test", data_scope_id="domain_a"):
+async def enter(iam, session, channel_id="channel_a", environment="test"):
     response = await iam.sessions.enter(
         session,
-        ChannelContextInput(
-            channel_id=channel_id, environment=environment, data_scope_id=data_scope_id
-        ),
+        ChannelContextInput(channel_id=channel_id, environment=environment),
     )
     return response, await iam.authentication.admin_session(
         response.access_token, new_id("request")

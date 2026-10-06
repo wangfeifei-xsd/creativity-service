@@ -165,7 +165,7 @@ def release_gate(output, report, failures):
         "schema.json",
         "capacity.json",
         "sync-window.json",
-        "two-domains.json",
+        "two-subjects.json",
         "api/text-brief.json",
         "api/archive-answer.json",
         "evaluations/text_items.report.json",

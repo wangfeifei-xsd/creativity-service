@@ -6,7 +6,7 @@ from typing import Any, Literal
 from pydantic import Field, SecretStr
 
 from creativity_service.core.context import Scope
-from creativity_service.core.contracts import VisibleAction
+from creativity_service.core.contracts import ResourceVersion, VisibleAction
 from creativity_service.core.primitives import Contract, Identifier, Revision
 from creativity_service.modules.iam.schemas import AccessAction
 
@@ -173,6 +173,10 @@ class RouteView(RouteInput):
 class ReleaseInput(Contract):
     version_id: Identifier
     expected_version_id: Identifier | None = None
+
+
+class RouteVersionView(ResourceVersion):
+    actions: list[AccessAction] = Field(default_factory=list)
 
 
 class TestInput(Contract):

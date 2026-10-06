@@ -13,14 +13,9 @@ from creativity_service.core.context import Environment
 from creativity_service.core.primitives import Contract, Digest, Identifier, ServiceError
 
 HEADER = "X-Business-Delegation"
-PROTOCOL = "business-delegation-v1"
+PROTOCOL = "business-delegation-v2"
 MAX_ENVELOPE = 16384
 Action = Annotated[str, Field(pattern=r"^[a-z_]+:[a-z_]+$", max_length=64)]
-
-
-class SourceScope(Contract):
-    type: str = Field(min_length=1, max_length=64)
-    id: str = Field(min_length=1, max_length=128)
 
 
 class RequestBinding(Contract):
@@ -33,7 +28,6 @@ class RequestBinding(Contract):
 class DelegationClaims(Contract):
     subject_type: Identifier
     subject_id: Identifier
-    data_scope: SourceScope
     actions: list[Action] = Field(min_length=1, max_length=64)
     resources: dict[Identifier, list[Identifier | Literal["*"]]]
     issuer: str = Field(min_length=1, max_length=128)
@@ -71,7 +65,7 @@ def sign(claims: DelegationClaims, kid: str, secret: bytes) -> str:
         raise ValueError("委托密钥至少为三十二字节")
     payload = b64url(claims.model_dump_json(exclude_none=True).encode("utf-8"))
     signature = b64url(hmac.digest(secret, signing_string(kid, payload), "sha256"))
-    return f"v1.{kid}.{payload}.{signature}"
+    return f"v2.{kid}.{payload}.{signature}"
 
 
 def split_envelope(envelope: str) -> tuple[str, str, bytes]:
@@ -79,7 +73,7 @@ def split_envelope(envelope: str) -> tuple[str, str, bytes]:
         if len(envelope) > MAX_ENVELOPE:
             raise ValueError
         version, kid, payload, signature = envelope.split(".")
-        if version != "v1" or len(decode_segment(signature)) != 32:
+        if version != "v2" or len(decode_segment(signature)) != 32:
             raise ValueError
         signing_string(kid, payload)
         decode_segment(payload)

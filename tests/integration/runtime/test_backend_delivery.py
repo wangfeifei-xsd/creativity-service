@@ -113,7 +113,6 @@ async def delivery_env(business_env):
             return Principal(
                 env.claims.subject_type,
                 env.claims.subject_id,
-                env.claims.data_scope.model_dump(),
                 env.claims.actions,
                 env.claims.resources,
             )
@@ -345,7 +344,6 @@ async def test_conversation_artifact_expired_events_and_scope_rejection(delivery
         {"channel_id": "forged"},
         {"environment": "prod"},
         {"subject_id": "another-user"},
-        {"data_scope": {"type": "workspace", "id": "other"}},
     ):
         headers["X-Business-Delegation"] = sign_claims(
             {

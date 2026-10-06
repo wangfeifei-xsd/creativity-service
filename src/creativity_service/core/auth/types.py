@@ -31,7 +31,6 @@ class MembershipState(Contract):
     user_id: Identifier
     roles: list[str]
     environments: list[Environment]
-    data_scopes: list[Identifier]
     status: Status
     revision: Revision
 
@@ -45,7 +44,6 @@ class GrantState(Contract):
     resource_id: str
     allowed_actions: list[str]
     environments: list[Environment]
-    data_scopes: list[Identifier]
     revision: Revision
 
 
@@ -59,7 +57,6 @@ class TokenRecord(Contract):
     principal_id: Identifier
     principal_type: Literal["management", "service"]
     environment: Environment | None = None
-    data_scope_id: Identifier | None = None
     client_id: Identifier | None = None
     key_id: Identifier | None = None
     credential_version: Revision | None = None
@@ -81,7 +78,6 @@ class TokenRecord(Contract):
             if self.channel_id != "system" or any(
                 (
                     self.environment,
-                    self.data_scope_id,
                     self.client_id,
                     self.key_id,
                     self.membership_version,
@@ -101,8 +97,8 @@ class TokenRecord(Contract):
                 raise ValueError("服务身份绑定不完整")
         elif self.principal_type != "management" or not self.credential_version:
             raise ValueError("账号身份绑定不完整")
-        if self.purpose == "management" and (not self.membership_version or not self.data_scope_id):
-            raise ValueError("工作区身份必须绑定成员与数据域")
+        if self.purpose == "management" and not self.membership_version:
+            raise ValueError("渠道身份必须绑定成员")
         return self
 
 
@@ -129,7 +125,6 @@ class ServiceIdentity(Contract):
     expires_at: AwareDatetime
     client_actions: frozenset[str]
     key_actions: frozenset[str]
-    data_scopes: frozenset[str]
 
 
 class ServiceIdentityReader(Protocol):
@@ -167,8 +162,6 @@ class WorkspaceOption(Contract):
     channel_name: str
     environment: Environment
     environment_name: str
-    data_scope_id: Identifier
-    data_scope_name: str
 
 
 class WorkspaceDirectory(Protocol):

@@ -83,7 +83,7 @@ async def test_semantic_sort_scope_and_forget(env):
     # 外部范围中的相似向量不能参与当前主体的召回和删除。
     for changed in (
         {"channel_id": "other"},
-        {"data_scope_id": "other"},
+        {},
         {"subject_type": "member"},
         {"subject_id": "other"},
         {"environment": "prod"},

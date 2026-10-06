@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy import Select, and_, bindparam, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from creativity_service.core.context import AuthContext, ControlScope, Scope
+from creativity_service.core.context import ControlScope, Scope
 from creativity_service.core.database import ControlRepository, UnitOfWork, validate_row
 from creativity_service.core.database.queries import scoped_select
 from creativity_service.core.locking import ResourceKey, record_key
@@ -20,25 +20,6 @@ SYSTEM_TABLES = {"key_identity_index", "channel_code_index"}
 
 def environment_id(channel_id: str, environment: str) -> str:
     return "env_" + digest([channel_id, environment])[:40]
-
-
-def management_scope_id(channel_id: str, environment: str) -> str:
-    """管理工作区不创建或冒充外部数据域映射。"""
-    return "manage_" + digest([channel_id, environment])[:40]
-
-
-def is_management_workspace(context: AuthContext) -> bool:
-    """只识别当前渠道、环境的管理身份，不将服务或任务身份视为管理工作区。"""
-    scope = context.scope
-    return (
-        context.principal_type == "management"
-        and bool(context.actor_id)
-        and scope.data_scope_id == management_scope_id(scope.channel_id, scope.environment)
-    )
-
-
-def mapping_key(channel_id: str, environment: str, kind: str, external_id: str) -> ResourceKey:
-    return ResourceKey(channel_id, "data-scope-mapping", (environment, kind, external_id))
 
 
 async def rows(
@@ -56,25 +37,16 @@ async def rows(
 
 @lru_cache(maxsize=1)
 def _scope_statement() -> Select[Any]:
-    channel, environment, domain = (
-        metadata.tables[name] for name in ("channels", "channel_environments", "data_scopes")
-    )
+    channel, environment = (metadata.tables[name] for name in ("channels", "channel_environments"))
     joined = channel.outerjoin(
         environment,
         and_(
             environment.c.channel_id == channel.c.channel_id,
             environment.c.environment == bindparam("environment"),
         ),
-    ).outerjoin(
-        domain,
-        and_(
-            domain.c.channel_id == channel.c.channel_id,
-            domain.c.environment == bindparam("environment"),
-            domain.c.id == bindparam("data_scope_id"),
-        ),
     )
     return (
-        select(channel, environment, domain)
+        select(channel, environment)
         .select_from(joined)
         .where(
             channel.c.channel_id == bindparam("channel_id"), channel.c.id == bindparam("channel_id")
@@ -82,19 +54,13 @@ def _scope_statement() -> Select[Any]:
     )
 
 
-async def scope_rows(
-    connection: AsyncConnection, scope: Scope, *, management: bool = False
-) -> dict[str, dict[str, Any]]:
-    """关联读取渠道、环境和域；保留缺失及重复检查，状态由调用服务判断。"""
+async def scope_rows(connection: AsyncConnection, scope: Scope) -> dict[str, dict[str, Any]]:
+    """一次读取渠道及环境，缺失和重复记录均拒绝。"""
     found = (
         (
             await connection.execute(
                 _scope_statement(),
-                {
-                    "channel_id": scope.channel_id,
-                    "environment": scope.environment,
-                    "data_scope_id": scope.data_scope_id,
-                },
+                {"channel_id": scope.channel_id, "environment": scope.environment},
             )
         )
         .mappings()
@@ -104,17 +70,11 @@ async def scope_rows(
         raise ServiceError("STORAGE_INVARIANT_BROKEN", "渠道范围记录重复，请联系管理员", 503)
     result = {
         name: {column.name: found[0][column] for column in table.c}
-        for name in ("channels", "channel_environments", "data_scopes")
+        for name in ("channels", "channel_environments")
         for table in [metadata.tables[name]]
         if found and found[0][table.c.id] is not None
     }
-    required_names = {"channels", "channel_environments"}
-    if scope.data_scope_id and not (
-        management
-        and scope.data_scope_id == management_scope_id(scope.channel_id, scope.environment)
-    ):
-        required_names.add("data_scopes")
-    if not required_names <= result.keys():
+    if not {"channels", "channel_environments"} <= result.keys():
         raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
     return result
 
@@ -161,7 +121,6 @@ async def save(
     immutable = {
         "channels": {"channel_code"},
         "channel_environments": {"environment"},
-        "data_scopes": {"environment", "external_scope_type", "external_scope_id"},
         "service_clients": {"environment"},
         "channel_keys": {"environment", "client_id", "secret_digest", "prefix", "suffix"},
     }.get(name, set())

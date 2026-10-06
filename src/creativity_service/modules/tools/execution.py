@@ -145,11 +145,8 @@ class ToolExecutor:
         if not decision.allowed or not set(definition.required_scopes) <= actions:
             raise ServiceError("TOOL_FORBIDDEN", "当前身份、Agent 与工具权限不匹配", 403)
         scope = context.scope
-        if (
-            scope.environment not in definition.environments
-            or scope.data_scope_id not in definition.allowed_data_domains
-        ):
-            raise ServiceError("TOOL_FORBIDDEN", "当前环境或数据域无权调用工具", 403)
+        if scope.environment not in definition.environments:
+            raise ServiceError("TOOL_FORBIDDEN", "当前环境无权调用工具", 403)
         requirements = definition.subject_requirements
         if (requirements.required and not scope.subject_id) or (
             requirements.allowed_types and scope.subject_type not in requirements.allowed_types

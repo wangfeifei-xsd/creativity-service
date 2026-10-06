@@ -63,7 +63,6 @@ async def business_env(runtime_env, request):
             name="通用接入后端",
             environment="test",
             scopes=actions,
-            data_scopes=[env.context.scope.data_scope_id],
         ),
     )
     key = await env.services.keys.create(
@@ -126,10 +125,6 @@ async def business_env(runtime_env, request):
         env.claims = DelegationClaims(
             subject_type="member",
             subject_id="reader-a",
-            data_scope={
-                "type": env.tenant.domain.external_scope_type,
-                "id": env.tenant.domain.external_scope_id,
-            },
             actions=actions,
             resources={
                 kind: ["*"]
@@ -363,7 +358,7 @@ async def test_model_identity_override_is_blocked_before_business_dispatch(busin
     runs = MemoryRuns()
     runs.allowed = {env.imports[0].imported_version}
     env.tools.executor.runs = runs
-    for field in ("subject", "subject_id", "data_scope", "environment", "_meta"):
+    for field in ("subject", "subject_id", "environment", "_meta"):
         with pytest.raises(ServiceError) as error:
             await env.tools.executor.execute(
                 env.worker,
@@ -549,7 +544,7 @@ async def test_subject_binding_updates_are_serialized_and_scope_is_server_owned(
     )
     assert response.status_code == 422
     other = env.worker.model_copy(
-        update={"scope": env.worker.scope.model_copy(update={"data_scope_id": "foreign"})}
+        update={"scope": env.worker.scope.model_copy(update={"environment": "prod"})}
     )
     with pytest.raises(ServiceError):
         await env.bundle.subject_review.binding(other)

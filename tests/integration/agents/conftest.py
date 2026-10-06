@@ -57,20 +57,18 @@ async def agent_env(channel_env, request):
             update={"environment": environment, "independent_actions": independent}
         ),
     )
-    domains = await env.services.channels.data_scopes(env.admin, channel.channel_id)
     _, admin = await login(env)
     token = await env.iam.sessions.enter(
         admin,
         ChannelContextInput(
             channel_id=channel.channel_id,
             environment=environment,
-            data_scope_id=domains[0].data_scope_id,
         ),
     )
     manager = await env.iam.authentication.admin_session(
         token.access_token, "agent-fixture", governance=True
     )
-    tenant = SimpleNamespace(channel=channel, domain=domains[0], token=token, manager=manager)
+    tenant = SimpleNamespace(channel=channel, token=token, manager=manager)
 
     async def resolve(host, port):
         return ["93.184.216.34"]

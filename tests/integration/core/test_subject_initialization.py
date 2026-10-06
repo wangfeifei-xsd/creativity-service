@@ -19,7 +19,7 @@ async def test_initialization_is_serialized_and_cannot_reset_recovery(
     engine, context, authorization
 ):
     parent = context.model_copy(
-        update={"scope": context.scope.model_copy(update={"data_scope_id": "domain_new"})}
+        update={"scope": context.scope.model_copy(update={"environment": "prod"})}
     )
     subject = parent.model_copy(
         update={
@@ -59,7 +59,7 @@ async def test_missing_subject_barrier_with_history_requires_recovery_proof(
     engine, context, authorization, history
 ):
     parent = context.model_copy(
-        update={"scope": context.scope.model_copy(update={"data_scope_id": "domain_history"})}
+        update={"scope": context.scope.model_copy(update={"environment": "prod"})}
     )
     await RecoveryService(engine, authorization).initialize_fresh(parent)
     subject = parent.model_copy(

@@ -1,0 +1,8 @@
+[
+  {
+    "table": "delegation_nonces",
+    "column": "resolved_scope",
+    "old": "验签后渠道数据域主体",
+    "new": "验签后渠道环境主体"
+  }
+]

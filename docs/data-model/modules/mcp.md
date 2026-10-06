@@ -1,6 +1,6 @@
 # 远程工具连接模型
 
-模型版本 1.9.3；负责方案 14；需求 [09-MCP配置.md](../../../../需求文档/09-MCP配置.md)。总索引见 [README](../README.md)。
+模型版本 2.0.0；负责方案 14；需求 [09-MCP配置.md](../../../../需求文档/09-MCP配置.md)。总索引见 [README](../README.md)。
 
 ## mcp_connections
 
@@ -30,7 +30,6 @@
 | `last_check_at` | `timestamptz` | 最近检查时间 | 否 | 服务层校验后的业务输入 | 内部 |
 | `auth_failed` | `boolean` | 凭据失效阻断状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `health_actor_id` | `varchar(64)` | 健康检查授权成员 | 是 | 受信服务上下文 | 内部 |
-| `health_data_scope_id` | `varchar(64)` | 健康检查授权数据域 | 是 | 受信服务上下文 | 内部 |
 | `next_check_at` | `timestamptz` | 下次健康检查时间 | 是 | 受信服务上下文 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, status)`；`(channel_id, environment, next_check_at)`。
@@ -117,7 +116,6 @@ MCP 一次性授权流程。状态：已实现；归属：主体；归档修订�
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `connection_id` | `varchar(64)` | 连接标识 | 是 | 受信授权流程 | 内部 |
@@ -144,7 +142,6 @@ MCP 分身份委托凭据。状态：已实现；归属：主体；归档修订�
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `connection_id` | `varchar(64)` | 连接标识 | 是 | 受信授权流程 | 内部 |

@@ -84,7 +84,6 @@ async def test_iam_a09_a13_a14_direct_calls_and_same_member_records(channel_env,
         json=ChannelContextInput(
             channel_id=channel.channel.channel_id,
             environment="test",
-            data_scope_id=channel.domain.data_scope_id,
         ).model_dump(),
     )
     auth = {"Authorization": f"Bearer {switched.json()['access_token']}"}

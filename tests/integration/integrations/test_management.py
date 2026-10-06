@@ -94,7 +94,7 @@ async def test_management_http_and_secrets_are_not_returned(integration_env):
     headers = {"Authorization": f"Bearer {env.channel.token.access_token}"}
     response = await env.client.get("/admin/v1/integrations", headers=headers)
     assert response.status_code == 200, response.text
-    assert response.json()["items"][0]["data_scope_name"] == "默认业务域"
+    assert "data_scope_name" not in response.json()["items"][0]
     response = await env.client.get("/admin/v1/delegation-keys", headers=headers)
     assert response.status_code == 200, response.text
     assert env.key.signing_secret not in response.text
@@ -122,7 +122,7 @@ async def test_tool_bridge_preserves_run_and_rejects_changed_connection(
 
     async def traced(call):
         assert call.run_id == "actual-run-1"
-        assert call.connection["source_scope"] == {"type": "default", "id": "default"}
+        assert "source_scope" not in call.connection
         return await original(call)
 
     monkeypatch.setattr(adapter, "dictionary", traced)
@@ -153,7 +153,7 @@ async def test_compatibility_inventory_and_migration_keep_credentials_and_nonce(
         item = before["channels"][0]
         assert item["keys"][0]["id"] == env.identity.key.key.key_id
         assert item["legacy_http"][0]["id"] == env.connection.integration_id
-        assert item["data_scopes"][0]["external_scope_id"] == "default"
+        assert "data_scopes" not in item
         assert before["record_fingerprints"]["delegation_nonces"]["count"] == 1
         assert env.identity.key.api_key not in json.dumps(before)
         assert env.key.signing_secret not in json.dumps(before)

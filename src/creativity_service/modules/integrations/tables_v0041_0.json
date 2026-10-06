@@ -1,0 +1,584 @@
+[
+  {
+    "name": "integrations",
+    "module": "integrations",
+    "comment": "业务系统适配连接",
+    "status": "已实现",
+    "scope": "环境",
+    "revision": "0018_integrations",
+    "control_purpose": null,
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "name",
+        "type": "varchar(128)",
+        "comment": "接入名称",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "adapter_code",
+        "type": "varchar(64)",
+        "comment": "适配器编码",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "adapter_version",
+        "type": "varchar(64)",
+        "comment": "适配器版本",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "business_endpoint",
+        "type": "varchar(2048)",
+        "comment": "源服务地址",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "credential_ref",
+        "type": "varchar(64)",
+        "comment": "服务凭据引用",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "allowed_operations",
+        "type": "jsonb",
+        "comment": "已授权能力",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "operation_paths",
+        "type": "jsonb",
+        "comment": "固定能力接口路径",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "field_mapping",
+        "type": "jsonb",
+        "comment": "源字段转换配置",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "health",
+        "type": "varchar(32)",
+        "comment": "连接健康状态",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "contract_version",
+        "type": "varchar(64)",
+        "comment": "标准契约版本",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "status",
+        "type": "varchar(32)",
+        "comment": "启用状态",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "status"
+      ]
+    ]
+  },
+  {
+    "name": "delegation_keys",
+    "module": "integrations",
+    "comment": "委托签名验证密钥",
+    "status": "已实现",
+    "scope": "环境",
+    "revision": "0018_integrations",
+    "control_purpose": null,
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "client_id",
+        "type": "varchar(64)",
+        "comment": "接入服务标识",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "key_reference",
+        "type": "varchar(64)",
+        "comment": "独立签名密文引用",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "algorithm",
+        "type": "varchar(32)",
+        "comment": "固定签名算法",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "issuer",
+        "type": "varchar(128)",
+        "comment": "可信签发者",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "audience",
+        "type": "varchar(128)",
+        "comment": "委托受众",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "max_ttl_seconds",
+        "type": "integer",
+        "comment": "最长委托有效秒数",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "clock_skew_seconds",
+        "type": "integer",
+        "comment": "允许时钟偏差秒数",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "status",
+        "type": "varchar(32)",
+        "comment": "密钥状态",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "not_before",
+        "type": "timestamptz",
+        "comment": "密钥生效时间",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "expires_at",
+        "type": "timestamptz",
+        "comment": "密钥到期时间",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "rotated_from",
+        "type": "varchar(64)",
+        "comment": "轮换前密钥编号",
+        "required": false,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "client_id"
+      ]
+    ]
+  },
+  {
+    "name": "integration_tests",
+    "module": "integrations",
+    "comment": "接入契约验证",
+    "status": "已实现",
+    "scope": "环境",
+    "revision": "0018_integrations",
+    "control_purpose": null,
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "integration_id",
+        "type": "varchar(64)",
+        "comment": "连接标识",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "config_revision",
+        "type": "bigint",
+        "comment": "测试对应配置修订",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "cases",
+        "type": "jsonb",
+        "comment": "验证能力清单",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "results",
+        "type": "jsonb",
+        "comment": "脱敏验证结论",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "capabilities",
+        "type": "jsonb",
+        "comment": "通过验证的能力",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "state",
+        "type": "varchar(32)",
+        "comment": "验证状态",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "integration_id"
+      ]
+    ]
+  },
+  {
+    "name": "delegation_nonces",
+    "module": "integrations",
+    "comment": "已验证业务委托与请求防重放",
+    "status": "已实现",
+    "scope": "环境",
+    "revision": "0018_integrations",
+    "control_purpose": null,
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "client_id",
+        "type": "varchar(64)",
+        "comment": "稳定接入服务标识",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "kid",
+        "type": "varchar(64)",
+        "comment": "验签密钥编号",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "nonce_digest",
+        "type": "varchar(64)",
+        "comment": "随机数摘要",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "request_digest",
+        "type": "varchar(64)",
+        "comment": "实际请求绑定摘要",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "claims_digest",
+        "type": "varchar(64)",
+        "comment": "完整委托声明摘要",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "claims",
+        "type": "jsonb",
+        "comment": "验签后权限声明",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "resolved_scope",
+        "type": "jsonb",
+        "comment": "验签后渠道环境主体",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "expires_at",
+        "type": "timestamptz",
+        "comment": "防重放声明有效时间",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "retain_until",
+        "type": "timestamptz",
+        "comment": "防重放记录最早清理时间",
+        "required": true,
+        "source": "服务层校验与受信上下文",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "client_id",
+        "nonce_digest"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "retain_until"
+      ]
+    ]
+  }
+]

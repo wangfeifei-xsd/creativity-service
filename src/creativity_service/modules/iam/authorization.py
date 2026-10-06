@@ -1,4 +1,4 @@
-"""角色动作上限、资源授权、数据域及主体权限的交集。"""
+"""角色动作上限、资源授权、环境及主体权限的交集。"""
 
 from dataclasses import dataclass
 
@@ -16,27 +16,7 @@ from creativity_service.core.auth.types import (
 )
 from creativity_service.core.context import AuthContext
 from creativity_service.core.primitives import ServiceError, unavailable, utcnow
-from creativity_service.modules.iam.roles import GOVERNANCE_ACTIONS, INDEPENDENT_ACTIONS
-
-MANAGEMENT_SCOPE_ACTIONS = GOVERNANCE_ACTIONS | frozenset(
-    {
-        "model:manage",
-        "agent:manage",
-        "prompt:manage",
-        "tool:manage",
-        "integration:manage",
-        "mcp:manage",
-        "skill:manage",
-        "version:edit",
-        "version:freeze",
-        "version:read",
-        "budget:manage",
-        "audit:read",
-        "usage:read",
-        "credential:write",
-        "credential:use",
-    }
-)
+from creativity_service.modules.iam.roles import INDEPENDENT_ACTIONS
 
 SENSITIVE_ACTIONS = frozenset(
     {
@@ -61,7 +41,6 @@ def resource_covers(
 ) -> bool:
     return grant.channel_id == channel_id and (
         (grant.resource_type == "channel" and grant.resource_id == channel_id)
-        or (grant.resource_type == "data_scope" and grant.resource_id in grant.data_scopes)
         or (grant.resource_type == resource_type and grant.resource_id in {"*", resource_id})
     )
 
@@ -70,30 +49,20 @@ def effective_actions(
     member: MembershipState,
     grants: list[GrantState],
     environment: str,
-    data_scope_id: str,
     resource_type: str,
     resource_id: str,
 ) -> frozenset[str]:
-    if (
-        not member.roles
-        or member.status != "ACTIVE"
-        or environment not in member.environments
-        or data_scope_id not in member.data_scopes
-    ):
+    if not member.roles or member.status != "ACTIVE" or environment not in member.environments:
         return frozenset()
     allowed = frozenset(
         action
         for grant in grants
         if applicable(grant, member.user_id, member.roles)
         and environment in grant.environments
-        and data_scope_id in grant.data_scopes
-        and (grant.resource_type != "data_scope" or grant.resource_id == data_scope_id)
         and resource_covers(grant, member.channel_id, resource_type, resource_id)
         for action in grant.allowed_actions
     )
-    result = allowed & (member.custom_actions | INDEPENDENT_ACTIONS)
-    # 管理工作区不是外部业务数据域，不能借此执行、读取或导出业务数据。
-    return result & MANAGEMENT_SCOPE_ACTIONS if data_scope_id.startswith("manage_") else result
+    return allowed & (member.custom_actions | INDEPENDENT_ACTIONS)
 
 
 def action_allowed(actions: frozenset[str], action: str) -> bool:
@@ -134,10 +103,6 @@ def verify_resource_state(
         or state.resource_id != resource_id
         or state.scope.channel_id != scope.channel_id
         or state.scope.environment != scope.environment
-        or (
-            state.scope.data_scope_id is not None
-            and state.scope.data_scope_id != scope.data_scope_id
-        )
         or (
             state.scope.subject_type is not None
             and (state.scope.subject_type, state.scope.subject_id)
@@ -198,7 +163,7 @@ class ReadAuthorization:
     ) -> frozenset[str]:
         target = context or self.context
         origin = self.context
-        # 管理列表可收窄到一条记录的主体，不能换身份、请求、渠道或数据域。
+        # 管理列表可收窄到一条记录的主体，不能换身份、请求、渠道或环境。
         if (
             target.model_dump(exclude={"scope"}) != origin.model_dump(exclude={"scope"})
             or target.scope.model_dump(exclude={"subject_type", "subject_id"})
@@ -212,7 +177,6 @@ class ReadAuthorization:
                 self.member,
                 list(self.grants),
                 target.scope.environment,
-                target.scope.data_scope_id or "",
                 resource_type,
                 resource_id,
             )

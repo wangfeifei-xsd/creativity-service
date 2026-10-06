@@ -325,11 +325,9 @@ class ToolService:
 
     async def validate_config(self, context: AuthContext, definition: ToolDefinition) -> None:
         validate_definition(definition)
-        # 首版配置只能授予当前已核准工作区，复制到另一域须再次进入该域授权。
-        if set(definition.allowed_data_domains) != {context.scope.data_scope_id} or set(
-            definition.environments
-        ) != {context.scope.environment}:
-            raise ServiceError("TOOL_FORBIDDEN", "工具权限须使用当前已授权工作区", 403)
+        # 首版配置只能授予当前已核准渠道环境，复制到其他环境须再次授权。
+        if set(definition.environments) != {context.scope.environment}:
+            raise ServiceError("TOOL_FORBIDDEN", "工具权限须使用当前已授权渠道环境", 403)
 
     @staticmethod
     def dependencies(definition: ToolDefinition) -> list[str]:

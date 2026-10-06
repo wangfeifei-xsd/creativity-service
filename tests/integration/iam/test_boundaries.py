@@ -31,7 +31,7 @@ async def test_default_missing_channel_adapter_cannot_open_workspace(iam_env, ad
     result = await client.post(
         "/admin/v1/auth/channel-context",
         headers=headers,
-        json={"channel_id": "channel_a", "environment": "test", "data_scope_id": "domain_a"},
+        json={"channel_id": "channel_a", "environment": "test"},
     )
     assert result.status_code == 503
 
@@ -48,23 +48,19 @@ async def test_reset_racing_workspace_switch_cannot_refresh_old_identity(iam_env
     with pytest.raises(ServiceError) as exc:
         await iam.sessions.enter(
             target,
-            ChannelContextInput(
-                channel_id="channel_a", environment="test", data_scope_id="domain_a"
-            ),
+            ChannelContextInput(channel_id="channel_a", environment="test"),
         )
     assert exc.value.status == 401
 
 
 async def test_first_member_provisioning_rolls_back_with_channel_transaction(iam_env, admin):
     iam, _, _, engine, _ = iam_env
-    scope = Scope(channel_id="channel_a", environment="test", data_scope_id="domain_a")
+    scope = Scope(channel_id="channel_a", environment="test")
     with pytest.raises(RuntimeError, match="开通失败"):
         async with transaction(
             engine, scope, iam.access.provisioning_keys("channel_a", admin[1].account.id)
         ) as uow:
-            await iam.access.provision_first_member(
-                uow, admin[1], admin[1].account.id, ["test"], ["domain_a"]
-            )
+            await iam.access.provision_first_member(uow, admin[1], admin[1].account.id, ["test"])
             raise RuntimeError("开通失败")
     async with engine.connect() as connection:
         for table in ("channel_memberships", "resource_grants", "audit_events"):
@@ -81,7 +77,7 @@ async def test_independent_publish_requires_explicit_resource_and_scope(iam_env,
         manager,
         "channel_a",
         account.user_id,
-        MembershipInput(roles=["builder"], environments=["test", "prod"], data_scopes=["domain_a"]),
+        MembershipInput(roles=["builder"], environments=["test", "prod"]),
     )
     await iam.access.put_grant(
         manager,
@@ -94,7 +90,6 @@ async def test_independent_publish_requires_explicit_resource_and_scope(iam_env,
             resource_id="version_a",
             allowed_actions=["release:publish"],
             environments=["prod"],
-            data_scopes=["domain_a"],
         ),
     )
     _, subject = await enter(iam, temporary, environment="prod")

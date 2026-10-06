@@ -284,7 +284,6 @@ class Repository:
             "id",
             "channel_id",
             "environment",
-            "data_scope_id",
             "subject_type",
             "subject_id",
             "created_at",
@@ -313,7 +312,7 @@ class Repository:
             "revision": 1,
         }
         # 可空的范围字段也由服务上下文明确写入。
-        for name in ("environment", "data_scope_id", "subject_type", "subject_id"):
+        for name in ("environment", "subject_type", "subject_id"):
             if name in self.table.c and name not in row:
                 row[name] = None
         self._validate(row)
@@ -338,7 +337,6 @@ class Repository:
             "id",
             "channel_id",
             "environment",
-            "data_scope_id",
             "subject_type",
             "subject_id",
             "created_at",
@@ -359,7 +357,7 @@ class Repository:
                 "updated_at": now,
                 "revision": 1,
             }
-            for name in ("environment", "data_scope_id", "subject_type", "subject_id"):
+            for name in ("environment", "subject_type", "subject_id"):
                 if name in self.table.c and name not in row:
                     row[name] = None
             self._validate(row)
@@ -401,7 +399,6 @@ class Repository:
             "id",
             "channel_id",
             "environment",
-            "data_scope_id",
             "subject_type",
             "subject_id",
             "created_at",

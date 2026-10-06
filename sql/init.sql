@@ -1,7 +1,7 @@
 -- Creativity 表结构初始化归档，适用于 PostgreSQL 17 空库或空 schema。
--- 模型版本：1.9.3；配套数据归档迁移基线：0040_model_networks。
+-- 模型版本：2.0.0；配套数据归档迁移基线：0041_channel_environments。
 -- 初始建库基线：alembic/versions/0001_initial.py；后续修订在其上追加。
--- 包含 111 张表、1685 个字段、248 个普通索引及全部中文注释。
+-- 包含 110 张表、1611 个字段、246 个普通索引及全部中文注释。
 -- 本文件不写初始化数据；完成后必须执行 sql/init_data.sql，再启动服务或迁移。
 -- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。
 -- 执行方式见 sql/README.md；表创建在连接的当前 schema。
@@ -31,7 +31,6 @@ CREATE TABLE admissions (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	run_id VARCHAR(64),
@@ -54,8 +53,6 @@ COMMENT ON COLUMN admissions.updated_at IS '更新时间';
 COMMENT ON COLUMN admissions.revision IS '并发修订号';
 
 COMMENT ON COLUMN admissions.environment IS '所属环境';
-
-COMMENT ON COLUMN admissions.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN admissions.subject_type IS '业务主体类型';
 
@@ -85,7 +82,6 @@ CREATE TABLE agent_candidates (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	agent_id VARCHAR(64),
@@ -111,8 +107,6 @@ COMMENT ON COLUMN agent_candidates.updated_at IS '更新时间';
 COMMENT ON COLUMN agent_candidates.revision IS '并发修订号';
 
 COMMENT ON COLUMN agent_candidates.environment IS '所属环境';
-
-COMMENT ON COLUMN agent_candidates.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN agent_candidates.subject_type IS '业务主体类型';
 
@@ -290,7 +284,6 @@ CREATE TABLE alert_rules (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	name VARCHAR(128),
@@ -321,8 +314,6 @@ COMMENT ON COLUMN alert_rules.updated_at IS '更新时间';
 COMMENT ON COLUMN alert_rules.revision IS '并发修订号';
 
 COMMENT ON COLUMN alert_rules.environment IS '所属环境';
-
-COMMENT ON COLUMN alert_rules.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN alert_rules.subject_type IS '业务主体类型';
 
@@ -364,7 +355,6 @@ CREATE TABLE artifacts (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	name VARCHAR(255),
@@ -391,8 +381,6 @@ COMMENT ON COLUMN artifacts.updated_at IS '更新时间';
 COMMENT ON COLUMN artifacts.revision IS '并发修订号';
 
 COMMENT ON COLUMN artifacts.environment IS '所属环境';
-
-COMMENT ON COLUMN artifacts.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN artifacts.subject_type IS '业务主体类型';
 
@@ -428,7 +416,6 @@ CREATE TABLE attempts (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	run_id VARCHAR(64),
@@ -460,8 +447,6 @@ COMMENT ON COLUMN attempts.updated_at IS '更新时间';
 COMMENT ON COLUMN attempts.revision IS '并发修订号';
 
 COMMENT ON COLUMN attempts.environment IS '所属环境';
-
-COMMENT ON COLUMN attempts.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN attempts.subject_type IS '业务主体类型';
 
@@ -509,7 +494,6 @@ CREATE TABLE audit_events (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	actor_id VARCHAR(128),
@@ -534,8 +518,6 @@ COMMENT ON COLUMN audit_events.updated_at IS '更新时间';
 COMMENT ON COLUMN audit_events.revision IS '并发修订号';
 
 COMMENT ON COLUMN audit_events.environment IS '所属环境';
-
-COMMENT ON COLUMN audit_events.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN audit_events.subject_type IS '业务主体类型';
 
@@ -571,7 +553,6 @@ CREATE TABLE automation_batches (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	name VARCHAR(128),
@@ -596,8 +577,6 @@ COMMENT ON COLUMN automation_batches.revision IS '并发修订号';
 
 COMMENT ON COLUMN automation_batches.environment IS '所属环境';
 
-COMMENT ON COLUMN automation_batches.data_scope_id IS '业务数据域标识';
-
 COMMENT ON COLUMN automation_batches.subject_type IS '业务主体类型';
 
 COMMENT ON COLUMN automation_batches.subject_id IS '业务主体编号';
@@ -616,7 +595,7 @@ COMMENT ON COLUMN automation_batches.state IS '当前处理状态';
 
 CREATE INDEX ix_automation_batches_0 ON automation_batches (channel_id, id);
 
-CREATE INDEX ix_automation_batches_1 ON automation_batches (channel_id, environment, data_scope_id, subject_type, subject_id);
+CREATE INDEX ix_automation_batches_1 ON automation_batches (channel_id, environment, subject_type, subject_id);
 
 -- automation_items：逐项运行派发记录。
 CREATE TABLE automation_items (
@@ -626,7 +605,6 @@ CREATE TABLE automation_items (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	batch_id VARCHAR(64),
@@ -657,8 +635,6 @@ COMMENT ON COLUMN automation_items.updated_at IS '更新时间';
 COMMENT ON COLUMN automation_items.revision IS '并发修订号';
 
 COMMENT ON COLUMN automation_items.environment IS '所属环境';
-
-COMMENT ON COLUMN automation_items.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN automation_items.subject_type IS '业务主体类型';
 
@@ -692,7 +668,7 @@ COMMENT ON COLUMN automation_items.error IS '最近受理错误';
 
 CREATE INDEX ix_automation_items_0 ON automation_items (channel_id, id);
 
-CREATE INDEX ix_automation_items_1 ON automation_items (channel_id, environment, data_scope_id, subject_type, subject_id);
+CREATE INDEX ix_automation_items_1 ON automation_items (channel_id, environment, subject_type, subject_id);
 
 CREATE INDEX ix_automation_items_2 ON automation_items (channel_id, state, lease_until);
 
@@ -704,7 +680,6 @@ CREATE TABLE automation_schedules (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	name VARCHAR(128),
@@ -730,8 +705,6 @@ COMMENT ON COLUMN automation_schedules.revision IS '并发修订号';
 
 COMMENT ON COLUMN automation_schedules.environment IS '所属环境';
 
-COMMENT ON COLUMN automation_schedules.data_scope_id IS '业务数据域标识';
-
 COMMENT ON COLUMN automation_schedules.subject_type IS '业务主体类型';
 
 COMMENT ON COLUMN automation_schedules.subject_id IS '业务主体编号';
@@ -752,7 +725,7 @@ COMMENT ON COLUMN automation_schedules.last_error IS '最近派发错误';
 
 CREATE INDEX ix_automation_schedules_0 ON automation_schedules (channel_id, id);
 
-CREATE INDEX ix_automation_schedules_1 ON automation_schedules (channel_id, environment, data_scope_id, subject_type, subject_id);
+CREATE INDEX ix_automation_schedules_1 ON automation_schedules (channel_id, environment, subject_type, subject_id);
 
 CREATE INDEX ix_automation_schedules_2 ON automation_schedules (channel_id, state, next_at);
 
@@ -1154,7 +1127,6 @@ CREATE TABLE channel_memberships (
 	user_id VARCHAR(64),
 	roles JSONB,
 	environments JSONB,
-	data_scopes JSONB,
 	status VARCHAR(32),
 	granted_by VARCHAR(128)
 );
@@ -1176,8 +1148,6 @@ COMMENT ON COLUMN channel_memberships.user_id IS '平台账号标识';
 COMMENT ON COLUMN channel_memberships.roles IS '角色清单';
 
 COMMENT ON COLUMN channel_memberships.environments IS '授权环境';
-
-COMMENT ON COLUMN channel_memberships.data_scopes IS '授权数据域';
 
 COMMENT ON COLUMN channel_memberships.status IS '成员状态';
 
@@ -1244,7 +1214,6 @@ CREATE TABLE checkpoints (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	run_id VARCHAR(64),
@@ -1270,8 +1239,6 @@ COMMENT ON COLUMN checkpoints.updated_at IS '更新时间';
 COMMENT ON COLUMN checkpoints.revision IS '并发修订号';
 
 COMMENT ON COLUMN checkpoints.environment IS '所属环境';
-
-COMMENT ON COLUMN checkpoints.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN checkpoints.subject_type IS '业务主体类型';
 
@@ -1305,7 +1272,6 @@ CREATE TABLE context_snapshots (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	run_id VARCHAR(64),
@@ -1333,8 +1299,6 @@ COMMENT ON COLUMN context_snapshots.updated_at IS '更新时间';
 COMMENT ON COLUMN context_snapshots.revision IS '并发修订号';
 
 COMMENT ON COLUMN context_snapshots.environment IS '所属环境';
-
-COMMENT ON COLUMN context_snapshots.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN context_snapshots.subject_type IS '业务主体类型';
 
@@ -1372,7 +1336,6 @@ CREATE TABLE conversation_summaries (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	conversation_id VARCHAR(64),
@@ -1397,8 +1360,6 @@ COMMENT ON COLUMN conversation_summaries.updated_at IS '更新时间';
 COMMENT ON COLUMN conversation_summaries.revision IS '并发修订号';
 
 COMMENT ON COLUMN conversation_summaries.environment IS '所属环境';
-
-COMMENT ON COLUMN conversation_summaries.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN conversation_summaries.subject_type IS '业务主体类型';
 
@@ -1430,7 +1391,6 @@ CREATE TABLE conversation_turns (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	conversation_id VARCHAR(64),
@@ -1462,8 +1422,6 @@ COMMENT ON COLUMN conversation_turns.updated_at IS '更新时间';
 COMMENT ON COLUMN conversation_turns.revision IS '并发修订号';
 
 COMMENT ON COLUMN conversation_turns.environment IS '所属环境';
-
-COMMENT ON COLUMN conversation_turns.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN conversation_turns.subject_type IS '业务主体类型';
 
@@ -1511,7 +1469,6 @@ CREATE TABLE conversations (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	agent_id VARCHAR(64),
@@ -1541,8 +1498,6 @@ COMMENT ON COLUMN conversations.revision IS '并发修订号';
 
 COMMENT ON COLUMN conversations.environment IS '所属环境';
 
-COMMENT ON COLUMN conversations.data_scope_id IS '业务数据域标识';
-
 COMMENT ON COLUMN conversations.subject_type IS '业务主体类型';
 
 COMMENT ON COLUMN conversations.subject_id IS '业务主体编号';
@@ -1571,9 +1526,9 @@ COMMENT ON COLUMN conversations.next_turn_sequence IS '下一轮顺序';
 
 CREATE INDEX ix_conversations_0 ON conversations (channel_id, id);
 
-CREATE INDEX ix_conversations_1 ON conversations (channel_id, environment, data_scope_id, subject_type, subject_id, updated_at);
+CREATE INDEX ix_conversations_1 ON conversations (channel_id, environment, subject_type, subject_id, updated_at);
 
-CREATE INDEX ix_conversations_2 ON conversations (channel_id, environment, data_scope_id, created_at, id);
+CREATE INDEX ix_conversations_2 ON conversations (channel_id, environment, created_at, id);
 
 -- credentials：加密服务凭据。
 CREATE TABLE credentials (
@@ -1652,46 +1607,6 @@ COMMENT ON COLUMN custom_roles.menu_ids IS '可见菜单节点清单，空值沿
 COMMENT ON COLUMN custom_roles.grant_scope IS '授权类别';
 
 CREATE INDEX ix_custom_roles_0 ON custom_roles (channel_id, id);
-
--- data_scopes：业务数据域映射。
-CREATE TABLE data_scopes (
-	id VARCHAR(64),
-	channel_id VARCHAR(64),
-	created_at TIMESTAMP WITH TIME ZONE,
-	updated_at TIMESTAMP WITH TIME ZONE,
-	revision BIGINT,
-	environment VARCHAR(16),
-	name VARCHAR(128),
-	external_scope_type VARCHAR(64),
-	external_scope_id VARCHAR(128),
-	status VARCHAR(32)
-);
-
-COMMENT ON TABLE data_scopes IS '业务数据域映射';
-
-COMMENT ON COLUMN data_scopes.id IS '记录标识';
-
-COMMENT ON COLUMN data_scopes.channel_id IS '所属渠道标识';
-
-COMMENT ON COLUMN data_scopes.created_at IS '创建时间';
-
-COMMENT ON COLUMN data_scopes.updated_at IS '更新时间';
-
-COMMENT ON COLUMN data_scopes.revision IS '并发修订号';
-
-COMMENT ON COLUMN data_scopes.environment IS '所属环境';
-
-COMMENT ON COLUMN data_scopes.name IS '数据域名称';
-
-COMMENT ON COLUMN data_scopes.external_scope_type IS '显式配置的外部数据域类型';
-
-COMMENT ON COLUMN data_scopes.external_scope_id IS '显式配置的外部数据域编号';
-
-COMMENT ON COLUMN data_scopes.status IS '数据域状态';
-
-CREATE INDEX ix_data_scopes_0 ON data_scopes (channel_id, id);
-
-CREATE INDEX ix_data_scopes_1 ON data_scopes (channel_id, environment, external_scope_type, external_scope_id);
 
 -- delegation_keys：委托签名验证密钥。
 CREATE TABLE delegation_keys (
@@ -1799,7 +1714,7 @@ COMMENT ON COLUMN delegation_nonces.claims_digest IS '完整委托声明摘要';
 
 COMMENT ON COLUMN delegation_nonces.claims IS '验签后权限声明';
 
-COMMENT ON COLUMN delegation_nonces.resolved_scope IS '验签后渠道数据域主体';
+COMMENT ON COLUMN delegation_nonces.resolved_scope IS '验签后渠道环境主体';
 
 COMMENT ON COLUMN delegation_nonces.expires_at IS '防重放声明有效时间';
 
@@ -1819,7 +1734,6 @@ CREATE TABLE deletion_jobs (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	marker_id VARCHAR(64),
@@ -1843,8 +1757,6 @@ COMMENT ON COLUMN deletion_jobs.updated_at IS '更新时间';
 COMMENT ON COLUMN deletion_jobs.revision IS '并发修订号';
 
 COMMENT ON COLUMN deletion_jobs.environment IS '所属环境';
-
-COMMENT ON COLUMN deletion_jobs.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN deletion_jobs.subject_type IS '业务主体类型';
 
@@ -1876,7 +1788,6 @@ CREATE TABLE deletion_markers (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	target_type VARCHAR(64),
@@ -1898,8 +1809,6 @@ COMMENT ON COLUMN deletion_markers.updated_at IS '更新时间';
 COMMENT ON COLUMN deletion_markers.revision IS '并发修订号';
 
 COMMENT ON COLUMN deletion_markers.environment IS '所属环境';
-
-COMMENT ON COLUMN deletion_markers.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN deletion_markers.subject_type IS '业务主体类型';
 
@@ -1925,7 +1834,6 @@ CREATE TABLE deletion_receipts (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	job_id VARCHAR(64),
@@ -1948,8 +1856,6 @@ COMMENT ON COLUMN deletion_receipts.updated_at IS '更新时间';
 COMMENT ON COLUMN deletion_receipts.revision IS '并发修订号';
 
 COMMENT ON COLUMN deletion_receipts.environment IS '所属环境';
-
-COMMENT ON COLUMN deletion_receipts.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN deletion_receipts.subject_type IS '业务主体类型';
 
@@ -1977,7 +1883,6 @@ CREATE TABLE deletion_work_items (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	job_id VARCHAR(64),
@@ -2006,8 +1911,6 @@ COMMENT ON COLUMN deletion_work_items.updated_at IS '更新时间';
 COMMENT ON COLUMN deletion_work_items.revision IS '并发修订号';
 
 COMMENT ON COLUMN deletion_work_items.environment IS '所属环境';
-
-COMMENT ON COLUMN deletion_work_items.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN deletion_work_items.subject_type IS '业务主体类型';
 
@@ -2095,7 +1998,6 @@ CREATE TABLE evaluation_cases (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	dataset_id VARCHAR(64),
@@ -2120,8 +2022,6 @@ COMMENT ON COLUMN evaluation_cases.updated_at IS '更新时间';
 COMMENT ON COLUMN evaluation_cases.revision IS '并发修订号';
 
 COMMENT ON COLUMN evaluation_cases.environment IS '所属环境';
-
-COMMENT ON COLUMN evaluation_cases.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN evaluation_cases.subject_type IS '业务主体类型';
 
@@ -2153,7 +2053,6 @@ CREATE TABLE evaluation_dataset_versions (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	dataset_id VARCHAR(64),
@@ -2178,8 +2077,6 @@ COMMENT ON COLUMN evaluation_dataset_versions.updated_at IS '更新时间';
 COMMENT ON COLUMN evaluation_dataset_versions.revision IS '并发修订号';
 
 COMMENT ON COLUMN evaluation_dataset_versions.environment IS '所属环境';
-
-COMMENT ON COLUMN evaluation_dataset_versions.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN evaluation_dataset_versions.subject_type IS '业务主体类型';
 
@@ -2211,7 +2108,6 @@ CREATE TABLE evaluation_datasets (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	name VARCHAR(128),
@@ -2234,8 +2130,6 @@ COMMENT ON COLUMN evaluation_datasets.updated_at IS '更新时间';
 COMMENT ON COLUMN evaluation_datasets.revision IS '并发修订号';
 
 COMMENT ON COLUMN evaluation_datasets.environment IS '所属环境';
-
-COMMENT ON COLUMN evaluation_datasets.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN evaluation_datasets.subject_type IS '业务主体类型';
 
@@ -2261,7 +2155,6 @@ CREATE TABLE evaluation_fixtures (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	payload JSONB,
@@ -2283,8 +2176,6 @@ COMMENT ON COLUMN evaluation_fixtures.revision IS '并发修订号';
 
 COMMENT ON COLUMN evaluation_fixtures.environment IS '所属环境';
 
-COMMENT ON COLUMN evaluation_fixtures.data_scope_id IS '业务数据域标识';
-
 COMMENT ON COLUMN evaluation_fixtures.subject_type IS '业务主体类型';
 
 COMMENT ON COLUMN evaluation_fixtures.subject_id IS '业务主体编号';
@@ -2305,7 +2196,6 @@ CREATE TABLE evaluation_reports (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	evaluation_id VARCHAR(64),
@@ -2327,8 +2217,6 @@ COMMENT ON COLUMN evaluation_reports.updated_at IS '更新时间';
 COMMENT ON COLUMN evaluation_reports.revision IS '并发修订号';
 
 COMMENT ON COLUMN evaluation_reports.environment IS '所属环境';
-
-COMMENT ON COLUMN evaluation_reports.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN evaluation_reports.subject_type IS '业务主体类型';
 
@@ -2354,7 +2242,6 @@ CREATE TABLE evaluation_results (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	evaluation_id VARCHAR(64),
@@ -2381,8 +2268,6 @@ COMMENT ON COLUMN evaluation_results.updated_at IS '更新时间';
 COMMENT ON COLUMN evaluation_results.revision IS '并发修订号';
 
 COMMENT ON COLUMN evaluation_results.environment IS '所属环境';
-
-COMMENT ON COLUMN evaluation_results.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN evaluation_results.subject_type IS '业务主体类型';
 
@@ -2420,7 +2305,6 @@ CREATE TABLE evaluations (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	name VARCHAR(128),
@@ -2450,8 +2334,6 @@ COMMENT ON COLUMN evaluations.updated_at IS '更新时间';
 COMMENT ON COLUMN evaluations.revision IS '并发修订号';
 
 COMMENT ON COLUMN evaluations.environment IS '所属环境';
-
-COMMENT ON COLUMN evaluations.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN evaluations.subject_type IS '业务主体类型';
 
@@ -2493,7 +2375,6 @@ CREATE TABLE evidence_refs (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	source_type VARCHAR(64),
@@ -2519,8 +2400,6 @@ COMMENT ON COLUMN evidence_refs.updated_at IS '更新时间';
 COMMENT ON COLUMN evidence_refs.revision IS '并发修订号';
 
 COMMENT ON COLUMN evidence_refs.environment IS '所属环境';
-
-COMMENT ON COLUMN evidence_refs.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN evidence_refs.subject_type IS '业务主体类型';
 
@@ -2645,7 +2524,6 @@ CREATE TABLE integration_tests (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	integration_id VARCHAR(64),
 	config_revision BIGINT,
 	cases JSONB,
@@ -2668,8 +2546,6 @@ COMMENT ON COLUMN integration_tests.revision IS '并发修订号';
 
 COMMENT ON COLUMN integration_tests.environment IS '所属环境';
 
-COMMENT ON COLUMN integration_tests.data_scope_id IS '所属业务数据域';
-
 COMMENT ON COLUMN integration_tests.integration_id IS '连接标识';
 
 COMMENT ON COLUMN integration_tests.config_revision IS '测试对应配置修订';
@@ -2684,7 +2560,7 @@ COMMENT ON COLUMN integration_tests.state IS '验证状态';
 
 CREATE INDEX ix_integration_tests_0 ON integration_tests (channel_id, id);
 
-CREATE INDEX ix_integration_tests_1 ON integration_tests (channel_id, environment, data_scope_id, integration_id);
+CREATE INDEX ix_integration_tests_1 ON integration_tests (channel_id, environment, integration_id);
 
 -- integrations：业务系统适配连接。
 CREATE TABLE integrations (
@@ -2694,7 +2570,6 @@ CREATE TABLE integrations (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	name VARCHAR(128),
 	adapter_code VARCHAR(64),
 	adapter_version VARCHAR(64),
@@ -2703,7 +2578,6 @@ CREATE TABLE integrations (
 	allowed_operations JSONB,
 	operation_paths JSONB,
 	field_mapping JSONB,
-	scope_mapping_ref VARCHAR(64),
 	health VARCHAR(32),
 	contract_version VARCHAR(64),
 	status VARCHAR(32)
@@ -2723,8 +2597,6 @@ COMMENT ON COLUMN integrations.revision IS '并发修订号';
 
 COMMENT ON COLUMN integrations.environment IS '所属环境';
 
-COMMENT ON COLUMN integrations.data_scope_id IS '所属业务数据域';
-
 COMMENT ON COLUMN integrations.name IS '接入名称';
 
 COMMENT ON COLUMN integrations.adapter_code IS '适配器编码';
@@ -2741,8 +2613,6 @@ COMMENT ON COLUMN integrations.operation_paths IS '固定能力接口路径';
 
 COMMENT ON COLUMN integrations.field_mapping IS '源字段转换配置';
 
-COMMENT ON COLUMN integrations.scope_mapping_ref IS '渠道数据域映射引用';
-
 COMMENT ON COLUMN integrations.health IS '连接健康状态';
 
 COMMENT ON COLUMN integrations.contract_version IS '标准契约版本';
@@ -2751,7 +2621,7 @@ COMMENT ON COLUMN integrations.status IS '启用状态';
 
 CREATE INDEX ix_integrations_0 ON integrations (channel_id, id);
 
-CREATE INDEX ix_integrations_1 ON integrations (channel_id, environment, data_scope_id, status);
+CREATE INDEX ix_integrations_1 ON integrations (channel_id, environment, status);
 
 -- key_identity_index：系统渠道密钥身份索引。
 CREATE TABLE key_identity_index (
@@ -2903,7 +2773,6 @@ CREATE TABLE mcp_connections (
 	last_check_at TIMESTAMP WITH TIME ZONE,
 	auth_failed BOOLEAN,
 	health_actor_id VARCHAR(64),
-	health_data_scope_id VARCHAR(64),
 	next_check_at TIMESTAMP WITH TIME ZONE
 );
 
@@ -2952,8 +2821,6 @@ COMMENT ON COLUMN mcp_connections.last_check_at IS '最近检查时间';
 COMMENT ON COLUMN mcp_connections.auth_failed IS '凭据失效阻断状态';
 
 COMMENT ON COLUMN mcp_connections.health_actor_id IS '健康检查授权成员';
-
-COMMENT ON COLUMN mcp_connections.health_data_scope_id IS '健康检查授权数据域';
 
 COMMENT ON COLUMN mcp_connections.next_check_at IS '下次健康检查时间';
 
@@ -3077,7 +2944,6 @@ CREATE TABLE mcp_oauth_flows (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	connection_id VARCHAR(64),
@@ -3104,8 +2970,6 @@ COMMENT ON COLUMN mcp_oauth_flows.updated_at IS '更新时间';
 COMMENT ON COLUMN mcp_oauth_flows.revision IS '并发修订号';
 
 COMMENT ON COLUMN mcp_oauth_flows.environment IS '所属环境';
-
-COMMENT ON COLUMN mcp_oauth_flows.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN mcp_oauth_flows.subject_type IS '业务主体类型';
 
@@ -3141,7 +3005,6 @@ CREATE TABLE mcp_oauth_tokens (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	connection_id VARCHAR(64),
@@ -3170,8 +3033,6 @@ COMMENT ON COLUMN mcp_oauth_tokens.updated_at IS '更新时间';
 COMMENT ON COLUMN mcp_oauth_tokens.revision IS '并发修订号';
 
 COMMENT ON COLUMN mcp_oauth_tokens.environment IS '所属环境';
-
-COMMENT ON COLUMN mcp_oauth_tokens.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN mcp_oauth_tokens.subject_type IS '业务主体类型';
 
@@ -3211,7 +3072,6 @@ CREATE TABLE memories (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	memory_type VARCHAR(64),
@@ -3242,8 +3102,6 @@ COMMENT ON COLUMN memories.updated_at IS '更新时间';
 COMMENT ON COLUMN memories.revision IS '并发修订号';
 
 COMMENT ON COLUMN memories.environment IS '所属环境';
-
-COMMENT ON COLUMN memories.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN memories.subject_type IS '业务主体类型';
 
@@ -3277,7 +3135,7 @@ COMMENT ON COLUMN memories.source_mode IS '来源有效性模式：独立依据�
 
 CREATE INDEX ix_memories_0 ON memories (channel_id, id);
 
-CREATE INDEX ix_memories_1 ON memories (channel_id, environment, data_scope_id, subject_type, subject_id, key, status);
+CREATE INDEX ix_memories_1 ON memories (channel_id, environment, subject_type, subject_id, key, status);
 
 -- memory_consolidations：会话归档与人物画像后台整理任务。
 CREATE TABLE memory_consolidations (
@@ -3287,7 +3145,6 @@ CREATE TABLE memory_consolidations (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	conversation_id VARCHAR(128),
@@ -3316,8 +3173,6 @@ COMMENT ON COLUMN memory_consolidations.updated_at IS '更新时间';
 COMMENT ON COLUMN memory_consolidations.revision IS '并发修订号';
 
 COMMENT ON COLUMN memory_consolidations.environment IS '所属环境';
-
-COMMENT ON COLUMN memory_consolidations.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN memory_consolidations.subject_type IS '业务主体类型';
 
@@ -3359,7 +3214,6 @@ CREATE TABLE memory_deletion_jobs (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	memory_ids JSONB,
@@ -3382,8 +3236,6 @@ COMMENT ON COLUMN memory_deletion_jobs.revision IS '并发修订号';
 
 COMMENT ON COLUMN memory_deletion_jobs.environment IS '所属环境';
 
-COMMENT ON COLUMN memory_deletion_jobs.data_scope_id IS '业务数据域标识';
-
 COMMENT ON COLUMN memory_deletion_jobs.subject_type IS '业务主体类型';
 
 COMMENT ON COLUMN memory_deletion_jobs.subject_id IS '业务主体编号';
@@ -3398,7 +3250,7 @@ COMMENT ON COLUMN memory_deletion_jobs.kind IS '单项遗忘或主体清空';
 
 CREATE INDEX ix_memory_deletion_jobs_0 ON memory_deletion_jobs (channel_id, id);
 
-CREATE INDEX ix_memory_deletion_jobs_1 ON memory_deletion_jobs (channel_id, environment, data_scope_id, subject_type, subject_id, state);
+CREATE INDEX ix_memory_deletion_jobs_1 ON memory_deletion_jobs (channel_id, environment, subject_type, subject_id, state);
 
 -- memory_embeddings：按主体和模型版本隔离的记忆向量。
 CREATE TABLE memory_embeddings (
@@ -3408,7 +3260,6 @@ CREATE TABLE memory_embeddings (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	memory_id VARCHAR(64),
@@ -3433,8 +3284,6 @@ COMMENT ON COLUMN memory_embeddings.revision IS '并发修订号';
 
 COMMENT ON COLUMN memory_embeddings.environment IS '所属环境';
 
-COMMENT ON COLUMN memory_embeddings.data_scope_id IS '业务数据域标识';
-
 COMMENT ON COLUMN memory_embeddings.subject_type IS '业务主体类型';
 
 COMMENT ON COLUMN memory_embeddings.subject_id IS '业务主体编号';
@@ -3453,7 +3302,7 @@ COMMENT ON COLUMN memory_embeddings.embedding IS '记忆向量';
 
 CREATE INDEX ix_memory_embeddings_0 ON memory_embeddings (channel_id, id);
 
-CREATE INDEX ix_memory_embeddings_1 ON memory_embeddings (channel_id, environment, data_scope_id, subject_type, subject_id, model_version_id);
+CREATE INDEX ix_memory_embeddings_1 ON memory_embeddings (channel_id, environment, subject_type, subject_id, model_version_id);
 
 CREATE INDEX ix_memory_embeddings_2 ON memory_embeddings (channel_id, memory_id);
 
@@ -3523,7 +3372,6 @@ CREATE TABLE memory_preferences (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	enabled BOOLEAN,
@@ -3544,8 +3392,6 @@ COMMENT ON COLUMN memory_preferences.revision IS '并发修订号';
 
 COMMENT ON COLUMN memory_preferences.environment IS '所属环境';
 
-COMMENT ON COLUMN memory_preferences.data_scope_id IS '业务数据域标识';
-
 COMMENT ON COLUMN memory_preferences.subject_type IS '业务主体类型';
 
 COMMENT ON COLUMN memory_preferences.subject_id IS '业务主体编号';
@@ -3556,7 +3402,7 @@ COMMENT ON COLUMN memory_preferences.changed_by IS '变更主体';
 
 CREATE INDEX ix_memory_preferences_0 ON memory_preferences (channel_id, id);
 
-CREATE INDEX ix_memory_preferences_1 ON memory_preferences (channel_id, environment, data_scope_id, subject_type, subject_id);
+CREATE INDEX ix_memory_preferences_1 ON memory_preferences (channel_id, environment, subject_type, subject_id);
 
 -- memory_retrievals：运行记忆召回记录。
 CREATE TABLE memory_retrievals (
@@ -3566,7 +3412,6 @@ CREATE TABLE memory_retrievals (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	run_id VARCHAR(64),
@@ -3589,8 +3434,6 @@ COMMENT ON COLUMN memory_retrievals.updated_at IS '更新时间';
 COMMENT ON COLUMN memory_retrievals.revision IS '并发修订号';
 
 COMMENT ON COLUMN memory_retrievals.environment IS '所属环境';
-
-COMMENT ON COLUMN memory_retrievals.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN memory_retrievals.subject_type IS '业务主体类型';
 
@@ -3618,7 +3461,6 @@ CREATE TABLE memory_sources (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	memory_id VARCHAR(64),
@@ -3646,8 +3488,6 @@ COMMENT ON COLUMN memory_sources.revision IS '并发修订号';
 
 COMMENT ON COLUMN memory_sources.environment IS '所属环境';
 
-COMMENT ON COLUMN memory_sources.data_scope_id IS '业务数据域标识';
-
 COMMENT ON COLUMN memory_sources.subject_type IS '业务主体类型';
 
 COMMENT ON COLUMN memory_sources.subject_id IS '业务主体编号';
@@ -3674,7 +3514,7 @@ CREATE INDEX ix_memory_sources_0 ON memory_sources (channel_id, id);
 
 CREATE INDEX ix_memory_sources_1 ON memory_sources (channel_id, memory_id);
 
-CREATE INDEX ix_memory_sources_2 ON memory_sources (channel_id, environment, data_scope_id, subject_type, subject_id, source_type, source_id);
+CREATE INDEX ix_memory_sources_2 ON memory_sources (channel_id, environment, subject_type, subject_id, source_type, source_id);
 
 -- memory_versions：记忆变更版本。
 CREATE TABLE memory_versions (
@@ -3684,7 +3524,6 @@ CREATE TABLE memory_versions (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	memory_id VARCHAR(64),
@@ -3710,8 +3549,6 @@ COMMENT ON COLUMN memory_versions.updated_at IS '更新时间';
 COMMENT ON COLUMN memory_versions.revision IS '并发修订号';
 
 COMMENT ON COLUMN memory_versions.environment IS '所属环境';
-
-COMMENT ON COLUMN memory_versions.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN memory_versions.subject_type IS '业务主体类型';
 
@@ -3745,7 +3582,6 @@ CREATE TABLE messages (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	conversation_id VARCHAR(64),
@@ -3771,8 +3607,6 @@ COMMENT ON COLUMN messages.updated_at IS '更新时间';
 COMMENT ON COLUMN messages.revision IS '并发修订号';
 
 COMMENT ON COLUMN messages.environment IS '所属环境';
-
-COMMENT ON COLUMN messages.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN messages.subject_type IS '业务主体类型';
 
@@ -4249,7 +4083,6 @@ CREATE TABLE prompt_samples (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	prompt_id VARCHAR(64),
@@ -4271,8 +4104,6 @@ COMMENT ON COLUMN prompt_samples.updated_at IS '更新时间';
 COMMENT ON COLUMN prompt_samples.revision IS '并发修订号';
 
 COMMENT ON COLUMN prompt_samples.environment IS '所属环境';
-
-COMMENT ON COLUMN prompt_samples.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN prompt_samples.subject_type IS '业务主体类型';
 
@@ -4298,7 +4129,6 @@ CREATE TABLE prompt_tests (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	version_id VARCHAR(64),
@@ -4329,8 +4159,6 @@ COMMENT ON COLUMN prompt_tests.updated_at IS '更新时间';
 COMMENT ON COLUMN prompt_tests.revision IS '并发修订号';
 
 COMMENT ON COLUMN prompt_tests.environment IS '所属环境';
-
-COMMENT ON COLUMN prompt_tests.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN prompt_tests.subject_type IS '业务主体类型';
 
@@ -4453,7 +4281,6 @@ CREATE TABLE provider_statements (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	name VARCHAR(128),
@@ -4480,8 +4307,6 @@ COMMENT ON COLUMN provider_statements.updated_at IS '更新时间';
 COMMENT ON COLUMN provider_statements.revision IS '并发修订号';
 
 COMMENT ON COLUMN provider_statements.environment IS '所属环境';
-
-COMMENT ON COLUMN provider_statements.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN provider_statements.subject_type IS '业务主体类型';
 
@@ -4515,7 +4340,6 @@ CREATE TABLE recovery_barriers (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	state VARCHAR(32),
@@ -4538,8 +4362,6 @@ COMMENT ON COLUMN recovery_barriers.revision IS '并发修订号';
 
 COMMENT ON COLUMN recovery_barriers.environment IS '所属环境';
 
-COMMENT ON COLUMN recovery_barriers.data_scope_id IS '业务数据域标识';
-
 COMMENT ON COLUMN recovery_barriers.subject_type IS '业务主体类型';
 
 COMMENT ON COLUMN recovery_barriers.subject_id IS '业务主体编号';
@@ -4554,7 +4376,7 @@ COMMENT ON COLUMN recovery_barriers.verified_at IS '删除账本核对时间';
 
 CREATE INDEX ix_recovery_barriers_0 ON recovery_barriers (channel_id, id);
 
-CREATE INDEX ix_recovery_barriers_1 ON recovery_barriers (channel_id, environment, data_scope_id, subject_type, subject_id);
+CREATE INDEX ix_recovery_barriers_1 ON recovery_barriers (channel_id, environment, subject_type, subject_id);
 
 -- release_mappings：环境生效版本映射。
 CREATE TABLE release_mappings (
@@ -4607,7 +4429,6 @@ CREATE TABLE release_snapshots (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	run_id VARCHAR(64),
@@ -4630,8 +4451,6 @@ COMMENT ON COLUMN release_snapshots.updated_at IS '更新时间';
 COMMENT ON COLUMN release_snapshots.revision IS '并发修订号';
 
 COMMENT ON COLUMN release_snapshots.environment IS '所属环境';
-
-COMMENT ON COLUMN release_snapshots.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN release_snapshots.subject_type IS '业务主体类型';
 
@@ -4663,8 +4482,7 @@ CREATE TABLE resource_grants (
 	resource_type VARCHAR(64),
 	resource_id VARCHAR(64),
 	allowed_actions JSONB,
-	environments JSONB,
-	data_scopes JSONB
+	environments JSONB
 );
 
 COMMENT ON TABLE resource_grants IS '资源授权';
@@ -4690,8 +4508,6 @@ COMMENT ON COLUMN resource_grants.resource_id IS '资源标识';
 COMMENT ON COLUMN resource_grants.allowed_actions IS '允许动作';
 
 COMMENT ON COLUMN resource_grants.environments IS '授权环境';
-
-COMMENT ON COLUMN resource_grants.data_scopes IS '授权数据域';
 
 CREATE INDEX ix_resource_grants_0 ON resource_grants (channel_id, id);
 
@@ -4798,7 +4614,6 @@ CREATE TABLE run_contents (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	run_id VARCHAR(64),
@@ -4819,8 +4634,6 @@ COMMENT ON COLUMN run_contents.updated_at IS '更新时间';
 COMMENT ON COLUMN run_contents.revision IS '并发修订号';
 
 COMMENT ON COLUMN run_contents.environment IS '所属环境';
-
-COMMENT ON COLUMN run_contents.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN run_contents.subject_type IS '业务主体类型';
 
@@ -4844,7 +4657,6 @@ CREATE TABLE run_events (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	run_id VARCHAR(64),
@@ -4867,8 +4679,6 @@ COMMENT ON COLUMN run_events.updated_at IS '更新时间';
 COMMENT ON COLUMN run_events.revision IS '并发修订号';
 
 COMMENT ON COLUMN run_events.environment IS '所属环境';
-
-COMMENT ON COLUMN run_events.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN run_events.subject_type IS '业务主体类型';
 
@@ -4896,7 +4706,6 @@ CREATE TABLE run_idempotency (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	client_id VARCHAR(64),
@@ -4924,8 +4733,6 @@ COMMENT ON COLUMN run_idempotency.revision IS '并发修订号';
 
 COMMENT ON COLUMN run_idempotency.environment IS '所属环境';
 
-COMMENT ON COLUMN run_idempotency.data_scope_id IS '业务数据域标识';
-
 COMMENT ON COLUMN run_idempotency.subject_type IS '业务主体类型';
 
 COMMENT ON COLUMN run_idempotency.subject_id IS '业务主体编号';
@@ -4950,7 +4757,7 @@ COMMENT ON COLUMN run_idempotency.scope_digest IS '幂等范围摘要';
 
 CREATE INDEX ix_run_idempotency_0 ON run_idempotency (channel_id, id);
 
-CREATE INDEX ix_run_idempotency_1 ON run_idempotency (channel_id, environment, data_scope_id, subject_type, subject_id, client_id, agent_id, key);
+CREATE INDEX ix_run_idempotency_1 ON run_idempotency (channel_id, environment, subject_type, subject_id, client_id, agent_id, key);
 
 CREATE INDEX ix_run_idempotency_2 ON run_idempotency (channel_id, scope_digest, key);
 
@@ -5005,7 +4812,6 @@ CREATE TABLE run_occupancies (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	conversation_id VARCHAR(64),
@@ -5026,8 +4832,6 @@ COMMENT ON COLUMN run_occupancies.updated_at IS '更新时间';
 COMMENT ON COLUMN run_occupancies.revision IS '并发修订号';
 
 COMMENT ON COLUMN run_occupancies.environment IS '所属环境';
-
-COMMENT ON COLUMN run_occupancies.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN run_occupancies.subject_type IS '业务主体类型';
 
@@ -5051,7 +4855,6 @@ CREATE TABLE run_recoveries (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	run_id VARCHAR(64),
@@ -5073,8 +4876,6 @@ COMMENT ON COLUMN run_recoveries.updated_at IS '更新时间';
 COMMENT ON COLUMN run_recoveries.revision IS '并发修订号';
 
 COMMENT ON COLUMN run_recoveries.environment IS '所属环境';
-
-COMMENT ON COLUMN run_recoveries.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN run_recoveries.subject_type IS '业务主体类型';
 
@@ -5100,7 +4901,6 @@ CREATE TABLE run_steps (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	run_id VARCHAR(64),
@@ -5127,8 +4927,6 @@ COMMENT ON COLUMN run_steps.updated_at IS '更新时间';
 COMMENT ON COLUMN run_steps.revision IS '并发修订号';
 
 COMMENT ON COLUMN run_steps.environment IS '所属环境';
-
-COMMENT ON COLUMN run_steps.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN run_steps.subject_type IS '业务主体类型';
 
@@ -5164,7 +4962,6 @@ CREATE TABLE runs (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	source_type VARCHAR(32),
@@ -5208,8 +5005,6 @@ COMMENT ON COLUMN runs.updated_at IS '更新时间';
 COMMENT ON COLUMN runs.revision IS '并发修订号';
 
 COMMENT ON COLUMN runs.environment IS '所属环境';
-
-COMMENT ON COLUMN runs.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN runs.subject_type IS '业务主体类型';
 
@@ -5281,8 +5076,7 @@ CREATE TABLE service_clients (
 	environment VARCHAR(16),
 	name VARCHAR(128),
 	scopes JSONB,
-	status VARCHAR(32),
-	data_scopes JSONB
+	status VARCHAR(32)
 );
 
 COMMENT ON TABLE service_clients IS '业务接入服务';
@@ -5304,8 +5098,6 @@ COMMENT ON COLUMN service_clients.name IS '服务名称';
 COMMENT ON COLUMN service_clients.scopes IS '权限上限';
 
 COMMENT ON COLUMN service_clients.status IS '服务状态';
-
-COMMENT ON COLUMN service_clients.data_scopes IS '授权业务数据域清单';
 
 CREATE INDEX ix_service_clients_0 ON service_clients (channel_id, id);
 
@@ -5368,7 +5160,6 @@ CREATE TABLE skill_tests (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	version_id VARCHAR(64),
@@ -5392,8 +5183,6 @@ COMMENT ON COLUMN skill_tests.updated_at IS '更新时间';
 COMMENT ON COLUMN skill_tests.revision IS '并发修订号';
 
 COMMENT ON COLUMN skill_tests.environment IS '所属环境';
-
-COMMENT ON COLUMN skill_tests.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN skill_tests.subject_type IS '业务主体类型';
 
@@ -5466,7 +5255,6 @@ CREATE TABLE source_links (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	source_type VARCHAR(64),
@@ -5489,8 +5277,6 @@ COMMENT ON COLUMN source_links.updated_at IS '更新时间';
 COMMENT ON COLUMN source_links.revision IS '并发修订号';
 
 COMMENT ON COLUMN source_links.environment IS '所属环境';
-
-COMMENT ON COLUMN source_links.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN source_links.subject_type IS '业务主体类型';
 
@@ -5520,7 +5306,6 @@ CREATE TABLE subject_review_bindings (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	client_id VARCHAR(64),
 	connection_id VARCHAR(64),
 	discovery_id VARCHAR(64),
@@ -5546,8 +5331,6 @@ COMMENT ON COLUMN subject_review_bindings.revision IS '并发修订号';
 
 COMMENT ON COLUMN subject_review_bindings.environment IS '所属环境';
 
-COMMENT ON COLUMN subject_review_bindings.data_scope_id IS '所属业务数据域';
-
 COMMENT ON COLUMN subject_review_bindings.client_id IS '受限接入服务标识';
 
 COMMENT ON COLUMN subject_review_bindings.connection_id IS '固定身份复核连接';
@@ -5568,7 +5351,7 @@ COMMENT ON COLUMN subject_review_bindings.enabled IS '是否允许身份复核';
 
 CREATE INDEX ix_subject_review_bindings_0 ON subject_review_bindings (channel_id, id);
 
-CREATE INDEX ix_subject_review_bindings_1 ON subject_review_bindings (channel_id, environment, data_scope_id, client_id);
+CREATE INDEX ix_subject_review_bindings_1 ON subject_review_bindings (channel_id, environment, client_id);
 
 -- tool_calls：工具实际调用。
 CREATE TABLE tool_calls (
@@ -5578,7 +5361,6 @@ CREATE TABLE tool_calls (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	run_id VARCHAR(64),
@@ -5611,8 +5393,6 @@ COMMENT ON COLUMN tool_calls.updated_at IS '更新时间';
 COMMENT ON COLUMN tool_calls.revision IS '并发修订号';
 
 COMMENT ON COLUMN tool_calls.environment IS '所属环境';
-
-COMMENT ON COLUMN tool_calls.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN tool_calls.subject_type IS '业务主体类型';
 
@@ -5889,7 +5669,6 @@ CREATE TABLE usage_exports (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	requested_by VARCHAR(128),
@@ -5918,8 +5697,6 @@ COMMENT ON COLUMN usage_exports.updated_at IS '更新时间';
 COMMENT ON COLUMN usage_exports.revision IS '并发修订号';
 
 COMMENT ON COLUMN usage_exports.environment IS '所属环境';
-
-COMMENT ON COLUMN usage_exports.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN usage_exports.subject_type IS '业务主体类型';
 
@@ -5959,7 +5736,6 @@ CREATE TABLE usage_records (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	run_id VARCHAR(64),
@@ -6010,8 +5786,6 @@ COMMENT ON COLUMN usage_records.updated_at IS '更新时间';
 COMMENT ON COLUMN usage_records.revision IS '并发修订号';
 
 COMMENT ON COLUMN usage_records.environment IS '所属环境';
-
-COMMENT ON COLUMN usage_records.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN usage_records.subject_type IS '业务主体类型';
 
@@ -6097,7 +5871,6 @@ CREATE TABLE webhook_deliveries (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	endpoint_id VARCHAR(64),
@@ -6128,8 +5901,6 @@ COMMENT ON COLUMN webhook_deliveries.updated_at IS '更新时间';
 COMMENT ON COLUMN webhook_deliveries.revision IS '并发修订号';
 
 COMMENT ON COLUMN webhook_deliveries.environment IS '所属环境';
-
-COMMENT ON COLUMN webhook_deliveries.data_scope_id IS '业务数据域标识';
 
 COMMENT ON COLUMN webhook_deliveries.subject_type IS '业务主体类型';
 
@@ -6163,7 +5934,7 @@ COMMENT ON COLUMN webhook_deliveries.cycle_attempts IS '本轮自动投递次数
 
 CREATE INDEX ix_webhook_deliveries_0 ON webhook_deliveries (channel_id, id);
 
-CREATE INDEX ix_webhook_deliveries_1 ON webhook_deliveries (channel_id, environment, data_scope_id, subject_type, subject_id);
+CREATE INDEX ix_webhook_deliveries_1 ON webhook_deliveries (channel_id, environment, subject_type, subject_id);
 
 CREATE INDEX ix_webhook_deliveries_2 ON webhook_deliveries (channel_id, state, next_at);
 
@@ -6175,7 +5946,6 @@ CREATE TABLE webhook_endpoints (
 	updated_at TIMESTAMP WITH TIME ZONE,
 	revision BIGINT,
 	environment VARCHAR(16),
-	data_scope_id VARCHAR(64),
 	subject_type VARCHAR(64),
 	subject_id VARCHAR(128),
 	name VARCHAR(128),
@@ -6202,8 +5972,6 @@ COMMENT ON COLUMN webhook_endpoints.revision IS '并发修订号';
 
 COMMENT ON COLUMN webhook_endpoints.environment IS '所属环境';
 
-COMMENT ON COLUMN webhook_endpoints.data_scope_id IS '业务数据域标识';
-
 COMMENT ON COLUMN webhook_endpoints.subject_type IS '业务主体类型';
 
 COMMENT ON COLUMN webhook_endpoints.subject_id IS '业务主体编号';
@@ -6226,6 +5994,6 @@ COMMENT ON COLUMN webhook_endpoints.client_ids IS '订阅的调用服务列表�
 
 CREATE INDEX ix_webhook_endpoints_0 ON webhook_endpoints (channel_id, id);
 
-CREATE INDEX ix_webhook_endpoints_1 ON webhook_endpoints (channel_id, environment, data_scope_id, subject_type, subject_id);
+CREATE INDEX ix_webhook_endpoints_1 ON webhook_endpoints (channel_id, environment, subject_type, subject_id);
 
 COMMIT;

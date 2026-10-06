@@ -49,31 +49,6 @@
       ],
       "title": "RequestBinding",
       "type": "object"
-    },
-    "SourceScope": {
-      "additionalProperties": false,
-      "properties": {
-        "type": {
-          "maxLength": 128,
-          "minLength": 1,
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-          "title": "Type",
-          "type": "string"
-        },
-        "id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-          "title": "Id",
-          "type": "string"
-        }
-      },
-      "required": [
-        "type",
-        "id"
-      ],
-      "title": "SourceScope",
-      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -91,9 +66,6 @@
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
       "title": "Subject Id",
       "type": "string"
-    },
-    "data_scope": {
-      "$ref": "#/$defs/SourceScope"
     },
     "actions": {
       "items": {
@@ -202,7 +174,6 @@
   "required": [
     "subject_type",
     "subject_id",
-    "data_scope",
     "actions",
     "resources",
     "issuer",

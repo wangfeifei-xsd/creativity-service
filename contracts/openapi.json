@@ -2643,17 +2643,6 @@
             "title": "Changed Fields",
             "type": "array"
           },
-          "data_scope_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data Scope Name"
-          },
           "details": {
             "additionalProperties": {
               "type": "string"
@@ -4240,13 +4229,6 @@
             "title": "Channel Id",
             "type": "string"
           },
-          "data_scope_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Data Scope Id",
-            "type": "string"
-          },
           "environment": {
             "enum": [
               "dev",
@@ -4260,8 +4242,7 @@
         },
         "required": [
           "channel_id",
-          "environment",
-          "data_scope_id"
+          "environment"
         ],
         "title": "ChannelContextInput",
         "type": "object"
@@ -4269,18 +4250,6 @@
       "ChannelCreate": {
         "additionalProperties": false,
         "properties": {
-          "data_scope": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/InitialDataScope"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "deprecated": true,
-            "description": "兼容一次性开通；新流程在详情中配置数据域"
-          },
           "environment": {
             "anyOf": [
               {
@@ -4296,8 +4265,6 @@
                 "type": "null"
               }
             ],
-            "deprecated": true,
-            "description": "兼容一次性开通；须与初始数据域同时提供",
             "title": "Environment"
           },
           "first_admin_user_id": {
@@ -4391,23 +4358,6 @@
           "channel": {
             "$ref": "#/components/schemas/ChannelView"
           },
-          "management_missing_environments": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Management Missing Environments",
-            "type": "array"
-          },
-          "pending_administrator": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/NamedOption"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "service_actions": {
             "items": {
               "$ref": "#/components/schemas/VisibleAction"
@@ -4474,17 +4424,6 @@
             ],
             "title": "Client Active"
           },
-          "data_scope_active": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data Scope Active"
-          },
           "environment": {
             "enum": [
               "dev",
@@ -4529,8 +4468,7 @@
           "environment_active",
           "membership_active",
           "client_active",
-          "key_active",
-          "data_scope_active"
+          "key_active"
         ],
         "title": "ChannelState",
         "type": "object"
@@ -4730,18 +4668,6 @@
       "ClientCreate": {
         "additionalProperties": false,
         "properties": {
-          "data_scopes": {
-            "items": {
-              "maxLength": 128,
-              "minLength": 1,
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-              "type": "string"
-            },
-            "maxItems": 200,
-            "minItems": 1,
-            "title": "Data Scopes",
-            "type": "array"
-          },
           "environment": {
             "enum": [
               "dev",
@@ -4771,8 +4697,7 @@
         "required": [
           "name",
           "environment",
-          "scopes",
-          "data_scopes"
+          "scopes"
         ],
         "title": "ClientCreate",
         "type": "object"
@@ -4780,25 +4705,6 @@
       "ClientUpdate": {
         "additionalProperties": false,
         "properties": {
-          "data_scopes": {
-            "anyOf": [
-              {
-                "items": {
-                  "maxLength": 128,
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-                  "type": "string"
-                },
-                "maxItems": 200,
-                "minItems": 1,
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data Scopes"
-          },
           "name": {
             "anyOf": [
               {
@@ -4861,27 +4767,6 @@
           "client_id": {
             "title": "Client Id",
             "type": "string"
-          },
-          "data_scope_names": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "title": "Data Scope Names",
-            "type": "array"
-          },
-          "data_scopes": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Data Scopes",
-            "type": "array"
           },
           "environment": {
             "enum": [
@@ -4946,8 +4831,6 @@
           "environment_name",
           "scopes",
           "scope_names",
-          "data_scopes",
-          "data_scope_names",
           "status",
           "status_label",
           "revision"
@@ -6134,290 +6017,6 @@
           "provisional"
         ],
         "title": "CurrencyTotal",
-        "type": "object"
-      },
-      "DataScopeDirectory": {
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/DataScopeDirectoryItem"
-            },
-            "maxItems": 200,
-            "title": "Items",
-            "type": "array"
-          },
-          "source_revision": {
-            "anyOf": [
-              {
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Revision"
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "title": "DataScopeDirectory",
-        "type": "object"
-      },
-      "DataScopeDirectoryItem": {
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Id",
-            "type": "string"
-          },
-          "name": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          },
-          "type": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "type",
-          "id"
-        ],
-        "title": "DataScopeDirectoryItem",
-        "type": "object"
-      },
-      "DataScopeFromSource": {
-        "additionalProperties": false,
-        "properties": {
-          "connection_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Connection Id",
-            "type": "string"
-          },
-          "environment": {
-            "enum": [
-              "dev",
-              "test",
-              "fat",
-              "prod"
-            ],
-            "title": "Environment",
-            "type": "string"
-          },
-          "external_scope_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "External Scope Id",
-            "type": "string"
-          },
-          "external_scope_type": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "External Scope Type",
-            "type": "string"
-          },
-          "remote_tool_name": {
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Remote Tool Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "environment",
-          "connection_id",
-          "remote_tool_name",
-          "external_scope_type",
-          "external_scope_id"
-        ],
-        "title": "DataScopeFromSource",
-        "type": "object"
-      },
-      "DataScopeSource": {
-        "additionalProperties": false,
-        "properties": {
-          "connection_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Connection Id",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "remote_tool_name": {
-            "title": "Remote Tool Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "connection_id",
-          "remote_tool_name",
-          "label"
-        ],
-        "title": "DataScopeSource",
-        "type": "object"
-      },
-      "DataScopeSourceInput": {
-        "additionalProperties": false,
-        "properties": {
-          "connection_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Connection Id",
-            "type": "string"
-          },
-          "environment": {
-            "enum": [
-              "dev",
-              "test",
-              "fat",
-              "prod"
-            ],
-            "title": "Environment",
-            "type": "string"
-          },
-          "remote_tool_name": {
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Remote Tool Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "environment",
-          "connection_id",
-          "remote_tool_name"
-        ],
-        "title": "DataScopeSourceInput",
-        "type": "object"
-      },
-      "DataScopeUpdate": {
-        "additionalProperties": false,
-        "properties": {
-          "revision": {
-            "minimum": 1.0,
-            "title": "Revision",
-            "type": "integer"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "enum": [
-                  "ACTIVE",
-                  "DISABLED"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Status"
-          }
-        },
-        "required": [
-          "revision"
-        ],
-        "title": "DataScopeUpdate",
-        "type": "object"
-      },
-      "DataScopeView": {
-        "additionalProperties": false,
-        "properties": {
-          "data_scope_id": {
-            "title": "Data Scope Id",
-            "type": "string"
-          },
-          "environment": {
-            "enum": [
-              "dev",
-              "test",
-              "fat",
-              "prod"
-            ],
-            "title": "Environment",
-            "type": "string"
-          },
-          "environment_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Environment Name"
-          },
-          "external_scope_id": {
-            "title": "External Scope Id",
-            "type": "string"
-          },
-          "external_scope_type": {
-            "title": "External Scope Type",
-            "type": "string"
-          },
-          "external_scope_type_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "External Scope Type Name"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "revision": {
-            "title": "Revision",
-            "type": "integer"
-          },
-          "status": {
-            "enum": [
-              "ACTIVE",
-              "DISABLED"
-            ],
-            "title": "Status",
-            "type": "string"
-          },
-          "status_label": {
-            "title": "Status Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "data_scope_id",
-          "environment",
-          "environment_name",
-          "name",
-          "external_scope_type",
-          "external_scope_type_name",
-          "external_scope_id",
-          "status",
-          "status_label",
-          "revision"
-        ],
-        "title": "DataScopeView",
         "type": "object"
       },
       "DatasetCreate": {
@@ -8196,18 +7795,6 @@
             "title": "Allowed Actions",
             "type": "array"
           },
-          "data_scopes": {
-            "items": {
-              "maxLength": 128,
-              "minLength": 1,
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-              "type": "string"
-            },
-            "maxItems": 200,
-            "minItems": 1,
-            "title": "Data Scopes",
-            "type": "array"
-          },
           "environments": {
             "items": {
               "enum": [
@@ -8271,8 +7858,7 @@
           "resource_type",
           "resource_id",
           "allowed_actions",
-          "environments",
-          "data_scopes"
+          "environments"
         ],
         "title": "GrantInput",
         "type": "object"
@@ -8301,31 +7887,6 @@
             "maxItems": 100,
             "minItems": 1,
             "title": "Allowed Actions",
-            "type": "array"
-          },
-          "data_scope_names": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "title": "Data Scope Names",
-            "type": "array"
-          },
-          "data_scopes": {
-            "items": {
-              "maxLength": 128,
-              "minLength": 1,
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-              "type": "string"
-            },
-            "maxItems": 200,
-            "title": "Data Scopes",
             "type": "array"
           },
           "environment_names": {
@@ -8424,14 +7985,12 @@
           "resource_id",
           "allowed_actions",
           "environments",
-          "data_scopes",
           "grant_id",
           "actions",
           "grantee_name",
           "resource_name",
           "action_names",
-          "environment_names",
-          "data_scope_names"
+          "environment_names"
         ],
         "title": "GrantView",
         "type": "object"
@@ -8809,36 +8368,6 @@
         "title": "ImportRow",
         "type": "object"
       },
-      "InitialDataScope": {
-        "additionalProperties": false,
-        "properties": {
-          "external_scope_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "External Scope Id",
-            "type": "string"
-          },
-          "external_scope_type": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "External Scope Type",
-            "type": "string"
-          },
-          "name": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "external_scope_type",
-          "external_scope_id"
-        ],
-        "title": "InitialDataScope",
-        "type": "object"
-      },
       "InputSource": {
         "additionalProperties": false,
         "properties": {
@@ -9208,10 +8737,6 @@
             "title": "Credential Ref",
             "type": "string"
           },
-          "data_scope_name": {
-            "title": "Data Scope Name",
-            "type": "string"
-          },
           "environment_name": {
             "title": "Environment Name",
             "type": "string"
@@ -9279,7 +8804,6 @@
           "integration_id",
           "name",
           "environment_name",
-          "data_scope_name",
           "adapter_name",
           "adapter_code",
           "adapter_version",
@@ -10640,18 +10164,6 @@
       "MembershipInput": {
         "additionalProperties": false,
         "properties": {
-          "data_scopes": {
-            "items": {
-              "maxLength": 128,
-              "minLength": 1,
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-              "type": "string"
-            },
-            "maxItems": 200,
-            "minItems": 1,
-            "title": "Data Scopes",
-            "type": "array"
-          },
           "environments": {
             "items": {
               "enum": [
@@ -10703,8 +10215,7 @@
         },
         "required": [
           "roles",
-          "environments",
-          "data_scopes"
+          "environments"
         ],
         "title": "MembershipInput",
         "type": "object"
@@ -10717,27 +10228,6 @@
               "$ref": "#/components/schemas/AccessAction"
             },
             "title": "Actions",
-            "type": "array"
-          },
-          "data_scope_names": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "title": "Data Scope Names",
-            "type": "array"
-          },
-          "data_scopes": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Data Scopes",
             "type": "array"
           },
           "display_name": {
@@ -10808,8 +10298,6 @@
           "role_names",
           "environments",
           "environment_names",
-          "data_scopes",
-          "data_scope_names",
           "status",
           "status_label",
           "revision"
@@ -12257,10 +11745,6 @@
             "title": "Clients",
             "type": "integer"
           },
-          "data_scopes": {
-            "title": "Data Scopes",
-            "type": "integer"
-          },
           "environments": {
             "title": "Environments",
             "type": "integer"
@@ -12287,7 +11771,6 @@
         "required": [
           "channel",
           "environments",
-          "data_scopes",
           "clients",
           "active_keys",
           "members_path",
@@ -14822,8 +14305,7 @@
             "default": "business",
             "enum": [
               "business",
-              "subject_review",
-              "data_scope_directory"
+              "subject_review"
             ],
             "title": "Purpose",
             "type": "string"
@@ -15607,6 +15089,121 @@
           "primary_model"
         ],
         "title": "RouteVersionInput",
+        "type": "object"
+      },
+      "RouteVersionView": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/AccessAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "content": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Content",
+            "type": "object"
+          },
+          "content_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Content Digest",
+            "type": "string"
+          },
+          "dependencies_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Dependencies Digest",
+            "type": "string"
+          },
+          "dependency_version_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            "title": "Dependency Version Ids",
+            "type": "array"
+          },
+          "draft_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Revision"
+          },
+          "output_schema": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Output Schema",
+            "type": "object"
+          },
+          "resource_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "resource_type": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Resource Type",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "RETIRED"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_label": {
+            "title": "Version Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel_id",
+          "resource_type",
+          "resource_id",
+          "version_id",
+          "version_label",
+          "state",
+          "draft_revision",
+          "content",
+          "content_digest",
+          "dependency_version_ids",
+          "dependencies_digest",
+          "output_schema"
+        ],
+        "title": "RouteVersionView",
         "type": "object"
       },
       "RouteView": {
@@ -16454,21 +16051,6 @@
             "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
             "title": "Channel Id",
             "type": "string"
-          },
-          "data_scope_id": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Data Scope Id"
           },
           "environment": {
             "enum": [
@@ -18947,16 +18529,6 @@
       "ToolDefinition": {
         "additionalProperties": false,
         "properties": {
-          "allowed_data_domains": {
-            "items": {
-              "maxLength": 128,
-              "minLength": 1,
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-              "type": "string"
-            },
-            "title": "Allowed Data Domains",
-            "type": "array"
-          },
           "analysis_policy": {
             "anyOf": [
               {
@@ -19081,7 +18653,6 @@
           "model_fields_allowed",
           "binding",
           "effect_type",
-          "allowed_data_domains",
           "environments"
         ],
         "title": "ToolDefinition",
@@ -19972,20 +19543,6 @@
             ],
             "title": "Agent Id"
           },
-          "data_scope_id": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data Scope Id"
-          },
           "end_at": {
             "format": "date-time",
             "title": "End At",
@@ -20566,17 +20123,6 @@
             "title": "Channel Name",
             "type": "string"
           },
-          "data_scope_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Data Scope Id",
-            "type": "string"
-          },
-          "data_scope_name": {
-            "title": "Data Scope Name",
-            "type": "string"
-          },
           "environment": {
             "enum": [
               "dev",
@@ -20596,9 +20142,7 @@
           "channel_id",
           "channel_name",
           "environment",
-          "environment_name",
-          "data_scope_id",
-          "data_scope_name"
+          "environment_name"
         ],
         "title": "WorkspaceOption",
         "type": "object"
@@ -34167,1399 +33711,6 @@
         ]
       }
     },
-    "/admin/v1/channels/{channel_id}/data-scope-directory": {
-      "post": {
-        "operationId": "data_scope_directory_admin_v1_channels__channel_id__data_scope_directory_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "channel_id",
-            "required": true,
-            "schema": {
-              "title": "Channel Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DataScopeSourceInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataScopeDirectory"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Data Scope Directory",
-        "tags": [
-          "渠道管理"
-        ]
-      }
-    },
-    "/admin/v1/channels/{channel_id}/data-scope-sources": {
-      "get": {
-        "operationId": "data_scope_sources_admin_v1_channels__channel_id__data_scope_sources_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "channel_id",
-            "required": true,
-            "schema": {
-              "title": "Channel Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/DataScopeSource"
-                  },
-                  "title": "Response Data Scope Sources Admin V1 Channels  Channel Id  Data Scope Sources Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Data Scope Sources",
-        "tags": [
-          "渠道管理"
-        ]
-      }
-    },
-    "/admin/v1/channels/{channel_id}/data-scopes": {
-      "get": {
-        "operationId": "data_scopes_admin_v1_channels__channel_id__data_scopes_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "channel_id",
-            "required": true,
-            "schema": {
-              "title": "Channel Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/DataScopeView"
-                  },
-                  "title": "Response Data Scopes Admin V1 Channels  Channel Id  Data Scopes Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Data Scopes",
-        "tags": [
-          "渠道管理"
-        ]
-      },
-      "post": {
-        "operationId": "create_data_scope_legacy_admin_v1_channels__channel_id__data_scopes_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "channel_id",
-            "required": true,
-            "schema": {
-              "title": "Channel Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "410": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Create Data Scope Legacy",
-        "tags": [
-          "渠道管理"
-        ]
-      }
-    },
-    "/admin/v1/channels/{channel_id}/data-scopes/from-source": {
-      "post": {
-        "operationId": "create_data_scope_from_source_admin_v1_channels__channel_id__data_scopes_from_source_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "channel_id",
-            "required": true,
-            "schema": {
-              "title": "Channel Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DataScopeFromSource"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataScopeView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Create Data Scope From Source",
-        "tags": [
-          "渠道管理"
-        ]
-      }
-    },
-    "/admin/v1/channels/{channel_id}/data-scopes/{data_scope_id}": {
-      "patch": {
-        "operationId": "update_data_scope_admin_v1_channels__channel_id__data_scopes__data_scope_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "channel_id",
-            "required": true,
-            "schema": {
-              "title": "Channel Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "data_scope_id",
-            "required": true,
-            "schema": {
-              "title": "Data Scope Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DataScopeUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataScopeView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Update Data Scope",
-        "tags": [
-          "渠道管理"
-        ]
-      }
-    },
     "/admin/v1/channels/{channel_id}/environments": {
       "get": {
         "operationId": "environments_admin_v1_channels__channel_id__environments_get",
@@ -36261,233 +34412,6 @@
           }
         ],
         "summary": "Update Environment",
-        "tags": [
-          "渠道管理"
-        ]
-      }
-    },
-    "/admin/v1/channels/{channel_id}/environments/{environment}/management-workspace": {
-      "post": {
-        "operationId": "enable_management_workspace_admin_v1_channels__channel_id__environments__environment__management_workspace_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "channel_id",
-            "required": true,
-            "schema": {
-              "title": "Channel Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "environment",
-            "required": true,
-            "schema": {
-              "title": "Environment",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Enable Management Workspace",
         "tags": [
           "渠道管理"
         ]
@@ -64562,7 +62486,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/ResourceVersion"
+                    "$ref": "#/components/schemas/RouteVersionView"
                   },
                   "title": "Response Versions Admin V1 Model Routes  Route Id  Versions Get",
                   "type": "array"
@@ -90688,25 +88612,6 @@
           },
           {
             "in": "query",
-            "name": "data_scope_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maxLength": 128,
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Data Scope Id"
-            }
-          },
-          {
-            "in": "query",
             "name": "actor_id",
             "required": false,
             "schema": {
@@ -91602,25 +89507,6 @@
                 }
               ],
               "title": "Model Id"
-            }
-          },
-          {
-            "in": "query",
-            "name": "data_scope_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maxLength": 128,
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Data Scope Id"
             }
           },
           {
@@ -93101,7 +90987,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -93664,7 +91550,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -93963,7 +91849,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -94262,7 +92148,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -94551,7 +92437,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -94967,7 +92853,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -95245,7 +93131,7 @@
         "operationId": "create_api_v1_conversations_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -95544,7 +93430,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -95831,7 +93717,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -96118,7 +94004,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -96417,7 +94303,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -96717,7 +94603,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -97027,7 +94913,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -97317,7 +95203,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -97616,7 +95502,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -97905,7 +95791,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -98222,7 +96108,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -98509,7 +96395,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -98808,7 +96694,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -99106,7 +96992,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -99404,7 +97290,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -99684,7 +97570,7 @@
         "operationId": "preview_api_v1_data_lifecycle_deletion_preview_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -99974,7 +97860,7 @@
         "operationId": "request_deletion_api_v1_data_lifecycle_deletions_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -100273,7 +98159,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -100562,7 +98448,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -100851,7 +98737,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -101131,7 +99017,7 @@
         "operationId": "oauth_callback_api_v1_mcp_connections_oauth_callback_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -101430,7 +99316,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -101726,7 +99612,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -102029,7 +99915,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -102415,7 +100301,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -102709,7 +100595,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -103015,7 +100901,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -103304,7 +101190,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -103591,7 +101477,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -103878,7 +101764,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -104177,7 +102063,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -104483,7 +102369,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -104776,7 +102662,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -105073,7 +102959,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -105369,7 +103255,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -105663,7 +103549,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -105965,7 +103851,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -106282,7 +104168,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -106571,7 +104457,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -106889,7 +104775,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -107174,7 +105060,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -107471,7 +105357,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,

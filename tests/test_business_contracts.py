@@ -52,7 +52,7 @@ async def test_unimplemented_capability_never_falls_back():
 
 
 def test_schema_changes_and_missing_dictionary_names_fail_closed():
-    scope = Scope(channel_id="rental", environment="test", data_scope_id="default")
+    scope = Scope(channel_id="rental", environment="test")
     result = BusinessResult(
         operation="dictionary",
         source_request_id="source-1",
@@ -107,7 +107,6 @@ async def test_fixed_outbound_target_and_correlation_headers(monkeypatch):
     scope = Scope(
         channel_id="rental",
         environment="test",
-        data_scope_id="default",
         subject_type="MEMBER",
         subject_id="u1",
     )
@@ -149,7 +148,6 @@ async def test_fixed_outbound_target_and_correlation_headers(monkeypatch):
             "business_endpoint": "https://business.example/adapter",
             "operation_paths": {"dictionary": "/dictionary"},
             "contract_version": "1.0.0",
-            "source_scope": {"type": "default", "id": "default"},
         },
     )
     with pytest.raises(ServiceError) as failure:

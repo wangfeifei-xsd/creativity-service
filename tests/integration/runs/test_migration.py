@@ -30,5 +30,5 @@ def test_initial_baseline_roundtrip_and_actual_database_audit():
             assert audit_database(connection, schema) == []
     finally:
         with engine.begin() as connection:
-            connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+            connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
         engine.dispose()

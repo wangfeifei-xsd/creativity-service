@@ -423,7 +423,6 @@ async def with_tool(env, required_scopes=("run:create",)):
         binding={"adapter_key": "decimal_sum", "implementation_version": "1"},
         effect_type="READ_ONLY",
         required_scopes=required_scopes,
-        allowed_data_domains=(env.context.scope.data_scope_id,),
         environments=("test",),
         subject_requirements={"required": False},
     )

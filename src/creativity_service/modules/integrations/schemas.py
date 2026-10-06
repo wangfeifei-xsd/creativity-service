@@ -29,7 +29,6 @@ class IntegrationView(Contract):
     integration_id: Identifier
     name: str
     environment_name: str
-    data_scope_name: str
     adapter_name: str
     adapter_code: str
     adapter_version: str

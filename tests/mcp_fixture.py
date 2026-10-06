@@ -18,11 +18,6 @@ def mcp_source():
         mode="normal",
         token=None,
         schema_revision=1,
-        directory=False,
-        directory_items=[
-            {"name": "俱乐部甲", "type": "club", "id": "club-001"},
-            {"name": "俱乐部乙", "type": "club", "id": "club-002"},
-        ],
     )
 
     class Handler(BaseHTTPRequestHandler):
@@ -92,26 +87,7 @@ def mcp_source():
                                 },
                                 "annotations": {"readOnlyHint": True},
                             }
-                        ]
-                        + (
-                            [
-                                {
-                                    "name": "list_data_scopes",
-                                    "title": "业务范围目录",
-                                    "description": "列出当前服务身份可见的业务范围",
-                                    "inputSchema": {"type": "object", "properties": {}},
-                                    "outputSchema": {
-                                        "type": "object",
-                                        "properties": {"items": {"type": "array"}},
-                                        "required": ["items"],
-                                    },
-                                    "annotations": {"readOnlyHint": True},
-                                    "_meta": {"creativity/purpose": "data_scope_directory"},
-                                }
-                            ]
-                            if state.directory
-                            else []
-                        ),
+                        ],
                         "nextCursor": "second",
                     }
             elif method == "tools/call":
@@ -119,13 +95,7 @@ def mcp_source():
                     self.connection.shutdown(socket.SHUT_RDWR)
                     self.connection.close()
                     return
-                if message.get("params", {}).get("name") == "list_data_scopes":
-                    result = {
-                        "content": [{"type": "text", "text": "业务范围目录"}],
-                        "structuredContent": {"items": state.directory_items},
-                        "isError": state.mode == "directory_error",
-                    }
-                elif state.mode == "file":
+                if state.mode == "file":
                     result = {
                         "content": [
                             {

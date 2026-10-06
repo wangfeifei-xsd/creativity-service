@@ -261,7 +261,6 @@ async def test_stable_pagination_title_and_channel_subject_isolation(env):
         Scope(
             channel_id=env.context.scope.channel_id,
             environment="test",
-            data_scope_id="data",
             subject_type="user",
             subject_id="other",
         ),
@@ -376,7 +375,6 @@ async def test_service_subject_isolation_and_management_scope_restore(env):
             "scope": Scope(
                 channel_id=env.context.scope.channel_id,
                 environment="test",
-                data_scope_id="domain",
                 subject_type="customer",
                 subject_id="one",
             )

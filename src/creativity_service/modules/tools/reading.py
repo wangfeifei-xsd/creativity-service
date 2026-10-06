@@ -78,7 +78,6 @@ class ToolReadData:
                     .where(
                         calls.c.channel_id == context.scope.channel_id,
                         calls.c.environment == context.scope.environment,
-                        calls.c.data_scope_id == context.scope.data_scope_id,
                         calls.c.tool_id.in_(identifiers[start : start + 500]),
                         calls.c.state == "STARTED",
                     )

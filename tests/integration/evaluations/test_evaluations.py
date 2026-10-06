@@ -576,7 +576,6 @@ async def test_fixture_uses_fixed_result_and_rechecks_current_permission(evaluat
         model_fields_allowed=("values",),
         binding={"adapter_key": "decimal_sum", "implementation_version": "1"},
         effect_type="READ_ONLY",
-        allowed_data_domains=(env.context.scope.data_scope_id,),
         environments=("prod",),
         subject_requirements={"required": False},
     )
@@ -841,9 +840,7 @@ async def test_channel_scope_and_sensitive_permission_are_independent(evaluation
         env.tenant.manager,
         env.context.scope.channel_id,
         account.user_id,
-        MembershipInput(
-            roles=["builder"], environments=["prod"], data_scopes=[env.context.scope.data_scope_id]
-        ),
+        MembershipInput(roles=["builder"], environments=["prod"]),
     )
     await env.iam.access.put_grant(
         env.tenant.manager,
@@ -856,12 +853,9 @@ async def test_channel_scope_and_sensitive_permission_are_independent(evaluation
             resource_id="*",
             allowed_actions=["evaluation:read", "evaluation:content", "evaluation:manage"],
             environments=["prod"],
-            data_scopes=[env.context.scope.data_scope_id],
         ),
     )
-    _, reader = await enter(
-        env.iam, session, env.context.scope.channel_id, "prod", env.context.scope.data_scope_id
-    )
+    _, reader = await enter(env.iam, session, env.context.scope.channel_id, "prod")
     view = await env.evaluations.dataset(reader.context, dataset.dataset_id)
     assert view.versions[0].cases[0].payload is None
     report = await env.evaluations.comparison(reader.context, task.evaluation_id)

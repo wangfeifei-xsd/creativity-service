@@ -36,7 +36,7 @@ def render():
         "各模块归档中的 `revision` 保留原始修订来源，供模型归属与一致性检查使用。"
         "全部已实现 PostgreSQL 表统一由 "
         "[初始基线](../../alembic/versions/0001_initial.py) 建库，"
-        "当前修订号为 `0040_model_networks`。"
+        "当前修订号为 `0041_channel_environments`。"
         "开发规范引用 [rule.md](../../../rule.md)。",
         "",
         "空库初始化按顺序执行表结构 [sql/init.sql](../../sql/init.sql) 和"
@@ -44,7 +44,7 @@ def render():
         "执行、维护与验证方法见 [初始化说明](../../sql/README.md)。",
         "",
         "需求 15–17 为可选配置示例，原 12 张领域表设计已撤销，不属于待建库清单。"
-        "方案 19 已解除固定渠道分类与数据域限制，通用流程和旧入口分开；"
+        "平台上下文统一为渠道、环境与主体；"
         "旧 HTTP 协议保留兼容，方案 20 已接通配置化 MCP 主体复核。",
         "",
         "对象逻辑标识（如 run_id、conversation_id、version_id）在所属表统一物理存为 `id`；"

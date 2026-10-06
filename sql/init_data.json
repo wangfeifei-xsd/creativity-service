@@ -420,20 +420,6 @@
         "active": true
       },
       {
-        "id": "button_data_scope_manage",
-        "channel_id": "system",
-        "revision": 1,
-        "name": "管理数据域",
-        "kind": "BUTTON",
-        "parent_id": "menu_shared_actions",
-        "page_key": null,
-        "action_key": "data_scope:manage",
-        "workspace": "channel",
-        "sort_order": 7,
-        "visible": true,
-        "active": true
-      },
-      {
         "id": "button_environment_manage",
         "channel_id": "system",
         "revision": 1,
@@ -1494,7 +1480,6 @@
           "conversation:write",
           "credential:use",
           "credential:write",
-          "data_scope:manage",
           "environment:manage",
           "evaluation:content",
           "evaluation:manage",
@@ -1549,7 +1534,6 @@
           "button_conversation_write",
           "button_credential_use",
           "button_credential_write",
-          "button_data_scope_manage",
           "button_environment_manage",
           "button_evaluation_content",
           "button_evaluation_manage",
@@ -1706,7 +1690,6 @@
           "channel_admin"
         ],
         "environments": [],
-        "data_scopes": [],
         "status": "ACTIVE",
         "granted_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
       }
@@ -1737,7 +1720,6 @@
           "conversation:write",
           "credential:use",
           "credential:write",
-          "data_scope:manage",
           "environment:manage",
           "evaluation:content",
           "evaluation:manage",
@@ -1773,8 +1755,7 @@
           "version:freeze",
           "version:read"
         ],
-        "environments": [],
-        "data_scopes": []
+        "environments": []
       }
     ],
     "platform_limits": [
@@ -1981,7 +1962,6 @@
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
         "revision": 1,
         "environment": "dev",
-        "data_scope_id": "manage_252ada3e9cb7f574a1c60bb7827a7ff89113986b",
         "subject_type": null,
         "subject_id": null,
         "source_type": "model_connection",
@@ -1995,7 +1975,6 @@
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
         "revision": 1,
         "environment": "dev",
-        "data_scope_id": "manage_252ada3e9cb7f574a1c60bb7827a7ff89113986b",
         "subject_type": null,
         "subject_id": null,
         "source_type": "model",
@@ -2009,7 +1988,6 @@
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
         "revision": 1,
         "environment": "dev",
-        "data_scope_id": "manage_252ada3e9cb7f574a1c60bb7827a7ff89113986b",
         "subject_type": null,
         "subject_id": null,
         "source_type": "version",

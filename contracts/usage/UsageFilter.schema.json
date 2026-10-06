@@ -79,21 +79,6 @@
       "default": null,
       "title": "Model Id"
     },
-    "data_scope_id": {
-      "anyOf": [
-        {
-          "maxLength": 128,
-          "minLength": 1,
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Data Scope Id"
-    },
     "actor_id": {
       "anyOf": [
         {

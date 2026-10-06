@@ -183,7 +183,6 @@ async def test_artifacts_isolate_channel_environment_domain_and_subject(
             "scope": Scope(
                 channel_id=context.scope.channel_id,
                 environment="test",
-                data_scope_id="club_a",
                 subject_type="member",
                 subject_id="same",
             )
@@ -197,7 +196,6 @@ async def test_artifacts_isolate_channel_environment_domain_and_subject(
     alternatives = [
         original.scope.model_copy(update={"channel_id": "other_channel"}),
         original.scope.model_copy(update={"environment": "prod"}),
-        original.scope.model_copy(update={"data_scope_id": "club_b"}),
         original.scope.model_copy(update={"subject_type": "admin"}),
         original.scope.model_copy(update={"subject_id": "someone_else"}),
     ]

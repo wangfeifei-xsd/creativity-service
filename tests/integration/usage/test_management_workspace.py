@@ -5,7 +5,6 @@ from datetime import timedelta
 import pytest
 
 from creativity_service.core.primitives import new_id, utcnow
-from creativity_service.modules.channels.repositories import management_scope_id
 from creativity_service.modules.channels.schemas import ChannelCreate, EnvironmentCreate
 from creativity_service.modules.iam.schemas import ChannelContextInput
 from tests.integration.channels.conftest import login
@@ -28,7 +27,6 @@ async def test_management_usage_returns_empty_results_in_its_own_scope(usage_env
         ChannelContextInput(
             channel_id=channel.channel_id,
             environment="dev",
-            data_scope_id=management_scope_id(channel.channel_id, "dev"),
         ),
     )
     manager = await env.iam.authentication.admin_session(token.access_token, new_id("request"))
@@ -41,7 +39,7 @@ async def test_management_usage_returns_empty_results_in_its_own_scope(usage_env
     records = await env.client.get("/admin/v1/usage/records", params=query, headers=headers)
     assert records.status_code == 200 and records.json()["items"] == []
     options = await env.client.get("/admin/v1/usage/options", headers=headers)
-    assert options.status_code == 200 and options.json()["data_scopes"] == []
+    assert options.status_code == 200 and "data_scopes" not in options.json()
     channel_usage = await env.client.get(
         f"/admin/v1/channels/{channel.channel_id}/usage", params=query, headers=headers
     )

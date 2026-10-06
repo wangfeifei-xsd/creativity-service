@@ -16,14 +16,12 @@ async def tools_env(channel_env):
     channel = await env.services.channels.create(
         env.admin, channel_body(env).model_copy(update={"independent_actions": ["release:publish"]})
     )
-    domains = await env.services.channels.data_scopes(env.admin, channel.channel_id)
     _, session = await login(env)
     response = await env.iam.sessions.enter(
         session,
         ChannelContextInput(
             channel_id=channel.channel_id,
             environment="test",
-            data_scope_id=domains[0].data_scope_id,
         ),
     )
     context = await env.iam.authentication.authenticate(response.access_token, "management")
@@ -50,7 +48,6 @@ async def tools_env(channel_env):
         model_fields_allowed=("values",),
         binding={"adapter_key": "decimal_sum", "implementation_version": "1"},
         effect_type="READ_ONLY",
-        allowed_data_domains=(domains[0].data_scope_id,),
         environments=("test",),
         subject_requirements={"required": False},
     )

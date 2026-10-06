@@ -2458,21 +2458,6 @@
             "title": "Channel Id",
             "type": "string"
           },
-          "data_scope_id": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Data Scope Id"
-          },
           "environment": {
             "enum": [
               "dev",
@@ -2799,7 +2784,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -3362,7 +3347,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -3661,7 +3646,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -3960,7 +3945,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -4249,7 +4234,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -4665,7 +4650,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -4943,7 +4928,7 @@
         "operationId": "create_api_v1_conversations_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -5242,7 +5227,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -5529,7 +5514,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -5816,7 +5801,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -6115,7 +6100,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -6415,7 +6400,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -6725,7 +6710,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -7015,7 +7000,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -7314,7 +7299,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -7603,7 +7588,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -7920,7 +7905,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -8207,7 +8192,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -8506,7 +8491,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -8804,7 +8789,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -9102,7 +9087,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -9382,7 +9367,7 @@
         "operationId": "preview_api_v1_data_lifecycle_deletion_preview_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -9672,7 +9657,7 @@
         "operationId": "request_deletion_api_v1_data_lifecycle_deletions_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -9971,7 +9956,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -10260,7 +10245,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -10549,7 +10534,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -10829,7 +10814,7 @@
         "operationId": "oauth_callback_api_v1_mcp_connections_oauth_callback_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -11128,7 +11113,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -11424,7 +11409,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -11727,7 +11712,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -12113,7 +12098,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -12407,7 +12392,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -12713,7 +12698,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -13002,7 +12987,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -13289,7 +13274,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -13576,7 +13561,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -13875,7 +13860,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -14181,7 +14166,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -14474,7 +14459,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -14771,7 +14756,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -15067,7 +15052,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -15361,7 +15346,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -15663,7 +15648,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -15980,7 +15965,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -16269,7 +16254,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -16587,7 +16572,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -16872,7 +16857,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,
@@ -17169,7 +17154,7 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",
             "required": true,

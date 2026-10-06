@@ -10,7 +10,7 @@ from creativity_service.core.database import assert_external_io_allowed
 from creativity_service.core.deletion import CleanupRegistry, ContentRef, DeletionService
 from creativity_service.core.primitives import ServiceError
 from creativity_service.core.security.outbound import Destination, OutboundPolicy
-from creativity_service.modules.channels.schemas import DataScopeCreate, EnvironmentCreate
+from creativity_service.modules.channels.schemas import EnvironmentCreate
 from creativity_service.modules.iam.schemas import ChannelContextInput
 from creativity_service.modules.models.assembly import build_model_services
 from creativity_service.modules.models.repositories import repository
@@ -100,30 +100,49 @@ class Executor:
         return "run_" + execution.test_id
 
 
-async def setup(env, publish=False):
-    if publish:
+async def setup(env, publish=False, configuration_only=False):
+    if configuration_only:
+        from creativity_service.modules.channels.schemas import ChannelCreate
+
         channel = await env.services.channels.create(
             env.admin,
-            channel_body(env).model_copy(update={"independent_actions": ["release:publish"]}),
+            ChannelCreate(
+                name="模型配置渠道",
+                owner="负责人",
+                first_admin_user_id=env.user_id,
+                independent_actions=["release:publish"] if publish else [],
+            ),
         )
-        domains = await env.services.channels.data_scopes(env.admin, channel.channel_id)
+        await env.services.channels.create_environment(
+            env.admin, channel.channel_id, EnvironmentCreate(environment="test", name="测试")
+        )
         _, admin = await login(env)
-        from creativity_service.modules.iam.schemas import ChannelContextInput
-
         response = await env.iam.sessions.enter(
             admin,
             ChannelContextInput(
                 channel_id=channel.channel_id,
                 environment="test",
-                data_scope_id=domains[0].data_scope_id,
+            ),
+        )
+        manager = await env.iam.authentication.admin_session(response.access_token, "models-config")
+        tenant = SimpleNamespace(channel=channel, token=response, manager=manager)
+    elif publish:
+        channel = await env.services.channels.create(
+            env.admin,
+            channel_body(env).model_copy(update={"independent_actions": ["release:publish"]}),
+        )
+        _, admin = await login(env)
+        response = await env.iam.sessions.enter(
+            admin,
+            ChannelContextInput(
+                channel_id=channel.channel_id,
+                environment="test",
             ),
         )
         manager = await env.iam.authentication.admin_session(
             response.access_token, "models-request", governance=True
         )
-        tenant = SimpleNamespace(
-            channel=channel, domain=domains[0], token=response, manager=manager
-        )
+        tenant = SimpleNamespace(channel=channel, token=response, manager=manager)
     else:
         tenant = await provision(env)
 
@@ -218,12 +237,13 @@ async def test_config_history_stale_capabilities_and_no_test_bypass(channel_env)
     changed = await services.configuration.detail(tenant.manager, model.id)
     assert all(c.state == "UNVERIFIED" for c in changed.capabilities)
     route = await services.routing.create(tenant.manager, RouteInput(code="route", name="业务路由"))
+    version = await services.routing.create_version(
+        tenant.manager,
+        route.id,
+        RouteVersionInput(label="v1", primary_model=model.id, required_capabilities=["tools"]),
+    )
     with pytest.raises(ServiceError, match="尚未通过"):
-        await services.routing.create_version(
-            tenant.manager,
-            route.id,
-            RouteVersionInput(label="v1", primary_model=model.id, required_capabilities=["tools"]),
-        )
+        await services.routing.resolve_route(tenant.manager.context, version.version_id)
     versions = await services.configuration.history(
         tenant.manager, "model_connection", connection.id
     )
@@ -290,24 +310,12 @@ async def test_configuration_history_isolated_by_environment(channel_env):
         tenant.channel.channel_id,
         EnvironmentCreate(environment="prod", name="生产环境"),
     )
-    domain = await channel_env.services.channels.create_data_scope(
-        channel_env.admin,
-        tenant.channel.channel_id,
-        DataScopeCreate(
-            environment="prod",
-            name="生产业务域",
-            external_scope_type="default",
-            external_scope_id="default",
-            administrator_id=channel_env.user_id,
-        ),
-    )
     _, admin = await login(channel_env)
     token = await channel_env.iam.sessions.enter(
         admin,
         ChannelContextInput(
             channel_id=tenant.channel.channel_id,
             environment="prod",
-            data_scope_id=domain.data_scope_id,
         ),
     )
     headers = {"Authorization": "Bearer " + token.access_token}
@@ -430,9 +438,7 @@ async def test_model_use_grant_revocation_is_immediate(channel_env):
         tenant.manager,
         tenant.channel.channel_id,
         account.user_id,
-        MembershipInput(
-            roles=["builder"], environments=["test"], data_scopes=[tenant.domain.data_scope_id]
-        ),
+        MembershipInput(roles=["builder"], environments=["test"]),
     )
     grant = await services.configuration.grant(
         tenant.manager,
@@ -440,9 +446,7 @@ async def test_model_use_grant_revocation_is_immediate(channel_env):
         model.id,
         ModelGrantInput(grantee_type="account", grantee_id=account.user_id),
     )
-    _, user = await enter(
-        channel_env.iam, user, tenant.channel.channel_id, data_scope_id=tenant.domain.data_scope_id
-    )
+    _, user = await enter(channel_env.iam, user, tenant.channel.channel_id)
     frozen = executor.submissions[0].configuration
     await services.routing.prepare_attempt(user.context, frozen, ["text"])
     await channel_env.iam.access.revoke_grant(

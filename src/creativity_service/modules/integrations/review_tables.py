@@ -7,7 +7,7 @@ from sqlalchemy import Column, Index, MetaData, Table
 
 from creativity_service.core.database.tables import column_type
 
-BASELINE = json.loads(Path(__file__).with_name("baseline_v0021_review.json").read_text())
+BASELINE = json.loads(Path(__file__).with_name("review_tables_v0041_0.json").read_text())
 
 
 def build_metadata() -> MetaData:

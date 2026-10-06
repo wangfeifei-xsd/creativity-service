@@ -20,7 +20,6 @@ from creativity_service.modules.channels.assembly import build_channel_services
 from creativity_service.modules.channels.schemas import (
     ChannelCreate,
     ClientCreate,
-    InitialDataScope,
     KeyCreate,
     TokenExchange,
 )
@@ -126,11 +125,6 @@ def channel_body(env, code="rental", scope_type="default"):
         owner="业务负责人",
         first_admin_user_id=env.user_id,
         environment="test",
-        data_scope=InitialDataScope(
-            name="默认业务域" if scope_type == "default" else "俱乐部甲",
-            external_scope_type="default" if scope_type == "default" else "club",
-            external_scope_id="default" if scope_type == "default" else "club-1",
-        ),
     )
 
 
@@ -139,20 +133,18 @@ async def provision(env, code="rental", scope_type="default", *, independent_act
     if independent_actions is not None:
         body = body.model_copy(update={"independent_actions": independent_actions})
     channel = await env.services.channels.create(env.admin, body)
-    domains = await env.services.channels.data_scopes(env.admin, channel.channel_id)
     _, session = await login(env)
     response = await env.iam.sessions.enter(
         session,
         ChannelContextInput(
             channel_id=channel.channel_id,
             environment="test",
-            data_scope_id=domains[0].data_scope_id,
         ),
     )
     manager = await env.iam.authentication.admin_session(
         response.access_token, new_id("request"), governance=True
     )
-    return SimpleNamespace(channel=channel, domain=domains[0], token=response, manager=manager)
+    return SimpleNamespace(channel=channel, token=response, manager=manager)
 
 
 async def credential(env, channel, name="业务后端"):
@@ -163,7 +155,6 @@ async def credential(env, channel, name="业务后端"):
             name=name,
             environment="test",
             scopes=["run:create", "run:read"],
-            data_scopes=[channel.domain.data_scope_id],
         ),
     )
     key = await env.services.keys.create(

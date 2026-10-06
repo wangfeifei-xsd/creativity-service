@@ -63,7 +63,6 @@ async def test_platform_retains_admin_assignment_and_channel_hides_and_protects_
                     revision=revision,
                     roles=codes,
                     environments=["test"],
-                    data_scopes=[tenant.domain.data_scope_id],
                 ),
             )
         assert denied.value.code == "PLATFORM_MANAGED_ROLE"
@@ -82,7 +81,6 @@ async def test_platform_retains_admin_assignment_and_channel_hides_and_protects_
                 resource_id="*",
                 allowed_actions=["version:read"],
                 environments=["test"],
-                data_scopes=[tenant.domain.data_scope_id],
             ),
         )
     assert denied.value.code == "PLATFORM_MANAGED_ROLE"
@@ -149,9 +147,7 @@ async def test_channel_created_roles_remain_assignable_without_new_action_restri
     await env.iam.accounts.change_password(
         initial, PasswordChange(current_password=INITIAL, new_password=PASSWORD)
     )
-    body = MembershipInput(
-        roles=[role["id"]], environments=["test"], data_scopes=[tenant.domain.data_scope_id]
-    )
+    body = MembershipInput(roles=[role["id"]], environments=["test"])
     member = await access.put_member(tenant.manager, channel_id, target.user_id, body)
     assert all(item.enabled for item in member.actions)
     grant = await access.put_grant(
@@ -165,7 +161,6 @@ async def test_channel_created_roles_remain_assignable_without_new_action_restri
             resource_id=channel_id,
             allowed_actions=[action],
             environments=["test"],
-            data_scopes=[tenant.domain.data_scope_id],
         ),
     )
     assert all(item.enabled for item in grant.actions)

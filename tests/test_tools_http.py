@@ -57,7 +57,7 @@ def source():
 
 def request():
     context = AuthContext(
-        scope=Scope(channel_id="channel_a", environment="test", data_scope_id="club_a"),
+        scope=Scope(channel_id="channel_a", environment="test"),
         principal_type="management",
         principal_id="admin_a",
         actor_id="admin_a",
@@ -73,7 +73,6 @@ def request():
         model_fields_allowed=("query",),
         binding={"adapter_key": "http_fixture", "implementation_version": "1"},
         effect_type="READ_ONLY",
-        allowed_data_domains=("club_a",),
         environments=("test",),
         max_result_size=1024,
     )
@@ -112,7 +111,6 @@ async def test_http_pins_approved_address_and_injects_verified_identity(source):
             "identity": {
                 "channel_id": "channel_a",
                 "environment": "test",
-                "data_scope_id": "club_a",
                 "subject_type": None,
                 "subject_id": None,
                 "principal_id": "admin_a",

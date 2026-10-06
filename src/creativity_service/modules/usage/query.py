@@ -1,4 +1,4 @@
-"""账本单源查询；普通查询只在已授权的数据域和主体内计算。"""
+"""账本单源查询；普通查询只在已授权的环境和主体内计算。"""
 
 from decimal import Decimal
 from typing import Any
@@ -45,7 +45,6 @@ def visible(row: dict[str, Any], scopes: list[Scope]) -> bool:
     return any(
         row["channel_id"] == s.channel_id
         and row["environment"] == s.environment
-        and row["data_scope_id"] == s.data_scope_id
         and (
             s.subject_id is None
             or (row["subject_type"], row["subject_id"]) == (s.subject_type, s.subject_id)
@@ -187,7 +186,6 @@ class UsageQueries:
                 *(
                     and_(
                         definition.c.environment == scope.environment,
-                        definition.c.data_scope_id == scope.data_scope_id,
                         *(
                             [
                                 definition.c.subject_type == scope.subject_type,

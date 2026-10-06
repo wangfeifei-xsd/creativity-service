@@ -57,7 +57,7 @@ class PlatformAPI(FastAPI):
                                 "in": "header",
                                 "required": True,
                                 "description": (
-                                    "业务后端签发并绑定实际请求的 business-delegation-v1 委托"
+                                    "业务后端签发并绑定实际请求的 business-delegation-v2 委托"
                                 ),
                                 "schema": {"type": "string", "maxLength": 16384},
                             }

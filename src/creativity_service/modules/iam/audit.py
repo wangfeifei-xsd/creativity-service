@@ -36,8 +36,8 @@ AUDIT_NAMES = {
     "membership:remove": "移除渠道成员",
     "grant:put": "设置资源授权",
     "grant:revoke": "撤销资源授权",
-    "auth:channel-context": "切换渠道工作区",
-    "auth:platform-context": "返回平台工作区",
+    "auth:channel-context": "切换渠道环境",
+    "auth:platform-context": "返回平台管理入口",
     "auth:token": "换取服务令牌",
     "channel:create": "开通渠道",
     "channel:update": "修改渠道",
@@ -46,9 +46,6 @@ AUDIT_NAMES = {
     "channel:archive": "归档渠道",
     "environment:create": "创建环境",
     "environment:update": "修改环境",
-    "management_workspace:enable": "开通管理入口",
-    "data_scope:create": "创建数据域",
-    "data_scope:update": "修改数据域",
     "client:create": "登记接入服务",
     "client:update": "修改接入服务",
     "key:create": "创建接入 Key",
@@ -120,8 +117,7 @@ FIELD_NAMES = {
     "parent_id": "父节点",
     "page_key": "页面绑定",
     "action_key": "操作权限",
-    "workspace": "适用工作区",
-    "management_workspace": "管理工作区",
+    "workspace": "适用范围",
     "sort_order": "排序",
     "visible": "菜单可见性",
     "active": "启用状态",
@@ -132,8 +128,6 @@ FIELD_NAMES = {
     "environment": "环境",
     "release_policy": "发布策略",
     "retention_policy": "保存策略",
-    "external_scope_type": "外部数据域类型",
-    "external_scope_id": "外部数据域编号",
     "client_id": "接入服务",
     "scopes": "可调用能力",
     "expires_at": "有效期",
@@ -148,7 +142,6 @@ FIELD_NAMES = {
     "password": "密码凭据",
     "roles": "渠道角色",
     "environments": "可用环境",
-    "data_scopes": "数据范围",
     "allowed_actions": "授权动作",
     "resource": "授权资源",
 }
@@ -215,12 +208,10 @@ def audit_denials(action: str, target_type: str, target_index: int | None = None
     return AuditDenials(action, target_type, target_index)
 
 
-def audit_ranges(*ranges: tuple[list[str], list[str]]) -> list[dict[str, str]]:
+def audit_ranges(*ranges: list[str]) -> list[dict[str, str]]:
     return [
-        {"environment": environment, "data_scope_id": data_scope}
-        for environment, data_scope in sorted(
-            {(e, d) for environments, domains in ranges for e in environments for d in domains}
-        )
+        {"environment": environment}
+        for environment in sorted({value for environments in ranges for value in environments})
     ]
 
 
@@ -261,7 +252,6 @@ async def append_event(
         event_id,
         {
             "environment": scope.environment if isinstance(scope, Scope) else "control",
-            "data_scope_id": scope.data_scope_id if isinstance(scope, Scope) else None,
             "subject_type": scope.subject_type if isinstance(scope, Scope) else None,
             "subject_id": scope.subject_id if isinstance(scope, Scope) else None,
             "actor_id": actor_id,

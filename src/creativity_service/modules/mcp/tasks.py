@@ -87,7 +87,6 @@ async def sweep() -> None:
                     scope=Scope(
                         channel_id=channel_id,
                         environment=row["environment"],
-                        data_scope_id=row["health_data_scope_id"],
                     ),
                     principal_type="worker",
                     principal_id=row["health_actor_id"],

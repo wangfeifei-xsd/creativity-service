@@ -23,7 +23,7 @@ async def initialize_subject_content(engine: AsyncEngine, context: AuthContext) 
             uow.connection, barrier_id(parent)
         )
         if not domain or domain["state"] != "READY":
-            raise ServiceError("RECOVERY_BLOCKED", "业务数据域恢复核对尚未完成", 503)
+            raise ServiceError("RECOVERY_BLOCKED", "环境内容恢复核对尚未完成", 503)
         from creativity_service.storage import metadata as all_metadata
 
         # 有历史任务、证据或内容时，缺失屏障只能走恢复核对，不能被重新委托洗成新主体。

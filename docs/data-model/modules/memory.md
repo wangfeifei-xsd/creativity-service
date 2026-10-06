@@ -1,6 +1,6 @@
 # 结构化记忆模型
 
-模型版本 1.9.3；负责方案 13；需求 [08-记忆管理.md](../../../../需求文档/08-记忆管理.md)。总索引见 [README](../README.md)。
+模型版本 2.0.0；负责方案 13；需求 [08-记忆管理.md](../../../../需求文档/08-记忆管理.md)。总索引见 [README](../README.md)。
 
 ## memories
 
@@ -14,7 +14,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 是 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 是 | 受信服务上下文 | 个人 |
 | `memory_type` | `varchar(64)` | 记忆类别 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -31,7 +30,7 @@
 | `subject_name` | `varchar(255)` | 主体可读名称 | 否 | 服务层校验后的业务输入 | 个人 |
 | `source_mode` | `varchar(16)` | 来源有效性模式：独立依据或全部依赖 | 是 | 记忆服务 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id, key, status)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id, key, status)`。
 
 ## memory_sources
 
@@ -45,7 +44,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 是 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 是 | 受信服务上下文 | 个人 |
 | `memory_id` | `varchar(64)` | 记忆标识 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -58,7 +56,7 @@
 | `authority` | `varchar(32)` | 来源权限类型 | 是 | 服务层校验后的业务输入 | 内部 |
 | `trust_level` | `integer` | 来源可信等级 | 是 | 服务层校验后的业务输入 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, memory_id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id, source_type, source_id)`。
+普通索引：`(channel_id, id)`；`(channel_id, memory_id)`；`(channel_id, environment, subject_type, subject_id, source_type, source_id)`。
 
 ## memory_versions
 
@@ -72,7 +70,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 是 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 是 | 受信服务上下文 | 个人 |
 | `memory_id` | `varchar(64)` | 记忆标识 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -98,13 +95,12 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 是 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 是 | 受信服务上下文 | 个人 |
 | `enabled` | `boolean` | 是否启用 | 是 | 服务层校验后的业务输入 | 内部 |
 | `changed_by` | `varchar(128)` | 变更主体 | 是 | 服务层校验后的业务输入 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`。
 
 ## memory_policies
 
@@ -143,7 +139,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 是 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 是 | 受信服务上下文 | 个人 |
 | `run_id` | `varchar(64)` | 运行标识 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -166,7 +161,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 是 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 是 | 受信服务上下文 | 个人 |
 | `memory_ids` | `jsonb` | 待清理记忆标识集合 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -174,7 +168,7 @@
 | `completed_at` | `timestamptz` | 完成时间 | 否 | 服务层校验后的业务输入 | 内部 |
 | `kind` | `varchar(16)` | 单项遗忘或主体清空 | 是 | 服务层校验后的业务输入 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id, state)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id, state)`。
 
 ## memory_embeddings
 
@@ -188,7 +182,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 是 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 是 | 受信服务上下文 | 个人 |
 | `memory_id` | `varchar(64)` | 来源记忆标识 | 是 | 服务端校验后的向量结果 | 内部 |
@@ -198,7 +191,7 @@
 | `dimensions` | `integer` | 向量维度 | 是 | 服务端校验后的向量结果 | 内部 |
 | `embedding` | `jsonb` | 记忆向量 | 是 | 服务端校验后的向量结果 | 敏感内容 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id, model_version_id)`；`(channel_id, memory_id)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id, model_version_id)`；`(channel_id, memory_id)`。
 
 ## memory_consolidations
 
@@ -212,7 +205,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 是 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 是 | 受信服务上下文 | 个人 |
 | `conversation_id` | `varchar(128)` | 来源会话标识 | 是 | 后台整理 | 内部 |

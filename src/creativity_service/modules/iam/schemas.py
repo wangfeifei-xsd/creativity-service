@@ -106,7 +106,6 @@ class MembershipInput(Contract):
     revision: Revision | None = None
     roles: list[ChannelRole] = Field(min_length=1, max_length=5)
     environments: list[Environment] = Field(min_length=1, max_length=4)
-    data_scopes: list[Identifier] = Field(min_length=1, max_length=200)
     status: Status = "ACTIVE"
 
 
@@ -123,8 +122,6 @@ class MembershipView(Contract):
     role_names: list[str]
     environments: list[str]
     environment_names: list[str]
-    data_scopes: list[str]
-    data_scope_names: list[str | None]
     status: Status
     status_label: str
     revision: int
@@ -140,20 +137,17 @@ class GrantInput(Contract):
     )
     allowed_actions: list[str] = Field(min_length=1, max_length=100)
     environments: list[Environment] = Field(min_length=1, max_length=4)
-    data_scopes: list[Identifier] = Field(min_length=1, max_length=200)
 
 
 class GrantView(GrantInput):
     # 分步开通的存量授权可尚未分配范围；响应展示不套用新增授权的必填规则。
     environments: list[Environment] = Field(max_length=4)
-    data_scopes: list[Identifier] = Field(max_length=200)
     grant_id: str
     actions: list[AccessAction]
     grantee_name: str | None
     resource_name: str | None
     action_names: list[str]
     environment_names: list[str]
-    data_scope_names: list[str | None]
 
 
 class RoleView(Contract):
@@ -167,7 +161,6 @@ class RoleView(Contract):
 class ChannelContextInput(Contract):
     channel_id: Identifier
     environment: Environment
-    data_scope_id: Identifier
 
 
 class UserView(Contract):
@@ -202,7 +195,6 @@ class AuditView(Contract):
     request_id: str
     changed_fields: list[str]
     environment_name: str | None = None
-    data_scope_name: str | None = None
     details: dict[str, str] = Field(default_factory=dict)
 
 

@@ -1,5 +1,5 @@
 {
-  "model_version": "1.9.3",
+  "model_version": "2.0.0",
   "requirements_version": "v0.7",
   "date": "2026-10-06",
   "modules": {
@@ -396,14 +396,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -618,14 +610,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -886,14 +870,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -1055,14 +1031,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -1197,14 +1165,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -1325,14 +1285,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -1389,7 +1341,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "subject_type",
           "subject_id"
         ]
@@ -1630,110 +1581,6 @@
     },
     {
       "module": "channels",
-      "name": "data_scopes",
-      "comment": "业务数据域映射",
-      "columns": [
-        {
-          "name": "id",
-          "type": "varchar(64)",
-          "comment": "记录标识",
-          "required": true,
-          "source": "服务端随机标识",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "channel_id",
-          "type": "varchar(64)",
-          "comment": "所属渠道标识",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "created_at",
-          "type": "timestamptz",
-          "comment": "创建时间",
-          "required": true,
-          "source": "服务端时钟",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "updated_at",
-          "type": "timestamptz",
-          "comment": "更新时间",
-          "required": true,
-          "source": "服务端时钟",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "revision",
-          "type": "bigint",
-          "comment": "并发修订号",
-          "required": true,
-          "source": "服务层递增",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "environment",
-          "type": "varchar(16)",
-          "comment": "所属环境",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "name",
-          "type": "varchar(128)",
-          "comment": "数据域名称",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "external_scope_type",
-          "type": "varchar(64)",
-          "comment": "显式配置的外部数据域类型",
-          "required": true,
-          "source": "管理员配置，验签后按原值精确匹配",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "external_scope_id",
-          "type": "varchar(128)",
-          "comment": "显式配置的外部数据域编号",
-          "required": true,
-          "source": "管理员配置，验签后按原值精确匹配",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "status",
-          "type": "varchar(32)",
-          "comment": "数据域状态",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "内部"
-        }
-      ],
-      "indexes": [
-        [
-          "channel_id",
-          "id"
-        ],
-        [
-          "channel_id",
-          "environment",
-          "external_scope_type",
-          "external_scope_id"
-        ]
-      ],
-      "status": "已实现",
-      "revision": "0020_access_decoupling",
-      "scope": "环境",
-      "control_purpose": null,
-      "content": false
-    },
-    {
-      "module": "channels",
       "name": "service_clients",
       "comment": "业务接入服务",
       "columns": [
@@ -1805,14 +1652,6 @@
           "name": "status",
           "type": "varchar(32)",
           "comment": "服务状态",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scopes",
-          "type": "jsonb",
-          "comment": "授权业务数据域清单",
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
@@ -2486,14 +2325,6 @@
           "sensitivity": "敏感内容"
         },
         {
-          "name": "data_scopes",
-          "type": "jsonb",
-          "comment": "授权数据域",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
           "name": "status",
           "type": "varchar(32)",
           "comment": "成员状态",
@@ -2615,14 +2446,6 @@
           "name": "environments",
           "type": "jsonb",
           "comment": "授权环境",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
-          "name": "data_scopes",
-          "type": "jsonb",
-          "comment": "授权数据域",
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
@@ -3508,14 +3331,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -4467,14 +4282,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -4842,14 +4649,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -5127,14 +4926,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -5250,14 +5041,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -5663,14 +5446,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -5783,7 +5558,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "subject_type",
           "subject_id",
           "updated_at"
@@ -5791,7 +5565,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "created_at",
           "id"
         ]
@@ -5852,14 +5625,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -6017,14 +5782,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -6233,14 +5990,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -6380,14 +6129,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -6558,14 +6299,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -6694,7 +6427,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "subject_type",
           "subject_id",
           "key",
@@ -6756,14 +6488,6 @@
           "name": "environment",
           "type": "varchar(16)",
           "comment": "所属环境",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
           "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
@@ -6869,7 +6593,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "subject_type",
           "subject_id",
           "source_type",
@@ -6931,14 +6654,6 @@
           "name": "environment",
           "type": "varchar(16)",
           "comment": "所属环境",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
           "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
@@ -7095,14 +6810,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -7143,7 +6850,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "subject_type",
           "subject_id"
         ]
@@ -7353,14 +7059,6 @@
           "name": "environment",
           "type": "varchar(16)",
           "comment": "所属环境",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
           "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
@@ -7615,14 +7313,6 @@
           "name": "health_actor_id",
           "type": "varchar(64)",
           "comment": "健康检查授权成员",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "health_data_scope_id",
-          "type": "varchar(64)",
-          "comment": "健康检查授权数据域",
           "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
@@ -8242,14 +7932,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -8457,14 +8139,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -8859,14 +8533,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -8998,14 +8664,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -9307,14 +8965,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -9411,7 +9061,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "subject_type",
           "subject_id",
           "client_id",
@@ -9603,14 +9252,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -9767,14 +9408,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -9978,14 +9611,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -10228,14 +9853,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -10389,14 +10006,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -10513,14 +10122,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -10642,14 +10243,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -10795,14 +10388,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -10944,14 +10529,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -11053,14 +10630,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -11246,14 +10815,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -11415,14 +10976,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -11536,14 +11089,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -11689,14 +11234,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -12562,14 +12099,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -12677,14 +12206,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -12808,14 +12329,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -12878,7 +12391,7 @@
       "module": "integrations",
       "comment": "业务系统适配连接",
       "status": "已实现",
-      "scope": "数据域",
+      "scope": "环境",
       "revision": "0018_integrations",
       "control_purpose": null,
       "columns": [
@@ -12928,14 +12441,6 @@
           "comment": "所属环境",
           "required": true,
           "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "所属业务数据域",
-          "required": true,
-          "source": "服务层校验与受信上下文",
           "sensitivity": "内部"
         },
         {
@@ -13003,14 +12508,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "scope_mapping_ref",
-          "type": "varchar(64)",
-          "comment": "渠道数据域映射引用",
-          "required": true,
-          "source": "服务层校验与受信上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "health",
           "type": "varchar(32)",
           "comment": "连接健康状态",
@@ -13043,7 +12540,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "status"
         ]
       ]
@@ -13211,7 +12707,7 @@
       "module": "integrations",
       "comment": "接入契约验证",
       "status": "已实现",
-      "scope": "数据域",
+      "scope": "环境",
       "revision": "0018_integrations",
       "control_purpose": null,
       "columns": [
@@ -13261,14 +12757,6 @@
           "comment": "所属环境",
           "required": true,
           "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "所属业务数据域",
-          "required": true,
-          "source": "服务层校验与受信上下文",
           "sensitivity": "内部"
         },
         {
@@ -13328,7 +12816,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "integration_id"
         ]
       ]
@@ -13441,7 +12928,7 @@
         {
           "name": "resolved_scope",
           "type": "jsonb",
-          "comment": "验签后渠道数据域主体",
+          "comment": "验签后渠道环境主体",
           "required": true,
           "source": "服务层校验与受信上下文",
           "sensitivity": "内部"
@@ -13539,14 +13026,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -13603,7 +13082,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "subject_type",
           "subject_id",
           "state"
@@ -13660,14 +13138,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
         },
@@ -14045,7 +13515,7 @@
       "module": "integrations",
       "comment": "当前主体复核的固定 MCP 绑定",
       "status": "已实现",
-      "scope": "数据域",
+      "scope": "环境",
       "revision": "0021_mcp_subject_review",
       "control_purpose": null,
       "columns": [
@@ -14054,7 +13524,7 @@
           "type": "varchar(64)",
           "comment": "记录标识",
           "required": true,
-          "source": "渠道、环境、数据域与接入服务的确定性摘要",
+          "source": "渠道、环境与接入服务的确定性摘要",
           "sensitivity": "内部"
         },
         {
@@ -14095,14 +13565,6 @@
           "comment": "所属环境",
           "required": true,
           "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "所属业务数据域",
-          "required": true,
-          "source": "服务层校验与受信上下文",
           "sensitivity": "内部"
         },
         {
@@ -14186,7 +13648,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "client_id"
         ]
       ],
@@ -14248,14 +13709,6 @@
           "type": "varchar(16)",
           "comment": "所属环境",
           "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": false,
           "source": "受信服务上下文",
           "sensitivity": "内部"
         },
@@ -14381,14 +13834,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -14461,7 +13906,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "subject_type",
           "subject_id",
           "model_version_id"
@@ -14527,14 +13971,6 @@
           "name": "environment",
           "type": "varchar(16)",
           "comment": "所属环境",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
           "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
@@ -14695,14 +14131,6 @@
           "name": "environment",
           "type": "varchar(16)",
           "comment": "所属环境",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
           "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
@@ -14884,14 +14312,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -14972,7 +14392,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "subject_type",
           "subject_id"
         ],
@@ -15038,14 +14457,6 @@
           "name": "environment",
           "type": "varchar(16)",
           "comment": "所属环境",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
           "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
@@ -15123,7 +14534,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "subject_type",
           "subject_id"
         ]
@@ -15184,14 +14594,6 @@
           "name": "environment",
           "type": "varchar(16)",
           "comment": "所属环境",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
           "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
@@ -15325,7 +14727,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "subject_type",
           "subject_id"
         ],
@@ -15391,14 +14792,6 @@
           "name": "environment",
           "type": "varchar(16)",
           "comment": "所属环境",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
           "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
@@ -15492,7 +14885,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "subject_type",
           "subject_id"
         ]
@@ -15553,14 +14945,6 @@
           "name": "environment",
           "type": "varchar(16)",
           "comment": "所属环境",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
           "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
@@ -15694,7 +15078,6 @@
         [
           "channel_id",
           "environment",
-          "data_scope_id",
           "subject_type",
           "subject_id"
         ],
@@ -15875,14 +15258,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
           "name": "subject_type",
           "type": "varchar(64)",
           "comment": "业务主体类型",
@@ -16033,14 +15408,6 @@
           "name": "environment",
           "type": "varchar(16)",
           "comment": "所属环境",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
           "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
@@ -16216,14 +15583,6 @@
           "name": "environment",
           "type": "varchar(16)",
           "comment": "所属环境",
-          "required": true,
-          "source": "受信服务上下文",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "业务数据域标识",
           "required": true,
           "source": "受信服务上下文",
           "sensitivity": "内部"
@@ -17302,14 +16661,6 @@
           "sensitivity": "敏感内容"
         },
         {
-          "name": "allowed_data_domains",
-          "type": "jsonb",
-          "comment": "允许数据域",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
           "name": "subject_requirements",
           "type": "jsonb",
           "comment": "主体限制",
@@ -17698,14 +17049,6 @@
           "name": "membership_version",
           "type": "bigint",
           "comment": "签发时成员修订",
-          "required": false,
-          "source": "受信服务上下文与服务层校验",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "data_scope_id",
-          "type": "varchar(64)",
-          "comment": "绑定数据域",
           "required": false,
           "source": "受信服务上下文与服务层校验",
           "sensitivity": "内部"

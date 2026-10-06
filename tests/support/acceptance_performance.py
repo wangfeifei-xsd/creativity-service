@@ -54,7 +54,6 @@ async def http_clients(env, tenants):
             principal = Principal(
                 "member",
                 "same-performance-user",
-                {"type": tenant.domain.external_scope_type, "id": tenant.domain.external_scope_id},
                 ["run:create", "run:read"],
                 {kind: ["*"] for kind in ("agent", "model", "model_route", "prompt", "run")},
             )

@@ -58,7 +58,6 @@ async def validate_independent(
         )
         if (
             own.environment != scope.environment
-            or own.data_scope_id != scope.data_scope_id
             or source_input != payload["input"]
             or not judge(CaseInput.model_validate(payload), output, None, set())["passed"]
         ):
@@ -96,7 +95,6 @@ async def surviving_sources(
             continue
         if (
             own.environment == scope.environment
-            and own.data_scope_id == scope.data_scope_id
             and source_input == payload["input"]
             and matches[0]["source_version"] == "independent:" + value
         ):

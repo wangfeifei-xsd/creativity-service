@@ -134,11 +134,8 @@ async def resolve_dependencies(
             ):
                 # 保守要求契约一致，复杂 JSON Schema 不做不可靠的自动兼容推断。
                 reason = "工具输入或输出 schema 与依赖契约不兼容"
-            elif (
-                context.scope.environment not in definition.environments
-                or context.scope.data_scope_id not in definition.allowed_data_domains
-            ):
-                reason = "工具未授权当前环境或业务数据域"
+            elif context.scope.environment not in definition.environments:
+                reason = "工具未授权当前环境"
             else:
                 try:
                     tools.registry.validate(

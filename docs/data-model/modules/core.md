@@ -1,6 +1,6 @@
 # 公共设施模型
 
-模型版本 1.9.3；负责方案 03；需求 [00-需求总纲.md](../../../../需求文档/00-需求总纲.md)。总索引见 [README](../README.md)。
+模型版本 2.0.0；负责方案 03；需求 [00-需求总纲.md](../../../../需求文档/00-需求总纲.md)。总索引见 [README](../README.md)。
 
 ## resource_versions
 
@@ -58,7 +58,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `run_id` | `varchar(64)` | 所属运行标识 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -98,7 +97,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `actor_id` | `varchar(128)` | 操作主体标识 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -144,7 +142,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `name` | `varchar(255)` | 文件显示名称 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -171,7 +168,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `source_type` | `varchar(64)` | 来源类型 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -194,7 +190,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `target_type` | `varchar(64)` | 删除对象类型 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -216,7 +211,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `state` | `varchar(32)` | 恢复屏障状态 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -224,7 +218,7 @@
 | `marker_digest` | `varchar(64)` | 已校验删除账本摘要 | 是 | 服务层校验后的业务输入 | 内部 |
 | `verified_at` | `timestamptz` | 删除账本核对时间 | 否 | 服务层校验后的业务输入 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, data_scope_id, subject_type, subject_id)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`。
 
 ## creativity_alembic_version
 

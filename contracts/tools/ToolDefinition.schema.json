@@ -253,16 +253,6 @@
       "title": "Required Scopes",
       "type": "array"
     },
-    "allowed_data_domains": {
-      "items": {
-        "maxLength": 128,
-        "minLength": 1,
-        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-        "type": "string"
-      },
-      "title": "Allowed Data Domains",
-      "type": "array"
-    },
     "environments": {
       "items": {
         "enum": [
@@ -350,7 +340,6 @@
     "model_fields_allowed",
     "binding",
     "effect_type",
-    "allowed_data_domains",
     "environments"
   ],
   "title": "ToolDefinition",

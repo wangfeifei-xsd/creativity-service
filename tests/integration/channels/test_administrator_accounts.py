@@ -5,7 +5,6 @@ import asyncio
 import pytest
 
 from creativity_service.core.primitives import ServiceError, new_id
-from creativity_service.modules.channels.repositories import management_scope_id
 from creativity_service.modules.channels.schemas import (
     ChannelCreate,
     EnvironmentCreate,
@@ -54,6 +53,112 @@ async def activate(env, account):
     return await login_user(env, account)
 
 
+@pytest.mark.parametrize("assign_before_first_environment", [False, True])
+async def test_new_environment_reaches_all_assigned_administrators(
+    channel_env, assign_before_first_environment
+):
+    env = channel_env
+    channel = await env.services.channels.create(
+        env.admin,
+        ChannelCreate(name="环境同步渠道", owner="负责人", first_admin_user_id=env.user_id),
+    )
+    channel_id = channel.channel_id
+    body = AccountCreate(
+        login_name="environment-admin",
+        display_name="后分配管理员",
+        initial_password=INITIAL,
+        role="channel_admin",
+        channel_ids=[channel_id],
+    )
+    account = (
+        await env.iam.accounts.create(env.admin, body) if assign_before_first_environment else None
+    )
+    await env.services.channels.create_environment(
+        env.admin, channel_id, EnvironmentCreate(environment="dev", name="开发环境")
+    )
+    account = account or await env.iam.accounts.create(env.admin, body)
+    _, session = await activate(env, account)
+    assert {option.environment for option in await env.iam.sessions.channels(session)} == {"dev"}
+    await env.services.channels.create_environment(
+        env.admin, channel_id, EnvironmentCreate(environment="prod", name="生产环境")
+    )
+    # 原平台管理会话读取最新成员目录；无需重新保存账号的渠道授权。
+    options = await env.iam.sessions.channels(session)
+    assert {option.environment for option in options} == {"dev", "prod"}
+    token = await env.iam.sessions.enter(
+        session,
+        ChannelContextInput(
+            channel_id=channel_id,
+            environment="dev",
+        ),
+    )
+    headers = {"Authorization": "Bearer " + token.access_token}
+    path = f"/admin/v1/channels/{channel_id}/environments"
+    response = await env.client.get(path, headers=headers)
+    assert response.status_code == 200
+    assert {item["name"] for item in response.json()} == {"开发环境", "生产环境"}
+    prod = next(item for item in response.json() if item["environment"] == "prod")
+    edited = await env.client.patch(
+        path + "/prod", headers=headers, json={"revision": prod["revision"], "name": "正式环境"}
+    )
+    assert edited.status_code == 200 and edited.json()["name"] == "正式环境"
+    grants_before = await env.iam.access.repository.grants(channel_id)
+    # 修复入口重复调用不增加修订，也不新授予发布、导出等独立动作。
+    assert await env.iam.access.repository.grants(channel_id) == grants_before
+
+
+async def test_new_environment_preserves_restricted_and_disabled_assignments(channel_env):
+    from sqlalchemy import update
+
+    from creativity_service.modules.iam.account_channels import administrator_grant_id
+    from creativity_service.modules.iam.repositories import TABLES
+
+    env = channel_env
+    channel = await env.services.channels.create(
+        env.admin,
+        ChannelCreate(name="环境授权边界", owner="负责人", first_admin_user_id=env.user_id),
+    )
+    channel_id = channel.channel_id
+    await env.services.channels.create_environment(
+        env.admin, channel_id, EnvironmentCreate(environment="dev", name="开发")
+    )
+    accounts = []
+    for name in ("restricted", "disabled"):
+        accounts.append(
+            await env.iam.accounts.create(
+                env.admin,
+                AccountCreate(
+                    login_name=name,
+                    display_name=name,
+                    initial_password=INITIAL,
+                    role="channel_admin",
+                    channel_ids=[channel_id],
+                ),
+            )
+        )
+    await env.iam.accounts.update(
+        env.admin,
+        accounts[1].user_id,
+        AccountUpdate(revision=accounts[1].revision, status="DISABLED"),
+    )
+    grants = TABLES["resource_grants"]
+    async with env.engine.begin() as connection:
+        await connection.execute(
+            update(grants)
+            .where(
+                grants.c.channel_id == channel_id,
+                grants.c.id == administrator_grant_id(channel_id, accounts[0].user_id),
+            )
+            .values(allowed_actions=["environment:manage"])
+        )
+    await env.services.channels.create_environment(
+        env.admin, channel_id, EnvironmentCreate(environment="prod", name="生产")
+    )
+    for account in accounts:
+        member = await env.iam.access.repository.membership(channel_id, account.user_id)
+        assert member.environments == ["dev"]
+
+
 async def test_two_account_roles_multichannel_default_and_revocation(channel_env):
     env = channel_env
     a = await provision(env, "alpha", None)
@@ -86,10 +191,7 @@ async def test_two_account_roles_multichannel_default_and_revocation(channel_env
     first = await env.iam.sessions.enter(
         session,
         ChannelContextInput(
-            **{
-                key: getattr(view.default_workspace, key)
-                for key in ("channel_id", "environment", "data_scope_id")
-            }
+            **{key: getattr(view.default_workspace, key) for key in ("channel_id", "environment")}
         ),
     )
     manager = await env.iam.authentication.admin_session(first.access_token, new_id("request"))
@@ -105,7 +207,6 @@ async def test_two_account_roles_multichannel_default_and_revocation(channel_env
             ChannelContextInput(
                 channel_id=foreign.channel.channel_id,
                 environment="test",
-                data_scope_id=foreign.domain.data_scope_id,
             ),
         )
     assert denied.value.status == 404
@@ -327,8 +428,8 @@ async def test_pending_channel_assignment_never_creates_unscoped_access(channel_
                 grantee_id=account.user_id,
             )
         )[0]
-    assert member["environments"] == [] and member["data_scopes"] == []
-    assert grant["environments"] == [] and grant["data_scopes"] == []
+    assert member["environments"] == []
+    assert grant["environments"] == []
 
 
 @pytest.mark.parametrize("pending_assignment", [False, True])
@@ -380,25 +481,20 @@ async def test_account_assignment_grants_management_without_external_scopes(
     workspace = view.default_workspace
     assert workspace is not None and workspace.channel_id == channel.channel_id
     assert workspace.environment == "test"
-    assert workspace.data_scope_id == management_scope_id(channel.channel_id, "test")
     token = await env.iam.sessions.enter(
         session,
-        ChannelContextInput(
-            **workspace.model_dump(include={"channel_id", "environment", "data_scope_id"})
-        ),
+        ChannelContextInput(**workspace.model_dump(include={"channel_id", "environment"})),
     )
     headers = {"Authorization": "Bearer " + token.access_token}
     response = await env.client.get("/admin/v1/channels/page", headers=headers)
     assert response.status_code == 200
     assert [item["channel_id"] for item in response.json()["items"]] == [channel.channel_id]
     prefix = f"/admin/v1/channels/{channel.channel_id}"
-    assert (await env.client.get(prefix + "/data-scopes", headers=headers)).json() == []
+    assert (await env.client.get(prefix + "/data-scopes", headers=headers)).status_code == 404
     assert (await env.client.get(prefix + "/environments", headers=headers)).status_code == 200
     assert (await env.client.get("/admin/v1/accounts/page", headers=headers)).status_code == 403
     manager = await env.iam.authentication.admin_session(token.access_token, new_id("request"))
-    with pytest.raises(ServiceError) as denied:
-        await env.iam.authorization.require(manager.context, "run:create", "new")
-    assert denied.value.status == 403
+    await env.iam.authorization.require(manager.context, "run:create", "new")
 
 
 async def test_channel_multiselect_does_not_leave_hidden_legacy_memberships(channel_env):
@@ -422,7 +518,6 @@ async def test_channel_multiselect_does_not_leave_hidden_legacy_memberships(chan
         MembershipInput(
             roles=["auditor"],
             environments=["test"],
-            data_scopes=[b.domain.data_scope_id],
         ),
     )
     current = await env.iam.accounts.get(env.admin, account.user_id)

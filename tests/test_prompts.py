@@ -16,7 +16,7 @@ from creativity_service.modules.prompts.schemas import PromptContent, PromptRunt
 @pytest.fixture
 def context():
     return AuthContext(
-        scope=Scope(channel_id="rental", environment="test", data_scope_id="orders"),
+        scope=Scope(channel_id="rental", environment="test"),
         principal_type="management",
         principal_id="alice",
         actor_id="alice",

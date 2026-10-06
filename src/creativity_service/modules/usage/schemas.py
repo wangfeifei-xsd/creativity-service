@@ -77,7 +77,6 @@ class UsageFilter(Contract):
     environment: Literal["dev", "test", "fat", "prod"] | None = None
     agent_id: Identifier | None = None
     model_id: Identifier | None = None
-    data_scope_id: Identifier | None = None
     actor_id: Identifier | None = None
     subject_type: Identifier | None = None
     subject_id: Identifier | None = None

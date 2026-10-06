@@ -46,7 +46,7 @@ class MemoryKernel:
 
     @staticmethod
     def require_subject(context: AuthContext) -> None:
-        if not context.scope.subject_id or not context.scope.data_scope_id:
+        if not context.scope.subject_id:
             raise ServiceError("MEMORY_SUBJECT_REQUIRED", "请选择已授权的业务主体", 422)
 
     @staticmethod
@@ -59,7 +59,7 @@ class MemoryKernel:
             and context.scope.subject_id is None
             and all(
                 getattr(scope, k) == getattr(context.scope, k)
-                for k in ("channel_id", "environment", "data_scope_id")
+                for k in ("channel_id", "environment")
             )
         ):
             return context.model_copy(update={"scope": scope})

@@ -2,7 +2,7 @@
 
 对应 [方案 23](../../../代码编写执行方案/23-业务无关接入验证.md)。[scenarios.json](scenarios.json) 定义三组隔离配置；[prepare.py](prepare.py) 将 MCP 契约制成可导入 Skill ZIP 和 Agent JSON。领域数据与矩阵计算仅存在于 [受控 MCP 服务](../mcp/server.py) 和本目录配置，不装入平台模块。
 
-| 配置 | 外部数据域类型 | 远端工具 | 结果 data |
+| 配置 | 源系统示例 | 远端工具 | 结果 data |
 | --- | --- | --- | --- |
 | 文档查询验证 | document_space | archive.find-notes | notes 数组，含 heading/text |
 | 矩阵计算验证 | calculation_workspace | matrix.total | total 数值与 unit 字符串；输入为内联的二维数值数组 |
@@ -44,7 +44,7 @@ PLAYWRIGHT_CHANNEL=chrome CREATIVITY_INDEPENDENCE_EVIDENCE_DIR=.logs/23 \
   uv run pytest tests/integration/runtime/test_business_independence.py -q
 ```
 
-页面驱动为前端的 `tests/support/business-independence.mjs`，由上述 pytest 自动启动。页面使用编译后的前端，并把管理请求原样转发至临时真实 HTTP 服务。渠道、数据域、接入服务、Key、委托、MCP 发现/发布、主体复核、Skill 导入/绑定/冻结、Agent 配置/校验/调试/测试环境发布均经过真实页面。模型和提示词由既有配置服务准备为前置夹具；业务调用使用 22 的原始 `examples/backend/client.py`。
+页面驱动为前端的 `tests/support/business-independence.mjs`，由上述 pytest 自动启动。页面使用编译后的前端，并把管理请求原样转发至临时真实 HTTP 服务。渠道、接入服务、Key、委托、MCP 发现/发布、主体复核、Skill 导入/绑定/冻结、Agent 配置/校验/调试/测试环境发布均经过真实页面。模型和提示词由既有配置服务准备为前置夹具；业务调用使用 22 的原始 `examples/backend/client.py`。
 
 固定构建组合用例仅在设置 `CREATIVITY_INDEPENDENCE_EVIDENCE_DIR` 后运行；普通 `make integration` 会明确跳过它，避免依赖未准备的前端构建、wheel 和浏览器。使用新证据目录保留每次独立执行的记录。每个渠道只登录一次，后续页面阶段复用真实会话，不调整登录限流。
 

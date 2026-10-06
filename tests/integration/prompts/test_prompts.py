@@ -266,7 +266,7 @@ async def test_prm_a04_a06_mapping_switch_keeps_agent_and_old_snapshot(service, 
         await service.retire(context, first.version.version_id, 2)
 
 
-async def test_channel_and_data_scope_isolation_and_sensitive_permissions(
+async def test_channel_and_environment_isolation_and_sensitive_permissions(
     service, context, authorization
 ):
     resource, version = await draft(service, context)
@@ -275,15 +275,13 @@ async def test_channel_and_data_scope_isolation_and_sensitive_permissions(
         resource.prompt_id,
         PromptSampleCreate(title="私密样例", input={"text": "私人信息"}),
     )
-    other = context.model_copy(
-        update={"scope": Scope(channel_id="other", environment="test", data_scope_id="orders")}
-    )
+    other = context.model_copy(update={"scope": Scope(channel_id="other", environment="test")})
     await RecoveryService(service.engine, authorization).initialize_fresh(other)
     with pytest.raises(ServiceError) as missing:
         await service.read_version(other, version.version.version_id)
     assert missing.value.status == 404
     other_scope = context.model_copy(
-        update={"scope": context.scope.model_copy(update={"data_scope_id": "other"})}
+        update={"scope": context.scope.model_copy(update={"environment": "prod"})}
     )
     await RecoveryService(service.engine, authorization).initialize_fresh(other_scope)
     with pytest.raises(ServiceError, match="样例不存在"):

@@ -4,7 +4,7 @@
 
 | 来源 → 目标 | 逻辑关联键与归属 | 版本、状态与删除关系 |
 | --- | --- | --- |
-| channels → channel_environments / data_scopes / service_clients / channel_keys | channel_id；主档 id 等于 channel_id；环境与接入服务环境不可改绑 | ACTIVE → SUSPENDED → ACTIVE；ACTIVE/SUSPENDED → ARCHIVED，归档须无活动 Key 与运行 |
+| channels → channel_environments / service_clients / channel_keys | channel_id；主档 id 等于 channel_id；环境与接入服务环境不可改绑 | ACTIVE → SUSPENDED → ACTIVE；ACTIVE/SUSPENDED → ARCHIVED，归档须无活动 Key 与运行 |
 | channels → channel_code_index | 主档归自身渠道，编码定位索引归 system；同事务创建 | 系统渠道编码互斥，不通过普通业务仓储扫描全平台 |
 | platform_limits → platform_limits | 平台限额归 system 专用控制面，replaces_id 指向前版 | 规则变更新增不可变版本行，停用旧版本；准入固定具体记录 id |
 | budget_policies → resource_versions | 业务预算归实际渠道 | 周期、限额变更冻结 budget_policy 版本，预占固定 policy_version_id |
@@ -21,13 +21,13 @@
 | runs → run_steps → attempts → usage_records / usage_events | run_id / step_id / attempt_id，继承受理身份 | 重试新增 attempt；累计用量有效值替换，修正留 usage_adjustments |
 | budget_policies → budget_reservations / budget_alerts | 策略版本、周期、币种、渠道共同定范围 | HELD → PENDING/SETTLED/RELEASED；待核实消耗不当零；迟到事件只修账本 |
 | runs → run_events / run_leases / checkpoints / checkpoint_writes | 渠道 + run_id；恢复点再按 namespace + checkpoint_key；待写按 task_id + sequence | 有效租约代次才能提交；事件单调序号；清除内容不抹除消耗事实 |
-| conversations → messages / conversation_turns / conversation_summaries / context_snapshots | 完整渠道、环境、数据域、主体；父子均核对归属 | ACTIVE ↔ ARCHIVED；ACTIVE/ARCHIVED → DELETING → DELETED；同会话只一个活动生成运行 |
+| conversations → messages / conversation_turns / conversation_summaries / context_snapshots | 完整渠道、环境、主体；父子均核对归属 | ACTIVE ↔ ARCHIVED；ACTIVE/ARCHIVED → DELETING → DELETED；同会话只一个活动生成运行 |
 | memories → memory_sources / memory_versions / memory_retrievals / memory_preferences | 完整主体范围 + 属性；不同类型同号主体也隔离 | PROPOSED → ACTIVE → SUPERSEDED/EXPIRED/REVOKED；来源全部失效则撤销；历史内容也清理 |
 | mcp_connections → mcp_checks / mcp_discoveries / mcp_imports → tools | 固定 connection_revision / discovery_id / schema_hash | 发现只形成快照；人工导入、授权、发布后才能执行；协议变化不静默替换 |
 | skill_files / tool_calls / evidence_refs → artifacts | 具体版本或调用 id；文件路径不作为授权 | 文件属于上传上下文；证据带来源版本、观测时间与位置；访问重新授权 |
 | evaluation_datasets → evaluation_dataset_versions → evaluation_cases / evaluation_fixtures | 样本修订产生新行，新版本固定 case_ids 与 fixture_ids | 人工标注不改旧基线；来源删除使原文不可见，报告注明不可复现 |
 | evaluations → evaluation_results → runs / evaluation_reports | 同渠道快照、样本和子 run；purpose=evaluation | 未完成/无效不当通过；发布门禁绑定依赖摘要 |
-| integrations → data_scopes / delegation_keys / integration_tests | 域映射引用渠道模块；适配器不复制映射真值 | 委托受众、来源、有效期和环境均须匹配；领域差异由业务 MCP 负责，旧 HTTP 协议按 19/20 兼容处理 |
+| integrations → delegation_keys / integration_tests | 接入配置绑定渠道和环境；业务数据权限由源系统校验 | 委托受众、来源、有效期和环境均须匹配；领域差异由业务 MCP 负责，旧 HTTP 协议按 19/20 兼容处理 |
 | 任意内容 → source_links → 派生内容 | 同渠道，边保存在派生范围；source_type/id/version → derived_type/id，回溯使用各来源真实范围 | 消息→摘要/记忆→上下文→运行/恢复点→文件/样本/报告；删除任一祖先阻断后代读写 |
 | deletion_markers → deletion_jobs → deletion_work_items | 标记同渠道原范围、目标类型和 id，不含原文 | 先写永久标记再清理；重试幂等；未登记处理器阻止完成；来源有独立依据的记忆由 13/25 重算 |
 | recovery_barriers → 所有恢复内容入口 | 完整内容范围 + recovery_id + 外部删除账本摘要 | 缺失/BLOCKED 拒绝；仅新空范围可初始化；已有内容导入标记并核对后 READY |
@@ -37,9 +37,9 @@
 
 24 的经审阅反馈允许同渠道、同环境、同域的主体 run 派生管理范围样本。来源边保存在派生样本范围，读取和派生检查按原 run 服务端 Scope 回溯标记。25 须按渠道与来源标识发现这种边，再切换到派生记录的真实 Scope 调用清理器，不能仅扫描原主体范围。
 
-04 关系增量：platform_accounts.credential_version 与管理 Token 的签发代次比较；channel_memberships.revision 与管理工作区 Token 的成员修订比较。资源授权从数据库实时读取，不保存在 Token 中。resource_grants 通过目标渠道关联有效成员或系统内置角色，撤销保留原对象与 revision 并清空 allowed_actions。iam_revocations 保存账号/成员/Key 索引或单 Token 摘要撤销意图，完成缓存补偿后保留元数据供后续保留策略处理。
+04 关系增量：platform_accounts.credential_version 与管理 Token 的签发代次比较；channel_memberships.revision 与渠道环境 Token 的成员修订比较。资源授权从数据库实时读取，不保存在 Token 中。resource_grants 通过目标渠道关联有效成员或系统内置角色，撤销保留原对象与 revision 并清空 allowed_actions。iam_revocations 保存账号/成员/Key 索引或单 Token 摘要撤销意图，完成缓存补偿后保留元数据供后续保留策略处理。
 
-渠道不保存业务分类；外部数据域类型与编号采用显式配置，不限定 default/default 或 club。`0037_remove_business_type` 仅删除冗余分类列，保留渠道及原映射标识。`service_clients.data_scopes` 显式列举同渠道、同环境的数据域，服务身份每次取其中仍启用的范围。`key_identity_index` 与渠道 Key 主记录同事务提交，身份索引归 system，主记录归真实渠道。`key_rotations` 保留新旧 Key 标识与重叠截止时间，不更改 client_id。
+渠道及接入服务均明确绑定环境，服务身份每次校验环境、接入服务和 Key 的启用状态与授权上限。`key_identity_index` 与渠道 Key 主记录同事务提交，身份索引归 system，主记录归真实渠道。`key_rotations` 保留新旧 Key 标识与重叠截止时间，不更改 client_id。
 
 `channel_lifecycle_events` 与治理变更、审计共用事务，载荷只包含状态及修订等元数据；原始 channel_id、environment、target_id 不因消费或清理改写。runs 与 retention 消费进度分别记录；消费按至少一次交付，接收方按 event_id 幂等。归档不删除 Key、轮换、用量和审计记录。
 
@@ -51,7 +51,7 @@
 
 ### 18 业务接入关系
 
-`integrations.scope_mapping_ref` 引用同渠道环境中 05 的 data_scopes，并与服务端 data_scope_id 一致；credential_ref 引用同渠道环境的 http_tool 密文。delegation_keys 按稳定 service_clients 与环境绑定独立 delegation 密文，rotated_from 保留轮换来源。delegation_nonces 按已验证上下文关联 kid，保存请求及身份摘要，运行只保存 delegation_id；同 nonce 重发不新增运行，运行幂等仍归 11。integration_tests 固定连接配置 revision，不保存业务参数与原文。
+接入配置的 credential_ref 引用同渠道环境的 http_tool 密文。delegation_keys 按稳定 service_clients 与环境绑定独立 delegation 密文，rotated_from 保留轮换来源。delegation_nonces 按已验证的渠道、环境、主体上下文关联 kid，保存请求及身份摘要，运行只保存 delegation_id；同 nonce 重发不新增运行。integration_tests 固定连接配置 revision，不保存业务参数与原文。
 
 ## 技能包实现关系
 
@@ -71,6 +71,6 @@
 
 ## 20 当前主体复核关系
 
-`subject_review_bindings` 按渠道、环境、数据域和 client 固定 MCP connection/discovery/schema。该绑定只授权受控身份查询，不生成本地模型工具。MCP 工具导入继续复用 `mcp_imports → resource_versions(tool)`；来源、观测时间和证据复用 ToolResult、tool_calls 与 evidence_refs，不增加领域表。旧连接修订与新凭据之间不存在自动重绑定。
+`subject_review_bindings` 按渠道、环境和 client 固定 MCP connection/discovery/schema。该绑定只授权受控身份查询，不生成本地模型工具。MCP 工具导入继续复用 `mcp_imports → resource_versions(tool)`；来源、观测时间和证据复用 ToolResult、tool_calls 与 evidence_refs，不增加领域表。旧连接修订与新凭据之间不存在自动重绑定。
 
 25 实现 `deletion_jobs → deletion_work_items → deletion_receipts`：任务下按目标生成独立步骤，跨主体步骤保留目标 Scope；任务证明归原申请范围，只含数量和摘要。独立卷条目按 Scope/类型/目标去重，导入同一个 `deletion_markers`。永久来源标记与旧数据库的任务/对象重放由同一水位核对；没有第二套业务删除真值。

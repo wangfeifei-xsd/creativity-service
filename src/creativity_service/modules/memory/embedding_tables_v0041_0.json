@@ -1,0 +1,144 @@
+[
+  {
+    "module": "memory",
+    "name": "memory_embeddings",
+    "comment": "按主体和模型版本隔离的记忆向量",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_type",
+        "type": "varchar(64)",
+        "comment": "业务主体类型",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_id",
+        "type": "varchar(128)",
+        "comment": "业务主体编号",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "个人"
+      },
+      {
+        "name": "memory_id",
+        "type": "varchar(64)",
+        "comment": "来源记忆标识",
+        "required": true,
+        "source": "服务端校验后的向量结果",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "memory_version_id",
+        "type": "varchar(64)",
+        "comment": "来源记忆版本",
+        "required": true,
+        "source": "服务端校验后的向量结果",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "model_version_id",
+        "type": "varchar(64)",
+        "comment": "向量模型版本",
+        "required": true,
+        "source": "服务端校验后的向量结果",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "run_id",
+        "type": "varchar(64)",
+        "comment": "生成向量的运行",
+        "required": true,
+        "source": "服务端校验后的向量结果",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "dimensions",
+        "type": "integer",
+        "comment": "向量维度",
+        "required": true,
+        "source": "服务端校验后的向量结果",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "embedding",
+        "type": "jsonb",
+        "comment": "记忆向量",
+        "required": true,
+        "source": "服务端校验后的向量结果",
+        "sensitivity": "敏感内容"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "subject_type",
+        "subject_id",
+        "model_version_id"
+      ],
+      [
+        "channel_id",
+        "memory_id"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0028_memory_vectors",
+    "scope": "主体",
+    "control_purpose": null,
+    "content": true,
+    "cleanup_type": "memory_embedding"
+  }
+]

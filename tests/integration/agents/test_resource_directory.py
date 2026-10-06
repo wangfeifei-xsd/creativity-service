@@ -47,7 +47,6 @@ async def test_specific_agent_catalog_grant_and_direct_access(agent_env):
         MembershipInput(
             roles=[role["id"]],
             environments=[scope.environment],
-            data_scopes=[scope.data_scope_id],
         ),
     )
     for kind, resource_id, actions in (
@@ -65,7 +64,6 @@ async def test_specific_agent_catalog_grant_and_direct_access(agent_env):
                 resource_id=resource_id,
                 allowed_actions=actions,
                 environments=[scope.environment],
-                data_scopes=[scope.data_scope_id],
             ),
         )
     token = await env.iam.sessions.enter(
@@ -73,7 +71,6 @@ async def test_specific_agent_catalog_grant_and_direct_access(agent_env):
         ChannelContextInput(
             channel_id=scope.channel_id,
             environment=scope.environment,
-            data_scope_id=scope.data_scope_id,
         ),
     )
     limited = await env.iam.authentication.admin_session(token.access_token, "resource-directory")

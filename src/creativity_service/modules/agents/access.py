@@ -12,7 +12,6 @@ from creativity_service.core.locking import read_key
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.integrations.business.delegation import DelegationClaims
 from creativity_service.modules.agents.repositories import repository
-from creativity_service.modules.channels.repositories import is_management_workspace
 from creativity_service.modules.channels.state import current_service
 from creativity_service.modules.iam.authorization import action_allowed, effective_actions
 from creativity_service.modules.iam.repositories import (
@@ -25,7 +24,6 @@ from creativity_service.modules.iam.tables import metadata as iam_metadata
 from creativity_service.modules.integrations.repositories import (
     configuration_key,
     environment_scope,
-    source_mapping,
 )
 from creativity_service.modules.integrations.repositories import (
     repository as integration_repository,
@@ -58,7 +56,6 @@ class LockedAuthorization:
                 self.member,
                 list(self.grants),
                 context.scope.environment,
-                context.scope.data_scope_id or "",
                 kind,
                 identifier,
             )
@@ -98,9 +95,7 @@ async def read_locked_policy(uow: UnitOfWork, context: AuthContext) -> LockedAut
     uow.require_read_lock(policy_key(scope.channel_id))
     uow.require_read_lock(policy_key("system"))
     current = await identity_rows(uow, context)
-    channel, environment, domain = (
-        current.get(name) for name in ("channels", "channel_environments", "data_scopes")
-    )
+    channel, environment = (current.get(name) for name in ("channels", "channel_environments"))
     if (
         not channel
         or channel["status"] != "ACTIVE"
@@ -108,9 +103,6 @@ async def read_locked_policy(uow: UnitOfWork, context: AuthContext) -> LockedAut
         or environment["status"] != "ACTIVE"
     ):
         raise ServiceError("FORBIDDEN", "渠道或目标环境不可用", 403)
-    if scope.data_scope_id and not is_management_workspace(context):
-        if not domain or domain["status"] != "ACTIVE":
-            raise ServiceError("FORBIDDEN", "当前业务数据域不可用", 403)
     if context.token_digest and await rows(
         uow.connection,
         "iam_revocations",
@@ -163,11 +155,6 @@ async def read_locked_policy(uow: UnitOfWork, context: AuthContext) -> LockedAut
         ):
             raise ServiceError("FORBIDDEN", "业务主体委托凭据已撤销", 403)
         claims = DelegationClaims.model_validate(delegation["claims"])
-        domain = await source_mapping(
-            uow.connection, environment_scope(scope), claims.data_scope.type, claims.data_scope.id
-        )
-        if domain["id"] != scope.data_scope_id:
-            raise ServiceError("FORBIDDEN", "当前业务主体未获此资源授权", 403)
         return LockedAuthorization(uow, context, identity=identity, claims=claims)
     else:
         raise ServiceError("FORBIDDEN", "此操作需要管理身份", 403)
@@ -178,20 +165,12 @@ async def identity_rows(uow: UnitOfWork, context: AuthContext) -> dict[str, dict
     scope = context.scope
     channel = repository("channels", scope).table
     environment = repository("channel_environments", scope).table
-    domain = repository("data_scopes", scope).table
-    tables = [channel, environment, domain]
+    tables = [channel, environment]
     joined = channel.outerjoin(
         environment,
         and_(
             environment.c.channel_id == scope.channel_id,
             environment.c.environment == scope.environment,
-        ),
-    ).outerjoin(
-        domain,
-        and_(
-            domain.c.channel_id == scope.channel_id,
-            domain.c.environment == scope.environment,
-            domain.c.id == scope.data_scope_id,
         ),
     )
     if context.actor_id:

@@ -64,10 +64,9 @@ class ConversationKernel:
     def row_context(self, context: AuthContext, row: dict[str, Any]) -> AuthContext:
         scope = context.scope
         if context.principal_type == "management" and scope.subject_id is None:
-            if (row["channel_id"], row["environment"], row["data_scope_id"]) != (
+            if (row["channel_id"], row["environment"]) != (
                 scope.channel_id,
                 scope.environment,
-                scope.data_scope_id,
             ):
                 raise ServiceError("NOT_FOUND", "会话记录不存在", 404)
             return context.model_copy(

@@ -3,7 +3,6 @@
 from typing import Any
 
 from creativity_service.core.primitives import ServiceError, digest
-from creativity_service.modules.channels.repositories import management_scope_id
 from creativity_service.modules.models.outbound import normalize_networks
 from creativity_service.modules.models.policy import (
     configuration_digest,
@@ -139,7 +138,6 @@ def validate_initial_models(tables: dict[str, Any], tenants: dict[str, Any], adm
             links[digest([version_id, source_type, source_id])] = {
                 "channel_id": row["channel_id"],
                 "environment": "dev",
-                "data_scope_id": management_scope_id(row["channel_id"], "dev"),
                 "subject_type": None,
                 "subject_id": None,
                 "source_type": source_type,

@@ -104,10 +104,7 @@ class AuthenticationService:
         member = await self.identities.membership(context.scope.channel_id, user_id)
         if member is None or member.status != "ACTIVE":
             raise ServiceError("MEMBERSHIP_DISABLED", "渠道成员已停用", 401)
-        if (
-            context.scope.environment not in member.environments
-            or context.scope.data_scope_id not in member.data_scopes
-        ):
+        if context.scope.environment not in member.environments:
             raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
         return member
 
@@ -124,8 +121,6 @@ class AuthenticationService:
             or identity.expires_at <= utcnow()
         ):
             raise ServiceError("CLIENT_REVOKED", "接入身份不可用", 401)
-        if context.scope.data_scope_id and context.scope.data_scope_id not in identity.data_scopes:
-            raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
         return identity
 
     async def validate_record(
@@ -160,12 +155,11 @@ class AuthenticationService:
 
     def context(self, record: TokenRecord, request_id: str | None = None) -> AuthContext:
         if record.purpose == "login" or record.environment is None:
-            raise ServiceError("TOKEN_PURPOSE_INVALID", "请先进入渠道工作区", 401)
+            raise ServiceError("TOKEN_PURPOSE_INVALID", "请先进入渠道环境", 401)
         return AuthContext(
             scope=Scope(
                 channel_id=record.channel_id,
                 environment=record.environment,
-                data_scope_id=record.data_scope_id,
             ),
             principal_type=record.principal_type,
             principal_id=record.principal_id,
@@ -221,10 +215,6 @@ class AuthenticationService:
                 or record.principal_id != context.principal_id
                 or record.client_id != context.client_id
                 or record.key_id != context.key_id
-                or (
-                    record.purpose == "management"
-                    and record.data_scope_id != context.scope.data_scope_id
-                )
             ):
                 raise ServiceError("UNAUTHENTICATED", "会话归属不符", 401)
             identity = await self.validate_record(record, context=context)

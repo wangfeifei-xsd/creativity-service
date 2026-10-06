@@ -1,0 +1,420 @@
+[
+  {
+    "module": "prompts",
+    "name": "prompts",
+    "comment": "提示词资源",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "prompt_code",
+        "type": "varchar(64)",
+        "comment": "提示词编码",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "name",
+        "type": "varchar(128)",
+        "comment": "提示词名称",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "purpose",
+        "type": "varchar(512)",
+        "comment": "使用用途",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "owner",
+        "type": "varchar(128)",
+        "comment": "负责人标识",
+        "required": true,
+        "source": "服务端当前操作人",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "status",
+        "type": "varchar(32)",
+        "comment": "资源状态",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "prompt_code"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0009_prompts",
+    "scope": "渠道",
+    "control_purpose": null,
+    "content": false
+  },
+  {
+    "module": "prompts",
+    "name": "prompt_samples",
+    "comment": "提示词调试样例",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_type",
+        "type": "varchar(64)",
+        "comment": "业务主体类型",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_id",
+        "type": "varchar(128)",
+        "comment": "业务主体编号",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "个人"
+      },
+      {
+        "name": "prompt_id",
+        "type": "varchar(64)",
+        "comment": "提示词资源标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "title",
+        "type": "varchar(128)",
+        "comment": "样例名称",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "input",
+        "type": "jsonb",
+        "comment": "样例输入",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "expected_constraints",
+        "type": "jsonb",
+        "comment": "预期断言",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "敏感内容"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "prompt_id"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0009_prompts",
+    "scope": "主体",
+    "control_purpose": null,
+    "content": true,
+    "cleanup_type": "prompt_sample"
+  },
+  {
+    "module": "prompts",
+    "name": "prompt_tests",
+    "comment": "提示词调试记录",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_type",
+        "type": "varchar(64)",
+        "comment": "业务主体类型",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_id",
+        "type": "varchar(128)",
+        "comment": "业务主体编号",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "个人"
+      },
+      {
+        "name": "version_id",
+        "type": "varchar(64)",
+        "comment": "版本标识",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "draft_revision",
+        "type": "bigint",
+        "comment": "草稿修订",
+        "required": false,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "release_snapshot_id",
+        "type": "varchar(64)",
+        "comment": "冻结快照标识",
+        "required": false,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "model_route_version",
+        "type": "varchar(64)",
+        "comment": "模型路由版本",
+        "required": true,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "rendered_input_ref",
+        "type": "varchar(64)",
+        "comment": "渲染内容引用",
+        "required": false,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "run_id",
+        "type": "varchar(64)",
+        "comment": "调试运行标识",
+        "required": false,
+        "source": "服务层校验后的业务输入",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "frozen_version",
+        "type": "jsonb",
+        "comment": "调试时固定的提示词版本",
+        "required": true,
+        "source": "受信范围内读取的版本快照",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "sample_snapshot",
+        "type": "jsonb",
+        "comment": "调试时固定的样例与预期断言",
+        "required": true,
+        "source": "本范围固定样例",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "rendered_input",
+        "type": "jsonb",
+        "comment": "保持来源分区的完整渲染快照",
+        "required": true,
+        "source": "受控变量绑定与有限渲染",
+        "sensitivity": "敏感内容"
+      },
+      {
+        "name": "descriptor_digest",
+        "type": "varchar(64)",
+        "comment": "调试执行描述摘要",
+        "required": true,
+        "source": "服务端规范 JSON 摘要",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "sample_id",
+        "type": "varchar(64)",
+        "comment": "调试样例标识",
+        "required": true,
+        "source": "服务层验证的样例引用",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "model_route_name",
+        "type": "varchar(128)",
+        "comment": "调试时的模型路由名称",
+        "required": false,
+        "source": "受信模型路由资源",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "status",
+        "type": "varchar(32)",
+        "comment": "调试受理状态",
+        "required": true,
+        "source": "服务层状态机",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "version_id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "version_id",
+        "descriptor_digest"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0009_prompts",
+    "scope": "主体",
+    "control_purpose": null,
+    "content": true,
+    "cleanup_type": "prompt_test"
+  }
+]

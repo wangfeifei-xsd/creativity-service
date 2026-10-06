@@ -53,7 +53,6 @@ class StandardHttpAdapter(BusinessAdapter):
                     **call.context.scope.model_dump(),
                     "client_id": call.context.client_id,
                     "actor_id": call.context.actor_id,
-                    "data_scope": call.connection["source_scope"],
                     "actions": sorted(call.context.granted_actions),
                 },
                 "request_id": call.context.request_id,

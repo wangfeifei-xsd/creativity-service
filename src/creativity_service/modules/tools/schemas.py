@@ -80,7 +80,6 @@ class ToolDefinition(Contract):
     binding: ToolBinding
     effect_type: EffectType
     required_scopes: tuple[str, ...] = ("run:create",)
-    allowed_data_domains: tuple[Identifier, ...]
     environments: tuple[Environment, ...]
     subject_requirements: SubjectRequirements = SubjectRequirements()
     timeout_seconds: int = Field(default=10, ge=1, le=120, strict=True)

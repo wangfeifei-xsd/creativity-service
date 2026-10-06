@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "身份委托与旧 HTTP 接入兼容",
-    "version": "1.1.0"
+    "title": "渠道环境身份委托与业务接入",
+    "version": "2.0.0"
   },
   "paths": {
     "/admin/v1/subject-review-bindings": {
@@ -4118,7 +4118,7 @@
             "name": "X-Business-Delegation",
             "in": "header",
             "required": true,
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "schema": {
               "type": "string",
               "maxLength": 16384
@@ -4415,7 +4415,7 @@
             "name": "X-Business-Delegation",
             "in": "header",
             "required": true,
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "schema": {
               "type": "string",
               "maxLength": 16384
@@ -4717,7 +4717,7 @@
             "name": "X-Business-Delegation",
             "in": "header",
             "required": true,
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "schema": {
               "type": "string",
               "maxLength": 16384
@@ -5063,7 +5063,7 @@
             "name": "X-Business-Delegation",
             "in": "header",
             "required": true,
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "schema": {
               "type": "string",
               "maxLength": 16384
@@ -5348,7 +5348,7 @@
             "name": "X-Business-Delegation",
             "in": "header",
             "required": true,
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "schema": {
               "type": "string",
               "maxLength": 16384
@@ -5637,7 +5637,7 @@
             "name": "X-Business-Delegation",
             "in": "header",
             "required": true,
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v1 委托",
+            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "schema": {
               "type": "string",
               "maxLength": 16384
@@ -6245,10 +6245,6 @@
             "type": "string",
             "title": "Environment Name"
           },
-          "data_scope_name": {
-            "type": "string",
-            "title": "Data Scope Name"
-          },
           "adapter_name": {
             "type": "string",
             "title": "Adapter Name"
@@ -6351,7 +6347,6 @@
           "integration_id",
           "name",
           "environment_name",
-          "data_scope_name",
           "adapter_name",
           "adapter_code",
           "adapter_version",
@@ -7703,21 +7698,6 @@
             ],
             "title": "Environment",
             "type": "string"
-          },
-          "data_scope_id": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Data Scope Id"
           },
           "subject_type": {
             "anyOf": [

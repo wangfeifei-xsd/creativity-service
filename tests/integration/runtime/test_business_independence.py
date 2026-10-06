@@ -48,7 +48,6 @@ class Principals:
         self.value = Principal(
             "member",
             "shared-user-001",
-            {"type": scenario["scope_type"], "id": scenario["scope_id"]},
             ["run:create", "run:read", "run:content", "data:read_sensitive"],
             {
                 kind: ["*"]

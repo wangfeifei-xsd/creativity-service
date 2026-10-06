@@ -28,13 +28,10 @@ async def audit_page(
         scope = context.scope
         conditions.append(
             or_(
-                table.c.summary["affected_scopes"].contains(
-                    [{"environment": scope.environment, "data_scope_id": scope.data_scope_id}]
-                ),
+                table.c.summary["affected_scopes"].contains([{"environment": scope.environment}]),
                 and_(
                     ~table.c.summary.has_key("affected_scopes"),
                     table.c.environment == scope.environment,
-                    table.c.data_scope_id == scope.data_scope_id,
                 ),
             )
         )
@@ -106,7 +103,6 @@ async def audit_page(
             "menu": "iam_menus",
             "channel": "channels",
             "environment": "channel_environments",
-            "data_scope": "data_scopes",
             "client": "service_clients",
             "key": "channel_keys",
             "model": "models",
@@ -130,7 +126,7 @@ async def audit_page(
             source_channel = "system" if name == "iam_menus" else target
             predicates = [source.c.channel_id == source_channel, source.c.id.in_(ids)]
             if isinstance(context, AuthContext):
-                for field in ("environment", "data_scope_id"):
+                for field in ("environment",):
                     if field in source.c:
                         predicates.append(source.c[field] == getattr(context.scope, field))
             names.update(
@@ -141,20 +137,6 @@ async def audit_page(
                     )
                 }
             )
-        domains = metadata.tables["data_scopes"]
-        ids = {row["data_scope_id"] for row in records if row["data_scope_id"]}
-        scope_names = (
-            {
-                row.id: row.name
-                for row in await connection.execute(
-                    select(domains.c.id, domains.c.name).where(
-                        domains.c.channel_id == target, domains.c.id.in_(ids)
-                    )
-                )
-            }
-            if ids
-            else {}
-        )
     accounts = await service.repository.accounts(
         [r["actor_id"] for r in records]
         + [r["target_id"] for r in records if r["target_type"] in {"account", "membership"}]
@@ -208,7 +190,6 @@ async def audit_page(
                     FIELD_NAMES[k] for k in summary.get("changed_fields", []) if k in FIELD_NAMES
                 ],
                 environment_name=environments.get(row["environment"]),
-                data_scope_name=scope_names.get(row["data_scope_id"]),
                 details=details,
             )
         )

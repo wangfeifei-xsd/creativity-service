@@ -31,7 +31,6 @@ async def env(run_env):
         update={
             "scope": env.context.scope.model_copy(
                 update={
-                    "data_scope_id": "club",
                     "subject_type": "user",
                     "subject_id": "same-user",
                 }

@@ -16,7 +16,6 @@ from creativity_service.core.primitives import ServiceError, canonical_json, dig
 from creativity_service.core.security.credentials import CredentialService, KeyProvider
 from creativity_service.core.security.outbound import OutboundPolicy
 from creativity_service.integrations.outbound import BoundedHttp
-from creativity_service.modules.channels.repositories import required as channel_required
 from creativity_service.modules.iam.reading import resource_state
 from creativity_service.modules.integrations.authorization import (
     management_policy,
@@ -386,15 +385,6 @@ class WebhookService:
             policy = await management_policy(uow, context)
             if "integration:manage" not in policy.actions("channel", context.scope.channel_id):
                 raise ServiceError("FORBIDDEN", "无权管理此业务范围", 403)
-            domain = await channel_required(
-                uow.connection,
-                "data_scopes",
-                context.scope.channel_id,
-                id=context.scope.data_scope_id,
-                environment=context.scope.environment,
-            )
-            if domain["status"] != "ACTIVE":
-                raise ServiceError("DATA_SCOPE_DISABLED", "业务数据域不可用", 403)
             clients = await self.subscriptions.clients(
                 uow.connection, context, actual["client_ids"]
             )

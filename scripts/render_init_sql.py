@@ -346,7 +346,7 @@ def validate_seed(seed: dict[str, Any]) -> None:
         for row in rows:
             channel_id = row["channel_id"]
             member_id = membership_id(channel_id, admin_id)
-            expected = {"environments": [], "data_scopes": []}
+            expected = {"environments": []}
             if name == "channel_memberships":
                 expected.update(
                     id=member_id,
@@ -365,7 +365,7 @@ def validate_seed(seed: dict[str, Any]) -> None:
                     allowed_actions=sorted(roles["channel_admin"]["allowed_actions"]),
                 )
             if any(row[key] != value for key, value in expected.items()):
-                raise ValueError("初始渠道管理员或授权关联不一致，环境和数据域必须为空")
+                raise ValueError("初始渠道管理员或授权关联不一致，环境必须为空")
     validate_initial_limits(tables, tenants, admin_id)
     validate_initial_models(tables, tenants, admin_id)
 
@@ -380,7 +380,7 @@ def render_data() -> str:
         "-- 数据源：sql/init_data.json，冻结控制面配置、预置渠道、模型连接及并发策略。",
         "-- 包含 admin 账号、两种管理员的菜单关联、账号角色关联及历史兼容角色。",
         "-- 预置渠道的首位管理员复用 admin，仅登记空范围；不复制其他账号或接入凭据。",
-        "-- 初始密码仅存安全摘要，首次登录须改密；环境与真实业务数据域稍后配置。",
+        "-- 初始密码仅存安全摘要，首次登录须改密；环境稍后配置。",
         "-- 平台并发上限归系统渠道，各渠道并发策略及冻结版本归对应业务渠道。",
         "-- 包含开发环境 DeepSeek V4 Flash 及密文凭据；解密主密钥和出站策略另行配置。",
         "-- 不继承能力验证结果、测试运行或用量；目标环境启用后重新验证。",
@@ -399,7 +399,7 @@ def render_data() -> str:
         "builtin_roles": "初始化数据库角色目录，menu_ids 保存角色与菜单关联。",
         "platform_accounts": "初始化 admin；role_id 与 platform_roles 保存账号与角色关联。",
         "channel_memberships": "复用 admin 登记预置渠道的首位管理员，空范围不产生工作区访问权。",
-        "resource_grants": "登记首位管理员的空范围初始授权，不预设环境和外部数据域映射。",
+        "resource_grants": "登记首位管理员的空范围初始授权，不预设环境。",
         "platform_limits": "初始化平台并发上限，导入时生效；不复制实际运行占用。",
         "resource_versions": "初始化各业务渠道并发策略、模型及连接的冻结版本及内容摘要。",
         "budget_policies": "初始化各业务渠道并发硬上限，不复制用量、预占或预算提醒。",

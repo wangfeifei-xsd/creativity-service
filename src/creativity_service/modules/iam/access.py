@@ -17,7 +17,7 @@ from creativity_service.core.context import AuthContext, Scope, require_channel_
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.locking import ResourceKey, record_key
-from creativity_service.core.primitives import ServiceError, digest, new_id, unavailable
+from creativity_service.core.primitives import ServiceError, new_id, unavailable
 from creativity_service.modules.iam.accounts import current_actor
 from creativity_service.modules.iam.audit import append_event, audit_denials, audit_ranges
 from creativity_service.modules.iam.authorization import (
@@ -81,7 +81,7 @@ class AccessService:
 
     def channel_context(self, session: AdminSession, channel_id: str) -> AuthContext:
         if not isinstance(session.context, AuthContext):
-            raise ServiceError("FORBIDDEN", "请先进入获授权的渠道工作区", 403)
+            raise ServiceError("FORBIDDEN", "请先进入获授权的渠道环境", 403)
         context = session.context
         if channel_id != context.scope.channel_id:
             raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
@@ -118,7 +118,6 @@ class AccessService:
             member,
             grants,
             scope.environment,
-            scope.data_scope_id or "",
             "channel",
             scope.channel_id,
         )
@@ -126,13 +125,13 @@ class AccessService:
             raise ServiceError("FORBIDDEN", "无权执行此操作", 403)
         return member, grants
 
-    async def workspace_pairs(self, context: AuthContext) -> set[tuple[str, str]]:
+    async def workspace_environments(self, context: AuthContext) -> set[str]:
         if self.directory is None:
-            raise unavailable("渠道工作区目录")
+            raise unavailable("渠道环境目录")
         return {
-            (o.environment, o.data_scope_id)
-            for o in await self.directory.list_for(context.actor_id or "")
-            if o.channel_id == context.scope.channel_id
+            option.environment
+            for option in await self.directory.list_for(context.actor_id or "")
+            if option.channel_id == context.scope.channel_id
         }
 
     def delegation(
@@ -140,48 +139,29 @@ class AccessService:
         member: MembershipState,
         grants: list[GrantState],
         environments: list[str],
-        data_scopes: list[str],
         actions: frozenset[str],
         resource_type: str,
         resource_id: str,
-        known_pairs: set[tuple[str, str]],
+        known_environments: set[str],
     ) -> None:
-        pairs = {(e, d) for e, d in known_pairs if e in environments and d in data_scopes}
-        if (
-            not actions
-            or not environments
-            or not data_scopes
-            or {e for e, _ in pairs} != set(environments)
-            or {d for _, d in pairs} != set(data_scopes)
-        ):
-            raise ServiceError("GRANT_SCOPE_EXCEEDED", "授权范围不在可管理的工作区内", 403)
-        for environment, data_scope in pairs:
-            effective = effective_actions(
-                member, grants, environment, data_scope, resource_type, resource_id
-            )
-            if not actions <= effective:
+        if not actions or not environments or not set(environments) <= known_environments:
+            raise ServiceError("GRANT_SCOPE_EXCEEDED", "授权环境不在可管理范围内", 403)
+        for environment in environments:
+            if not actions <= effective_actions(
+                member, grants, environment, resource_type, resource_id
+            ):
                 raise ServiceError("GRANT_SCOPE_EXCEEDED", "不能超出本人的可授权范围", 403)
 
     async def validate_scopes(
-        self,
-        context: AuthContext,
-        environments: list[str],
-        data_scopes: list[str],
-        known_pairs: set[tuple[str, str]],
+        self, context: AuthContext, environments: list[str], known_environments: set[str]
     ) -> None:
-        if len(environments) != len(set(environments)) or len(data_scopes) != len(set(data_scopes)):
-            raise ServiceError("VALIDATION_ERROR", "授权范围不能重复", 422)
-        pairs = {(e, d) for e, d in known_pairs if e in environments and d in data_scopes}
-        if {e for e, _ in pairs} != set(environments) or {d for _, d in pairs} != set(data_scopes):
-            raise ServiceError("NOT_FOUND", "请求的工作区不存在", 404)
-        # 数据域只属于一个环境，不能将两个数组的笛卡尔积当成真实业务范围。
-        for environment, data_scope in pairs:
+        if len(environments) != len(set(environments)):
+            raise ServiceError("VALIDATION_ERROR", "授权环境不能重复", 422)
+        if not set(environments) <= known_environments:
+            raise ServiceError("NOT_FOUND", "请求的环境不存在", 404)
+        for environment in environments:
             scope = Scope.model_validate(
-                {
-                    "channel_id": context.scope.channel_id,
-                    "environment": environment,
-                    "data_scope_id": data_scope,
-                }
+                {"channel_id": context.scope.channel_id, "environment": environment}
             )
             await require_channel_state(
                 context.model_copy(update={"scope": scope}), self.authentication.channels
@@ -192,54 +172,42 @@ class AccessService:
         actor: MembershipState,
         grants: list[GrantState],
         target: MembershipState,
-        known_pairs: set[tuple[str, str]],
+        known_environments: set[str],
     ) -> None:
         self.delegation(
             actor,
             grants,
             list(target.environments),
-            list(target.data_scopes),
             target.custom_actions,
             "channel",
             target.channel_id,
-            known_pairs,
+            known_environments,
         )
-        # 调整角色或数据域会激活已有账号/角色授权，必须连同这些潜在权限检查。
+        # 调整角色会激活已有授权，必须一起检查这些潜在权限。
         active_target = target.model_copy(update={"status": "ACTIVE"})
         for grant in grants:
-            for environment in target.environments:
-                for data_scope in target.data_scopes:
-                    if (environment, data_scope) not in known_pairs:
-                        continue
-                    actions = effective_actions(
-                        active_target,
+            for environment in set(target.environments) & known_environments:
+                actions = effective_actions(
+                    active_target, grants, environment, grant.resource_type, grant.resource_id
+                )
+                if actions:
+                    self.delegation(
+                        actor,
                         grants,
-                        environment,
-                        data_scope,
+                        [environment],
+                        actions,
                         grant.resource_type,
                         grant.resource_id,
+                        known_environments,
                     )
-                    if actions:
-                        self.delegation(
-                            actor,
-                            grants,
-                            [environment],
-                            [data_scope],
-                            actions,
-                            grant.resource_type,
-                            grant.resource_id,
-                            known_pairs,
-                        )
 
     @audit_denials("membership:put", "account", 1)
     async def put_member(
         self, session: AdminSession, channel_id: str, user_id: str, body: MembershipInput
     ) -> MembershipView:
         context = await self.context(session, channel_id, "membership:manage")
-        known_pairs = await self.workspace_pairs(context)
-        await self.validate_scopes(
-            context, list(body.environments), list(body.data_scopes), known_pairs
-        )
+        known_environments = await self.workspace_environments(context)
+        await self.validate_scopes(context, list(body.environments), known_environments)
         if len(set(body.roles)) != len(body.roles):
             raise ServiceError("VALIDATION_ERROR", "角色不能重复", 422)
         member_id, event_id, revoke_id = (
@@ -257,18 +225,15 @@ class AccessService:
             requested_actions = await resolved_actions(
                 uow.connection, channel_id, list(body.roles), require_active=True
             )
-            await self.validate_scopes(
-                context, list(body.environments), list(body.data_scopes), known_pairs
-            )
+            await self.validate_scopes(context, list(body.environments), known_environments)
             self.delegation(
                 member,
                 grants,
                 list(body.environments),
-                list(body.data_scopes),
                 requested_actions,
                 "channel",
                 channel_id,
-                known_pairs,
+                known_environments,
             )
             target = await one(uow.connection, "platform_accounts", "system", id=user_id)
             if target is None or target["status"] != "ACTIVE":
@@ -279,7 +244,10 @@ class AccessService:
             if existing:
                 require_channel_assignable_roles(existing["roles"])
                 self.member_delegation(
-                    member, grants, await membership_state(uow.connection, existing), known_pairs
+                    member,
+                    grants,
+                    await membership_state(uow.connection, existing),
+                    known_environments,
                 )
             candidate = MembershipState(
                 id=member_id,
@@ -287,12 +255,11 @@ class AccessService:
                 user_id=user_id,
                 roles=list(body.roles),
                 environments=body.environments,
-                data_scopes=body.data_scopes,
                 status=body.status,
                 revision=1,
             )
             candidate = await membership_state(uow.connection, candidate.model_dump(mode="json"))
-            self.member_delegation(member, grants, candidate, known_pairs)
+            self.member_delegation(member, grants, candidate, known_environments)
             row = await save(
                 uow,
                 "channel_memberships",
@@ -301,7 +268,6 @@ class AccessService:
                     "user_id": user_id,
                     "roles": list(body.roles),
                     "environments": list(body.environments),
-                    "data_scopes": list(body.data_scopes),
                     "status": body.status,
                     "granted_by": session.account.id,
                 },
@@ -316,10 +282,10 @@ class AccessService:
                 "membership:put",
                 "account",
                 user_id,
-                ["roles", "environments", "data_scopes", "status"],
+                ["roles", "environments", "status"],
                 affected_scopes=audit_ranges(
-                    (list(body.environments), list(body.data_scopes)),
-                    (existing["environments"], existing["data_scopes"]) if existing else ([], []),
+                    list(body.environments),
+                    (existing["environments"] if existing else []),
                 ),
             )
         await self.revocations.complete(item)
@@ -333,12 +299,11 @@ class AccessService:
                 saved,
                 actor,
                 grants,
-                known_pairs,
+                known_environments,
                 effective_actions(
                     actor,
                     grants,
                     context.scope.environment,
-                    context.scope.data_scope_id or "",
                     "channel",
                     channel_id,
                 ),
@@ -359,7 +324,7 @@ class AccessService:
         self, session: AdminSession, channel_id: str, user_id: str, revision: int
     ) -> None:
         context = await self.context(session, channel_id, "membership:manage")
-        known_pairs = await self.workspace_pairs(context)
+        known_environments = await self.workspace_environments(context)
         event_id, revoke_id = new_id("audit"), new_id("revoke")
         async with transaction(
             self.repository.engine,
@@ -379,11 +344,10 @@ class AccessService:
                 actor,
                 grants,
                 row["environments"],
-                row["data_scopes"],
                 await resolved_actions(uow.connection, channel_id, row["roles"]),
                 "channel",
                 channel_id,
-                known_pairs,
+                known_environments,
             )
             await save(uow, "channel_memberships", row["id"], {"status": "DISABLED"}, revision)
             item = await enqueue(uow, revoke_id, "member", user_id)
@@ -396,7 +360,7 @@ class AccessService:
                 "account",
                 user_id,
                 ["status"],
-                affected_scopes=audit_ranges((row["environments"], row["data_scopes"])),
+                affected_scopes=audit_ranges(row["environments"]),
             )
         await self.revocations.complete(item)
 
@@ -407,21 +371,14 @@ class AccessService:
         require_action(allowed, "membership:read")
         actor = policy.member
         if actor is None:
-            raise ServiceError("FORBIDDEN", "请先进入获授权的渠道工作区", 403)
+            raise ServiceError("FORBIDDEN", "请先进入获授权的渠道环境", 403)
         grants = list(policy.grants)
         async with self.repository.engine.connect() as connection:
             loaded = await rows(connection, "channel_memberships", channel_id)
-        # 只暴露操作者完整可见的成员范围，避免通过授权页面获知其他数据域。
-        result = [
-            row
-            for row in loaded
-            if set(row["environments"]) <= set(actor.environments)
-            and set(row["data_scopes"]) <= set(actor.data_scopes)
-        ]
+        # 只暴露操作者完整可见的成员范围，避免通过授权页面获知其他环境。
+        result = [row for row in loaded if set(row["environments"]) <= set(actor.environments)]
         options = await self.directory.for_member(actor) if self.directory else []
-        known_pairs: set[tuple[str, str]] = {
-            (option.environment, option.data_scope_id) for option in options
-        }
+        known_environments: set[str] = {option.environment for option in options}
         data = await self.view_data(
             session.account.id, channel_id, [r["user_id"] for r in result], options=options
         )
@@ -435,7 +392,7 @@ class AccessService:
                     membership_from_catalog(row, data["catalog"]),
                     actor,
                     grants,
-                    known_pairs,
+                    known_environments,
                     allowed,
                     account_active=bool(
                         (account := data["accounts"].get(row["user_id"]))
@@ -451,7 +408,7 @@ class AccessService:
         target: MembershipState,
         actor: MembershipState,
         grants: list[GrantState],
-        known_pairs: set[tuple[str, str]],
+        known_environments: set[str],
         allowed: frozenset[str],
         *,
         account_active: bool,
@@ -469,17 +426,16 @@ class AccessService:
             else:
                 try:
                     if key == "member:edit":
-                        self.member_delegation(actor, grants, target, known_pairs)
+                        self.member_delegation(actor, grants, target, known_environments)
                     else:
                         self.delegation(
                             actor,
                             grants,
                             list(target.environments),
-                            target.data_scopes,
                             target.custom_actions,
                             "channel",
                             target.channel_id,
-                            known_pairs,
+                            known_environments,
                         )
                 except ServiceError as exc:
                     if exc.code != "GRANT_SCOPE_EXCEEDED":
@@ -521,11 +477,6 @@ class AccessService:
             else await self.view_data(viewer_id, row["channel_id"], [row["user_id"]])
         )
         account = data["accounts"].get(row["user_id"])
-        names = {
-            option.data_scope_id: option.data_scope_name
-            for option in data["options"]
-            if option.channel_id == row["channel_id"]
-        }
         catalog = data["catalog"]
         return MembershipView(
             user_id=row["user_id"],
@@ -535,8 +486,6 @@ class AccessService:
             role_names=[catalog[r]["name"] for r in row["roles"] if r in catalog],
             environments=row["environments"],
             environment_names=[ENVIRONMENT_NAMES[e] for e in row["environments"]],
-            data_scopes=row["data_scopes"],
-            data_scope_names=[names.get(s) for s in row["data_scopes"]],
             status=row["status"],
             status_label="启用" if row["status"] == "ACTIVE" else "停用",
             revision=row["revision"],
@@ -553,24 +502,15 @@ class AccessService:
             set(body.allowed_actions)
         ):
             raise ServiceError("VALIDATION_ERROR", "授权动作无效或重复", 422)
-        known_pairs = await self.workspace_pairs(context)
-        await self.validate_scopes(
-            context, list(body.environments), list(body.data_scopes), known_pairs
-        )
+        known_environments = await self.workspace_environments(context)
+        await self.validate_scopes(context, list(body.environments), known_environments)
         for environment in body.environments:
-            for data_scope in body.data_scopes:
-                if (environment, data_scope) not in known_pairs:
-                    continue
-                candidate = context.model_copy(
-                    update={
-                        "scope": Scope(
-                            channel_id=channel_id, environment=environment, data_scope_id=data_scope
-                        )
-                    }
-                )
-                await self.authorization.verify_resource(
-                    candidate, body.resource_type, body.resource_id
-                )
+            candidate = context.model_copy(
+                update={"scope": Scope(channel_id=channel_id, environment=environment)}
+            )
+            await self.authorization.verify_resource(
+                candidate, body.resource_type, body.resource_id
+            )
         event_id = new_id("audit")
         async with transaction(
             self.repository.engine,
@@ -588,18 +528,15 @@ class AccessService:
             ],
         ) as uow:
             actor, grants = await self.locked_policy(uow, session, "grant:manage")
-            await self.validate_scopes(
-                context, list(body.environments), list(body.data_scopes), known_pairs
-            )
+            await self.validate_scopes(context, list(body.environments), known_environments)
             self.delegation(
                 actor,
                 grants,
                 list(body.environments),
-                list(body.data_scopes),
                 frozenset(body.allowed_actions),
                 body.resource_type,
                 body.resource_id,
-                known_pairs,
+                known_environments,
             )
             if body.grantee_type == "role":
                 require_channel_assignable_roles([body.grantee_id])
@@ -615,9 +552,7 @@ class AccessService:
                 )
                 if member is None or member["status"] != "ACTIVE":
                     raise ServiceError("NOT_FOUND", "有效渠道成员不存在", 404)
-                if not set(body.environments) <= set(member["environments"]) or not set(
-                    body.data_scopes
-                ) <= set(member["data_scopes"]):
+                if not set(body.environments) <= set(member["environments"]):
                     raise ServiceError("GRANT_SCOPE_EXCEEDED", "授权不能超出成员范围", 403)
                 ceiling = (
                     await resolved_actions(
@@ -633,18 +568,17 @@ class AccessService:
                     actor,
                     grants,
                     existing["environments"],
-                    existing["data_scopes"],
                     frozenset(existing["allowed_actions"]),
                     existing["resource_type"],
                     existing["resource_id"],
-                    known_pairs,
+                    known_environments,
                 )
             if existing and any(
                 existing[k] != getattr(body, k)
                 for k in ("grantee_type", "grantee_id", "resource_type", "resource_id")
             ):
                 raise ServiceError("IMMUTABLE_FIELD", "授权对象与资源不能改绑", 422)
-            duplicate = await one(
+            duplicates = await rows(
                 uow.connection,
                 "resource_grants",
                 channel_id,
@@ -653,7 +587,11 @@ class AccessService:
                 resource_type=body.resource_type,
                 resource_id=body.resource_id,
             )
-            if duplicate and duplicate["id"] != grant_id:
+            if any(
+                duplicate["id"] != grant_id
+                and set(duplicate["environments"]) & set(body.environments)
+                for duplicate in duplicates
+            ):
                 raise ServiceError("GRANT_EXISTS", "该资源授权已存在", 409)
             row = await save(
                 uow,
@@ -670,10 +608,10 @@ class AccessService:
                 "grant:put",
                 "resource_grant",
                 grant_id,
-                ["allowed_actions", "environments", "data_scopes"],
+                ["allowed_actions", "environments"],
                 affected_scopes=audit_ranges(
-                    (list(body.environments), list(body.data_scopes)),
-                    (existing["environments"], existing["data_scopes"]) if existing else ([], []),
+                    list(body.environments),
+                    (existing["environments"] if existing else []),
                 ),
             )
         # 写后响应沿用事务中已校验的数据，并替换本次变更，避免自降权限后仍显示可操作。
@@ -682,7 +620,7 @@ class AccessService:
         return await self.grant_view(
             row,
             context,
-            actions=self.grant_actions(saved, context, actor, current_grants, known_pairs),
+            actions=self.grant_actions(saved, context, actor, current_grants, known_environments),
         )
 
     @audit_denials("grant:revoke", "resource_grant", 1)
@@ -690,7 +628,7 @@ class AccessService:
         self, session: AdminSession, channel_id: str, grant_id: str, revision: int
     ) -> None:
         context = await self.context(session, channel_id, "grant:manage")
-        known_pairs = await self.workspace_pairs(context)
+        known_environments = await self.workspace_environments(context)
         event_id = new_id("audit")
         async with transaction(
             self.repository.engine,
@@ -713,11 +651,10 @@ class AccessService:
                     member,
                     grants,
                     row["environments"],
-                    row["data_scopes"],
                     frozenset(row["allowed_actions"]),
                     row["resource_type"],
                     row["resource_id"],
-                    known_pairs,
+                    known_environments,
                 )
             await save(uow, "resource_grants", grant_id, {"allowed_actions": []}, revision)
             await append_event(
@@ -729,7 +666,7 @@ class AccessService:
                 "resource_grant",
                 grant_id,
                 ["allowed_actions"],
-                affected_scopes=audit_ranges((row["environments"], row["data_scopes"])),
+                affected_scopes=audit_ranges(row["environments"]),
             )
 
     async def list_grants(self, session: AdminSession, channel_id: str) -> list[GrantView]:
@@ -738,20 +675,16 @@ class AccessService:
         require_action(policy.actions("channel", channel_id), "grant:read")
         member = policy.member
         if member is None:
-            raise ServiceError("FORBIDDEN", "请先进入获授权的渠道工作区", 403)
+            raise ServiceError("FORBIDDEN", "请先进入获授权的渠道环境", 403)
         # 授权检查已读取完整的本渠道策略，列表与逐行操作直接复用，不能重新查成员和授权。
         grants = list(policy.grants)
         result = [
             grant
             for grant in grants
-            if grant.allowed_actions
-            and set(grant.environments) <= set(member.environments)
-            and set(grant.data_scopes) <= set(member.data_scopes)
+            if grant.allowed_actions and set(grant.environments) <= set(member.environments)
         ]
         options = await self.directory.for_member(member) if self.directory else []
-        known_pairs: set[tuple[str, str]] = {
-            (option.environment, option.data_scope_id) for option in options
-        }
+        known_environments: set[str] = {option.environment for option in options}
         data = await self.view_data(
             context.principal_id,
             channel_id,
@@ -774,7 +707,7 @@ class AccessService:
                 grant.model_dump(),
                 context,
                 data,
-                actions=self.grant_actions(grant, context, member, grants, known_pairs),
+                actions=self.grant_actions(grant, context, member, grants, known_environments),
             )
             for grant in result
         ]
@@ -785,14 +718,13 @@ class AccessService:
         context: AuthContext,
         member: MembershipState,
         grants: list[GrantState],
-        known_pairs: set[tuple[str, str]],
+        known_environments: set[str],
     ) -> list[AccessAction]:
         """行操作复用写入的委托范围校验；只计算权限提示，不替代写入事务复核。"""
         allowed = effective_actions(
             member,
             grants,
             context.scope.environment,
-            context.scope.data_scope_id or "",
             "channel",
             context.scope.channel_id,
         )
@@ -807,11 +739,10 @@ class AccessService:
                     member,
                     grants,
                     list(grant.environments),
-                    grant.data_scopes,
                     frozenset(grant.allowed_actions),
                     grant.resource_type,
                     grant.resource_id,
-                    known_pairs,
+                    known_environments,
                 )
             except ServiceError as exc:
                 if exc.code != "GRANT_SCOPE_EXCEEDED":
@@ -842,11 +773,6 @@ class AccessService:
             )
         )
         options = data["options"]
-        scope_names = {
-            o.data_scope_id: o.data_scope_name
-            for o in options
-            if o.channel_id == context.scope.channel_id
-        }
         account = data["accounts"].get(row["grantee_id"])
         resource_name = None
         if row["resource_type"] == "channel" and self.directory:
@@ -876,7 +802,6 @@ class AccessService:
             resource_name=resource_name,
             action_names=[ACTION_NAMES[a] for a in row["allowed_actions"]],
             environment_names=[ENVIRONMENT_NAMES[e] for e in row["environments"]],
-            data_scope_names=[scope_names.get(value) for value in row["data_scopes"]],
         )
 
     async def role_name(self, channel_id: str, code: str) -> str | None:
@@ -899,7 +824,6 @@ class AccessService:
                 member,
                 grants,
                 context.scope.environment,
-                context.scope.data_scope_id or "",
                 "channel",
                 context.scope.channel_id,
             )
@@ -939,14 +863,13 @@ class AccessService:
         session: AdminSession,
         user_id: str,
         environments: list[str],
-        data_scopes: list[str],
         independent_actions: list[str] | None = None,
     ) -> None:
         """05 在已核准渠道开通事务中调用；权限和渠道主档要一起回滚。"""
         actor = await current_actor(uow, session, "channel:create")
         require_platform(actor, "channel:govern")
         channel_id = uow.scope.channel_id
-        if channel_id == "system" or bool(environments) != bool(data_scopes):
+        if channel_id == "system":
             raise ServiceError("VALIDATION_ERROR", "首位成员必须归有效业务范围", 422)
         independent = set(independent_actions or [])
         if not independent <= INDEPENDENT_ACTIONS:
@@ -957,7 +880,7 @@ class AccessService:
         account = await one(uow.connection, "platform_accounts", "system", id=user_id)
         if not account or account["status"] != "ACTIVE":
             raise ServiceError("NOT_FOUND", "可用账号不存在", 404)
-        # 分步开通只登记管理员身份；空范围不产生工作区访问权，也不代表全部数据域。
+        # 分步开通只登记管理员身份；空范围不产生工作区访问权，也不代表全部环境。
         await save(
             uow,
             "channel_memberships",
@@ -965,7 +888,6 @@ class AccessService:
             {
                 "roles": ["channel_admin"],
                 "environments": environments,
-                "data_scopes": data_scopes,
                 "status": "ACTIVE",
                 "user_id": user_id,
                 "granted_by": actor.id,
@@ -981,7 +903,6 @@ class AccessService:
                 "resource_type": "channel",
                 "resource_id": channel_id,
                 "environments": environments,
-                "data_scopes": data_scopes,
                 "allowed_actions": sorted(
                     await resolved_actions(
                         uow.connection, channel_id, ["channel_admin"], require_active=True
@@ -998,8 +919,8 @@ class AccessService:
             "membership:put",
             "account",
             user_id,
-            ["roles", "environments", "data_scopes", "allowed_actions"],
-            affected_scopes=audit_ranges((environments, data_scopes)) or None,
+            ["roles", "environments", "allowed_actions"],
+            affected_scopes=audit_ranges(environments) or None,
         )
 
     async def first_administrator(
@@ -1028,8 +949,8 @@ class AccessService:
                 await connection.execute(
                     select(
                         members.c.user_id,
-                        members.c.data_scopes,
-                        grants.c.data_scopes.label("initial_data_scopes"),
+                        members.c.environments,
+                        grants.c.environments.label("initial_environments"),
                         accounts.c.display_name,
                     )
                     .select_from(source)
@@ -1047,133 +968,3 @@ class AccessService:
         if len(found) > 1:
             raise ServiceError("STORAGE_INVARIANT_BROKEN", "首位管理员记录重复", 503)
         return dict(found[0]) if found else None
-
-    async def pending_first_member(
-        self, connection: AsyncConnection, channel_id: str
-    ) -> dict[str, Any] | None:
-        """仅在首位管理员没有真实数据域授权时提示首个映射。"""
-        first = await self.first_administrator(connection, channel_id)
-        if (
-            first
-            and all(scope.startswith("manage_") for scope in first["data_scopes"])
-            and all(scope.startswith("manage_") for scope in first["initial_data_scopes"])
-        ):
-            return first
-        return None
-
-    def workspace_provisioning_keys(
-        self, channel_id: str, user_id: str, domain_id: str
-    ) -> list[ResourceKey]:
-        grant_id = "workspace_" + digest([user_id, domain_id])[:40]
-        return self.member_keys(channel_id, user_id) + [
-            record_key(
-                channel_id, "resource_grants", "initial_" + membership_id(channel_id, user_id)
-            ),
-            record_key(channel_id, "resource_grants", grant_id),
-            record_key(channel_id, "audit_events", grant_id),
-        ]
-
-    async def provision_workspace(
-        self, uow: UnitOfWork, session: AdminSession, user_id: str, environment: str, domain_id: str
-    ) -> None:
-        """渠道服务在同一事务授予管理范围或明确选择的首个真实范围。"""
-        if isinstance(session.context, AuthContext):
-            from creativity_service.modules.channels.repositories import management_scope_id
-
-            if domain_id == management_scope_id(uow.scope.channel_id, environment):
-                first = await self.first_administrator(uow.connection, uow.scope.channel_id)
-                if first is None or first["user_id"] != user_id:
-                    raise ServiceError("FORBIDDEN", "管理范围只授予渠道首位管理员", 403)
-                await self.locked_policy(uow, session, "environment:manage")
-            else:
-                if (
-                    session.account.id != user_id
-                    or session.context.scope.data_scope_id
-                    != management_scope_id(uow.scope.channel_id, environment)
-                    or not (
-                        pending := await self.pending_first_member(
-                            uow.connection, uow.scope.channel_id
-                        )
-                    )
-                    or pending["user_id"] != user_id
-                ):
-                    raise ServiceError("FORBIDDEN", "新增范围须由该渠道首位管理员明确授权", 403)
-                await self.locked_policy(uow, session, "data_scope:manage")
-        else:
-            await current_actor(uow, session, "channel:govern")
-        if uow.scope.channel_id == "system":
-            raise ServiceError("FORBIDDEN", "不能在系统渠道授权工作区", 403)
-        channel_id = uow.scope.channel_id
-        account = await one(uow.connection, "platform_accounts", "system", id=user_id)
-        if not account or account["status"] != "ACTIVE":
-            raise ServiceError("NOT_FOUND", "可用账号不存在", 404)
-        existing = await one(uow.connection, "channel_memberships", channel_id, user_id=user_id)
-        if existing and existing["status"] != "ACTIVE":
-            raise ServiceError("MEMBERSHIP_DISABLED", "请先恢复目标渠道成员", 409)
-        initial_id = "initial_" + membership_id(channel_id, user_id)
-        initial = await one(uow.connection, "resource_grants", channel_id, id=initial_id)
-        if (
-            existing
-            and all(scope.startswith("manage_") for scope in existing["data_scopes"])
-            and initial
-            and all(scope.startswith("manage_") for scope in initial["data_scopes"])
-        ):
-            # 首个真实数据域沿用初始授权；管理范围保持独立，不能冒充源系统映射。
-            await save(
-                uow,
-                "resource_grants",
-                initial_id,
-                {
-                    "environments": sorted(set(initial["environments"]) | {environment}),
-                    "data_scopes": sorted(set(initial["data_scopes"]) | {domain_id}),
-                },
-                initial["revision"],
-            )
-        await save(
-            uow,
-            "channel_memberships",
-            membership_id(channel_id, user_id),
-            {
-                "user_id": user_id,
-                "roles": sorted(set(existing["roles"] if existing else []) | {"channel_admin"}),
-                "environments": sorted(
-                    set(existing["environments"] if existing else []) | {environment}
-                ),
-                "data_scopes": sorted(
-                    set(existing["data_scopes"] if existing else []) | {domain_id}
-                ),
-                "status": "ACTIVE",
-                "granted_by": session.account.id,
-            },
-            existing["revision"] if existing else None,
-        )
-        grant_id = "workspace_" + digest([user_id, domain_id])[:40]
-        await save(
-            uow,
-            "resource_grants",
-            grant_id,
-            {
-                "grantee_type": "account",
-                "grantee_id": user_id,
-                "resource_type": "data_scope",
-                "resource_id": domain_id,
-                "environments": [environment],
-                "data_scopes": [domain_id],
-                "allowed_actions": sorted(
-                    await resolved_actions(
-                        uow.connection, channel_id, ["channel_admin"], require_active=True
-                    )
-                ),
-            },
-        )
-        await append_event(
-            uow,
-            grant_id,
-            session.account.id,
-            session.context.request_id,
-            "membership:put",
-            "account",
-            user_id,
-            ["roles", "environments", "data_scopes", "allowed_actions"],
-            affected_scopes=audit_ranges(([environment], [domain_id])),
-        )

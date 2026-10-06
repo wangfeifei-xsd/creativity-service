@@ -5,7 +5,7 @@ from time import monotonic
 from typing import Any
 from urllib.parse import urlsplit
 
-from pydantic import SecretBytes, ValidationError
+from pydantic import SecretBytes
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -26,8 +26,6 @@ from creativity_service.modules.mcp.differences import differences
 from creativity_service.modules.mcp.reading import import_reasons
 from creativity_service.modules.mcp.repositories import repository
 from creativity_service.modules.mcp.schemas import (
-    DataScopeDirectory,
-    DataScopeSource,
     McpCheck,
     McpConnection,
     McpCreate,
@@ -169,8 +167,6 @@ class McpService:
         return row
 
     async def validate_config(self, context: AuthContext, body: McpCreate) -> int | None:
-        if not context.scope.data_scope_id:
-            raise ServiceError("CONTEXT_REQUIRED", "请先选择已授权业务数据域", 403)
         if body.transport == "stdio":
             from creativity_service.integrations.sandbox import ContainerSandbox
             from creativity_service.modules.mcp.stdio import profile_for
@@ -256,143 +252,6 @@ class McpService:
             actions=[VisibleAction(action_key="create", label="新增连接")] if allowed else [],
         )
 
-    async def scope_sources(self, context: AuthContext) -> list[DataScopeSource]:
-        """只列出当前管理范围已启用、已发现且获授权的目录工具。"""
-        if context.principal_type != "management" or not context.actor_id:
-            raise ServiceError("FORBIDDEN", "数据域目录只允许渠道管理员读取", 403)
-        policy = await self.authorization.read_policy(context)
-        connection_rows = await self.rows(context, "mcp_connections", limit=201)
-        if len(connection_rows) > 200:
-            raise ServiceError("MCP_SOURCE_LIMIT", "连接数量超过目录查询上限，请整理连接配置", 409)
-        connections = [
-            row
-            for row in connection_rows
-            if row["status"] == "ENABLED"
-            and row["discovered_revision"] == row["configuration_revision"]
-            and "mcp:manage"
-            in policy.actions(
-                "mcp_connection", row["id"], resource_state(context, "mcp_connection", row)
-            )
-        ]
-        if not connections:
-            return []
-        repository_ = repository(context.scope, "mcp_discoveries")
-        table = repository_.table
-        async with self.engine.connect() as connection:
-            snapshots = [
-                dict(row)
-                for row in (
-                    await connection.execute(
-                        select(table)
-                        .where(
-                            repository_.predicate(),
-                            table.c.connection_id.in_([row["id"] for row in connections]),
-                        )
-                        .distinct(table.c.connection_id)
-                        .order_by(
-                            table.c.connection_id, table.c.created_at.desc(), table.c.id.desc()
-                        )
-                    )
-                ).mappings()
-            ]
-        found = {row["connection_id"]: row for row in snapshots}
-        return [
-            DataScopeSource(
-                connection_id=row["id"],
-                remote_tool_name=tool["name"],
-                label=f"{row['name']} · {tool.get('title') or tool['name']}",
-            )
-            for row in connections
-            if (snapshot := found.get(row["id"]))
-            and snapshot["connection_revision"] == row["configuration_revision"]
-            and snapshot["credential_revision"] == row["credential_revision"]
-            for tool in snapshot["tool_definitions"]
-            if tool.get("purpose") == "data_scope_directory"
-            and not tool["input_schema"].get("required")
-            and tool.get("annotations", {}).get("readOnlyHint") is True
-        ]
-
-    async def scope_directory(
-        self, context: AuthContext, connection_id: str, remote_tool_name: str
-    ) -> DataScopeDirectory:
-        """只调用经当前版本发现的专用只读目录；来源变化时拒绝继续。"""
-        await self.require(context, connection_id)
-        row = await self.get(context, "mcp_connections", connection_id)
-        if (
-            row["status"] != "ENABLED"
-            or row["discovered_revision"] != row["configuration_revision"]
-            or row["auth_failed"]
-        ):
-            raise ServiceError("MCP_TEST_REQUIRED", "数据域目录连接尚不可用", 409)
-        snapshots = await self.rows(
-            context, "mcp_discoveries", connection_id=connection_id, limit=1
-        )
-        if not snapshots:
-            raise ServiceError("MCP_TEST_REQUIRED", "请先发现数据域目录工具", 409)
-        snapshot = snapshots[0]
-        if (
-            snapshot["connection_revision"] != row["configuration_revision"]
-            or snapshot["credential_revision"] != row["credential_revision"]
-        ):
-            raise ServiceError("MCP_TOOL_CHANGED", "数据域目录来源已变更", 409)
-        tool = next(
-            (
-                RemoteTool.model_validate(value)
-                for value in snapshot["tool_definitions"]
-                if value["name"] == remote_tool_name
-            ),
-            None,
-        )
-        if (
-            tool is None
-            or tool.purpose != "data_scope_directory"
-            or tool.input_schema.get("required")
-            or tool.annotations.get("readOnlyHint") is not True
-        ):
-            raise ServiceError("NOT_FOUND", "可用数据域目录工具不存在", 404)
-        key = await self.key(context, row)
-
-        async def before_send() -> None:
-            await self.require(context, connection_id)
-            current = await self.get(context, "mcp_connections", connection_id)
-            if (
-                current["status"] != "ENABLED"
-                or current["configuration_revision"] != row["configuration_revision"]
-                or current["credential_revision"] != row["credential_revision"]
-            ):
-                raise ServiceError("MCP_TOOL_CHANGED", "数据域目录来源已变更", 409)
-
-        async def operation(secret: SecretBytes | None) -> DataScopeDirectory:
-            response = await self.transport.call(
-                context.scope,
-                key,
-                row["endpoint"],
-                secret.get_secret_value().decode() if secret else None,
-                McpTimeouts.model_validate(row["timeouts"]),
-                tool.name,
-                tool.schema_hash,
-                {},
-                128 * 1024,
-                before_send,
-            )
-            if response.isError or response.structuredContent is None:
-                raise ServiceError("MCP_RESULT_INVALID", "数据域目录没有返回结构化列表", 502)
-            try:
-                directory = DataScopeDirectory.model_validate(response.structuredContent)
-            except ValidationError as exc:
-                raise ServiceError("MCP_RESULT_INVALID", "数据域目录格式无效", 502) from exc
-            if len({(item.type, item.id) for item in directory.items}) != len(directory.items):
-                raise ServiceError("MCP_RESULT_INVALID", "数据域目录包含重复范围", 502)
-            return directory.model_copy(update={"source_revision": row["revision"]})
-
-        return (
-            await self.oauth.call(context, row, operation)
-            if row["transport"] == "oauth"
-            else await self.credentials.call(context, row["credential_ref"], "mcp", operation)
-            if row["credential_ref"]
-            else await operation(None)
-        )
-
     async def create(self, context: AuthContext, body: McpCreate) -> McpConnection:
         await self.require(context, "new")
         credential_revision = await self.validate_config(context, body)
@@ -425,7 +284,6 @@ class McpService:
                     "last_check_at": None,
                     "auth_failed": False,
                     "health_actor_id": context.actor_id,
-                    "health_data_scope_id": context.scope.data_scope_id,
                     "next_check_at": utcnow()
                     + timedelta(seconds=body.health_policy.interval_seconds),
                 },
@@ -724,7 +582,6 @@ class McpService:
                 "next_check_at": utcnow()
                 + timedelta(seconds=row["health_policy"]["interval_seconds"]),
                 "health_actor_id": context.actor_id,
-                "health_data_scope_id": context.scope.data_scope_id,
             }
             if result:
                 values["tested_revision"] = row["configuration_revision"]
@@ -885,7 +742,6 @@ class McpService:
             ),
             effect_type=body.effect_type,
             required_scopes=body.required_scopes,
-            allowed_data_domains=(scope.data_scope_id,) if scope.data_scope_id else (),
             environments=(scope.environment,),
             subject_requirements={"required": body.subject_required},
             timeout_seconds=body.timeout_seconds,

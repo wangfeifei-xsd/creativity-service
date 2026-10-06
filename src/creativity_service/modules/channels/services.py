@@ -1,17 +1,14 @@
 """渠道开通与配置服务；检查、授权、写入和审计共用互斥事务。"""
 
-import unicodedata
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.auth.authentication import AdminSession
-from creativity_service.core.auth.types import GrantState
 from creativity_service.core.context import AuthContext, ControlScope, Scope
 from creativity_service.core.contracts import VisibleAction
-from creativity_service.core.database import Repository, UnitOfWork, transaction
-from creativity_service.core.database.tables import metadata as core_metadata
-from creativity_service.core.deletion import RecoveryService, barrier_id
+from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.deletion import RecoveryService
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import Contract, ServiceError, new_id, unavailable, utcnow
 from creativity_service.modules.channels.codes import channel_code
@@ -25,9 +22,6 @@ from creativity_service.modules.channels.reading import ChannelReadData
 from creativity_service.modules.channels.repositories import (
     ChannelRepository,
     environment_id,
-    is_management_workspace,
-    management_scope_id,
-    mapping_key,
     one,
     required,
     rows,
@@ -40,11 +34,6 @@ from creativity_service.modules.channels.schemas import (
     ClientCreate,
     ClientUpdate,
     ClientView,
-    DataScopeCreate,
-    DataScopeFromSource,
-    DataScopeSourceInput,
-    DataScopeUpdate,
-    DataScopeView,
     EnvironmentCreate,
     EnvironmentUpdate,
     EnvironmentView,
@@ -53,6 +42,7 @@ from creativity_service.modules.channels.schemas import (
     UsageView,
 )
 from creativity_service.modules.iam.access import ENVIRONMENT_NAMES
+from creativity_service.modules.iam.account_channels import extend_environment_assignments
 from creativity_service.modules.iam.accounts import current_actor
 from creativity_service.modules.iam.audit import append_event
 from creativity_service.modules.iam.authorization import (
@@ -61,22 +51,11 @@ from creativity_service.modules.iam.authorization import (
     require_platform,
 )
 from creativity_service.modules.iam.repositories import (
-    membership_state,
     policy_key,
-    to_state,
 )
-from creativity_service.modules.iam.repositories import (
-    one as identity_one,
-)
-from creativity_service.modules.iam.repositories import (
-    rows as identity_rows,
-)
-from creativity_service.modules.iam.roles import ACTION_NAMES, GOVERNANCE_ACTIONS
+from creativity_service.modules.iam.roles import ACTION_NAMES
 from creativity_service.modules.iam.schemas import AuditView, DirectoryPage
 from creativity_service.modules.iam.services import IamServices
-from creativity_service.modules.mcp.repositories import repository as mcp_repository
-from creativity_service.modules.mcp.schemas import DataScopeDirectory, DataScopeSource
-from creativity_service.modules.mcp.services import McpService
 
 STATUS_LABELS = {"ACTIVE": "启用", "DISABLED": "停用", "SUSPENDED": "已暂停", "ARCHIVED": "已归档"}
 SERVICE_ACTIONS = frozenset(
@@ -161,7 +140,7 @@ class ChannelService:
             grants = await self.iam.authentication.identities.grants(channel_id)
             scope = session.context.scope
             if action not in effective_actions(
-                member, grants, scope.environment, scope.data_scope_id or "", "channel", channel_id
+                member, grants, scope.environment, "channel", channel_id
             ):
                 raise ServiceError("FORBIDDEN", "无权执行此操作", 403)
         else:
@@ -169,71 +148,7 @@ class ChannelService:
                 await self.iam.authentication.active_account(session.account.id), "channel:govern"
             )
             if credential:
-                raise ServiceError("FORBIDDEN", "请进入获授权的渠道工作区管理接入凭据", 403)
-
-    async def directory_context(
-        self, session: AdminSession, channel_id: str, environment: str
-    ) -> AuthContext:
-        await self.authorize(session, channel_id, "data_scope:manage")
-        context = session.context
-        if not isinstance(context, AuthContext) or context.scope.channel_id != channel_id:
-            raise ServiceError("FORBIDDEN", "请先进入该渠道的管理工作区", 403)
-        if environment != context.scope.environment:
-            raise ServiceError("NOT_FOUND", "目录不属于当前环境", 404)
-        return context
-
-    async def data_scope_sources(
-        self, session: AdminSession, channel_id: str, directory: McpService
-    ) -> list[DataScopeSource]:
-        if not isinstance(session.context, AuthContext):
-            raise ServiceError("FORBIDDEN", "请先进入该渠道的管理工作区", 403)
-        context = await self.directory_context(
-            session, channel_id, session.context.scope.environment
-        )
-        return await directory.scope_sources(context)
-
-    async def data_scope_directory(
-        self,
-        session: AdminSession,
-        channel_id: str,
-        body: DataScopeSourceInput,
-        directory: McpService,
-    ) -> DataScopeDirectory:
-        context = await self.directory_context(session, channel_id, body.environment)
-        return await directory.scope_directory(context, body.connection_id, body.remote_tool_name)
-
-    async def create_data_scope_from_source(
-        self,
-        session: AdminSession,
-        channel_id: str,
-        body: DataScopeFromSource,
-        directory: McpService,
-    ) -> DataScopeView:
-        context = await self.directory_context(session, channel_id, body.environment)
-        options = await directory.scope_directory(
-            context, body.connection_id, body.remote_tool_name
-        )
-        selected = next(
-            (
-                item
-                for item in options.items
-                if item.type == body.external_scope_type and item.id == body.external_scope_id
-            ),
-            None,
-        )
-        if selected is None:
-            raise ServiceError("NOT_FOUND", "选择的数据域已不在来源目录中", 404)
-        return await self.create_data_scope(
-            session,
-            channel_id,
-            DataScopeCreate(
-                name=selected.name,
-                environment=body.environment,
-                external_scope_type=selected.type,
-                external_scope_id=selected.id,
-            ),
-            source_connection=(context.scope, body.connection_id, options.source_revision),
-        )
+                raise ServiceError("FORBIDDEN", "请进入获授权的渠道环境管理接入凭据", 403)
 
     async def locked(
         self, uow: UnitOfWork, session: AdminSession, action: str, *, writable: bool = True
@@ -243,21 +158,8 @@ class ChannelService:
             if session.context.scope.channel_id != uow.scope.channel_id:
                 raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
             await self.iam.access.locked_policy(uow, session, action)
-            if (
-                action == "channel:manage"
-                and session.context.scope.data_scope_id
-                != management_scope_id(
-                    session.context.scope.channel_id, session.context.scope.environment
-                )
-            ):
-                for domain in await rows(uow.connection, "data_scopes", uow.scope.channel_id):
-                    await self.require_visible(
-                        uow.connection,
-                        session,
-                        domain["environment"],
-                        [domain["id"]],
-                        action=action,
-                    )
+            if action in {"channel:manage", "budget:manage"}:
+                await self.require_all_environments(uow.connection, session, action)
         else:
             await current_actor(uow, session, "channel:govern")
         channel = await required(
@@ -266,6 +168,15 @@ class ChannelService:
         if writable and channel["status"] == "ARCHIVED":
             raise ServiceError("INVALID_STATE", "已归档渠道不能修改", 409)
         return channel
+
+    async def require_all_environments(
+        self, connection: AsyncConnection, session: AdminSession, action: str
+    ) -> None:
+        if not isinstance(session.context, AuthContext):
+            return
+        data = await ChannelReadData.load(connection, session, session.context.scope.channel_id)
+        if any(not data.authorized(env, action=action) for env in data.environments):
+            raise ServiceError("NOT_FOUND", "请求资源不在授权范围内", 404)
 
     def scope(self, session: AdminSession, channel_id: str, environment: str = "dev") -> Scope:
         if isinstance(session.context, AuthContext):
@@ -287,86 +198,26 @@ class ChannelService:
         connection: AsyncConnection,
         session: AdminSession,
         environment: str,
-        domains: list[str] | None = None,
         *,
         action: str | None = None,
         delegated: list[str] | None = None,
     ) -> bool:
         if not isinstance(session.context, AuthContext):
             return delegated is None
-        scope = session.context.scope
-        if environment != scope.environment:
-            return False
-        row = await identity_one(
-            connection, "channel_memberships", scope.channel_id, user_id=session.account.id
-        )
-        if row is None or row["status"] != "ACTIVE" or environment not in row["environments"]:
-            return False
-        member = await membership_state(connection, row)
-        management_id = management_scope_id(scope.channel_id, environment)
-        if (
-            domains is not None
-            and action in GOVERNANCE_ACTIONS
-            and delegated is None
-            and management_id in member.data_scopes
-        ):
-            existing = {
-                domain["id"]
-                for domain in await rows(
-                    connection, "data_scopes", scope.channel_id, environment=environment
-                )
-            }
-            if not set(domains) <= existing:
-                return False
-            grants = [
-                to_state(GrantState, grant)
-                for grant in await identity_rows(connection, "resource_grants", scope.channel_id)
-            ]
-            return action in effective_actions(
-                member, grants, environment, management_id, "channel", scope.channel_id
-            )
-        target_domains = domains
-        if target_domains is None:
-            management_id = management_scope_id(scope.channel_id, environment)
-            target_domains = (
-                [management_id]
-                if management_id in member.data_scopes
-                else [
-                    d["id"]
-                    for d in await rows(
-                        connection, "data_scopes", scope.channel_id, environment=environment
-                    )
-                ]
-            )
-        if not target_domains:
-            return False
-        if not set(target_domains) <= set(member.data_scopes):
-            return False
-        if action or delegated:
-            grants = [
-                to_state(GrantState, r)
-                for r in await identity_rows(connection, "resource_grants", scope.channel_id)
-            ]
-            needed = set(delegated or []) | ({action} if action else set())
-            return all(
-                needed
-                <= effective_actions(member, grants, environment, d, "channel", scope.channel_id)
-                for d in target_domains
-            )
-        return True
+        data = await ChannelReadData.load(connection, session, session.context.scope.channel_id)
+        return data.visible(environment, action=action, delegated=delegated)
 
     async def require_visible(
         self,
         connection: AsyncConnection,
         session: AdminSession,
         environment: str,
-        domains: list[str] | None = None,
         *,
         action: str | None = None,
         delegated: list[str] | None = None,
     ) -> None:
         if not await self.visible(
-            connection, session, environment, domains, action=action, delegated=delegated
+            connection, session, environment, action=action, delegated=delegated
         ):
             raise ServiceError("NOT_FOUND", "请求资源不在授权范围内", 404)
 
@@ -393,32 +244,17 @@ class ChannelService:
                         "environment",
                         "release_policy",
                         "retention_policy",
-                        "external_scope_type",
-                        "external_scope_id",
                         "client_id",
                         "scopes",
-                        "data_scopes",
                         "expires_at",
                     )
                     if k in row
                 ]
             elif action == "key:rotate":
                 changed_fields.append("expires_at")
-        affected = await rows(uow.connection, "data_scopes", uow.scope.channel_id)
+        affected = await rows(uow.connection, "channel_environments", uow.scope.channel_id)
         if row.get("environment"):
-            affected = [d for d in affected if d["environment"] == row["environment"]]
-        domain_ids = None
-        if target_type == "data_scope":
-            domain_ids = [row["id"]]
-        elif target_type == "client":
-            domain_ids = row["data_scopes"]
-        elif target_type == "key":
-            client = await required(
-                uow.connection, "service_clients", uow.scope.channel_id, id=row["client_id"]
-            )
-            domain_ids = client["data_scopes"]
-        if domain_ids is not None:
-            affected = [d for d in affected if d["id"] in domain_ids]
+            affected = [item for item in affected if item["environment"] == row["environment"]]
         await append_event(
             uow,
             event_id,
@@ -428,10 +264,7 @@ class ChannelService:
             target_type,
             row["id"],
             changed_fields,
-            affected_scopes=[
-                {"environment": d["environment"], "data_scope_id": d["id"]} for d in affected
-            ]
-            or None,
+            affected_scopes=[{"environment": d["environment"]} for d in affected] or None,
         )
         await save(
             uow,
@@ -474,19 +307,7 @@ class ChannelService:
         require_platform(session.account, "channel:create")
         name = clean_name(body.name)
         code = channel_code(name)
-        if (body.environment is None) != (body.data_scope is None):
-            raise ServiceError("VALIDATION_ERROR", "初始环境和数据域须同时配置或稍后配置", 422)
-        if body.data_scope:
-            self.validate_mapping(
-                body.data_scope.external_scope_type,
-                body.data_scope.external_scope_id,
-            )
-        channel_id, domain_id, index_id, event_id = (
-            new_id("channel"),
-            new_id("scope"),
-            new_id("code"),
-            new_id("audit"),
-        )
+        channel_id, index_id, event_id = new_id("channel"), new_id("code"), new_id("audit")
         scope = self.scope(session, channel_id, body.environment or "dev")
         keys = (
             self.keys(channel_id, "channels", channel_id, event_id)
@@ -496,20 +317,11 @@ class ChannelService:
                 ResourceKey("system", "channel_code_index", (code,)),
             ]
         )
-        if body.environment and body.data_scope:
-            scope = Scope(
-                channel_id=channel_id, environment=body.environment, data_scope_id=domain_id
-            )
+        if body.environment:
+            scope = Scope(channel_id=channel_id, environment=body.environment)
             env_id = environment_id(channel_id, body.environment)
             keys += RecoveryService.keys(scope) + [
                 record_key(channel_id, "channel_environments", env_id),
-                record_key(channel_id, "data_scopes", domain_id),
-                mapping_key(
-                    channel_id,
-                    body.environment,
-                    body.data_scope.external_scope_type,
-                    body.data_scope.external_scope_id,
-                ),
             ]
         async with transaction(self.repository.engine, scope, keys) as uow:
             await current_actor(uow, session, "channel:create")
@@ -536,7 +348,7 @@ class ChannelService:
                     "rate_limit_policy_refs": [],
                 },
             )
-            if body.environment and body.data_scope:
+            if body.environment:
                 await save(
                     uow,
                     "channel_environments",
@@ -549,41 +361,16 @@ class ChannelService:
                         "retention_policy": body.retention_policy.model_dump(),
                     },
                 )
-                await save(
-                    uow,
-                    "data_scopes",
-                    domain_id,
-                    {
-                        **body.data_scope.model_dump(),
-                        "name": clean_name(body.data_scope.name),
-                        "environment": body.environment,
-                        "status": "ACTIVE",
-                    },
-                )
                 await RecoveryService.initialize_fresh_in(uow, scope)
             await self.iam.access.provision_first_member(
                 uow,
                 session,
                 body.first_admin_user_id,
                 [body.environment] if body.environment else [],
-                [domain_id] if body.data_scope else [],
                 list(body.independent_actions),
             )
             await self.event(uow, event_id, session, "channel:create", "channel", row)
         return self.channel_view(row, session)
-
-    @staticmethod
-    def validate_mapping(kind: str, external_id: str) -> None:
-        # 映射是源系统的精确身份，不规范化、不补默认值，避免不同编号合并授权。
-        if any(
-            not value
-            or value != value.strip()
-            or any(unicodedata.category(c) == "Cc" for c in value)
-            for value in (kind, external_id)
-        ):
-            raise ServiceError(
-                "INVALID_MAPPING", "外部数据域类型和编号不能为空或含首尾空白、控制字符", 422
-            )
 
     def channel_view(
         self, row: dict[str, Any], session: AdminSession, actions: set[str] | None = None
@@ -608,7 +395,6 @@ class ChannelService:
                     "channel:govern",
                     "channel:manage",
                     "environment:manage",
-                    "data_scope:manage",
                     "client:manage",
                     "key:manage",
                     "membership:read",
@@ -630,7 +416,6 @@ class ChannelService:
                     member,
                     await self.iam.authentication.identities.grants(channel_id),
                     session.context.scope.environment,
-                    session.context.scope.data_scope_id or "",
                     "channel",
                     channel_id,
                 )
@@ -673,7 +458,6 @@ class ChannelService:
                     member,
                     grants,
                     scope.environment,
-                    scope.data_scope_id or "",
                     "channel",
                     scope.channel_id,
                 )
@@ -778,23 +562,11 @@ class ChannelService:
     ) -> EnvironmentView:
         await self.authorize(session, channel_id, "environment:manage")
         env_id, event_id = environment_id(channel_id, body.environment), new_id("audit")
-        async with self.repository.engine.connect() as connection:
-            first = await self.iam.access.first_administrator(connection, channel_id)
-        management_id = management_scope_id(channel_id, body.environment)
-        scope = Scope(
-            channel_id=channel_id, environment=body.environment, data_scope_id=management_id
-        )
-        keys = self.keys(channel_id, "channel_environments", env_id, event_id)
-        keys += RecoveryService.keys(scope)
-        if first:
-            keys += self.iam.access.workspace_provisioning_keys(
-                channel_id, first["user_id"], management_id
-            )
-        async with transaction(
-            self.repository.engine,
-            scope,
-            keys,
-        ) as uow:
+        scope = Scope(channel_id=channel_id, environment=body.environment)
+        keys = self.keys(
+            channel_id, "channel_environments", env_id, event_id
+        ) + RecoveryService.keys(scope)
+        async with transaction(self.repository.engine, scope, keys) as uow:
             await self.locked(uow, session, "environment:manage")
             if await one(
                 uow.connection, "channel_environments", channel_id, environment=body.environment
@@ -806,65 +578,10 @@ class ChannelService:
                 env_id,
                 {**body.model_dump(), "name": clean_name(body.name), "status": "ACTIVE"},
             )
-            # 管理范围同样承载配置读写，必须随环境原子建立恢复屏障。
             await RecoveryService.initialize_fresh_in(uow, scope)
-            current = await self.iam.access.first_administrator(uow.connection, channel_id)
-            if first and current and current["user_id"] == first["user_id"]:
-                await self.iam.access.provision_workspace(
-                    uow, session, first["user_id"], body.environment, management_id
-                )
+            await extend_environment_assignments(uow, body.environment)
             await self.event(uow, event_id, session, "environment:create", "environment", row)
         return self.environment_view(row)
-
-    async def enable_management_workspace(
-        self, session: AdminSession, channel_id: str, environment: str
-    ) -> None:
-        """平台显式为旧渠道首位管理员补齐管理范围；不创建外部数据域。"""
-        if isinstance(session.context, AuthContext):
-            raise ServiceError("FORBIDDEN", "请从平台治理入口操作", 403)
-        await self.authorize(session, channel_id, "environment:manage")
-        async with self.repository.engine.connect() as connection:
-            first = await self.iam.access.first_administrator(connection, channel_id)
-        if first is None:
-            raise ServiceError("INITIAL_ADMIN_REQUIRED", "首位管理员不可用", 409)
-        management_id = management_scope_id(channel_id, environment)
-        scope = Scope(channel_id=channel_id, environment=environment, data_scope_id=management_id)
-        event_id = new_id("audit")
-        keys = self.keys(
-            channel_id, "channel_environments", environment_id(channel_id, environment), event_id
-        )
-        keys += self.iam.access.workspace_provisioning_keys(
-            channel_id, first["user_id"], management_id
-        )
-        keys += RecoveryService.keys(scope)
-        async with transaction(self.repository.engine, scope, keys) as uow:
-            await self.locked(uow, session, "environment:manage")
-            row = await required(
-                uow.connection, "channel_environments", channel_id, environment=environment
-            )
-            current = await self.iam.access.first_administrator(uow.connection, channel_id)
-            if current is None or current["user_id"] != first["user_id"]:
-                raise ServiceError("INITIAL_ADMIN_REQUIRED", "首位管理员已变更，请刷新", 409)
-            # 兼容已授予管理范围但遗漏初始化的旧环境；已有封锁记录不可覆盖。
-            barrier = await Repository(core_metadata.tables["recovery_barriers"], scope).get(
-                uow.connection, barrier_id(scope)
-            )
-            if barrier is None:
-                await RecoveryService.initialize_fresh_in(uow, scope)
-            if management_id in current["data_scopes"]:
-                return
-            await self.iam.access.provision_workspace(
-                uow, session, current["user_id"], environment, management_id
-            )
-            await self.event(
-                uow,
-                event_id,
-                session,
-                "management_workspace:enable",
-                "environment",
-                row,
-                changed_fields=["management_workspace"],
-            )
 
     async def update_environment(
         self, session: AdminSession, channel_id: str, environment: str, body: EnvironmentUpdate
@@ -898,178 +615,6 @@ class ChannelService:
             )
         return self.environment_view(row)
 
-    async def data_scopes(self, session: AdminSession, channel_id: str) -> list[DataScopeView]:
-        await self.authorize(session, channel_id, "data_scope:manage")
-        async with self.repository.engine.connect() as connection:
-            await required(connection, "channels", channel_id, id=channel_id)
-            data = await ChannelReadData.load(connection, session, channel_id)
-            return [
-                await self.domain_view(connection, r, data)
-                for r in data.domains.values()
-                if data.visible(r["environment"], [r["id"]], action="data_scope:manage")
-            ]
-
-    async def domain_view(
-        self, connection: AsyncConnection, row: dict[str, Any], data: ChannelReadData | None = None
-    ) -> DataScopeView:
-        env = (
-            data.environments.get(row["environment"])
-            if data is not None
-            else await one(
-                connection,
-                "channel_environments",
-                row["channel_id"],
-                environment=row["environment"],
-            )
-        )
-        return DataScopeView(
-            data_scope_id=row["id"],
-            environment_name=env["name"] if env else None,
-            external_scope_type_name=None,
-            status_label=STATUS_LABELS[row["status"]],
-            **{
-                k: row[k]
-                for k in (
-                    "environment",
-                    "name",
-                    "external_scope_type",
-                    "external_scope_id",
-                    "status",
-                    "revision",
-                )
-            },
-        )
-
-    async def create_data_scope(
-        self,
-        session: AdminSession,
-        channel_id: str,
-        body: DataScopeCreate,
-        *,
-        source_connection: tuple[Scope, str, int | None] | None = None,
-    ) -> DataScopeView:
-        await self.authorize(session, channel_id, "data_scope:manage")
-        async with self.repository.engine.connect() as connection:
-            pending_admin = await self.iam.access.pending_first_member(connection, channel_id)
-        if (
-            pending_admin
-            and isinstance(session.context, AuthContext)
-            and session.account.id == pending_admin["user_id"]
-            and session.context.scope.data_scope_id
-            == management_scope_id(channel_id, body.environment)
-            and body.administrator_id is None
-        ):
-            body = body.model_copy(update={"administrator_id": session.account.id})
-        domain_id, event_id = new_id("scope"), new_id("audit")
-        fresh_scope = Scope(
-            channel_id=channel_id, environment=body.environment, data_scope_id=domain_id
-        )
-        keys = (
-            RecoveryService.keys(fresh_scope)
-            + self.keys(channel_id, "data_scopes", domain_id, event_id)
-            + [
-                mapping_key(
-                    channel_id, body.environment, body.external_scope_type, body.external_scope_id
-                )
-            ]
-        )
-        if source_connection:
-            keys.append(record_key(channel_id, "mcp_connections", source_connection[1]))
-        if body.administrator_id:
-            if isinstance(session.context, AuthContext) and (
-                body.administrator_id != session.account.id
-                or session.context.scope.data_scope_id
-                != management_scope_id(channel_id, body.environment)
-            ):
-                raise ServiceError("FORBIDDEN", "新工作区管理员须由平台治理入口明确授权", 403)
-            keys += self.iam.access.workspace_provisioning_keys(
-                channel_id, body.administrator_id, domain_id
-            ) + self.iam.access.provisioning_keys(channel_id, body.administrator_id)
-        async with transaction(self.repository.engine, fresh_scope, keys) as uow:
-            await self.locked(uow, session, "data_scope:manage")
-            if source_connection:
-                source_scope, connection_id, revision = source_connection
-                current_source = await mcp_repository(source_scope, "mcp_connections").get(
-                    uow.connection, connection_id
-                )
-                if (
-                    current_source is None
-                    or current_source["revision"] != revision
-                    or current_source["status"] != "ENABLED"
-                    or current_source["discovered_revision"]
-                    != current_source["configuration_revision"]
-                ):
-                    raise ServiceError("MCP_TOOL_CHANGED", "数据域目录来源已变更，请重新选择", 409)
-            pending = await self.iam.access.pending_first_member(uow.connection, channel_id)
-            if pending and body.administrator_id != pending["user_id"]:
-                raise ServiceError(
-                    "INITIAL_ADMIN_REQUIRED", "请为首位管理员配置第一个业务数据域", 422
-                )
-            env = await required(
-                uow.connection, "channel_environments", channel_id, environment=body.environment
-            )
-            if env["status"] != "ACTIVE":
-                raise ServiceError("ENVIRONMENT_DISABLED", "环境已停用", 403)
-            self.validate_mapping(body.external_scope_type, body.external_scope_id)
-            if await one(
-                uow.connection,
-                "data_scopes",
-                channel_id,
-                environment=body.environment,
-                external_scope_type=body.external_scope_type,
-                external_scope_id=body.external_scope_id,
-            ):
-                raise ServiceError("MAPPING_EXISTS", "此环境的业务数据域映射已存在", 409)
-            row = await save(
-                uow,
-                "data_scopes",
-                domain_id,
-                {
-                    **body.model_dump(exclude={"administrator_id"}),
-                    "name": clean_name(body.name),
-                    "status": "ACTIVE",
-                },
-            )
-            await RecoveryService.initialize_fresh_in(uow, fresh_scope)
-            if body.administrator_id:
-                await self.iam.access.provision_workspace(
-                    uow, session, body.administrator_id, body.environment, domain_id
-                )
-            await self.event(uow, event_id, session, "data_scope:create", "data_scope", row)
-            return await self.domain_view(uow.connection, row)
-
-    async def update_data_scope(
-        self, session: AdminSession, channel_id: str, domain_id: str, body: DataScopeUpdate
-    ) -> DataScopeView:
-        await self.authorize(session, channel_id, "data_scope:manage")
-        event_id = new_id("audit")
-        async with transaction(
-            self.repository.engine,
-            self.scope(session, channel_id),
-            self.keys(channel_id, "data_scopes", domain_id, event_id),
-        ) as uow:
-            await self.locked(uow, session, "data_scope:manage")
-            previous = await required(uow.connection, "data_scopes", channel_id, id=domain_id)
-            await self.require_visible(
-                uow.connection,
-                session,
-                previous["environment"],
-                [domain_id],
-                action="data_scope:manage",
-            )
-            row = await save(uow, "data_scopes", domain_id, mutable_values(body), body.revision)
-            await self.event(
-                uow,
-                event_id,
-                session,
-                "data_scope:update",
-                "data_scope",
-                row,
-                previous["status"],
-                changed_fields=sorted(body.model_fields_set - {"revision"}),
-            )
-            return await self.domain_view(uow.connection, row)
-
     async def validate_client(
         self,
         connection: AsyncConnection,
@@ -1078,28 +623,15 @@ class ChannelService:
         values: dict[str, Any],
     ) -> None:
         capabilities(values["scopes"])
-        if len(values["data_scopes"]) != len(set(values["data_scopes"])):
-            raise ServiceError("INVALID_SCOPES", "数据域不能重复", 422)
-        env = await required(
+        environment = await required(
             connection, "channel_environments", channel_id, environment=values["environment"]
         )
-        if env["status"] != "ACTIVE":
+        if environment["status"] != "ACTIVE":
             raise ServiceError("ENVIRONMENT_DISABLED", "环境已停用", 403)
-        for domain_id in values["data_scopes"]:
-            domain = await required(
-                connection,
-                "data_scopes",
-                channel_id,
-                id=domain_id,
-                environment=values["environment"],
-            )
-            if domain["status"] != "ACTIVE":
-                raise ServiceError("DATA_SCOPE_DISABLED", "业务数据域已停用", 403)
         await self.require_visible(
             connection,
             session,
             values["environment"],
-            values["data_scopes"],
             action="client:manage",
             delegated=values["scopes"],
         )
@@ -1112,7 +644,7 @@ class ChannelService:
             return [
                 await self.client_view(connection, r, data)
                 for r in data.clients.values()
-                if data.visible(r["environment"], r["data_scopes"], action="client:manage")
+                if data.visible(r["environment"], action="client:manage")
             ]
 
     async def client_view(
@@ -1128,26 +660,12 @@ class ChannelService:
                 environment=row["environment"],
             )
         )
-        domains = {
-            d["id"]: d["name"]
-            for d in (
-                data.domains.values()
-                if data is not None
-                else await rows(
-                    connection, "data_scopes", row["channel_id"], environment=row["environment"]
-                )
-            )
-        }
         return ClientView(
             client_id=row["id"],
             environment_name=env["name"] if env else None,
-            data_scope_names=[domains.get(d) for d in row["data_scopes"]],
             scope_names=[ACTION_NAMES[a] for a in row["scopes"]],
             status_label=STATUS_LABELS[row["status"]],
-            **{
-                k: row[k]
-                for k in ("name", "environment", "scopes", "data_scopes", "status", "revision")
-            },
+            **{k: row[k] for k in ("name", "environment", "scopes", "status", "revision")},
         )
 
     async def create_client(
@@ -1187,11 +705,10 @@ class ChannelService:
                 uow.connection,
                 session,
                 previous["environment"],
-                previous["data_scopes"],
                 action="client:manage",
             )
             values = mutable_values(body)
-            if set(values) & {"scopes", "data_scopes"} or values.get("status") == "ACTIVE":
+            if set(values) & {"scopes"} or values.get("status") == "ACTIVE":
                 await self.validate_client(
                     uow.connection, session, channel_id, {**previous, **values}
                 )
@@ -1222,7 +739,6 @@ class ChannelService:
                             data.member,
                             data.grants,
                             scope.environment,
-                            scope.data_scope_id or "",
                             "channel",
                             channel_id,
                         )
@@ -1234,7 +750,6 @@ class ChannelService:
                     not {
                         "channel:manage",
                         "environment:manage",
-                        "data_scope:manage",
                         "client:manage",
                     }
                     <= allowed
@@ -1246,15 +761,10 @@ class ChannelService:
                 for r in data.environments.values()
                 if data.visible(r["environment"], action="environment:manage")
             ]
-            domains = [
-                r
-                for r in data.domains.values()
-                if data.visible(r["environment"], [r["id"]], action="data_scope:manage")
-            ]
             clients = {
                 r["id"]
                 for r in data.clients.values()
-                if data.visible(r["environment"], r["data_scopes"], action="client:manage")
+                if data.visible(r["environment"], action="client:manage")
             }
             keys = [
                 r
@@ -1267,7 +777,6 @@ class ChannelService:
         return OverviewView(
             channel=channel,
             environments=len(envs),
-            data_scopes=len(domains),
             clients=len(clients),
             active_keys=len(keys),
             members_path=f"/admin/v1/channels/{channel_id}/members",
@@ -1287,14 +796,10 @@ class ChannelService:
             await required(connection, "channels", channel_id, id=channel_id)
             data = await ChannelReadData.load(connection, session, channel_id)
             scopes = [
-                Scope(channel_id=channel_id, environment=d["environment"], data_scope_id=d["id"])
-                for d in data.domains.values()
-                if data.visible(d["environment"], [d["id"]], action="usage:read")
+                Scope(channel_id=channel_id, environment=env["environment"])
+                for env in data.environments.values()
+                if data.visible(env["environment"], action="usage:read")
             ]
-            if isinstance(session.context, AuthContext):
-                current = session.context.scope
-                if is_management_workspace(session.context):
-                    scopes.append(current)
         if not scopes:
             raise ServiceError("FORBIDDEN", "没有可查询的用量范围", 403)
         if self.usage_reader is None:
@@ -1354,7 +859,7 @@ class ChannelService:
     ) -> DirectoryPage[dict[str, str]]:
         await self.iam.authentication.revalidate_admin(session, governance=True)
         if isinstance(session.context, AuthContext):
-            raise ServiceError("FORBIDDEN", "平台用量须使用平台工作区", 403)
+            raise ServiceError("FORBIDDEN", "平台用量须使用平台管理入口", 403)
         require_platform(session.account, "usage:platform")
         if not 1 <= limit <= 200 or offset < 0:
             raise ServiceError("VALIDATION_ERROR", "分页条件不正确", 422)

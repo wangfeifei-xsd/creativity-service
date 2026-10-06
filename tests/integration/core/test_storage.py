@@ -49,9 +49,9 @@ def test_full_migration_repeat_offline_and_downgrade():
         config.attributes.pop("connection")
         output = io.StringIO()
         config.output_buffer = output
-        command.upgrade(config, "head", sql=True)
+        command.upgrade(config, "0040_model_networks:head", sql=True)
         assert check_sql(output.getvalue()) == []
-        assert "'system'" in output.getvalue()
+        assert "0041_channel_environments" in output.getvalue()
     finally:
         with engine.begin() as connection:
             connection.execute(text(f'DROP SCHEMA IF EXISTS "{name}" CASCADE'))

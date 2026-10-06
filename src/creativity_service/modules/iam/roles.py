@@ -22,7 +22,6 @@ ACTION_NAMES = {
     "channel:govern": "治理渠道",
     "channel:manage": "管理渠道",
     "environment:manage": "管理环境",
-    "data_scope:manage": "管理数据域",
     "client:manage": "管理接入服务",
     "key:manage": "管理接入凭据",
     "membership:read": "查看渠道成员",
@@ -100,7 +99,6 @@ GOVERNANCE_ACTIONS = frozenset(
         "environment:manage",
         "client:manage",
         "key:manage",
-        "data_scope:manage",
     }
 )
 

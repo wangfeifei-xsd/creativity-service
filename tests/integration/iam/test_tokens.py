@@ -270,7 +270,6 @@ async def test_purposes_current_key_subject_caps_and_key_index(iam_env, admin, m
             "scope": Scope(
                 channel_id="channel_a",
                 environment="test",
-                data_scope_id="domain_a",
                 subject_type="MEMBER",
                 subject_id="same_number",
             )

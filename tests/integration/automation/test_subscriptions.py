@@ -114,11 +114,10 @@ async def test_business_api_terminal_notifications_and_failure_alerts(business_e
         ),
     )
     success, failed = await run(env), await run(env, fail=True)
-    # 边界夹具只登记运行元数据，验证其他渠道、环境、数据域和服务不能进入扫描范围。
+    # 边界夹具只登记运行元数据，验证其他渠道、环境和服务不能进入扫描范围。
     for key, value in [
         ("channel_id", "unrelated_channel"),
         ("environment", "prod"),
-        ("data_scope_id", "unrelated_domain"),
         ("client_id", "unrelated_client"),
     ]:
         foreign = {**failed, key: value, "id": "foreign_" + key}
@@ -170,7 +169,6 @@ async def test_subscription_changes_reject_pending_events_and_validate_clients(b
             name="另一调用服务",
             environment="test",
             scopes=["run:create", "run:read"],
-            data_scopes=[env.context.scope.data_scope_id],
         ),
     )
     failed = await run(env, fail=True)

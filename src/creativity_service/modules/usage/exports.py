@@ -354,7 +354,6 @@ class UsageExports:
                 export_id,
                 {
                     "environment": "control",
-                    "data_scope_id": None,
                     "subject_type": None,
                     "subject_id": None,
                     "requested_by": session.account.id,
@@ -448,12 +447,11 @@ class UsageExports:
                     channel = await channel_required(
                         connection, "channels", channel_id, id=channel_id
                     )
-                    domains = await channel_rows(connection, "data_scopes", channel_id)
-                scopes = [
-                    Scope(
-                        channel_id=channel_id, environment=d["environment"], data_scope_id=d["id"]
+                    environments = await channel_rows(
+                        connection, "channel_environments", channel_id
                     )
-                    for d in domains
+                scopes = [
+                    Scope(channel_id=channel_id, environment=d["environment"]) for d in environments
                 ]
                 summary = await self.management.queries.summary(channel_id, scopes, query)
                 complete = complete and summary.price_complete

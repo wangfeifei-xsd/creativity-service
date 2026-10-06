@@ -312,7 +312,6 @@ async def test_more_than_two_hundred_rows_are_searchable_and_paginated(channel_e
                     "id": f"page_audit_{i:03}",
                     "channel_id": "system",
                     "environment": "control",
-                    "data_scope_id": None,
                     "subject_type": None,
                     "subject_id": None,
                     "actor_id": env.user_id,

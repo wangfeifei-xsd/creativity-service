@@ -83,10 +83,7 @@ async def test_external_identity_expiry_audience_mapping_and_logout(channel_env)
     switched = await env.iam.sessions.enter(
         session,
         ChannelContextInput(
-            **{
-                k: getattr(channel.manager.context.scope, k)
-                for k in ("channel_id", "environment", "data_scope_id")
-            }
+            **{k: getattr(channel.manager.context.scope, k) for k in ("channel_id", "environment")}
         ),
     )
     assert switched.expires_at.timestamp() <= expires
@@ -146,9 +143,7 @@ async def test_custom_role_scope_revision_and_immediate_revocation(channel_env):
         channel.manager,
         scope.channel_id,
         account.user_id,
-        MembershipInput(
-            roles=[role["id"]], environments=[scope.environment], data_scopes=[scope.data_scope_id]
-        ),
+        MembershipInput(roles=[role["id"]], environments=[scope.environment]),
     )
     await env.iam.access.put_grant(
         channel.manager,
@@ -161,7 +156,6 @@ async def test_custom_role_scope_revision_and_immediate_revocation(channel_env):
             resource_id=scope.channel_id,
             allowed_actions=["run:read"],
             environments=[scope.environment],
-            data_scopes=[scope.data_scope_id],
         ),
     )
     context = AuthContext(
@@ -200,7 +194,5 @@ async def test_custom_role_scope_revision_and_immediate_revocation(channel_env):
             other.manager,
             other.channel.channel_id,
             account.user_id,
-            MembershipInput(
-                roles=[role["id"]], environments=["test"], data_scopes=[other.domain.data_scope_id]
-            ),
+            MembershipInput(roles=[role["id"]], environments=["test"]),
         )

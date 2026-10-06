@@ -1,12 +1,14 @@
 # 配置指南
 
-在管理端选择目标渠道、环境和数据域，按“模型 → 提示词、工具与 Skills → Agent → 评测与发布”完成配置。字段结构以 [OpenAPI](../contracts/openapi.json) 和 [配置示例](../examples/agents/README.md) 为准。
+在管理端选择目标渠道与环境，按“模型 → 提示词、工具与 Skills → Agent → 评测与发布”完成配置。字段结构以 [OpenAPI](../contracts/openapi.json) 和 [配置示例](../examples/agents/README.md) 为准。
 
 <a id="models"></a>
 
 ## 模型
 
 创建供应商连接并保存凭据，登记模型和能力，执行连接及能力测试，再配置路由。路由可设置候选顺序、超时、重试和能力要求；流式文本要求模型声明并通过 streaming 能力验证。模型价格由用量模块统一维护，见 [预算与费用](operations.md#usage)。
+
+保存未发布的路由版本仅要求模型管理权限。能力验证使用服务端固定用例进入统一运行时，记录调用与用量。发布由具有当前环境发布权限的人员完成，并检查模型能力和配置有效性；不要求发布者同时具备模型执行权限。业务智能体、工具调试及实际数据访问继续校验当前渠道环境的动作、资源及主体权限。
 
 API 和 Worker 的连接凭据、加密密钥与出站许可应一致。完整可选环境变量见 [Settings](../src/creativity_service/core/config.py)，模型字段见 [模型契约](../contracts/models/)；供应商的实际兼容结果需单独验收。
 

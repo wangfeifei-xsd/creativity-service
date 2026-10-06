@@ -44,7 +44,7 @@
     "http_status": 401
   },
   "DELEGATION_SCOPE_INVALID": {
-    "message": "委托归属或源数据域不符",
+    "message": "委托归属或委托范围不符",
     "http_status": 403
   },
   "DELEGATION_FORBIDDEN": {

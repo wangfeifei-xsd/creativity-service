@@ -21,7 +21,6 @@ def claims(env, **changes):
     value = dict(
         subject_type="MEMBER",
         subject_id="user-1",
-        data_scope={"type": "default", "id": "default"},
         actions=["run:create", "run:read"],
         resources={"agent": ["agent-1"], "run": ["run-1"]},
         issuer="business.example",
@@ -49,7 +48,7 @@ async def test_safe_concurrent_replay_and_changed_nonce_payload(integration_env)
     contexts = await asyncio.gather(*(verify(env, claim) for _ in range(8)))
     assert len({c.delegation_id for c in contexts}) == 1
     resolved = contexts[0]
-    assert resolved.scope.data_scope_id == env.channel.domain.data_scope_id
+    assert resolved.scope.environment == "test"
     assert (await env.bundle.delegation.read_current(resolved)).scope == resolved.scope
     async with env.engine.connect() as connection:
         rows = await repository(environment_scope(resolved.scope), "delegation_nonces").find(
@@ -80,7 +79,6 @@ async def test_safe_concurrent_replay_and_changed_nonce_payload(integration_env)
         ({"environment": "prod"}, "DELEGATION_SCOPE_INVALID"),
         ({"channel_id": "other-channel"}, "DELEGATION_SCOPE_INVALID"),
         ({"actions": ["run:create", "memory:read"]}, "DELEGATION_FORBIDDEN"),
-        ({"data_scope": {"type": "club", "id": "other-club"}}, "DELEGATION_SCOPE_INVALID"),
         ({"issued_at": 1, "expires_at": 301}, "DELEGATION_EXPIRED"),
         ({"subject_type": "anonymous", "actions": ["memory:read"]}, "DELEGATION_FORBIDDEN"),
     ],
@@ -93,14 +91,8 @@ async def test_untrusted_claims_are_rejected(integration_env, change, code):
 
 async def test_signature_checked_before_mapping_and_token_required(integration_env, monkeypatch):
     env = integration_env
-    claim = claims(env, data_scope={"type": "club", "id": "secret-club"})
+    claim = claims(env)
 
-    async def forbidden(*args):
-        pytest.fail("伪造签名不得查询源数据域")
-
-    monkeypatch.setattr(
-        "creativity_service.modules.integrations.delegation.source_mapping", forbidden
-    )
     with pytest.raises(ServiceError) as failure:
         await env.bundle.delegation.verify(
             env.identity.context, sign(claim, env.key.key.kid, b"x" * 32), claim.request
@@ -161,7 +153,7 @@ async def test_http_delegation_and_anonymous_boundary(integration_env):
 
     @app.post("/api/v1/delegation-probe")
     async def probe(context: Annotated[AuthContext, Depends(require_http_context)]):
-        return {"subject": context.scope.subject_id, "scope": context.scope.data_scope_id}
+        return {"subject": context.scope.subject_id, "scope": context.scope.environment}
 
     body = b'{"message":"test"}'
     claim = claims(
@@ -175,7 +167,7 @@ async def test_http_delegation_and_anonymous_boundary(integration_env):
     }
     response = await env.client.post("/api/v1/delegation-probe", content=body, headers=headers)
     assert response.status_code == 200, response.text
-    assert response.json()["scope"] == env.channel.domain.data_scope_id
+    assert response.json()["scope"] == "test"
     response = await env.client.post(
         "/api/v1/delegation-probe",
         content=body,

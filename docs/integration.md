@@ -6,13 +6,13 @@
 
 ## 接入流程
 
-1. 配置渠道、环境、外部数据域映射和接入服务，签发 API Key 与独立委托密钥。
+1. 配置渠道、环境和接入服务，签发 API Key 与独立委托密钥。
 2. 配置 MCP 连接、专用当前主体复核工具及已发布业务工具。
 3. 配置模型、Skills 和 Agent，调试并发布到目标环境。
 4. 后端换取 Token，从自己的登录与权限服务读取当前主体，签署每次请求的委托。
 5. 使用已保存的业务幂等键创建运行，保存 `run_id`，通过查询或 SSE 获取结果。
 
-管理页面分步开通：先填写渠道基本信息与首位管理员，进入详情配置环境，再配置外部数据域映射。第一个数据域须绑定开通时登记的管理员；在此之前该管理员没有业务工作区。类型支持选择本渠道已有配置或录入新类型，编号使用源系统真实值；平台没有通用外部组织目录，不按业务分类推导映射。首个数据域激活开通时明确选择的独立授权，后续数据域不自动继承。`POST /admin/v1/channels` 兼容同时提供 `environment` 与 `data_scope` 的旧调用；新流程省略两者，不能只提供其中一个。
+管理页面分步开通：填写渠道基本信息与首位管理员，配置环境，即可按角色授权进入渠道。POST /admin/v1/channels 可省略 environment，也可携带初始环境。创建环境同步整渠道管理员，初始化内容恢复屏障；随后按需配置接入服务与 Key。
 
 创建运行需要 `run:create` 及相关资源授权；查询结果需要 `run:read`、`run:content`、`data:read_sensitive`。API Key、委托密钥和服务 Token 留在业务后端。
 
@@ -32,6 +32,8 @@ HTTP 200 表示成功取得快照，仍需检查 `state` 和 `result.business_st
 
 ## 身份委托与重试
 
+委托采用 `business-delegation-v2`，载荷只包含主体、动作、资源和请求绑定；渠道与环境来自服务 Token，可选声明仅用于一致性校验。旧 v1 或携带已撤销范围字段的声明拒绝。
+
 除换 Token 外，业务请求使用 `Authorization: Bearer ...` 和 `X-Business-Delegation`。委托绑定实际方法、路径、原始查询串、正文 SHA-256 及适用幂等键；每个新请求生成新 nonce。签名实现见 [后端客户端](../examples/backend/client.py)，跨语言向量见 [签名样例](../contracts/integrations/delegation-vectors.json)。
 
 Token 到期后重新交换并签名查询原运行。创建响应丢失时保留原幂等键和语义输入，同键异内容返回 409。Key 轮换不产生新的逻辑运行；原 Key 失效会影响在途任务后续授权。会话消息用 `client_message_id` 去重；创建会话、上传等操作需按各自契约处理响应不明。
@@ -46,7 +48,7 @@ Token 到期后重新交换并签名查询原运行。创建响应丢失时保�
 
 API 和 Worker 配置一致的 `CREATIVITY_MCP_DESTINATIONS`、`CREATIVITY_MCP_KEY_VERSION`、`CREATIVITY_MCP_ENCRYPTION_KEYS`。创建连接、更新服务凭据、发现远端工具，导入业务工具草稿并测试发布。Agent 绑定具体工具版本，远端 schema 或连接修订变化后重新验证发布。
 
-源端另提供 `_meta["creativity/purpose"]="subject_review"` 的只读身份工具，在管理端 `/subject-review-bindings` 绑定渠道、环境、数据域、接入服务和发现快照。身份工具不能导入模型工具目录；缺配置、主体停用、范围扩大、过期或超时均拒绝执行。
+源端另提供 `_meta["creativity/purpose"]="subject_review"` 的只读身份工具，在管理端 `/subject-review-bindings` 绑定渠道、环境、接入服务和发现快照。身份工具不能导入模型工具目录；缺配置、主体停用、范围扩大、过期或超时均拒绝执行。
 
 业务 MCP 使用连接专属凭据。受信身份放在 `_meta["creativity.identity"]`，业务数据放在 `structuredContent`，来源、范围、完整性与真实影响放在 `_meta["creativity.result"]`。对应 [身份](../contracts/mcp/McpIdentity.schema.json)、[主体复核](../contracts/mcp/SubjectReviewResponse.schema.json) 和 [结果元数据](../contracts/mcp/McpResultMetadata.schema.json) 契约；配置示例见 [MCP 示例](../examples/mcp/README.md)。
 

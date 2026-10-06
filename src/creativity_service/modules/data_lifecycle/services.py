@@ -50,7 +50,6 @@ class DataLifecycleService:
                 context.principal_type != "management"
                 or context.scope.subject_id
                 or own.environment != context.scope.environment
-                or own.data_scope_id != context.scope.data_scope_id
             ):
                 raise ServiceError("NOT_FOUND", "当前范围没有此内容", 404)
             context = context.model_copy(update={"scope": own})
@@ -446,10 +445,8 @@ class DataLifecycleService:
         policy = await read_policy(self.authorization, context)
         for job in jobs:
             own = scope_of(job)
-            if (
-                own.environment != context.scope.environment
-                or own.data_scope_id != context.scope.data_scope_id
-                or (context.scope.subject_id and own != context.scope)
+            if own.environment != context.scope.environment or (
+                context.scope.subject_id and own != context.scope
             ):
                 raise ServiceError("NOT_FOUND", "当前范围没有此清理任务", 404)
             permissions = await read_actions(

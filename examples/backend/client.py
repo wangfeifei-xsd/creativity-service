@@ -24,7 +24,6 @@ class Principal:
 
     subject_type: str
     subject_id: str
-    data_scope: dict[str, str]
     actions: list[str]
     resources: dict[str, list[str]]
 
@@ -68,9 +67,9 @@ def sign_claims(claims: dict[str, Any], kid: str, secret: bytes) -> str:
 
     payload = b64(encode_json(claims))
     signature = b64(
-        hmac.digest(secret, f"business-delegation-v1\n{kid}\n{payload}".encode(), "sha256")
+        hmac.digest(secret, f"business-delegation-v2\n{kid}\n{payload}".encode(), "sha256")
     )
-    return f"v1.{kid}.{payload}.{signature}"
+    return f"v2.{kid}.{payload}.{signature}"
 
 
 async def check_response(response: httpx.Response) -> None:
@@ -184,7 +183,6 @@ class BusinessBackendClient:
         claims = {
             "subject_type": principal.subject_type,
             "subject_id": principal.subject_id,
-            "data_scope": principal.data_scope,
             "actions": principal.actions,
             "resources": principal.resources,
             "issuer": self.issuer,

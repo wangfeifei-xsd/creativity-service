@@ -107,7 +107,7 @@ class CustomRoles:
 
     async def context(self, session: AdminSession) -> AuthContext:
         if not isinstance(session.context, AuthContext):
-            raise ServiceError("FORBIDDEN", "请先进入渠道工作区", 403)
+            raise ServiceError("FORBIDDEN", "请先进入渠道环境", 403)
         return await self.access.context(
             session, session.context.scope.channel_id, "membership:manage"
         )
@@ -249,7 +249,7 @@ class CustomRoles:
             key not in catalog or not compatible(catalog[key]["workspace"], scope)
             for key in identifiers
         ):
-            raise ServiceError("ROLE_MENU_INVALID", "菜单不存在、重复或不适用于当前工作区", 422)
+            raise ServiceError("ROLE_MENU_INVALID", "菜单不存在、重复或不适用于当前渠道环境", 422)
 
     async def save(
         self, session: AdminSession, body: RoleSave, identifier: str | None = None
@@ -257,7 +257,7 @@ class CustomRoles:
         if not isinstance(session.context, AuthContext):
             return await self.save_platform(session, body, identifier)
         context = await self.context(session)
-        known_pairs = await self.access.workspace_pairs(context)
+        known_environments = await self.access.workspace_environments(context)
         if body.grant_scope not in {None, "channel"}:
             raise ServiceError("ROLE_ACTIONS_INVALID", "渠道只能维护渠道角色", 422)
         creating = identifier is None
@@ -295,7 +295,6 @@ class CustomRoles:
                 member,
                 grants,
                 context.scope.environment,
-                context.scope.data_scope_id or "",
                 "channel",
                 context.scope.channel_id,
             )
@@ -324,7 +323,7 @@ class CustomRoles:
                 if identifier in target["roles"]:
                     candidate = membership_from_catalog(target, candidate_catalog)
                     if candidate.roles:
-                        self.access.member_delegation(member, grants, candidate, known_pairs)
+                        self.access.member_delegation(member, grants, candidate, known_environments)
             # 没有当前成员的角色也可能绑定授权；角色扩权不能激活操作者无权授予的资源动作。
             for grant in grants:
                 if (
@@ -336,11 +335,10 @@ class CustomRoles:
                         member,
                         grants,
                         list(grant.environments),
-                        list(grant.data_scopes),
                         requested & set(grant.allowed_actions),
                         grant.resource_type,
                         grant.resource_id,
-                        known_pairs,
+                        known_environments,
                     )
             repository = Repository(metadata.tables["custom_roles"], context.scope)
             if old:
@@ -462,7 +460,6 @@ class CustomRoles:
                     member,
                     grants,
                     session.context.scope.environment,
-                    session.context.scope.data_scope_id or "",
                     "channel",
                     channel_id,
                 )

@@ -60,7 +60,6 @@ async def create_tool(env):
         model_fields_allowed=("values",),
         binding={"adapter_key": "decimal_sum", "implementation_version": "1"},
         effect_type="READ_ONLY",
-        allowed_data_domains=(env.context.scope.data_scope_id,),
         environments=("test",),
         subject_requirements={"required": False},
     )

@@ -4,10 +4,8 @@ import pytest
 from sqlalchemy import event
 
 from creativity_service.core.primitives import new_id
-from creativity_service.modules.channels.repositories import management_scope_id
 from creativity_service.modules.channels.schemas import (
     ChannelCreate,
-    DataScopeCreate,
     EnvironmentCreate,
     EnvironmentUpdate,
 )
@@ -84,7 +82,6 @@ async def test_management_workspace_reports_environment_without_service_or_key(
         ChannelContextInput(
             channel_id=configured.channel_id,
             environment="test",
-            data_scope_id=management_scope_id(configured.channel_id, "test"),
         ),
     )
     items = await listed(env, token)
@@ -131,17 +128,6 @@ async def test_configuration_status_does_not_expose_other_channels_or_environmen
     await env.services.channels.create_environment(
         env.admin, own.channel.channel_id, EnvironmentCreate(environment="prod", name="生产")
     )
-    await env.services.channels.create_data_scope(
-        env.admin,
-        own.channel.channel_id,
-        DataScopeCreate(
-            name="生产数据域",
-            environment="prod",
-            external_scope_type="workspace",
-            external_scope_id="production-001",
-            administrator_id=env.user_id,
-        ),
-    )
     platform = await listed(env, env.admin_token)
     assert platform[own.channel.channel_id]["configuration_status"][0]["message"].startswith(
         "已配置：2 "
@@ -152,7 +138,6 @@ async def test_configuration_status_does_not_expose_other_channels_or_environmen
         ChannelContextInput(
             channel_id=own.channel.channel_id,
             environment="test",
-            data_scope_id=own.domain.data_scope_id,
         ),
     )
     current = await listed(env, token)
@@ -182,9 +167,7 @@ async def test_configuration_status_does_not_expose_other_channels_or_environmen
         manager,
         own.channel.channel_id,
         account.user_id,
-        MembershipInput(
-            roles=[role["id"]], environments=["test"], data_scopes=[own.domain.data_scope_id]
-        ),
+        MembershipInput(roles=[role["id"]], environments=["test"]),
     )
     await env.iam.access.put_grant(
         manager,
@@ -197,7 +180,6 @@ async def test_configuration_status_does_not_expose_other_channels_or_environmen
             resource_id=own.channel.channel_id,
             allowed_actions=["channel:manage", "environment:manage"],
             environments=["test"],
-            data_scopes=[own.domain.data_scope_id],
         ),
     )
     _, session = await activate(env, account)
@@ -206,7 +188,6 @@ async def test_configuration_status_does_not_expose_other_channels_or_environmen
         ChannelContextInput(
             channel_id=own.channel.channel_id,
             environment="test",
-            data_scope_id=own.domain.data_scope_id,
         ),
     )
     limited = await listed(env, restricted)

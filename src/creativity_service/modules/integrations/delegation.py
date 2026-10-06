@@ -1,4 +1,4 @@
-"""先验签再解析源数据域；nonce 防重放不替代运行受理的幂等事务。"""
+"""先验签再解析委托范围；nonce 防重放不替代运行受理的幂等事务。"""
 
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
@@ -27,7 +27,6 @@ from creativity_service.modules.integrations.repositories import (
     configuration_key,
     environment_scope,
     repository,
-    source_mapping,
 )
 from creativity_service.modules.integrations.subject_content import initialize_subject_content
 
@@ -140,15 +139,9 @@ class DelegationService:
             identity = await current_service(uow.connection, context)
             if not set(claims.actions) <= identity.client_actions & identity.key_actions:
                 raise ServiceError("DELEGATION_FORBIDDEN", "业务主体委托超过接入服务授权", 403)
-            domain = await source_mapping(
-                uow.connection, scope, claims.data_scope.type, claims.data_scope.id
-            )
-            if domain["id"] not in identity.data_scopes:
-                raise ServiceError("DELEGATION_SCOPE_INVALID", "业务主体数据域未获授权", 403)
             resolved = Scope(
                 channel_id=scope.channel_id,
                 environment=scope.environment,
-                data_scope_id=domain["id"],
                 subject_type=claims.subject_type,
                 subject_id=claims.subject_id,
             )
@@ -231,11 +224,6 @@ class DelegationService:
                 raise ServiceError("DELEGATION_INVALID", "主体委托归属不符", 401)
             await self.key_record(connection, context, row["kid"])
             claims = DelegationClaims.model_validate(row["claims"])
-            domain = await source_mapping(
-                connection, scope, claims.data_scope.type, claims.data_scope.id
-            )
-            if domain["id"] != context.scope.data_scope_id:
-                raise ServiceError("DELEGATION_SCOPE_INVALID", "业务主体数据域已变化", 403)
         authority = SubjectAuthority(
             scope=context.scope,
             expires_at=row["expires_at"],
@@ -251,11 +239,7 @@ class DelegationService:
             # 外部复核可能等待；交付权限前再次检查密钥和域，避免等待期间撤销被遗漏。
             async with self.engine.connect() as connection:
                 await self.key_record(connection, context, row["kid"])
-                checked_domain = await source_mapping(
-                    connection, scope, claims.data_scope.type, claims.data_scope.id
-                )
-                if checked_domain["id"] != context.scope.data_scope_id:
-                    raise ServiceError("DELEGATION_SCOPE_INVALID", "业务主体数据域已变化", 403)
+                await current_service(connection, context)
             if (
                 current.scope != context.scope
                 or current.expires_at <= utcnow()

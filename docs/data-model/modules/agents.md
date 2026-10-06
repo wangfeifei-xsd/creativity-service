@@ -1,6 +1,6 @@
 # 智能体定义模型
 
-模型版本 1.9.3；负责方案 16；需求 [06-Agent与流程管理.md](../../../../需求文档/06-Agent与流程管理.md)。总索引见 [README](../README.md)。
+模型版本 2.0.0；负责方案 16；需求 [06-Agent与流程管理.md](../../../../需求文档/06-Agent与流程管理.md)。总索引见 [README](../README.md)。
 
 ## agents
 
@@ -54,7 +54,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 服务层校验后的业务输入 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 服务层校验后的业务输入 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 服务层校验后的业务输入 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 服务层校验后的业务输入 | 内部 |
 | `agent_id` | `varchar(64)` | 智能体标识 | 是 | 服务层校验后的业务输入 | 内部 |

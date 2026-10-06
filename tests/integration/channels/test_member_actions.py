@@ -5,7 +5,6 @@ from collections import Counter
 import pytest
 
 from creativity_service.core.primitives import ServiceError
-from creativity_service.modules.channels.repositories import management_scope_id
 from creativity_service.modules.channels.schemas import ChannelCreate, EnvironmentCreate
 from creativity_service.modules.iam.schemas import (
     AccountCreate,
@@ -32,9 +31,7 @@ async def add_member(env, tenant, index=0):
             initial_password=INITIAL,
         ),
     )
-    body = MembershipInput(
-        roles=["builder"], environments=["test"], data_scopes=[tenant.domain.data_scope_id]
-    )
+    body = MembershipInput(roles=["builder"], environments=["test"])
     member = await env.iam.access.put_member(
         tenant.manager, tenant.channel.channel_id, account.user_id, body
     )
@@ -65,7 +62,6 @@ async def test_member_actions_distinguish_edit_and_remove_and_recheck_writes(cha
         resource_id="*",
         allowed_actions=["release:publish"],
         environments=["test"],
-        data_scopes=[tenant.domain.data_scope_id],
     )
     listed = {row.user_id: row for row in await access.list_members(tenant.manager, channel_id)}
     assert availability(listed[member.user_id]) == {"member:edit": False, "member:remove": True}
@@ -126,7 +122,6 @@ async def test_management_member_buttons_disabled_when_role_exceeds_delegation(c
         ChannelContextInput(
             channel_id=channel.channel_id,
             environment="test",
-            data_scope_id=management_scope_id(channel.channel_id, "test"),
         ),
     )
     path = f"/admin/v1/channels/{channel.channel_id}/members"

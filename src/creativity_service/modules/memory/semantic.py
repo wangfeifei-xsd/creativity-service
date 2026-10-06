@@ -203,7 +203,6 @@ async def semantic_selection(
                     SELECT id, memory_id, memory_version_id, embedding
                     FROM memory_embeddings
                     WHERE channel_id=:channel_id AND environment=:environment
-                    AND data_scope_id IS NOT DISTINCT FROM :data_scope_id
                     AND subject_type IS NOT DISTINCT FROM :subject_type
                     AND subject_id IS NOT DISTINCT FROM :subject_id
                     AND model_version_id=:model_version AND dimensions=:dimensions

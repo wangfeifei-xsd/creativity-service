@@ -26,7 +26,7 @@ from creativity_service.integrations.business.base import (
 )
 from creativity_service.integrations.business.base.validation import validate_result
 from creativity_service.integrations.business.registry import BusinessRegistry
-from creativity_service.modules.channels.repositories import required, rows
+from creativity_service.modules.channels.repositories import rows
 from creativity_service.modules.iam.access import ENVIRONMENT_NAMES
 from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.iam.repositories import policy_key
@@ -75,20 +75,11 @@ class IntegrationService:
         return value
 
     async def view(self, context: AuthContext, row: dict[str, Any]) -> IntegrationView:
-        async with self.engine.connect() as connection:
-            domain = await required(
-                connection,
-                "data_scopes",
-                context.scope.channel_id,
-                id=row["scope_mapping_ref"],
-                environment=context.scope.environment,
-            )
         registered = self.registry.items.get((row["adapter_code"], row["adapter_version"]))
         return IntegrationView(
             **{k: row[k] for k in IntegrationView.model_fields if k in row},
             integration_id=row["id"],
             environment_name=ENVIRONMENT_NAMES[context.scope.environment],
-            data_scope_name=domain["name"],
             adapter_name=registered.name if registered else "适配器未安装",
             health_name={"UNKNOWN": "待检测", "HEALTHY": "正常", "DEGRADED": "异常"}[row["health"]],
             status_name={"ACTIVE": "启用", "DISABLED": "停用"}[row["status"]],
@@ -135,7 +126,7 @@ class IntegrationService:
             clients=[
                 NamedOption(value=c["id"], label=c["name"])
                 for c in clients
-                if set(c["data_scopes"]) <= set(member.data_scopes)
+                if c["environment"] in member.environments
             ],
             operations=[NamedOption(value=k, label=v) for k, v in OPERATION_NAMES.items()],
         )
@@ -208,7 +199,6 @@ class IntegrationService:
                 "name": body.name.strip(),
                 "health": "UNKNOWN",
                 "contract_version": CONTRACT_VERSION,
-                "scope_mapping_ref": scope.data_scope_id,
                 "status": body.status if isinstance(body, IntegrationEdit) else "ACTIVE",
             }
             row = (
@@ -273,7 +263,6 @@ class IntegrationService:
         if set(arguments) & {
             "channel_id",
             "environment",
-            "data_scope_id",
             "subject_id",
             "subject_type",
             "identity",
@@ -307,16 +296,6 @@ class IntegrationService:
             if context.scope.subject_type == "anonymous" and not capability.public:
                 raise business_error("BUSINESS_FORBIDDEN")
             context = context.model_copy(update={"granted_actions": effective})
-        async with self.engine.connect() as connection:
-            domain = await required(
-                connection,
-                "data_scopes",
-                context.scope.channel_id,
-                id=row["scope_mapping_ref"],
-                environment=context.scope.environment,
-            )
-        if domain["status"] != "ACTIVE" or domain["id"] != context.scope.data_scope_id:
-            raise business_error("BUSINESS_FORBIDDEN")
         call = BusinessCall(
             context,
             run_id,
@@ -324,10 +303,6 @@ class IntegrationService:
             arguments,
             {
                 **row,
-                "source_scope": {
-                    "type": domain["external_scope_type"],
-                    "id": domain["external_scope_id"],
-                },
             },
         )
         try:

@@ -23,7 +23,6 @@ from creativity_service.modules.budgets.schemas import (
 )
 from creativity_service.modules.budgets.services import BudgetService, period_start
 from creativity_service.modules.channels.reading import ChannelReadData
-from creativity_service.modules.channels.repositories import is_management_workspace
 from creativity_service.modules.channels.repositories import one as channel_one
 from creativity_service.modules.channels.repositories import rows as channel_rows
 from creativity_service.modules.channels.services import ChannelService
@@ -86,28 +85,7 @@ class UsageManagement:
 
     async def scopes(self, session: AdminSession, action: str = "usage:read") -> list[Scope]:
         context = await self.context(session, action)
-        result = []
-        # 管理范围没有外部映射，也应能查询自身的空用量；不扩大到未授权业务域。
-        if is_management_workspace(context):
-            result.append(context.scope)
-        async with self.engine.connect() as connection:
-            data = await ChannelReadData.load(connection, session, context.scope.channel_id)
-            for domain in data.domains.values():
-                if data.visible(domain["environment"], [domain["id"]], action=action):
-                    if context.scope.subject_id and domain["id"] != context.scope.data_scope_id:
-                        continue
-                    result.append(
-                        Scope(
-                            channel_id=context.scope.channel_id,
-                            environment=domain["environment"],
-                            data_scope_id=domain["id"],
-                            subject_type=context.scope.subject_type,
-                            subject_id=context.scope.subject_id,
-                        )
-                    )
-        if not result:
-            raise ServiceError("FORBIDDEN", "没有可查询的用量范围", 403)
-        return result
+        return [context.scope]
 
     async def records(
         self, session: AdminSession, query: UsageFilter, offset: int = 0, limit: int = 50
@@ -261,9 +239,8 @@ class UsageManagement:
             self.engine, context.scope, [ledger_key(context.scope.channel_id)]
         ) as uow:
             data = await ChannelReadData.load(uow.connection, session, context.scope.channel_id)
-            for domain in data.domains.values():
-                if not data.visible(domain["environment"], [domain["id"]], action="budget:manage"):
-                    raise ServiceError("NOT_FOUND", "请求资源不在授权范围内", 404)
+            if any(not data.authorized(env, action="budget:manage") for env in data.environments):
+                raise ServiceError("FORBIDDEN", "无权管理当前环境预算", 403)
             policies = await rows(uow.connection, "budget_policies", context.scope.channel_id)
             now = utcnow()
             exposure = await self.budgets.exposure_data(uow, policies, now)
@@ -357,17 +334,6 @@ class UsageManagement:
         ]
         async with transaction(self.engine, context.scope, keys) as uow:
             await self.channels.locked(uow, session, "budget:manage")
-            # 渠道总额影响所有业务域，只有覆盖全部范围的管理人可以修改。
-            for domain in await channel_rows(
-                uow.connection, "data_scopes", context.scope.channel_id
-            ):
-                await self.channels.require_visible(
-                    uow.connection,
-                    session,
-                    domain["environment"],
-                    [domain["id"]],
-                    action="budget:manage",
-                )
             old = await one(
                 uow.connection, "budget_policies", context.scope.channel_id, id=policy_id
             )
@@ -566,7 +532,6 @@ class UsageManagement:
                 .all()
             )
             keys = await channel_rows(connection, "channel_keys", channel_id)
-            domains = await channel_rows(connection, "data_scopes", channel_id)
             records = await rows(connection, "usage_records", channel_id)
         allowed = [r for r in records if visible(r, scopes)]
 
@@ -584,11 +549,6 @@ class UsageManagement:
                 {"value": r["id"], "label": r["name"]}
                 for r in keys
                 if any(s.environment == r["environment"] for s in scopes)
-            ],
-            "data_scopes": [
-                {"value": r["id"], "label": r["name"]}
-                for r in domains
-                if any(s.data_scope_id == r["id"] for s in scopes)
             ],
             "agents": options("agent"),
             "actors": options("actor"),

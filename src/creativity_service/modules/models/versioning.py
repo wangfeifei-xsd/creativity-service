@@ -10,6 +10,38 @@ from creativity_service.core.primitives import ServiceError, digest
 from creativity_service.modules.models.repositories import repository, required
 
 
+async def history_rows(
+    uow: UnitOfWork, context: AuthContext, resource_type: str, identifier: str
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """复用已验证上下文和事务，读取当前资源及本环境可见版本。"""
+    scope = context.scope
+    await DeletionGuard(scope).check(uow, [ContentRef(resource_type, identifier)])
+    table = {
+        "model": "models",
+        "model_connection": "model_connections",
+        "model_route": "model_routes",
+    }.get(resource_type)
+    if table is None:
+        raise ServiceError("NOT_FOUND", "模型资源不存在", 404)
+    current = await required(uow.connection, scope, table, identifier)
+    # 公共版本表按渠道保存；连接所属环境仍须由当前资源显式核验。
+    if resource_type == "model":
+        await required(uow.connection, scope, "model_connections", current["connection_id"])
+    rows = await repository(scope, "resource_versions").find(
+        uow.connection, resource_type=resource_type, resource_id=identifier
+    )
+    visible = [
+        row
+        for row in rows
+        if resource_type != "model_route"
+        or not any(
+            m["scope"]["environment"] != scope.environment for m in row["content"].get("models", [])
+        )
+    ]
+    await DeletionGuard(scope).check(uow, [ContentRef("version", r["id"]) for r in visible])
+    return current, visible
+
+
 def version_keys(
     channel_id: str, version_id: str, resource_type: str, resource_id: str, dependencies: list[str]
 ) -> list[ResourceKey]:
@@ -45,9 +77,12 @@ async def freeze(
             *[ContentRef("version", dep) for dep in dependencies],
         ],
     )
+    targets = await repository(scope, "resource_versions").get_many(uow.connection, dependencies)
     resolved = []
     for dependency in dependencies:
-        target = await required(uow.connection, scope, "resource_versions", dependency)
+        target = targets.get(dependency)
+        if target is None:
+            raise ServiceError("NOT_FOUND", "模型资源不存在", 404)
         if target["state"] != "PUBLISHED":
             raise ServiceError("DEPENDENCY_INVALID", "依赖版本已不可用", 409)
         resolved.append(
@@ -73,26 +108,30 @@ async def freeze(
             "created_by": context.principal_id,
         },
     )
-    for source in [
-        ContentRef(resource_type, resource_id),
-        *[ContentRef("version", dep) for dep in dependencies],
-    ]:
-        await DeletionGuard(scope).link(
-            uow,
-            digest([version_id, source.resource_type, source.resource_id]),
-            source,
-            ContentRef("version", version_id),
-        )
-    for dep in dependencies:
-        await repository(scope, "resource_references").add(
-            uow,
-            digest([version_id, dep]),
-            {
+    await DeletionGuard(scope).link_many(
+        uow,
+        [
+            (
+                digest([version_id, source.resource_type, source.resource_id]),
+                source,
+                ContentRef("version", version_id),
+                None,
+            )
+            for source in [
+                ContentRef(resource_type, resource_id),
+                *[ContentRef("version", dep) for dep in dependencies],
+            ]
+        ],
+    )
+    await repository(scope, "resource_references").add_many(
+        uow,
+        {
+            digest([version_id, dep]): {
                 "source_version_id": version_id,
                 "target_version_id": dep,
-                "target_resource_type": (
-                    await required(uow.connection, scope, "resource_versions", dep)
-                )["resource_type"],
-            },
-        )
+                "target_resource_type": targets[dep]["resource_type"],
+            }
+            for dep in dependencies
+        },
+    )
     return row

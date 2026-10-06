@@ -6,13 +6,11 @@ from pydantic import AwareDatetime, Field
 
 from creativity_service.core.context import Scope
 from creativity_service.core.primitives import Contract, Identifier, Revision
-from creativity_service.integrations.business.delegation import SourceScope
 
 
 class SubjectReviewRequest(Contract):
     protocol: Literal["creativity.subject-review.v1"] = "creativity.subject-review.v1"
     scope: Scope
-    source_scope: SourceScope
     client_id: Identifier
     key_id: Identifier
     request_id: Identifier

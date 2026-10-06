@@ -132,11 +132,8 @@ class DependencyResolver:
                     )
                 tool = ToolDefinition.model_validate(row["content"])
                 validate_definition(tool)
-                if (
-                    scope.environment not in tool.environments
-                    or scope.data_scope_id not in tool.allowed_data_domains
-                ):
-                    raise ServiceError("DEPENDENCY_INVALID", "工具未授权当前环境或数据域", 422)
+                if scope.environment not in tool.environments:
+                    raise ServiceError("DEPENDENCY_INVALID", "工具未授权当前环境", 422)
                 if tool.write_policy:
                     status_id = tool.write_policy.status_tool_version_id
                     if status_id not in bindings.tool_versions or status_id not in indexed:

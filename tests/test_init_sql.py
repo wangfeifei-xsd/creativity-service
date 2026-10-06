@@ -55,8 +55,8 @@ def test_seed_contains_initialized_channel_and_pending_administrator():
     assert grant["grantee_type"] == "account"
     role = next(row for row in seed["builtin_roles"] if row["role_code"] == "channel_admin")
     assert grant["allowed_actions"] == sorted(role["allowed_actions"])
-    assert member["environments"] == member["data_scopes"] == []
-    assert grant["environments"] == grant["data_scopes"] == []
+    assert member["environments"] == []
+    assert grant["environments"] == []
     assert channel["revision"] == index["revision"] == member["revision"] == grant["revision"] == 1
     assert render_init_sql.render_data().count("INSERT INTO channels ") == 2
 
@@ -72,7 +72,6 @@ def test_seed_contains_initialized_channel_and_pending_administrator():
         ("channel_memberships", "channel_id", "system", "空范围授权"),
         ("channel_memberships", "user_id", "missing-account", "管理员或授权关联"),
         ("channel_memberships", "environments", ["dev"], "必须为空"),
-        ("channel_memberships", "data_scopes", ["unknown-domain"], "必须为空"),
         ("resource_grants", "resource_id", "other-channel", "管理员或授权关联"),
         ("resource_grants", "grantee_id", "missing-account", "管理员或授权关联"),
         ("resource_grants", "allowed_actions", [], "管理员或授权关联"),

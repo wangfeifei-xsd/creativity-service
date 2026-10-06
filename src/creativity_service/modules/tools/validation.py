@@ -140,12 +140,8 @@ def validate_definition(definition: ToolDefinition) -> None:
         raise ServiceError(
             "TOOL_INPUT_INVALID", "输入须为封闭对象，字段与模型白名单一致且不含受信字段", 422
         )
-    if (
-        not definition.environments
-        or not definition.allowed_data_domains
-        or not definition.required_scopes
-    ):
-        raise ServiceError("TOOL_INPUT_INVALID", "须明确环境、数据域与必要授权", 422)
+    if not definition.environments or not definition.required_scopes:
+        raise ServiceError("TOOL_INPUT_INVALID", "须明确环境与必要授权", 422)
     if definition.cache_policy.ttl_seconds > definition.cache_policy.freshness_seconds:
         raise ServiceError("TOOL_INPUT_INVALID", "缓存时长不能超过数据新鲜度", 422)
     if definition.cache_policy.volatile and definition.cache_policy.ttl_seconds > 5:

@@ -94,7 +94,7 @@ class KeyService:
                 client = data.clients.get(row["client_id"])
                 if client is None:
                     raise ServiceError("NOT_FOUND", "接入服务不存在", 404)
-                if data.visible(row["environment"], client["data_scopes"], action="key:manage"):
+                if data.visible(row["environment"], action="key:manage"):
                     result.append(await self.view(connection, row, data))
             return result
 
@@ -129,21 +129,10 @@ class KeyService:
         capabilities(body.scopes)
         if not set(body.scopes) <= set(client["scopes"]):
             raise ServiceError("KEY_SCOPE_EXCEEDED", "Key 权限不能超过接入服务授权", 403)
-        for domain_id in client["data_scopes"]:
-            domain = await required(
-                uow.connection,
-                "data_scopes",
-                channel_id,
-                id=domain_id,
-                environment=body.environment,
-            )
-            if domain["status"] != "ACTIVE":
-                raise ServiceError("DATA_SCOPE_DISABLED", "业务数据域已停用", 403)
         await self.channels.require_visible(
             uow.connection,
             session,
             body.environment,
-            client["data_scopes"],
             action="key:manage",
             delegated=body.scopes,
         )
@@ -277,14 +266,11 @@ class KeyService:
         ) as uow:
             await self.channels.locked(uow, session, "key:manage")
             old = await required(uow.connection, "channel_keys", channel_id, id=key_id)
-            client = await required(
-                uow.connection, "service_clients", channel_id, id=old["client_id"]
-            )
+            await required(uow.connection, "service_clients", channel_id, id=old["client_id"])
             await self.channels.require_visible(
                 uow.connection,
                 session,
                 old["environment"],
-                client["data_scopes"],
                 action="key:manage",
             )
             if old["status"] == "REVOKED":

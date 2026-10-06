@@ -37,19 +37,6 @@ def inventory(connection):
             {
                 "channel_id": channel_id,
                 "name": channels[0]["name"] if channels else None,
-                "data_scopes": [
-                    {
-                        k: row[k]
-                        for k in (
-                            "id",
-                            "environment",
-                            "external_scope_type",
-                            "external_scope_id",
-                            "status",
-                        )
-                    }
-                    for row in records("data_scopes")
-                ],
                 "clients": [
                     {k: row[k] for k in ("id", "environment", "status")}
                     for row in records("service_clients")
@@ -64,7 +51,6 @@ def inventory(connection):
                         for k in (
                             "id",
                             "environment",
-                            "data_scope_id",
                             "adapter_code",
                             "adapter_version",
                             "allowed_operations",

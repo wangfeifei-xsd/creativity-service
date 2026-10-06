@@ -134,7 +134,7 @@ def remote_tool(value: Any) -> RemoteTool:
         "annotations": {k: v for k, v in annotations.items() if k != "title"},
     }
     purpose = (value.meta or {}).get("creativity/purpose", "business")
-    if purpose in {"subject_review", "data_scope_directory"}:
+    if purpose in {"subject_review"}:
         contract["purpose"] = purpose
     return RemoteTool(
         name=value.name,
@@ -144,7 +144,7 @@ def remote_tool(value: Any) -> RemoteTool:
         output_schema=value.outputSchema,
         annotations=annotations,
         schema_hash=digest(contract),
-        purpose=purpose if purpose in {"subject_review", "data_scope_directory"} else "business",
+        purpose=purpose if purpose in {"subject_review"} else "business",
     )
 
 

@@ -75,7 +75,7 @@ class ExternalIdentity:
         self, body: IdentityExchange, remote_ip: str, request_id: str
     ) -> TokenResponse:
         profile = next((p for p in self.settings.profiles if p.profile_id == body.profile_id), None)
-        if not profile or not profile.scope.data_scope_id or profile.scope.subject_id:
+        if not profile or profile.scope.subject_id:
             raise ServiceError("IDENTITY_SOURCE_UNAVAILABLE", "身份源未配置或不可用", 403)
         await self.iam.authentication.tokens.limit_login(
             digest([profile.profile_id, body.token.get_secret_value()]), remote_ip
@@ -140,9 +140,8 @@ class ExternalIdentity:
                 not member
                 or member["status"] != "ACTIVE"
                 or scope.environment not in member["environments"]
-                or scope.data_scope_id not in member["data_scopes"]
             ):
-                raise ServiceError("MEMBERSHIP_DISABLED", "平台成员未获目标工作区授权", 403)
+                raise ServiceError("MEMBERSHIP_DISABLED", "平台成员未获目标渠道环境授权", 403)
             await append_event(
                 uow, event_id, account_id, request_id, "auth:external", "account", account_id
             )
@@ -152,7 +151,6 @@ class ExternalIdentity:
             principal_id=account_id,
             channel_id=scope.channel_id,
             environment=scope.environment,
-            data_scope_id=scope.data_scope_id,
             credential_version=account["credential_version"],
             membership_version=member["revision"],
             expires_by=expiry,

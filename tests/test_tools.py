@@ -37,7 +37,6 @@ def definition(**changes):
             "model_fields_allowed": ["query"],
             "binding": {"adapter_key": "fixture", "implementation_version": "1"},
             "effect_type": "READ_ONLY",
-            "allowed_data_domains": ["club_a", "club_b"],
             "environments": ["test"],
             "subject_requirements": {"required": True},
             **changes,
@@ -45,12 +44,11 @@ def definition(**changes):
     )
 
 
-def context(domain="club_a", principal="user_a"):
+def context(channel="channel_a", principal="user_a"):
     return AuthContext(
         scope=Scope(
-            channel_id="channel_a",
+            channel_id=channel,
             environment="test",
-            data_scope_id=domain,
             subject_type="member",
             subject_id=principal,
         ),

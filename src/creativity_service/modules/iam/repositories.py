@@ -317,12 +317,11 @@ class IdentityRepository:
                 predicate,
                 or_(
                     table.c.summary["affected_scopes"].contains(
-                        [{"environment": scope.environment, "data_scope_id": scope.data_scope_id}]
+                        [{"environment": scope.environment}]
                     ),
                     and_(
                         ~table.c.summary.has_key("affected_scopes"),
                         table.c.environment == scope.environment,
-                        table.c.data_scope_id == scope.data_scope_id,
                     ),
                 ),
             )

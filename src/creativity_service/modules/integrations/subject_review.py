@@ -51,7 +51,7 @@ class ConfiguredSubjectReader:
                 connection, client_id=context.client_id
             )
         if len(rows) != 1 or not rows[0]["enabled"]:
-            raise ServiceError("SUBJECT_REVIEW_REQUIRED", "当前数据域未配置有效的主体复核", 403)
+            raise ServiceError("SUBJECT_REVIEW_REQUIRED", "当前环境未配置有效的主体复核", 403)
         return rows[0]
 
     async def source(
@@ -137,18 +137,14 @@ class ConfiguredSubjectReader:
         return [
             NamedOption(value=row["id"], label=row["name"])
             for row in rows
-            if context.scope.data_scope_id in row["data_scopes"]
+            if row["environment"] == context.scope.environment
         ]
 
     async def save(self, context: AuthContext, body: SubjectReviewSave) -> SubjectReviewView:
         await self.require(context)
         await self.mcp.require(context, body.connection_id)
         scope = context.scope
-        if not scope.data_scope_id:
-            raise ServiceError("CONTEXT_REQUIRED", "主体复核须绑定明确数据域", 403)
-        binding_id = digest(
-            [scope.channel_id, scope.environment, scope.data_scope_id, body.client_id]
-        )
+        binding_id = digest([scope.channel_id, scope.environment, body.client_id])
         mcp = await self.mcp.get(context, "mcp_connections", body.connection_id)
         snapshot = await self.mcp.get(context, "mcp_discoveries", body.discovery_id)
         remote = next(
@@ -186,8 +182,8 @@ class ConfiguredSubjectReader:
                 id=body.client_id,
                 environment=scope.environment,
             )
-            if client["status"] != "ACTIVE" or scope.data_scope_id not in client["data_scopes"]:
-                raise ServiceError("FORBIDDEN", "接入服务未获当前数据域授权", 403)
+            if client["status"] != "ACTIVE":
+                raise ServiceError("FORBIDDEN", "接入服务未获当前环境授权", 403)
             current = await mcp_repository(scope, "mcp_connections").get(
                 uow.connection, body.connection_id
             )
@@ -224,7 +220,6 @@ class ConfiguredSubjectReader:
             raise ServiceError("SUBJECT_REVIEW_REQUIRED", "主体复核缺少已验证接入身份", 403)
         payload = SubjectReviewRequest(
             scope=context.scope,
-            source_scope=claims.data_scope,
             client_id=context.client_id,
             key_id=context.key_id,
             request_id=context.request_id,

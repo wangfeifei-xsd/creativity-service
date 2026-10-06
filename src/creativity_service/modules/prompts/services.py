@@ -500,8 +500,6 @@ class PromptService:
     ) -> PromptSampleView:
         await self.authorization.require(context, "prompt:manage", prompt_id)
         await self._resource(context, prompt_id)
-        if not context.scope.data_scope_id:
-            raise ServiceError("DATA_SCOPE_REQUIRED", "保存样例必须选择业务数据域", 403)
         if (
             not body.title.strip()
             or len(canonical_json(body.input)) > 500000

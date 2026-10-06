@@ -110,7 +110,6 @@ async def test_frozen_skill_script_in_real_container_uses_unified_run(runtime_en
             ),
         },
         effect_type="READ_ONLY",
-        allowed_data_domains=(env.context.scope.data_scope_id,),
         environments=("test",),
         subject_requirements={"required": False},
     )

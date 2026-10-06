@@ -8,7 +8,7 @@ from sqlalchemy import Column, Index, MetaData, Table
 
 from creativity_service.core.database.tables import column_type
 
-BASELINE = json.loads(Path(__file__).with_name("baseline_v0033.json").read_text())
+BASELINE = json.loads(Path(__file__).with_name("layer_tables_v0041_0.json").read_text())
 COLUMNS: dict[str, list[dict[str, Any]]] = {
     "memory_policies": [
         {

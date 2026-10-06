@@ -25,7 +25,6 @@
     "run_id": "run_demo",
     "scope": {
       "channel_id": "channel_demo",
-      "data_scope_id": "scope_demo",
       "environment": "test",
       "subject_id": "subject_demo",
       "subject_type": "member"

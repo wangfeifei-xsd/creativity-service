@@ -17,7 +17,7 @@
 | Celery broker/result | 独立 Redis 库及部署前缀；业务消息含 channel_id / run_id | 队列 TTL 不决定 run 有效性；业务结果后端关闭 | PostgreSQL outbox、deadline、租约为事实；每个 Worker 消息独立加载上下文并清理 |
 | 私有对象存储 | `channels/{channel}/{environment}/{Scope摘要}/staging/{artifact_id}` | 暂存登记窗口 1 小时；可用文件显式 expires_at，建议 30 天 | 路径即私有对象键，登记后仍由元数据控制；永久公开地址/预签名下载不对外提供；过期暂存和失败上传反复回收 |
 | LangGraph checkpoint | 自有 checkpoints / checkpoint_writes，按 channel/run/namespace/key | 不超过源内容与运行保存期 | 17 以公共 UoW/锁/删除检查实现适配；不启用框架自动 DDL、默认 PK 或 upsert |
-| 后续检索索引 | channel / environment / data_scope / subject_type / subject_id 分区，带 source/version | P1 再启用，不能长于源内容 | 查询先范围过滤；删除撤掉所有派生向量与缓存；恢复需过同一屏障 |
+| 后续检索索引 | channel / environment / subject_type / subject_id 分区，带 source/version | P1 再启用，不能长于源内容 | 查询先范围过滤；删除撤掉所有派生向量与缓存；恢复需过同一屏障 |
 
 共用内容清理类型 `artifact`、`version`、`snapshot` 由 03 登记。未来模块启用含内容表时，应同步登记处理器，方案 25 从机器清单的 content 字段汇总完整覆盖清单。存在表而未登记处理器必须在集成装配检查中报错。首次范围初始化只适用于没有历史内容的数据空间；恢复已存在的范围必须使用独立账本校验协议。
 

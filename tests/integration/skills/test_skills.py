@@ -302,7 +302,6 @@ async def test_dependency_rebinding_unauthorized_tools_and_missing_capabilities(
         model_fields_allowed=(),
         binding={"adapter_key": "decimal_sum", "implementation_version": "1"},
         effect_type="READ_ONLY",
-        allowed_data_domains=(env.context.scope.data_scope_id,),
         environments=("test",),
         subject_requirements={"required": False},
     )

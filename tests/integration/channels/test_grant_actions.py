@@ -36,7 +36,6 @@ def grant_input(tenant, **values):
             "resource_id": "*",
             "allowed_actions": ["version:read"],
             "environments": ["test"],
-            "data_scopes": [tenant.domain.data_scope_id],
             **values,
         }
     )

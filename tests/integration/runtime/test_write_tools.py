@@ -89,7 +89,6 @@ async def prepare(env, source):
             model_fields_allowed=tuple(fields),
             binding={"adapter_key": name, "implementation_version": "1"},
             effect_type=effect,
-            allowed_data_domains=(env.context.scope.data_scope_id,),
             environments=("test",),
             subject_requirements={"required": False},
             idempotency_policy="none" if name == "check" else "source_key",

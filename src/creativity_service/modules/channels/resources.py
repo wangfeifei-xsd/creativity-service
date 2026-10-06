@@ -112,7 +112,7 @@ class ResourceCatalog:
             if granting and "grant:manage" not in policy.actions("channel", channel_id):
                 raise ServiceError("FORBIDDEN", "无权管理资源授权", 403)
         elif granting:
-            raise ServiceError("FORBIDDEN", "请进入渠道工作区授予资源权限", 403)
+            raise ServiceError("FORBIDDEN", "请进入渠道环境授予资源权限", 403)
         else:
             require_platform(session.account, "channel:govern")
         if channel_id == "system":
@@ -170,7 +170,7 @@ class ResourceCatalog:
         return DirectoryPage(items=items, total=total or 0, offset=offset, limit=limit)
 
     async def references(self, session: AdminSession, channel_id: str) -> list[ResourceReference]:
-        """按资源目录相同范围聚合一次，跨数据域共享的配置不重复计数。"""
+        """按资源目录相同范围聚合一次，同环境共享的配置不重复计数。"""
         scope, policy = None, None
         if isinstance(session.context, AuthContext):
             scope = session.context.scope

@@ -1,6 +1,6 @@
 # 提示词模型
 
-模型版本 1.9.3；负责方案 09；需求 [05-提示词管理.md](../../../../需求文档/05-提示词管理.md)。总索引见 [README](../README.md)。
+模型版本 2.0.0；负责方案 09；需求 [05-提示词管理.md](../../../../需求文档/05-提示词管理.md)。总索引见 [README](../README.md)。
 
 ## prompts
 
@@ -33,7 +33,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `prompt_id` | `varchar(64)` | 提示词资源标识 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -55,7 +54,6 @@
 | `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `data_scope_id` | `varchar(64)` | 业务数据域标识 | 否 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `version_id` | `varchar(64)` | 版本标识 | 是 | 服务层校验后的业务输入 | 内部 |

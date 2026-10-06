@@ -25,7 +25,6 @@ def examples() -> dict[str, dict[str, Any]]:
     scope = Scope(
         channel_id="channel_demo",
         environment="test",
-        data_scope_id="scope_demo",
         subject_type="member",
         subject_id="subject_demo",
     ).model_dump(mode="json")
@@ -112,7 +111,6 @@ def examples() -> dict[str, dict[str, Any]]:
             membership_active=None,
             client_active=True,
             key_active=True,
-            data_scope_active=True,
         ),
         "ResourceVersion": version,
         "ReleaseSnapshot": dict(

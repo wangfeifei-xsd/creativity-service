@@ -58,9 +58,7 @@ def authorization():
 @pytest.fixture
 async def context(engine, authorization):
     context = AuthContext(
-        scope=Scope(
-            channel_id=f"channel_{uuid4().hex}", environment="test", data_scope_id="orders"
-        ),
+        scope=Scope(channel_id=f"channel_{uuid4().hex}", environment="test"),
         principal_type="management",
         principal_id="admin",
         actor_id="admin",

@@ -17,10 +17,7 @@ from creativity_service.core.database.reading import read_connection
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.modules.channels.repositories import (
     ChannelRepository,
-    is_management_workspace,
-    management_scope_id,
     one,
-    rows,
     scope_rows,
 )
 from creativity_service.modules.channels.tables import metadata
@@ -60,21 +57,6 @@ async def current_service(connection: AsyncConnection, context: AuthContext) -> 
         or key["environment"] != scope.environment
     ):
         raise ServiceError("CLIENT_REVOKED", "接入服务不可用", 401)
-    scopes = frozenset(
-        row["id"]
-        for row in await rows(
-            connection,
-            "data_scopes",
-            scope.channel_id,
-            environment=scope.environment,
-            status="ACTIVE",
-        )
-        if row["id"] in client["data_scopes"]
-    )
-    if not scopes:
-        raise ServiceError("DATA_SCOPE_DISABLED", "接入服务没有可用数据域", 403)
-    if scope.data_scope_id and scope.data_scope_id not in scopes:
-        raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
     if not set(key["scopes"]) & set(client["scopes"]):
         raise ServiceError("CLIENT_REVOKED", "接入服务已无可调用权限", 401)
     return ServiceIdentity(
@@ -85,7 +67,6 @@ async def current_service(connection: AsyncConnection, context: AuthContext) -> 
         expires_at=key["expires_at"],
         client_actions=frozenset(client["scopes"]),
         key_actions=frozenset(key["scopes"]),
-        data_scopes=scopes,
     )
 
 
@@ -115,10 +96,8 @@ class ChannelStateService:
         ):
             raise ServiceError("SCOPE_MISMATCH", "接入身份与当前范围不符", 403)
         async with read_connection(self.repository.engine) as connection:
-            management = is_management_workspace(context)
-            current = await scope_rows(connection, scope, management=management)
+            current = await scope_rows(connection, scope)
             channel, environment = current["channels"], current["channel_environments"]
-            domain = current.get("data_scopes")
             stored_member = (
                 await identity_one(
                     connection, "channel_memberships", scope.channel_id, user_id=context.actor_id
@@ -146,11 +125,6 @@ class ChannelStateService:
                 ),
                 client_active=bool(identity) if context.client_id else None,
                 key_active=bool(identity) if context.key_id else None,
-                data_scope_active=domain["status"] == "ACTIVE"
-                if domain
-                else True
-                if management
-                else None,
                 channel_status=channel["status"],
             )
 
@@ -194,7 +168,6 @@ class ChannelDirectory:
             for name in (
                 "channels",
                 "channel_environments",
-                "data_scopes",
                 "resource_grants",
                 "custom_roles",
             ):
@@ -235,13 +208,11 @@ class ChannelDirectory:
         """复用本次已验证成员，只读取该成员范围的名称与环境归属。"""
         data: dict[str, list[dict[str, Any]]] = {"resource_grants": []}
         async with read_connection(self.repository.engine) as connection:
-            for name in ("channels", "channel_environments", "data_scopes"):
+            for name in ("channels", "channel_environments"):
                 table = metadata.tables[name]
                 statement = select(table).where(table.c.channel_id == member.channel_id)
                 if name != "channels":
                     statement = statement.where(table.c.environment.in_(member.environments))
-                if name == "data_scopes":
-                    statement = statement.where(table.c.id.in_(member.data_scopes))
                 data[name] = [dict(row) for row in (await connection.execute(statement)).mappings()]
         return self.options_from_data(data, {member.channel_id: member}, authorized=False)
 
@@ -252,111 +223,55 @@ class ChannelDirectory:
         *,
         authorized: bool,
     ) -> list[WorkspaceOption]:
-        """装配目录与单渠道名称共用投影，不执行查询或重新鉴权。"""
-        channels = {r["channel_id"]: r for r in data["channels"] if r["id"] == r["channel_id"]}
-        environments = {
-            (r["channel_id"], r["environment"]): r for r in data["channel_environments"]
+        """渠道每个授权环境仅有一个入口；动作由当前角色与资源授权计算。"""
+        channels = {
+            row["channel_id"]: row for row in data["channels"] if row["id"] == row["channel_id"]
         }
         grants = {
             identifier: [
-                to_state(GrantState, r)
-                for r in data["resource_grants"]
-                if r["channel_id"] == identifier
+                to_state(GrantState, row)
+                for row in data["resource_grants"]
+                if row["channel_id"] == identifier
             ]
             for identifier in states
         }
         result = []
-        for identifier, member in states.items():
-            channel = channels.get(identifier)
-            if not channel or channel["status"] == "ARCHIVED":
-                continue
-            for (channel_id, environment), management_env in environments.items():
-                if channel_id != identifier or environment not in member.environments:
-                    continue
-                management_id = management_scope_id(identifier, environment)
-                if management_id not in member.data_scopes:
-                    continue
-                if authorized:
-                    if not any(
-                        effective_actions(
-                            member,
-                            grants[identifier],
-                            environment,
-                            management_id,
-                            grant.resource_type,
-                            grant.resource_id,
-                        )
-                        for grant in grants[identifier]
-                    ):
-                        continue
-                    if management_env["status"] != "ACTIVE" and not (
-                        effective_actions(
-                            member,
-                            grants[identifier],
-                            environment,
-                            management_id,
-                            "channel",
-                            identifier,
-                        )
-                        & GOVERNANCE_ACTIONS
-                    ):
-                        continue
-                result.append(
-                    WorkspaceOption(
-                        channel_id=identifier,
-                        channel_name=channel["name"],
-                        environment=environment,
-                        environment_name=management_env["name"],
-                        data_scope_id=management_id,
-                        data_scope_name="管理工作区",
-                    )
-                )
-        for domain in data["data_scopes"]:
-            identifier = domain["channel_id"]
-            member, channel = states[identifier], channels.get(identifier)
-            env = environments.get((identifier, domain["environment"]))
+        for env in data["channel_environments"]:
+            identifier, environment = env["channel_id"], env["environment"]
+            member, channel = states.get(identifier), channels.get(identifier)
             if (
-                not channel
+                not member
+                or not channel
                 or channel["status"] == "ARCHIVED"
-                or not env
-                or env["environment"] not in member.environments
-                or domain["id"] not in member.data_scopes
+                or environment not in member.environments
             ):
                 continue
             if authorized:
-                available = grants[identifier]
                 if not any(
                     effective_actions(
                         member,
-                        available,
-                        env["environment"],
-                        domain["id"],
-                        g.resource_type,
-                        g.resource_id,
+                        grants[identifier],
+                        environment,
+                        grant.resource_type,
+                        grant.resource_id,
                     )
-                    for g in available
+                    for grant in grants[identifier]
                 ):
                     continue
-                governed = bool(
+                governed = (
                     effective_actions(
-                        member, available, env["environment"], domain["id"], "channel", identifier
+                        member, grants[identifier], environment, "channel", identifier
                     )
                     & GOVERNANCE_ACTIONS
                 )
-                if not governed and (
-                    channel["status"] != "ACTIVE"
-                    or env["status"] != "ACTIVE"
-                    or domain["status"] != "ACTIVE"
-                ):
+                if not governed and (channel["status"] != "ACTIVE" or env["status"] != "ACTIVE"):
                     continue
             result.append(
                 WorkspaceOption(
                     channel_id=identifier,
                     channel_name=channel["name"],
-                    environment=env["environment"],
+                    environment=environment,
                     environment_name=env["name"],
-                    data_scope_id=domain["id"],
-                    data_scope_name=domain["name"],
                 )
             )
         return result
@@ -372,7 +287,6 @@ class ChannelResourceReader:
     display_tables = {
         "channel": ["channels"],
         "environment": ["channel_environments"],
-        "data_scope": ["data_scopes"],
         "client": ["service_clients"],
         "key": ["channel_keys"],
     }
@@ -386,7 +300,6 @@ class ChannelResourceReader:
         table = {
             "channel": "channels",
             "environment": "channel_environments",
-            "data_scope": "data_scopes",
             "client": "service_clients",
             "key": "channel_keys",
         }.get(resource_type)
@@ -397,13 +310,10 @@ class ChannelResourceReader:
             value = await one(connection, table, scope.channel_id, id=resource_id)
         if value is None or ("environment" in value and value["environment"] != scope.environment):
             return None
-        if resource_type == "data_scope" and value["id"] != scope.data_scope_id:
-            return None
         return ResourceState(
             scope=Scope(
                 channel_id=scope.channel_id,
                 environment=scope.environment,
-                data_scope_id=value["id"] if resource_type == "data_scope" else None,
             ),
             resource_type=resource_type,
             resource_id=resource_id,

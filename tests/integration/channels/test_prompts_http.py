@@ -91,14 +91,12 @@ async def test_prompt_http_permissions_export_and_channel_override(channel_env, 
             update={"independent_actions": ["data:export", "data:read_sensitive"]}
         ),
     )
-    domains = await env.services.channels.data_scopes(env.admin, granted.channel_id)
     _, fresh = await login(env)
     token = await env.iam.sessions.enter(
         fresh,
         ChannelContextInput(
             channel_id=granted.channel_id,
             environment="test",
-            data_scope_id=domains[0].data_scope_id,
         ),
     )
     headers = {"Authorization": f"Bearer {token.access_token}"}

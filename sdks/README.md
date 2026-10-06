@@ -1,6 +1,6 @@
 # Creativity SDK
 
-Python 与 TypeScript SDK 调用业务端 `/api/v1`，共享平台的 Token、委托身份、幂等与 SSE 契约。当前为仓库内源码包，未发布到外部包仓库。
+Python 与 TypeScript SDK 调用业务端 `/api/v1`，共享平台的 Token、委托身份、幂等与 SSE 契约。当前为仓库内源码包，未发布到外部包仓库。委托回调须使用 `business-delegation-v2`（[载荷契约](../contracts/integrations/DelegationClaims-v2.schema.json)），仅绑定渠道、环境、主体及动作资源，旧版本声明不再接受。
 
 ## Python
 

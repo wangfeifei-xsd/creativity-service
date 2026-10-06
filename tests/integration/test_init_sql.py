@@ -164,12 +164,6 @@ def test_remove_channel_category_preserves_identity_and_related_records(isolated
                 "channel_id": "system",
                 "target_channel_id": "old-channel",
             },
-            "data_scopes": {
-                "id": "old-scope",
-                "channel_id": "old-channel",
-                "external_scope_type": "club",
-                "external_scope_id": "club-1",
-            },
             "service_clients": {"id": "old-client", "channel_id": "old-channel"},
             "channel_keys": {
                 "id": "old-key",
@@ -192,7 +186,7 @@ def test_remove_channel_category_preserves_identity_and_related_records(isolated
         }
         previous = dict(connection.execute(text("SELECT * FROM channels")).mappings().one())
         previous.pop("business_type")
-        command.upgrade(config, "head")
+        command.upgrade(config, "0037_remove_business_type")
         assert "business_type" not in {
             column["name"]
             for column in inspect(connection).get_columns("channels", schema=database.schema)
@@ -207,7 +201,7 @@ def test_remove_channel_category_preserves_identity_and_related_records(isolated
         restored = dict(connection.execute(text("SELECT * FROM channels")).mappings().one())
         assert restored.pop("business_type") is None
         assert restored == previous
-        command.upgrade(config, "head")
+        command.upgrade(config, "0037_remove_business_type")
 
 
 def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_database, tmp_path):
@@ -280,7 +274,7 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
             )
             # 历史迁移保留冻结种子；当前环境快照只用于独立数据归档。
             old_seed = (
-                ARCHIVE.parents[1] / "src/creativity_service/modules/iam/menu_seed_v0035.json"
+                ARCHIVE.parents[1] / "src/creativity_service/modules/iam/menu_seed_v0041.json"
             )
             migration_seed = sorted(json.loads(old_seed.read_text()), key=lambda row: row["id"])
             assert [
@@ -426,15 +420,14 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
             exclude={"configuration_status"}
         )
         async with engine.connect() as connection:
-            pending = await iam.access.pending_first_member(connection, channel.channel_id)
+            pending = await iam.access.first_administrator(connection, channel.channel_id)
         assert pending == {
             "user_id": account["id"],
             "display_name": account["display_name"],
-            "data_scopes": [],
-            "initial_data_scopes": [],
+            "environments": [],
+            "initial_environments": [],
         }
         assert await channels.channels.environments(session, channel.channel_id) == []
-        assert await channels.channels.data_scopes(session, channel.channel_id) == []
         with pytest.raises(ServiceError) as duplicate:
             await channels.channels.create(
                 session,
@@ -458,7 +451,6 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
         assert (limits[0].used, limits[0].remaining) == (0, 20)
         for name in (
             "channel_environments",
-            "data_scopes",
             "service_clients",
             "channel_keys",
         ):

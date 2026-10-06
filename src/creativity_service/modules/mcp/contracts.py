@@ -21,7 +21,6 @@ class McpIdentity(Contract):
     protocol: Literal["creativity.mcp-identity.v1"] = "creativity.mcp-identity.v1"
     channel_id: str
     environment: str
-    data_scope_id: str
     subject_type: str | None
     subject_id: str | None
     principal_id: str
@@ -133,8 +132,6 @@ async def trusted_identity(
     decision = await authorization.check(context, "run:create", "tool", tool_id)
     if not decision.allowed or not set(request.definition.required_scopes) <= set(decision.actions):
         raise ServiceError("TOOL_FORBIDDEN", "工具当前权限已撤销", 403)
-    if not context.scope.data_scope_id:
-        raise ServiceError("TOOL_FORBIDDEN", "工具调用缺少受信数据域", 403)
     resources = {"tool": [tool_id]}
     expires_at = utcnow() + timedelta(seconds=30)
     if not context.actor_id:

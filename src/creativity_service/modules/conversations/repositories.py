@@ -59,7 +59,6 @@ async def save(
         "id",
         "channel_id",
         "environment",
-        "data_scope_id",
         "subject_type",
         "subject_id",
         "revision",

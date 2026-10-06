@@ -189,7 +189,6 @@ class Statements:
             scope
             for scope in await self.management.scopes(session)
             if scope.environment == context.scope.environment
-            and scope.data_scope_id == context.scope.data_scope_id
         ]
         async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
             await DeletionGuard(context.scope).check(
@@ -209,7 +208,6 @@ class Statements:
                         .where(
                             table.c.channel_id == context.scope.channel_id,
                             table.c.environment == context.scope.environment,
-                            table.c.data_scope_id == context.scope.data_scope_id,
                             *(
                                 [
                                     table.c.subject_type == context.scope.subject_type,

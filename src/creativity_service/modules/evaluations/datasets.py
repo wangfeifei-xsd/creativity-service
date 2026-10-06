@@ -209,12 +209,8 @@ class DatasetService:
         if identifiers - sources.keys():
             raise ServiceError("NOT_FOUND", "评测来源不存在", 404)
         scopes = [Scope.model_validate({k: r[k] for k in Scope.model_fields}) for r in source_rows]
-        if any(
-            (s.environment, s.data_scope_id)
-            != (context.scope.environment, context.scope.data_scope_id)
-            for s in scopes
-        ):
-            raise ServiceError("SCOPE_MISMATCH", "样本来源不在当前数据域", 403)
+        if any(s.environment != context.scope.environment for s in scopes):
+            raise ServiceError("SCOPE_MISMATCH", "样本来源不在当前环境", 403)
         refs = [ContentRef("evaluation_case", c["id"]) for c in eligible]
         refs.extend(ContentRef("run", i) for i in identifiers)
         blocked = await DeletionGuard(context.scope).blocked_refs(
@@ -271,11 +267,8 @@ class DatasetService:
                 uow.connection, "runs", context.scope.channel_id, id=source["resource_id"]
             )
             scope = Scope.model_validate({k: row[k] for k in Scope.model_fields})
-            if (scope.environment, scope.data_scope_id) != (
-                context.scope.environment,
-                context.scope.data_scope_id,
-            ):
-                raise ServiceError("SCOPE_MISMATCH", "样本来源不在当前数据域", 403)
+            if scope.environment != context.scope.environment:
+                raise ServiceError("SCOPE_MISMATCH", "样本来源不在当前环境", 403)
             # 沿服务端已登记的来源主体复核删除；复用同一连接与渠道图锁，不开启嵌套事务。
             source_uow = UnitOfWork(uow.connection, scope, uow.keys)
             await DeletionGuard(scope).check(source_uow, [ContentRef("run", source["resource_id"])])

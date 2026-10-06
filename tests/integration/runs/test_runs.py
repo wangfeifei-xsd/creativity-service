@@ -643,7 +643,6 @@ async def test_management_subject_scope_is_derived_from_stored_run(env):
     scope = Scope(
         channel_id=env.context.scope.channel_id,
         environment="test",
-        data_scope_id="domain_one",
         subject_type="customer",
         subject_id="customer_one",
     )
@@ -657,7 +656,7 @@ async def test_management_subject_scope_is_derived_from_stored_run(env):
     page = await env.runs.list_runs(manager, subject_type="customer", subject_id="customer_one")
     assert [r["run_id"] for r in page["items"]] == [receipt.run_id]
     foreign = manager.model_copy(
-        update={"scope": manager.scope.model_copy(update={"data_scope_id": "domain_other"})}
+        update={"scope": manager.scope.model_copy(update={"environment": "prod"})}
     )
     with pytest.raises(ServiceError, match="不存在"):
         await env.runs.get_run(foreign, receipt.run_id)

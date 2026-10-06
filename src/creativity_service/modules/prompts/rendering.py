@@ -23,7 +23,6 @@ PLATFORM_NAMES = {
     "environment",
     "principal_id",
     "actor_id",
-    "data_scope_id",
     "subject_id",
 }
 LABELS = {
@@ -127,7 +126,6 @@ def platform_values(context: AuthContext) -> dict[str, Any]:
         "environment": context.scope.environment,
         "principal_id": context.principal_id,
         "actor_id": context.actor_id,
-        "data_scope_id": context.scope.data_scope_id,
         "subject_id": context.scope.subject_id,
     }
 

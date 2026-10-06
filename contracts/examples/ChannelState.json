@@ -21,7 +21,6 @@
     "channel_id": "channel_demo",
     "channel_status": null,
     "client_active": true,
-    "data_scope_active": true,
     "environment": "test",
     "environment_active": true,
     "key_active": true,

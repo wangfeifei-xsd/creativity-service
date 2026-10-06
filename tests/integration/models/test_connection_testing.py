@@ -5,7 +5,6 @@ from sqlalchemy import func, select
 
 from creativity_service.core.database import assert_external_io_allowed
 from creativity_service.core.primitives import ServiceError
-from creativity_service.modules.channels.repositories import management_scope_id
 from creativity_service.modules.iam.schemas import ChannelContextInput
 from creativity_service.modules.models import connection_testing
 from creativity_service.modules.models.repositories import repository
@@ -21,23 +20,19 @@ async def test_management_workspace_can_check_connection_without_business_execut
 ):
     env = channel_env
     tenant, services, _, connection, _, model = await setup(env)
-    await env.services.channels.enable_management_workspace(
-        env.admin, tenant.channel.channel_id, "test"
-    )
     _, session = await login(env)
     token = await env.iam.sessions.enter(
         session,
         ChannelContextInput(
             channel_id=tenant.channel.channel_id,
             environment="test",
-            data_scope_id=management_scope_id(tenant.channel.channel_id, "test"),
         ),
     )
     manager = await env.iam.authentication.admin_session(token.access_token, "connection-test")
     listed = await services.configuration.models(manager)
     actions = {item.action_key: item for item in listed.items[0].actions}
     assert actions["test_connection"].enabled
-    assert "test" not in actions
+    assert actions["test"].enabled
     calls = []
 
     async def probe(config, target, secret):

@@ -1,18 +1,33 @@
 {
   "subject_type": "user",
   "subject_id": "replace_with_verified_subject",
-  "data_scope": {
-    "type": "replace_with_source_scope_type",
-    "id": "replace_with_source_scope_id"
-  },
-  "actions": ["run:create", "run:read", "run:content", "data:read_sensitive"],
+  "actions": [
+    "run:create",
+    "run:read",
+    "run:content",
+    "data:read_sensitive"
+  ],
   "resources": {
-    "agent": ["replace_with_agent_id"],
-    "model": ["replace_with_model_id"],
-    "model_route": ["replace_with_route_id"],
-    "prompt": ["replace_with_prompt_id"],
-    "tool": ["replace_with_tool_id"],
-    "skill": ["replace_with_skill_id"],
-    "run": ["*"]
+    "agent": [
+      "replace_with_agent_id"
+    ],
+    "model": [
+      "replace_with_model_id"
+    ],
+    "model_route": [
+      "replace_with_route_id"
+    ],
+    "prompt": [
+      "replace_with_prompt_id"
+    ],
+    "tool": [
+      "replace_with_tool_id"
+    ],
+    "skill": [
+      "replace_with_skill_id"
+    ],
+    "run": [
+      "*"
+    ]
   }
 }

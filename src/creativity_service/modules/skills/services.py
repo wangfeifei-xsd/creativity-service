@@ -22,7 +22,6 @@ from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.core.versioning import VersionService
 from creativity_service.modules.agents.access import locked_policy, locked_require
-from creativity_service.modules.channels.repositories import is_management_workspace
 from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.iam.reading import require_action, resource_state, visible_actions
 from creativity_service.modules.iam.repositories import policy_key
@@ -1172,8 +1171,8 @@ class SkillService:
                 },
             )
         run_id = None
-        # 管理工作区只验证包的确定性加载；业务运行仍须真实数据域和执行授权。
-        if self.runtime_runner is not None and not is_management_workspace(context):
+        # 包验证检查确定性加载；业务运行仍须执行授权。
+        if self.runtime_runner is not None:
             run_id = await self.runtime_runner.submit(context, test_id, version_id, request)
             async with transaction(
                 self.engine,

@@ -23,9 +23,8 @@ def validate_result(result: BusinessResult, operation: Operation, scope: Scope) 
 
         def check(value: Any) -> None:
             if isinstance(value, dict):
-                if {"channel_id", "environment", "data_scope_id"} <= value.keys() and any(
-                    value[name] != getattr(scope, name)
-                    for name in ("channel_id", "environment", "data_scope_id")
+                if {"channel_id", "environment"} <= value.keys() and any(
+                    value[name] != getattr(scope, name) for name in ("channel_id", "environment")
                 ):
                     raise ValueError
                 for item in value.values():

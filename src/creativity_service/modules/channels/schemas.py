@@ -28,26 +28,11 @@ class ReleasePolicy(Contract):
     approval_required: bool = True
 
 
-class InitialDataScope(Contract):
-    name: str = Field(min_length=1, max_length=128)
-    external_scope_type: str = Field(min_length=1, max_length=64)
-    external_scope_id: str = Field(min_length=1, max_length=128)
-
-
 class ChannelCreate(Contract):
     name: str = Field(min_length=1, max_length=128)
     owner: str = Field(min_length=1, max_length=128)
     first_admin_user_id: Identifier
-    environment: Environment | None = Field(
-        default=None,
-        description="兼容一次性开通；须与初始数据域同时提供",
-        json_schema_extra={"deprecated": True},
-    )
-    data_scope: InitialDataScope | None = Field(
-        default=None,
-        description="兼容一次性开通；新流程在详情中配置数据域",
-        json_schema_extra={"deprecated": True},
-    )
+    environment: Environment | None = None
     retention_policy: RetentionPolicy = Field(default_factory=RetentionPolicy)
     independent_actions: list[IndependentAction] = Field(
         default_factory=list, max_length=len(INDEPENDENT_ACTIONS)
@@ -76,32 +61,10 @@ class EnvironmentUpdate(Contract):
     retention_policy: RetentionPolicy | None = None
 
 
-class DataScopeCreate(InitialDataScope):
-    environment: Environment
-    administrator_id: Identifier | None = None
-
-
-class DataScopeSourceInput(Contract):
-    environment: Environment
-    connection_id: Identifier
-    remote_tool_name: str = Field(min_length=1, max_length=256)
-
-
-class DataScopeFromSource(DataScopeSourceInput):
-    external_scope_type: str = Field(min_length=1, max_length=64)
-    external_scope_id: str = Field(min_length=1, max_length=128)
-
-
-class DataScopeUpdate(Contract):
-    revision: Revision
-    status: Status | None = None
-
-
 class ClientCreate(Contract):
     name: str = Field(min_length=1, max_length=128)
     environment: Environment
     scopes: list[str] = Field(min_length=1, max_length=100)
-    data_scopes: list[Identifier] = Field(min_length=1, max_length=200)
 
 
 class ClientUpdate(Contract):
@@ -109,7 +72,6 @@ class ClientUpdate(Contract):
     name: str | None = Field(default=None, min_length=1, max_length=128)
     status: Status | None = None
     scopes: list[str] | None = Field(default=None, min_length=1, max_length=100)
-    data_scopes: list[Identifier] | None = Field(default=None, min_length=1, max_length=200)
 
 
 class KeyCreate(Contract):
@@ -167,19 +129,6 @@ class EnvironmentView(Contract):
     revision: int
 
 
-class DataScopeView(Contract):
-    data_scope_id: str
-    environment: Environment
-    environment_name: str | None
-    name: str
-    external_scope_type: str
-    external_scope_type_name: str | None
-    external_scope_id: str
-    status: Status
-    status_label: str
-    revision: int
-
-
 class ClientView(Contract):
     client_id: str
     name: str
@@ -187,8 +136,6 @@ class ClientView(Contract):
     environment_name: str | None
     scopes: list[str]
     scope_names: list[str]
-    data_scopes: list[str]
-    data_scope_names: list[str | None]
     status: Status
     status_label: str
     revision: int
@@ -253,7 +200,6 @@ class ResourceReference(Contract):
 class OverviewView(Contract):
     channel: ChannelView
     environments: int
-    data_scopes: int
     clients: int
     active_keys: int
     members_path: str
