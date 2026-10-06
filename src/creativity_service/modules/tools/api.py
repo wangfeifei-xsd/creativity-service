@@ -16,8 +16,6 @@ from creativity_service.modules.tools.schemas import (
     ToolEdit,
     ToolImpact,
     ToolList,
-    ToolRelease,
-    ToolRevision,
     ToolTestDescription,
     ToolTestInput,
     ToolTestResult,
@@ -86,13 +84,6 @@ async def edit(context: Context, service: Services, tool_id: str, body: ToolEdit
     return await service.edit(context, tool_id, body)
 
 
-@router.post("/tools/{tool_id}/versions", response_model=ToolVersionView, status_code=201)
-async def create_version(
-    context: Context, service: Services, tool_id: str, body: ToolVersionCreate
-) -> ToolVersionView:
-    return await service.create_version(context, tool_id, body)
-
-
 @router.get("/tool-versions/{version_id}", response_model=ToolVersionView)
 async def version(context: Context, service: Services, version_id: str) -> ToolVersionView:
     return await service.version_detail(context, version_id)
@@ -105,37 +96,9 @@ async def edit_version(
     return await service.edit_version(context, version_id, body)
 
 
-@router.post("/tool-versions/{version_id}/freeze", response_model=ToolVersionView)
-async def freeze(
-    context: Context, service: Services, version_id: str, body: ToolRevision
-) -> ToolVersionView:
-    return await service.freeze(context, version_id, body.revision)
-
-
-@router.post("/tools/{tool_id}/releases", response_model=ToolDetail)
-async def release(
-    context: Context, service: Services, tool_id: str, body: ToolRelease
-) -> ToolDetail:
-    return await service.release(context, tool_id, body)
-
-
 @router.get("/tools/{tool_id}/impact", response_model=ToolImpact)
 async def impact(context: Context, service: Services, tool_id: str) -> ToolImpact:
     return await service.impact(context, tool_id)
-
-
-@router.post("/tools/{tool_id}/disable", response_model=ToolDetail)
-async def disable(
-    context: Context, service: Services, tool_id: str, body: ToolRevision
-) -> ToolDetail:
-    return await service.disable(context, tool_id, body.revision)
-
-
-@router.post("/tools/{tool_id}/enable", response_model=ToolDetail)
-async def enable(
-    context: Context, service: Services, tool_id: str, body: ToolRevision
-) -> ToolDetail:
-    return await service.enable(context, tool_id, body.revision)
 
 
 @router.get("/tool-versions/{version_id}/test-description", response_model=ToolTestDescription)
@@ -162,3 +125,17 @@ async def calls(
 @router.get("/tool-calls/{call_id}", response_model=ToolCallView)
 async def call(context: Context, service: Services, call_id: str) -> ToolCallView:
     return await service.call(context, call_id)
+
+
+@router.post("/tools/{tool_id}/configuration", status_code=201)
+async def create_configuration(
+    context: Context, service: Services, tool_id: str, body: ToolVersionCreate
+) -> ToolVersionView:
+    return await service.create_version(context, tool_id, body)
+
+
+@router.patch("/tools/{tool_id}/configuration")
+async def edit_configuration(
+    context: Context, service: Services, tool_id: str, body: ToolVersionEdit
+) -> ToolVersionView:
+    return await service.edit_version(context, tool_id, body)

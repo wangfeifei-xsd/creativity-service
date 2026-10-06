@@ -325,6 +325,30 @@ class QueryService(RunKernel):
                     for identifier in identifiers
                     if (ref := refs.get(identifier))
                 ]
+            from creativity_service.modules.agents.repositories import repository as resource_repo
+            from creativity_service.modules.resources.configuration import LABELS, TABLES
+
+            uses = await resource_repo("resource_uses", context.scope).find(
+                uow.connection, run_id=run_id
+            )
+            parents = {
+                kind: await resource_repo(TABLES[kind], context.scope).get_many(
+                    uow.connection, [r["resource_id"] for r in uses if r["resource_type"] == kind]
+                )
+                for kind in {r["resource_type"] for r in uses}
+            }
+            resource_uses = [
+                {
+                    "name": r["resource_name"],
+                    "type": LABELS[r["resource_type"]],
+                    "deleted": parents.get(r["resource_type"], {})
+                    .get(r["resource_id"], {})
+                    .get("status")
+                    in {None, "DELETED"},
+                    "used_at": r["created_at"].isoformat(),
+                }
+                for r in uses
+            ]
             return_value = {
                 **self.receipt(row).model_dump(mode="json"),
                 "name": row["agent_name"],
@@ -340,8 +364,13 @@ class QueryService(RunKernel):
                 "actual_inputs": actual_inputs,
                 "evidence": evidence,
                 "error": row["error"],
+                "resource_uses": resource_uses,
                 "versions": [
-                    {"name": v.version_label, "type": v.resource_type, "version_id": v.version_id}
+                    {
+                        "name": v.resource_name or v.version_label,
+                        "type": v.resource_type,
+                        "version_id": v.version_id,
+                    }
                     for v in snapshot.versions
                 ]
                 if snapshot

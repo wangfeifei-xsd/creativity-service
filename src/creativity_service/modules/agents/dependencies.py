@@ -54,13 +54,16 @@ class DependencyResolver:
     ) -> tuple[list[dict[str, Any]], dict[str, Any], list[FrozenModel]]:
         bindings, scope = definition.bindings, context.scope
         if not bindings.prompt_version or not bindings.model_route_version:
-            raise ServiceError("DEPENDENCY_INVALID", "请选择提示词版本和模型路由版本", 422)
+            raise ServiceError("DEPENDENCY_INVALID", "请选择提示词和模型路由", 422)
         rows = (
             loaded
             if loaded is not None
             else await dependency_rows(uow.connection, scope, bindings.ids())
         )
         indexed = {r["id"]: r for r in rows}
+        from creativity_service.modules.resources.configuration import require_dependencies
+
+        await require_dependencies(uow, scope, [r["id"] for r in rows])
         types = {
             bindings.prompt_version: "prompt",
             bindings.model_route_version: "model_route",
@@ -76,7 +79,7 @@ class DependencyResolver:
                 raise ServiceError("DEPENDENCY_INVALID", "语义检索需要启用记忆读取", 422)
         for identifier, kind in types.items():
             if indexed[identifier]["resource_type"] != kind:
-                raise ServiceError("DEPENDENCY_INVALID", "依赖版本类型与选择位置不符", 422)
+                raise ServiceError("DEPENDENCY_INVALID", "依赖资源类型与选择位置不符", 422)
         capabilities = {"text", "structured_output"}
         if bindings.tool_versions:
             capabilities.add("tools")
@@ -109,7 +112,7 @@ class DependencyResolver:
             if row["state"] not in {"DRAFT", "PUBLISHED"} or (
                 purpose == "production" and row["state"] != "PUBLISHED"
             ):
-                raise ServiceError("DEPENDENCY_INVALID", "正式发布依赖须为同渠道已发布版本", 422)
+                raise ServiceError("DEPENDENCY_INVALID", "正式使用依赖须为当前环境已发布资源", 422)
             if row["content_digest"] != digest(
                 {"content": row["content"], "output_schema": row["output_schema"]}
             ):
@@ -117,6 +120,7 @@ class DependencyResolver:
             resource = parents.get(kind, {}).get(row["resource_id"])
             if resource is None:
                 raise ServiceError("DEPENDENCY_INVALID", "当前渠道缺少所需资源或版本", 422)
+            row["resource_name"] = resource["name"]
             if resource.get("status", "ACTIVE") != "ACTIVE":
                 raise ServiceError(
                     "DEPENDENCY_INVALID", f"{resource.get('name', '依赖资源')}已停用", 422

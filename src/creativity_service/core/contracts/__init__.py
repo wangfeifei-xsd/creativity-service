@@ -16,6 +16,8 @@ from creativity_service.core.primitives import Contract, Digest, Identifier, Mon
 
 
 class ResourceVersion(Contract):
+    resource_name: str | None = None
+    configuration_revision: Revision | None = None
     channel_id: Identifier
     resource_type: Identifier
     resource_id: Identifier

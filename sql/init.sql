@@ -1,7 +1,7 @@
 -- Creativity 表结构初始化归档，适用于 PostgreSQL 17 空库或空 schema。
--- 模型版本：2.0.0；配套数据归档迁移基线：0042_channel_admin_publish。
+-- 模型版本：2.0.0；配套数据归档迁移基线：0043_resource_management。
 -- 初始建库基线：alembic/versions/0001_initial.py；后续修订在其上追加。
--- 包含 110 张表、1611 个字段、246 个普通索引及全部中文注释。
+-- 包含 111 张表、1624 个字段、249 个普通索引及全部中文注释。
 -- 本文件不写初始化数据；完成后必须执行 sql/init_data.sql，再启动服务或迁移。
 -- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。
 -- 执行方式见 sql/README.md；表创建在连接的当前 schema。
@@ -4550,6 +4550,57 @@ CREATE INDEX ix_resource_references_0 ON resource_references (channel_id, id);
 CREATE INDEX ix_resource_references_1 ON resource_references (channel_id, target_version_id);
 
 CREATE INDEX ix_resource_references_2 ON resource_references (channel_id, source_version_id);
+
+-- resource_uses：资源实际使用记录，每个资源在同一运行中计一次。
+CREATE TABLE resource_uses (
+	id VARCHAR(64),
+	channel_id VARCHAR(64),
+	created_at TIMESTAMP WITH TIME ZONE,
+	updated_at TIMESTAMP WITH TIME ZONE,
+	revision BIGINT,
+	environment VARCHAR(16),
+	resource_type VARCHAR(64),
+	resource_id VARCHAR(64),
+	resource_name VARCHAR(128),
+	run_id VARCHAR(64),
+	agent_name VARCHAR(128),
+	caller_name VARCHAR(128),
+	purpose VARCHAR(32)
+);
+
+COMMENT ON TABLE resource_uses IS '资源实际使用记录，每个资源在同一运行中计一次';
+
+COMMENT ON COLUMN resource_uses.id IS '记录标识';
+
+COMMENT ON COLUMN resource_uses.channel_id IS '所属渠道标识';
+
+COMMENT ON COLUMN resource_uses.created_at IS '创建时间';
+
+COMMENT ON COLUMN resource_uses.updated_at IS '更新时间';
+
+COMMENT ON COLUMN resource_uses.revision IS '并发修订号';
+
+COMMENT ON COLUMN resource_uses.environment IS '使用环境';
+
+COMMENT ON COLUMN resource_uses.resource_type IS '资源类型';
+
+COMMENT ON COLUMN resource_uses.resource_id IS '稳定资源标识';
+
+COMMENT ON COLUMN resource_uses.resource_name IS '使用时资源名称';
+
+COMMENT ON COLUMN resource_uses.run_id IS '关联运行标识';
+
+COMMENT ON COLUMN resource_uses.agent_name IS '使用时智能体名称';
+
+COMMENT ON COLUMN resource_uses.caller_name IS '使用时调用方名称';
+
+COMMENT ON COLUMN resource_uses.purpose IS '运行用途';
+
+CREATE INDEX ix_resource_uses_0 ON resource_uses (channel_id, id);
+
+CREATE INDEX ix_resource_uses_1 ON resource_uses (channel_id, resource_type, resource_id);
+
+CREATE INDEX ix_resource_uses_2 ON resource_uses (channel_id, run_id);
 
 -- resource_versions：资源版本与草稿。
 CREATE TABLE resource_versions (

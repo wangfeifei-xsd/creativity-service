@@ -20,6 +20,8 @@ from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id, unavailable, utcnow
 from creativity_service.core.schema_validation import check_schema
 
+MANAGED_KINDS = frozenset({"prompt", "model_route", "tool", "skill"})
+
 
 class VersionValidator(Protocol):
     async def validate(
@@ -36,10 +38,12 @@ def version_view(row: dict[str, Any]) -> ResourceVersion:
         channel_id=row["channel_id"],
         resource_type=row["resource_type"],
         resource_id=row["resource_id"],
+        resource_name=row.get("resource_name"),
         version_id=row["id"],
         version_label=row["version_label"],
         state=row["state"],
         draft_revision=row["revision"] if row["state"] == "DRAFT" else None,
+        configuration_revision=row["revision"] if row["resource_type"] in MANAGED_KINDS else None,
         content=row["content"],
         content_digest=row["content_digest"],
         dependency_version_ids=tuple(row["dependencies"]),
@@ -100,7 +104,8 @@ class VersionService:
         assert_external_io_allowed()
         await self.authorization.require(context, "version:edit", resource_id)
         validate_schema(output_schema)
-        version_id, audit_id = new_id("version"), new_id("audit")
+        version_id = resource_id if resource_type in MANAGED_KINDS else new_id("version")
+        audit_id = new_id("audit")
         scope, repo = context.scope, Repository(metadata.tables["resource_versions"], context.scope)
         keys = self.keys(scope, version_id, audit_id) + [
             ResourceKey(scope.channel_id, "version-label", (resource_type, resource_id, label))
@@ -109,6 +114,12 @@ class VersionService:
         keys.append(record_key(scope.channel_id, "source_links", source_id))
         async with transaction(self.engine, scope, keys) as uow:
             await DeletionGuard(scope).check(uow, [ContentRef(resource_type, resource_id)])
+            if resource_type in MANAGED_KINDS:
+                from creativity_service.modules.resources.configuration import require_dependencies
+
+                if await repo.get(uow.connection, version_id):
+                    raise ServiceError("CONFIGURATION_EXISTS", "资源已有配置，请直接修改", 409)
+                await require_dependencies(uow, scope, dependencies)
             if await repo.find(
                 uow.connection,
                 resource_type=resource_type,
@@ -122,7 +133,7 @@ class VersionService:
                 {
                     "resource_type": resource_type,
                     "resource_id": resource_id,
-                    "version_label": label,
+                    "version_label": "当前配置" if resource_type in MANAGED_KINDS else label,
                     "state": "DRAFT",
                     "content": content,
                     "content_digest": digest({"content": content, "output_schema": output_schema}),
@@ -160,16 +171,83 @@ class VersionService:
     ) -> ResourceVersion:
         assert_external_io_allowed()
         await self.authorization.require(context, "version:edit", version_id)
+        async with self.engine.connect() as connection:
+            initial = await Repository(metadata.tables["resource_versions"], context.scope).get(
+                connection, version_id
+            )
+        managed = bool(
+            initial
+            and initial["resource_type"] in MANAGED_KINDS
+            and initial["id"] == initial["resource_id"]
+        )
+        if managed and initial and initial["state"] == "PUBLISHED":
+            await self.authorization.require(context, "release:publish", version_id)
         validate_schema(output_schema)
         scope, audit_id = context.scope, new_id("audit")
         repo = Repository(metadata.tables["resource_versions"], scope)
-        async with transaction(self.engine, scope, self.keys(scope, version_id, audit_id)) as uow:
+        from creativity_service.modules.agents.access import locked_require
+        from creativity_service.modules.iam.authorization import IamAuthorization
+        from creativity_service.modules.iam.repositories import policy_key
+        from creativity_service.modules.resources.configuration import TABLES
+
+        iam = getattr(
+            getattr(self.authorization, "service", self.authorization),
+            "authorization",
+            self.authorization,
+        )
+        keys = self.keys(scope, version_id, audit_id)
+        if managed:
+            keys += [policy_key(scope.channel_id), policy_key("system")]
+        async with transaction(self.engine, scope, keys) as uow:
             await DeletionGuard(scope).check(uow, [ContentRef("version", version_id)])
             row = await repo.get(uow.connection, version_id)
             if row is None:
                 raise ServiceError("NOT_FOUND", "版本不存在", 404)
-            if row["state"] != "DRAFT":
+            if row["state"] != "DRAFT" and not (managed and row["state"] == "PUBLISHED"):
                 raise ServiceError("VERSION_FROZEN", "发布版本不能修改")
+            if managed:
+                from creativity_service.modules.agents.repositories import repository
+                from creativity_service.modules.resources.configuration import require_dependencies
+
+                parent = await repository(TABLES[row["resource_type"]], scope).get(
+                    uow.connection, row["resource_id"]
+                )
+                if not parent or parent["status"] != "ACTIVE":
+                    raise ServiceError("RESOURCE_UNAVAILABLE", "资源已不可用", 409)
+                if isinstance(iam, IamAuthorization):
+                    from creativity_service.modules.resources.configuration import require_edit
+
+                    await require_edit(uow, context, row["resource_type"], row["resource_id"])
+                    await locked_require(
+                        uow, context, "version:edit", row["resource_type"], row["resource_id"]
+                    )
+                    if row["state"] == "PUBLISHED":
+                        await locked_require(
+                            uow,
+                            context,
+                            "release:publish",
+                            row["resource_type"],
+                            row["resource_id"],
+                        )
+                await require_dependencies(uow, scope, dependencies)
+                if (
+                    row["state"] == "PUBLISHED"
+                    and row["resource_type"] == "tool"
+                    and self.validator
+                ):
+                    await self.validator.validate(
+                        uow,
+                        context,
+                        version_view(
+                            {
+                                **row,
+                                "content": content,
+                                "output_schema": output_schema,
+                                "dependencies": dependencies,
+                            }
+                        ),
+                        "release",
+                    )
             row = await repo.change(
                 uow,
                 version_id,

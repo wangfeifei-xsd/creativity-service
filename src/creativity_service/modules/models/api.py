@@ -26,7 +26,6 @@ from creativity_service.modules.models.schemas import (
     ProtocolView,
     ProviderInput,
     ProviderView,
-    ReleaseInput,
     RouteInput,
     RouteList,
     RouteVersionInput,
@@ -169,25 +168,6 @@ async def create_route(body: RouteInput, session: Session, service: Services) ->
     return await service.routing.create(session, body)
 
 
-@router.get("/model-routes/{route_id}/versions", response_model=list[RouteVersionView])
-async def versions(route_id: str, session: Session, service: Services) -> list[RouteVersionView]:
-    return await service.routing.versions(session, route_id)
-
-
-@router.post("/model-routes/{route_id}/versions", response_model=ResourceVersion, status_code=201)
-async def create_version(
-    route_id: str, body: RouteVersionInput, session: Session, service: Services
-) -> ResourceVersion:
-    return await service.routing.create_version(session, route_id, body)
-
-
-@router.post("/model-routes/{route_id}/releases", response_model=ResourceVersion)
-async def release(
-    route_id: str, body: ReleaseInput, session: Session, service: Services
-) -> ResourceVersion:
-    return await service.routing.release(session, route_id, body)
-
-
 @router.put("/channels/{channel_id}/model-grants/{model_id}", response_model=GrantView)
 async def grant(
     channel_id: str, model_id: str, body: ModelGrantInput, session: Session, service: Services
@@ -198,3 +178,17 @@ async def grant(
 @router.get("/models/{model_id}/grants", response_model=list[GrantView])
 async def grants(model_id: str, session: Session, service: Services) -> list[GrantView]:
     return await service.configuration.grants(session, model_id)
+
+
+@router.put("/model-routes/{route_id}/configuration")
+async def save_route_configuration(
+    route_id: str, body: RouteVersionInput, session: Session, service: Services
+) -> ResourceVersion:
+    return await service.routing.create_version(session, route_id, body)
+
+
+@router.get("/model-routes/{route_id}/configuration")
+async def route_configuration(
+    route_id: str, session: Session, service: Services
+) -> list[RouteVersionView]:
+    return await service.routing.versions(session, route_id)

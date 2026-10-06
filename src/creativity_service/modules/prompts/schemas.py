@@ -56,7 +56,7 @@ class PromptUpdate(Contract):
 
 
 class PromptDraftCreate(Contract):
-    version_label: str = Field(min_length=1, max_length=64)
+    version_label: str = Field(default="当前配置", min_length=1, max_length=64)
     content: PromptContent
 
 
@@ -228,7 +228,7 @@ class PromptCompareView(Contract):
 
 class PromptImportRequest(Contract):
     resource: PromptCreate
-    version_label: str = Field(min_length=1, max_length=64)
+    version_label: str = Field(default="当前配置", min_length=1, max_length=64)
     format: Literal["text", "json"]
     data: str = Field(max_length=1000000)
 

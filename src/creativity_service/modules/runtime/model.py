@@ -200,6 +200,7 @@ class ModelRunner:
             complete = False
             content_error: ServiceError | None = None
             sent_confirmed = False
+            resource_recorded = False
 
             async def consume(
                 config: FrozenModel,
@@ -220,7 +221,8 @@ class ModelRunner:
                     retryable, \
                     complete, \
                     content_error, \
-                    sent_confirmed
+                    sent_confirmed, \
+                    resource_recorded
                 async for event in self.models.adapter.events(
                     context, config, request, attempt, reservation, cancel, debug=capability_test
                 ):
@@ -231,6 +233,27 @@ class ModelRunner:
                         or event.kind in {"text", "tool", "structured", "completed"}
                         or (event.usage is not None and event.usage.status == "REPORTED")
                     )
+                    if sent_confirmed and not resource_recorded:
+                        from creativity_service.modules.resources.usage import record_use
+
+                        route_id = (
+                            spec.definition.bindings.embedding_route_version
+                            if request.operation == "embedding"
+                            else spec.definition.bindings.model_route_version
+                        )
+                        route = next((v for v in spec.versions if v.version_id == route_id), None)
+                        if route:
+                            await record_use(
+                                self.runs.engine,
+                                context,
+                                lease.run_id,
+                                "model_route",
+                                route.resource_id,
+                                resource_name=route.resource_name,
+                                agent_name=spec.agent_name,
+                                purpose=spec.purpose,
+                            )
+                        resource_recorded = True
                     if event.kind == "usage" and event.usage is not None:
                         # 用量独立于内容提交；取消、删除和过期租约之后仍按原渠道结算。
                         await self.runs.ledger.settle(event.usage)

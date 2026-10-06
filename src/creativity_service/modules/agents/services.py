@@ -44,6 +44,9 @@ class AgentService(AgentSnapshots):
             uow.connection, resource_type="agent", resource_id=agent_id, version_label=label
         ):
             raise ServiceError("VERSION_LABEL_CONFLICT", "版本名称已存在", 409)
+        from creativity_service.modules.resources.configuration import require_dependencies
+
+        await require_dependencies(uow, context.scope, definition.bindings.ids())
         content = definition.model_dump(mode="json")
         row = await repo.add(
             uow,
@@ -163,6 +166,9 @@ class AgentService(AgentSnapshots):
             )
             if version["state"] != "DRAFT":
                 raise ServiceError("VERSION_FROZEN", "已发布版本不可修改，请新增草稿", 409)
+            from creativity_service.modules.resources.configuration import require_dependencies
+
+            await require_dependencies(uow, context.scope, body.definition.bindings.ids())
             content = body.definition.model_dump(mode="json")
             row = await repository("resource_versions", context.scope).change(
                 uow,
@@ -299,7 +305,17 @@ class AgentService(AgentSnapshots):
             rows = await repository("resource_versions", context.scope).find_many(
                 uow.connection, "resource_type", ["prompt", "model_route", "tool", "skill"]
             )
-            rows = [row for row in rows if row["state"] in {"DRAFT", "PUBLISHED"}]
+            releases = await repository("release_mappings", context.scope).find_many(
+                uow.connection, "resource_type", ["prompt", "model_route", "tool", "skill"]
+            )
+            released_ids = {row["version_id"] for row in releases}
+            rows = [
+                row
+                for row in rows
+                if row["state"] == "PUBLISHED"
+                and row["id"] == row["resource_id"]
+                and row["id"] in released_ids
+            ]
             resources = {}
             for kind in {row["resource_type"] for row in rows}:
                 resources[kind] = await repository(RESOURCE_TABLES[kind], context.scope).get_many(

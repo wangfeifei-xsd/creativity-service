@@ -617,7 +617,7 @@
       "AgentBindings": {
         "additionalProperties": false,
         "properties": {
-          "embedding_route_version": {
+          "embedding_route_id": {
             "anyOf": [
               {
                 "maxLength": 128,
@@ -629,9 +629,9 @@
                 "type": "null"
               }
             ],
-            "title": "Embedding Route Version"
+            "title": "Embedding Route Id"
           },
-          "model_route_version": {
+          "model_route_id": {
             "anyOf": [
               {
                 "maxLength": 128,
@@ -643,9 +643,9 @@
                 "type": "null"
               }
             ],
-            "title": "Model Route Version"
+            "title": "Model Route Id"
           },
-          "prompt_version": {
+          "prompt_id": {
             "anyOf": [
               {
                 "maxLength": 128,
@@ -657,7 +657,19 @@
                 "type": "null"
               }
             ],
-            "title": "Prompt Version"
+            "title": "Prompt Id"
+          },
+          "skill_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Skill Ids",
+            "type": "array"
           },
           "skill_loading": {
             "default": [],
@@ -668,19 +680,7 @@
             "title": "Skill Loading",
             "type": "array"
           },
-          "skill_versions": {
-            "default": [],
-            "items": {
-              "maxLength": 128,
-              "minLength": 1,
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-              "type": "string"
-            },
-            "maxItems": 32,
-            "title": "Skill Versions",
-            "type": "array"
-          },
-          "tool_versions": {
+          "tool_ids": {
             "default": [],
             "items": {
               "maxLength": 128,
@@ -689,7 +689,7 @@
               "type": "string"
             },
             "maxItems": 64,
-            "title": "Tool Versions",
+            "title": "Tool Ids",
             "type": "array"
           }
         },
@@ -866,9 +866,9 @@
           "bindings": {
             "$ref": "#/components/schemas/AgentBindings",
             "default": {
+              "skill_ids": [],
               "skill_loading": [],
-              "skill_versions": [],
-              "tool_versions": []
+              "tool_ids": []
             }
           },
           "context": {
@@ -962,9 +962,9 @@
           "bindings": {
             "$ref": "#/components/schemas/AgentBindings",
             "default": {
+              "skill_ids": [],
               "skill_loading": [],
-              "skill_versions": [],
-              "tool_versions": []
+              "tool_ids": []
             }
           },
           "context": {
@@ -1693,23 +1693,23 @@
             "title": "Selected Files",
             "type": "array"
           },
+          "skill_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Skill Id",
+            "type": "string"
+          },
           "trigger_reason": {
             "default": "配置选择",
             "maxLength": 256,
             "minLength": 1,
             "title": "Trigger Reason",
             "type": "string"
-          },
-          "version_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Version Id",
-            "type": "string"
           }
         },
         "required": [
-          "version_id"
+          "skill_id"
         ],
         "title": "AgentSkillLoading",
         "type": "object"
@@ -12522,31 +12522,6 @@
         "title": "PriceView",
         "type": "object"
       },
-      "PromptCompareView": {
-        "additionalProperties": false,
-        "properties": {
-          "differences": {
-            "items": {
-              "$ref": "#/components/schemas/PromptDifference"
-            },
-            "title": "Differences",
-            "type": "array"
-          },
-          "references": {
-            "items": {
-              "$ref": "#/components/schemas/PromptReference"
-            },
-            "title": "References",
-            "type": "array"
-          }
-        },
-        "required": [
-          "differences",
-          "references"
-        ],
-        "title": "PromptCompareView",
-        "type": "object"
-      },
       "PromptContent": {
         "additionalProperties": false,
         "properties": {
@@ -12609,58 +12584,6 @@
         "title": "PromptCreate",
         "type": "object"
       },
-      "PromptDifference": {
-        "additionalProperties": false,
-        "properties": {
-          "after": {
-            "$ref": "#/components/schemas/JsonValue"
-          },
-          "before": {
-            "$ref": "#/components/schemas/JsonValue"
-          },
-          "breaking": {
-            "title": "Breaking",
-            "type": "boolean"
-          },
-          "field": {
-            "title": "Field",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "field",
-          "label",
-          "before",
-          "after",
-          "breaking"
-        ],
-        "title": "PromptDifference",
-        "type": "object"
-      },
-      "PromptDraftCreate": {
-        "additionalProperties": false,
-        "properties": {
-          "content": {
-            "$ref": "#/components/schemas/PromptContent"
-          },
-          "version_label": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Version Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "version_label",
-          "content"
-        ],
-        "title": "PromptDraftCreate",
-        "type": "object"
-      },
       "PromptDraftEdit": {
         "additionalProperties": false,
         "properties": {
@@ -12716,6 +12639,7 @@
             "$ref": "#/components/schemas/PromptCreate"
           },
           "version_label": {
+            "default": "当前配置",
             "maxLength": 64,
             "minLength": 1,
             "title": "Version Label",
@@ -12724,7 +12648,6 @@
         },
         "required": [
           "resource",
-          "version_label",
           "format",
           "data"
         ],
@@ -12809,54 +12732,6 @@
           "resource_type_label"
         ],
         "title": "PromptReference",
-        "type": "object"
-      },
-      "PromptReleaseRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "expected_mapping_revision": {
-            "anyOf": [
-              {
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expected Mapping Revision"
-          },
-          "note": {
-            "maxLength": 2000,
-            "minLength": 1,
-            "title": "Note",
-            "type": "string"
-          },
-          "operation": {
-            "default": "publish",
-            "enum": [
-              "publish",
-              "rollback"
-            ],
-            "title": "Operation",
-            "type": "string"
-          },
-          "revision": {
-            "minimum": 1.0,
-            "title": "Revision",
-            "type": "integer"
-          },
-          "version_id": {
-            "title": "Version Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "version_id",
-          "revision",
-          "note"
-        ],
-        "title": "PromptReleaseRequest",
         "type": "object"
       },
       "PromptReleaseView": {
@@ -12988,21 +12863,6 @@
           "masked"
         ],
         "title": "PromptRenderView",
-        "type": "object"
-      },
-      "PromptRetireRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "revision": {
-            "minimum": 1.0,
-            "title": "Revision",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "revision"
-        ],
-        "title": "PromptRetireRequest",
         "type": "object"
       },
       "PromptRouteOption": {
@@ -14154,37 +14014,6 @@
         "title": "RecordView",
         "type": "object"
       },
-      "ReleaseInput": {
-        "additionalProperties": false,
-        "properties": {
-          "expected_version_id": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expected Version Id"
-          },
-          "version_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Version Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "version_id"
-        ],
-        "title": "ReleaseInput",
-        "type": "object"
-      },
       "ReleasePolicy": {
         "additionalProperties": false,
         "properties": {
@@ -14447,6 +14276,38 @@
         "title": "ResourceEntry",
         "type": "object"
       },
+      "ResourceMutation": {
+        "additionalProperties": false,
+        "properties": {
+          "configuration_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration Revision"
+          },
+          "confirm_used": {
+            "default": false,
+            "title": "Confirm Used",
+            "type": "boolean"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "ResourceMutation",
+        "type": "object"
+      },
       "ResourceOption": {
         "additionalProperties": false,
         "properties": {
@@ -14513,6 +14374,237 @@
         "title": "ResourceReference",
         "type": "object"
       },
+      "ResourceReferencePage": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceReferenceView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ResourceReferencePage",
+        "type": "object"
+      },
+      "ResourceReferenceView": {
+        "additionalProperties": false,
+        "properties": {
+          "environments": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Environments",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "resource_type": {
+            "title": "Resource Type",
+            "type": "string"
+          },
+          "resource_type_label": {
+            "title": "Resource Type Label",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DisplayStatus"
+          }
+        },
+        "required": [
+          "resource_id",
+          "resource_type",
+          "resource_type_label",
+          "name",
+          "status",
+          "environments"
+        ],
+        "title": "ResourceReferenceView",
+        "type": "object"
+      },
+      "ResourceSummaries": {
+        "additionalProperties": false,
+        "properties": {
+          "resource_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Resource Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "resource_ids"
+        ],
+        "title": "ResourceSummaries",
+        "type": "object"
+      },
+      "ResourceSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/AccessAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "configuration_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration Revision"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reference_count": {
+            "title": "Reference Count",
+            "type": "integer"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DisplayStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "usage_count": {
+            "title": "Usage Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "resource_id",
+          "name",
+          "status",
+          "reference_count",
+          "usage_count",
+          "revision",
+          "configuration_revision",
+          "updated_at",
+          "actions"
+        ],
+        "title": "ResourceSummary",
+        "type": "object"
+      },
+      "ResourceUse": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Name"
+          },
+          "caller_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caller Name"
+          },
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "purpose": {
+            "title": "Purpose",
+            "type": "string"
+          },
+          "resource_name": {
+            "title": "Resource Name",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "used_at": {
+            "format": "date-time",
+            "title": "Used At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "resource_name",
+          "agent_name",
+          "caller_name",
+          "environment",
+          "purpose",
+          "used_at",
+          "deleted"
+        ],
+        "title": "ResourceUse",
+        "type": "object"
+      },
+      "ResourceUsePage": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceUse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ResourceUsePage",
+        "type": "object"
+      },
       "ResourceVersion": {
         "additionalProperties": false,
         "properties": {
@@ -14522,6 +14614,19 @@
             "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
             "title": "Channel Id",
             "type": "string"
+          },
+          "configuration_revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Configuration Revision"
           },
           "content": {
             "additionalProperties": {
@@ -14575,6 +14680,18 @@
             "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
             "title": "Resource Id",
             "type": "string"
+          },
+          "resource_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Resource Name"
           },
           "resource_type": {
             "maxLength": 128,
@@ -15045,10 +15162,24 @@
             "type": "boolean"
           },
           "label": {
+            "default": "当前配置",
             "maxLength": 64,
             "minLength": 1,
             "title": "Label",
             "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           },
           "parameters": {
             "additionalProperties": true,
@@ -15080,12 +15211,35 @@
             "title": "Required Capabilities",
             "type": "array"
           },
+          "resource_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Revision"
+          },
           "retry_policy": {
             "$ref": "#/components/schemas/creativity_service__modules__models__schemas__RetryPolicy"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
           }
         },
         "required": [
-          "label",
           "primary_model"
         ],
         "title": "RouteVersionInput",
@@ -15107,6 +15261,18 @@
             "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
             "title": "Channel Id",
             "type": "string"
+          },
+          "configuration_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration Revision"
           },
           "content": {
             "additionalProperties": {
@@ -15160,6 +15326,17 @@
             "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
             "title": "Resource Id",
             "type": "string"
+          },
+          "resource_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Name"
           },
           "resource_type": {
             "maxLength": 128,
@@ -15463,6 +15640,14 @@
           "purpose_label": {
             "title": "Purpose Label",
             "type": "string"
+          },
+          "resource_uses": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Resource Uses",
+            "type": "array"
           },
           "result": {
             "anyOf": [
@@ -16286,7 +16471,7 @@
             "type": "array"
           },
           "version_label": {
-            "default": "初始版本",
+            "default": "当前配置",
             "maxLength": 64,
             "minLength": 1,
             "title": "Version Label",
@@ -16469,10 +16654,7 @@
             "type": "integer"
           },
           "status": {
-            "enum": [
-              "ACTIVE",
-              "DISABLED"
-            ],
+            "const": "ACTIVE",
             "title": "Status",
             "type": "string"
           },
@@ -16647,7 +16829,7 @@
             "type": "object"
           },
           "version_label": {
-            "default": "导入版本",
+            "default": "当前配置",
             "maxLength": 64,
             "minLength": 1,
             "title": "Version Label",
@@ -16938,57 +17120,6 @@
         "title": "SkillReference",
         "type": "object"
       },
-      "SkillRelease": {
-        "additionalProperties": false,
-        "properties": {
-          "expected_revision": {
-            "anyOf": [
-              {
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expected Revision"
-          },
-          "note": {
-            "default": "发布技能版本",
-            "maxLength": 1024,
-            "minLength": 1,
-            "title": "Note",
-            "type": "string"
-          },
-          "version_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Version Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "version_id"
-        ],
-        "title": "SkillRelease",
-        "type": "object"
-      },
-      "SkillRevision": {
-        "additionalProperties": false,
-        "properties": {
-          "revision": {
-            "minimum": 1.0,
-            "title": "Revision",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "revision"
-        ],
-        "title": "SkillRevision",
-        "type": "object"
-      },
       "SkillSettings": {
         "additionalProperties": false,
         "properties": {
@@ -17260,6 +17391,7 @@
             "type": "string"
           },
           "version_label": {
+            "default": "当前配置",
             "maxLength": 64,
             "minLength": 1,
             "title": "Version Label",
@@ -17268,7 +17400,6 @@
         },
         "required": [
           "tool_code",
-          "version_label",
           "version_id",
           "name",
           "available",
@@ -17326,6 +17457,7 @@
             "type": "string"
           },
           "version_label": {
+            "default": "当前配置",
             "maxLength": 64,
             "minLength": 1,
             "title": "Version Label",
@@ -17333,8 +17465,7 @@
           }
         },
         "required": [
-          "tool_code",
-          "version_label"
+          "tool_code"
         ],
         "title": "SkillToolRequirement",
         "type": "object"
@@ -17412,30 +17543,6 @@
           "label"
         ],
         "title": "SkillVariable",
-        "type": "object"
-      },
-      "SkillVersionCreate": {
-        "additionalProperties": false,
-        "properties": {
-          "base_version_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Base Version Id",
-            "type": "string"
-          },
-          "version_label": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Version Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "version_label",
-          "base_version_id"
-        ],
-        "title": "SkillVersionCreate",
         "type": "object"
       },
       "SkillVersionEdit": {
@@ -18846,42 +18953,6 @@
         "title": "ToolReference",
         "type": "object"
       },
-      "ToolRelease": {
-        "additionalProperties": false,
-        "properties": {
-          "expected_revision": {
-            "anyOf": [
-              {
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expected Revision"
-          },
-          "note": {
-            "default": "发布工具版本",
-            "maxLength": 1024,
-            "minLength": 1,
-            "title": "Note",
-            "type": "string"
-          },
-          "version_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Version Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "version_id"
-        ],
-        "title": "ToolRelease",
-        "type": "object"
-      },
       "ToolResult": {
         "additionalProperties": false,
         "properties": {
@@ -18967,21 +19038,6 @@
           "coverage"
         ],
         "title": "ToolResult",
-        "type": "object"
-      },
-      "ToolRevision": {
-        "additionalProperties": false,
-        "properties": {
-          "revision": {
-            "minimum": 1.0,
-            "title": "Revision",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "revision"
-        ],
-        "title": "ToolRevision",
         "type": "object"
       },
       "ToolTestDescription": {
@@ -19098,6 +19154,7 @@
             "$ref": "#/components/schemas/ToolDefinition"
           },
           "version_label": {
+            "default": "当前配置",
             "maxLength": 64,
             "minLength": 1,
             "title": "Version Label",
@@ -19105,7 +19162,6 @@
           }
         },
         "required": [
-          "version_label",
           "definition"
         ],
         "title": "ToolVersionCreate",
@@ -62231,244 +62287,9 @@
         ]
       }
     },
-    "/admin/v1/model-routes/{route_id}/releases": {
-      "post": {
-        "operationId": "release_admin_v1_model_routes__route_id__releases_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "route_id",
-            "required": true,
-            "schema": {
-              "title": "Route Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReleaseInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResourceVersion"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Release",
-        "tags": [
-          "模型配置"
-        ]
-      }
-    },
-    "/admin/v1/model-routes/{route_id}/versions": {
+    "/admin/v1/model-routes/{route_id}/configuration": {
       "get": {
-        "operationId": "versions_admin_v1_model_routes__route_id__versions_get",
+        "operationId": "route_configuration_admin_v1_model_routes__route_id__configuration_get",
         "parameters": [
           {
             "in": "path",
@@ -62488,7 +62309,7 @@
                   "items": {
                     "$ref": "#/components/schemas/RouteVersionView"
                   },
-                  "title": "Response Versions Admin V1 Model Routes  Route Id  Versions Get",
+                  "title": "Response Route Configuration Admin V1 Model Routes  Route Id  Configuration Get",
                   "type": "array"
                 }
               }
@@ -62689,13 +62510,13 @@
             "PlatformToken": []
           }
         ],
-        "summary": "Versions",
+        "summary": "Route Configuration",
         "tags": [
           "模型配置"
         ]
       },
-      "post": {
-        "operationId": "create_version_admin_v1_model_routes__route_id__versions_post",
+      "put": {
+        "operationId": "save_route_configuration_admin_v1_model_routes__route_id__configuration_put",
         "parameters": [
           {
             "in": "path",
@@ -62718,7 +62539,7 @@
           "required": true
         },
         "responses": {
-          "201": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
@@ -62922,7 +62743,7 @@
             "PlatformToken": []
           }
         ],
-        "summary": "Create Version",
+        "summary": "Save Route Configuration",
         "tags": [
           "模型配置"
         ]
@@ -68837,240 +68658,6 @@
         ]
       }
     },
-    "/admin/v1/prompt-versions/{version_id}/compare/{previous_version_id}": {
-      "get": {
-        "operationId": "compare_admin_v1_prompt_versions__version_id__compare__previous_version_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "version_id",
-            "required": true,
-            "schema": {
-              "title": "Version Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "previous_version_id",
-            "required": true,
-            "schema": {
-              "title": "Previous Version Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptCompareView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Compare",
-        "tags": [
-          "提示词管理"
-        ]
-      }
-    },
     "/admin/v1/prompt-versions/{version_id}/exports": {
       "post": {
         "operationId": "export_admin_v1_prompt_versions__version_id__exports_post",
@@ -69536,241 +69123,6 @@
           }
         ],
         "summary": "Render Preview",
-        "tags": [
-          "提示词管理"
-        ]
-      }
-    },
-    "/admin/v1/prompt-versions/{version_id}/retire": {
-      "post": {
-        "operationId": "retire_admin_v1_prompt_versions__version_id__retire_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "version_id",
-            "required": true,
-            "schema": {
-              "title": "Version Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PromptRetireRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptVersionView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Retire",
         "tags": [
           "提示词管理"
         ]
@@ -71591,6 +70943,464 @@
         ]
       }
     },
+    "/admin/v1/prompts/{prompt_id}/configuration": {
+      "get": {
+        "operationId": "configuration_admin_v1_prompts__prompt_id__configuration_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "prompt_id",
+            "required": true,
+            "schema": {
+              "title": "Prompt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptVersionView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Configuration",
+        "tags": [
+          "提示词管理"
+        ]
+      },
+      "patch": {
+        "operationId": "edit_configuration_admin_v1_prompts__prompt_id__configuration_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "prompt_id",
+            "required": true,
+            "schema": {
+              "title": "Prompt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptDraftEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptVersionView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Edit Configuration",
+        "tags": [
+          "提示词管理"
+        ]
+      }
+    },
     "/admin/v1/prompts/{prompt_id}/references": {
       "get": {
         "operationId": "references_admin_v1_prompts__prompt_id__references_get",
@@ -72044,239 +71854,6 @@
           }
         ],
         "summary": "Releases",
-        "tags": [
-          "提示词管理"
-        ]
-      },
-      "post": {
-        "operationId": "release_admin_v1_prompts__prompt_id__releases_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "prompt_id",
-            "required": true,
-            "schema": {
-              "title": "Prompt Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PromptReleaseRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptReleaseView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Release",
         "tags": [
           "提示词管理"
         ]
@@ -72749,468 +72326,6 @@
           }
         ],
         "summary": "Create Sample",
-        "tags": [
-          "提示词管理"
-        ]
-      }
-    },
-    "/admin/v1/prompts/{prompt_id}/versions": {
-      "get": {
-        "operationId": "versions_admin_v1_prompts__prompt_id__versions_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "prompt_id",
-            "required": true,
-            "schema": {
-              "title": "Prompt Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PromptVersionView"
-                  },
-                  "title": "Response Versions Admin V1 Prompts  Prompt Id  Versions Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Versions",
-        "tags": [
-          "提示词管理"
-        ]
-      },
-      "post": {
-        "operationId": "create_draft_admin_v1_prompts__prompt_id__versions_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "prompt_id",
-            "required": true,
-            "schema": {
-              "title": "Prompt Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PromptDraftCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptVersionView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Create Draft",
         "tags": [
           "提示词管理"
         ]
@@ -74104,6 +73219,1034 @@
         "summary": "Statement Detail",
         "tags": [
           "用量与预算"
+        ]
+      }
+    },
+    "/admin/v1/resource-management/{kind}/summaries": {
+      "post": {
+        "operationId": "summaries_admin_v1_resource_management__kind__summaries_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "prompt",
+                "model_route",
+                "tool",
+                "skill"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceSummaries"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ResourceSummary"
+                  },
+                  "title": "Response Summaries Admin V1 Resource Management  Kind  Summaries Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Summaries",
+        "tags": [
+          "资源管理"
+        ]
+      }
+    },
+    "/admin/v1/resource-management/{kind}/{identifier}/references": {
+      "get": {
+        "operationId": "references_admin_v1_resource_management__kind___identifier__references_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "prompt",
+                "model_route",
+                "tool",
+                "skill"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceReferencePage"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "References",
+        "tags": [
+          "资源管理"
+        ]
+      }
+    },
+    "/admin/v1/resource-management/{kind}/{identifier}/uses": {
+      "get": {
+        "operationId": "uses_admin_v1_resource_management__kind___identifier__uses_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "prompt",
+                "model_route",
+                "tool",
+                "skill"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceUsePage"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Uses",
+        "tags": [
+          "资源管理"
+        ]
+      }
+    },
+    "/admin/v1/resource-management/{kind}/{identifier}/{operation}": {
+      "post": {
+        "operationId": "mutate_admin_v1_resource_management__kind___identifier___operation__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "prompt",
+                "model_route",
+                "tool",
+                "skill"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "operation",
+            "required": true,
+            "schema": {
+              "enum": [
+                "publish",
+                "unpublish",
+                "delete"
+              ],
+              "title": "Operation",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceMutation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Mutate",
+        "tags": [
+          "资源管理"
         ]
       }
     },
@@ -78651,241 +78794,6 @@
         ]
       }
     },
-    "/admin/v1/skill-versions/{version_id}/freeze": {
-      "post": {
-        "operationId": "freeze_admin_v1_skill_versions__version_id__freeze_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "version_id",
-            "required": true,
-            "schema": {
-              "title": "Version Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SkillRevision"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SkillVersionView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Freeze",
-        "tags": [
-          "技能管理"
-        ]
-      }
-    },
     "/admin/v1/skill-versions/{version_id}/tests": {
       "get": {
         "operationId": "tests_admin_v1_skill_versions__version_id__tests_get",
@@ -81370,9 +81278,9 @@
         ]
       }
     },
-    "/admin/v1/skills/{skill_id}/releases": {
-      "post": {
-        "operationId": "release_admin_v1_skills__skill_id__releases_post",
+    "/admin/v1/skills/{skill_id}/configuration": {
+      "get": {
+        "operationId": "configuration_admin_v1_skills__skill_id__configuration_get",
         "parameters": [
           {
             "in": "path",
@@ -81384,253 +81292,8 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SkillRelease"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SkillDetail"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Release",
-        "tags": [
-          "技能管理"
-        ]
-      }
-    },
-    "/admin/v1/skills/{skill_id}/versions": {
-      "post": {
-        "operationId": "create_version_admin_v1_skills__skill_id__versions_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "skill_id",
-            "required": true,
-            "schema": {
-              "title": "Skill Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SkillVersionCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -81834,7 +81497,240 @@
             "PlatformToken": []
           }
         ],
-        "summary": "Create Version",
+        "summary": "Configuration",
+        "tags": [
+          "技能管理"
+        ]
+      },
+      "patch": {
+        "operationId": "edit_configuration_admin_v1_skills__skill_id__configuration_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "skill_id",
+            "required": true,
+            "schema": {
+              "title": "Skill Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillVersionEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillVersionView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Edit Configuration",
         "tags": [
           "技能管理"
         ]
@@ -83879,241 +83775,6 @@
         ]
       }
     },
-    "/admin/v1/tool-versions/{version_id}/freeze": {
-      "post": {
-        "operationId": "freeze_admin_v1_tool_versions__version_id__freeze_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "version_id",
-            "required": true,
-            "schema": {
-              "title": "Version Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ToolRevision"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ToolVersionView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Freeze",
-        "tags": [
-          "工具管理"
-        ]
-      }
-    },
     "/admin/v1/tool-versions/{version_id}/test-description": {
       "get": {
         "operationId": "test_description_admin_v1_tool_versions__version_id__test_description_get",
@@ -85551,9 +85212,9 @@
         ]
       }
     },
-    "/admin/v1/tools/{tool_id}/disable": {
-      "post": {
-        "operationId": "disable_admin_v1_tools__tool_id__disable_post",
+    "/admin/v1/tools/{tool_id}/configuration": {
+      "patch": {
+        "operationId": "edit_configuration_admin_v1_tools__tool_id__configuration_patch",
         "parameters": [
           {
             "in": "path",
@@ -85569,7 +85230,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ToolRevision"
+                "$ref": "#/components/schemas/ToolVersionEdit"
               }
             }
           },
@@ -85580,7 +85241,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ToolDetail"
+                  "$ref": "#/components/schemas/ToolVersionView"
                 }
               }
             },
@@ -85780,710 +85441,13 @@
             "PlatformToken": []
           }
         ],
-        "summary": "Disable",
+        "summary": "Edit Configuration",
         "tags": [
           "工具管理"
         ]
-      }
-    },
-    "/admin/v1/tools/{tool_id}/enable": {
+      },
       "post": {
-        "operationId": "enable_admin_v1_tools__tool_id__enable_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "tool_id",
-            "required": true,
-            "schema": {
-              "title": "Tool Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ToolRevision"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ToolDetail"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Enable",
-        "tags": [
-          "工具管理"
-        ]
-      }
-    },
-    "/admin/v1/tools/{tool_id}/impact": {
-      "get": {
-        "operationId": "impact_admin_v1_tools__tool_id__impact_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "tool_id",
-            "required": true,
-            "schema": {
-              "title": "Tool Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ToolImpact"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Impact",
-        "tags": [
-          "工具管理"
-        ]
-      }
-    },
-    "/admin/v1/tools/{tool_id}/releases": {
-      "post": {
-        "operationId": "release_admin_v1_tools__tool_id__releases_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "tool_id",
-            "required": true,
-            "schema": {
-              "title": "Tool Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ToolRelease"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ToolDetail"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Release",
-        "tags": [
-          "工具管理"
-        ]
-      }
-    },
-    "/admin/v1/tools/{tool_id}/versions": {
-      "post": {
-        "operationId": "create_version_admin_v1_tools__tool_id__versions_post",
+        "operationId": "create_configuration_admin_v1_tools__tool_id__configuration_post",
         "parameters": [
           {
             "in": "path",
@@ -86710,7 +85674,232 @@
             "PlatformToken": []
           }
         ],
-        "summary": "Create Version",
+        "summary": "Create Configuration",
+        "tags": [
+          "工具管理"
+        ]
+      }
+    },
+    "/admin/v1/tools/{tool_id}/impact": {
+      "get": {
+        "operationId": "impact_admin_v1_tools__tool_id__impact_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tool_id",
+            "required": true,
+            "schema": {
+              "title": "Tool Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolImpact"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Impact",
         "tags": [
           "工具管理"
         ]

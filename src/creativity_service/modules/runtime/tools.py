@@ -64,6 +64,10 @@ class BoundToolPort:
             allowed_actions=frozenset(decision.actions),
             purpose=self.spec.purpose,
             authorization_revision=digest(sorted(decision.actions)),
+            frozen_tool=version,
+            frozen_skills=tuple(
+                v for v in self.spec.versions if v.resource_type in {"skill", "tool"}
+            ),
             draft_revisions={
                 v.version_id: v.draft_revision
                 for v in self.spec.versions

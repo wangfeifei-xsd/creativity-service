@@ -7,7 +7,7 @@ from typing import Any, Protocol
 from pydantic import AwareDatetime, Field
 
 from creativity_service.core.context import AuthContext, Scope
-from creativity_service.core.contracts import EvidenceLocation, EvidenceRef
+from creativity_service.core.contracts import EvidenceLocation, EvidenceRef, ResourceVersion
 from creativity_service.core.primitives import Contract, ServiceError
 from creativity_service.modules.tools.schemas import (
     BindingOption,
@@ -60,6 +60,7 @@ class AdapterRequest:
     definition: ToolDefinition
     run_id: str | None = None
     operation: dict[str, str] | None = None
+    frozen_skills: tuple[ResourceVersion, ...] = ()
 
 
 class ToolAdapter(Protocol):

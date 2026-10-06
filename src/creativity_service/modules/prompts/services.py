@@ -30,6 +30,7 @@ from creativity_service.modules.iam.reading import (
     resource_state,
     visible_actions,
 )
+from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.prompts.authorization import PromptAuthorization
 from creativity_service.modules.prompts.differences import compare_content
 from creativity_service.modules.prompts.portable import export_text, import_text
@@ -72,8 +73,8 @@ from creativity_service.modules.prompts.schemas import (
 ENVIRONMENTS = {"dev": "开发", "test": "测试", "fat": "验收", "prod": "生产"}
 ACTION_LABELS = {
     "prompt:manage": "编辑提示词",
-    "version:edit": "编辑草稿",
-    "version:read": "查看版本",
+    "version:edit": "修改配置",
+    "version:read": "查看配置",
     "run:create": "调试",
     "release:publish": "发布",
     "data:export": "导出",
@@ -136,7 +137,7 @@ class PromptService:
     async def _resource(self, context: AuthContext, prompt_id: str) -> dict[str, Any]:
         async with self.engine.connect() as connection:
             row = await repository("prompts", context.scope).get(connection, prompt_id)
-        if row is None:
+        if row is None or row["status"] == "DELETED":
             raise ServiceError("NOT_FOUND", "提示词不存在", 404)
         return row
 
@@ -157,6 +158,7 @@ class PromptService:
             content_key(scope),
             ResourceKey(scope.channel_id, "prompt-code", (body.prompt_code,)),
             record_key(scope.channel_id, "prompts", prompt_id),
+            record_key(scope.channel_id, "resource_versions", prompt_id),
             record_key(scope.channel_id, "audit_events", audit_id),
         ]
         async with transaction(self.engine, scope, keys) as uow:
@@ -167,6 +169,20 @@ class PromptService:
                 uow,
                 prompt_id,
                 {**body.model_dump(), "owner": context.principal_id, "status": "ACTIVE"},
+            )
+            from creativity_service.modules.resources.configuration import configuration_values
+
+            await repository("resource_versions", scope).add(
+                uow,
+                prompt_id,
+                configuration_values(
+                    "prompt",
+                    prompt_id,
+                    PromptContent().model_dump(mode="json"),
+                    [],
+                    {},
+                    context.principal_id,
+                ),
             )
             await append_audit(uow, context, audit_id, "prompt.create", "prompt", prompt_id)
         return await self.detail(context, prompt_id)
@@ -180,12 +196,17 @@ class PromptService:
             self.engine,
             scope,
             [
+                policy_key(scope.channel_id),
+                policy_key("system"),
                 content_key(scope),
                 record_key(scope.channel_id, "prompts", prompt_id),
                 record_key(scope.channel_id, "audit_events", audit_id),
             ],
         ) as uow:
             await DeletionGuard(scope).check(uow, [ContentRef("prompt", prompt_id)])
+            from creativity_service.modules.resources.configuration import require_edit
+
+            await require_edit(uow, context, "prompt", prompt_id)
             await repository("prompts", scope).change(
                 uow, prompt_id, body.revision, {"name": body.name, "purpose": body.purpose}
             )
@@ -206,6 +227,8 @@ class PromptService:
             rows = await repository("prompts", context.scope).find(connection)
         visible = []
         for row in sorted(rows, key=lambda r: r["created_at"], reverse=True):
+            if row["status"] == "DELETED":
+                continue
             permissions = await read_actions(
                 self.authorization,
                 context,
@@ -328,6 +351,8 @@ class PromptService:
                 if include_actions
                 else []
             )
+            if row["state"] == "PUBLISHED" and "release:publish" not in permissions:
+                actions = [a for a in actions if a.action_key != "version:edit"]
             if "data:read_sensitive" not in permissions:
                 if any(
                     v.default is not None and v.sensitivity in {"sensitive", "secret"}
@@ -713,10 +738,8 @@ class PromptService:
         await self.validate_edit(context, "new", content)
         await self.authorization.require(context, "version:edit", "new")
         resource = await self.create(context, body.resource)
-        return await self.create_draft(
-            context,
-            resource.prompt_id,
-            PromptDraftCreate(version_label=body.version_label, content=content),
+        return await self.edit_draft(
+            context, resource.prompt_id, PromptDraftEdit(revision=1, content=content)
         )
 
     async def export_content(self, context: AuthContext, version_id: str, format: str) -> Artifact:
@@ -751,6 +774,11 @@ class PromptService:
             rows = await repository("resource_versions", context.scope).find(
                 connection, resource_type="model_route", state="PUBLISHED"
             )
+            mappings = await repository("release_mappings", context.scope).find(
+                connection, resource_type="model_route"
+            )
+            published = {r["version_id"] for r in mappings}
+            rows = [v for v in rows if v["id"] == v["resource_id"] and v["id"] in published]
             parents = (
                 await Repository(model_metadata.tables["model_routes"], context.scope).get_many(
                     connection, [r["resource_id"] for r in rows]

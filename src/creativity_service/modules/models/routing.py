@@ -1,11 +1,11 @@
 """不可变路由、正式发布门禁和每次尝试前的当前状态核验。"""
 
-from typing import Any
+from typing import Any, Literal, cast
 
 from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import ResourceVersion
-from creativity_service.core.database import transaction
+from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError, digest, new_id, unavailable
@@ -30,7 +30,8 @@ from creativity_service.modules.models.schemas import (
     RouteView,
 )
 from creativity_service.modules.models.services import ModelService, action
-from creativity_service.modules.models.versioning import freeze, history_rows, version_keys
+from creativity_service.modules.models.versioning import history_rows, version_keys
+from creativity_service.modules.resources.configuration import configuration_values
 
 
 class ModelRouting:
@@ -52,10 +53,10 @@ class ModelRouting:
             code=row["code"],
             name=row["name"],
             revision=row["revision"],
-            status=row["status"],
-            status_label="启用" if row["status"] == "ACTIVE" else "停用",
+            status="ACTIVE",
+            status_label="已发布" if version_id else "未发布",
             released_version_id=version_id,
-            actions=[action("version", "新增版本"), action("release", "发布")],
+            actions=[action("edit", "修改")],
         )
 
     async def list_items(self, session: AdminSession) -> RouteList:
@@ -74,7 +75,8 @@ class ModelRouting:
             result = [
                 self.view(row, mappings.get(row["id"]))
                 for row in rows
-                if ContentRef("model_route", row["id"]) not in blocked
+                if row["status"] != "DELETED"
+                and ContentRef("model_route", row["id"]) not in blocked
             ]
         return RouteList(items=result, actions=[action("create", "新增路由")])
 
@@ -92,6 +94,9 @@ class ModelRouting:
             permission_reason = "当前角色未获此环境的发布权限，请联系有授权权限的管理员"
         async with transaction(service.engine, scope, [content_key(scope)]) as uow:
             route, rows = await history_rows(uow, context, "model_route", identifier)
+            rows = [row for row in rows if row["id"] == identifier]
+            if route["status"] == "DELETED":
+                raise ServiceError("NOT_FOUND", "路由已删除", 404)
             releases = await repository(scope, "release_mappings").find(
                 uow.connection, resource_type="model_route", resource_id=identifier
             )
@@ -179,19 +184,26 @@ class ModelRouting:
                 [v for s in snapshots for v in (s.model_version_id, s.connection_version_id)]
             )
         )
-        version_id = new_id("version")
+        version_id = identifier
         keys = version_keys(
             context.scope.channel_id, version_id, "model_route", identifier, dependencies
         )
         async with service.mutation(session, "model_routes", identifier, keys) as (uow, context):
-            await required(uow.connection, context.scope, "model_routes", identifier)
-            if await repository(context.scope, "resource_versions").find(
-                uow.connection,
-                resource_type="model_route",
-                resource_id=identifier,
-                version_label=body.label,
-            ):
-                raise ServiceError("VERSION_LABEL_CONFLICT", "版本名称已存在", 409)
+            from creativity_service.modules.resources.configuration import require_edit
+
+            await require_edit(uow, context, "model_route", identifier)
+            if body.name is not None:
+                if not body.name.strip() or body.resource_revision is None:
+                    raise ServiceError("ROUTE_INVALID", "请填写名称并刷新资源信息", 422)
+                await repository(context.scope, "model_routes").change(
+                    uow, identifier, body.resource_revision, {"name": body.name.strip()}
+                )
+            config_repo = repository(context.scope, "resource_versions")
+            previous = await config_repo.get(uow.connection, identifier)
+            if (previous["revision"] if previous else None) != body.revision:
+                raise ServiceError("REVISION_CONFLICT", "路由配置已修改，请刷新", 409)
+            if previous and previous["state"] == "PUBLISHED":
+                await service.iam.access.locked_policy(uow, session, "release:publish")
             # 保存未发布配置只需模型管理权限；运行授权和能力证据在发布、执行边界校验。
             current_models = await repository(context.scope, "models").get_many(uow.connection, ids)
             current_connections = await repository(context.scope, "model_connections").get_many(
@@ -212,7 +224,9 @@ class ModelRouting:
                     {**current.parameters, **body.parameters},
                 )
             content = {
-                **body.model_dump(mode="json"),
+                **body.model_dump(
+                    mode="json", exclude={"label", "revision", "name", "resource_revision"}
+                ),
                 "models": [
                     s.model_copy(
                         update={"parameters": {**s.parameters, **body.parameters}}
@@ -221,17 +235,48 @@ class ModelRouting:
                 ],
                 "attempt_order": list(attempt_order(ids, body.retry_policy)),
             }
-            row = await freeze(
-                uow,
-                context,
-                version_id,
-                "model_route",
-                identifier,
-                body.label,
-                content,
-                dependencies,
+            values = configuration_values(
+                "model_route", identifier, content, dependencies, {}, context.principal_id
             )
+            if previous:
+                values["state"] = previous["state"]
+                if previous["state"] == "PUBLISHED":
+                    candidate = version_view({**previous, **values})
+                    await self.validate(uow, context, candidate, "release")
+                row = await config_repo.change(uow, identifier, previous["revision"], values)
+            else:
+                row = await config_repo.add(uow, identifier, values)
         return version_view(row)
+
+    async def validate(
+        self,
+        uow: UnitOfWork,
+        context: AuthContext,
+        version: ResourceVersion,
+        operation: Literal["freeze", "release"],
+    ) -> None:
+        content = cast(dict[str, Any], version.content)
+        snapshots = [FrozenModel.model_validate(value) for value in content["models"]]
+        models = await repository(context.scope, "models").get_many(
+            uow.connection, [s.model_id for s in snapshots]
+        )
+        connections = await repository(context.scope, "model_connections").get_many(
+            uow.connection, [s.connection_id for s in snapshots]
+        )
+        for snapshot in snapshots:
+            model, connection = (
+                models.get(snapshot.model_id),
+                connections.get(snapshot.connection_id),
+            )
+            if model is None or connection is None:
+                raise ServiceError("NOT_FOUND", "模型或连接不存在", 404)
+            self.validate_release_candidate(
+                context, snapshot, model, connection, content["required_capabilities"]
+            )
+        if version.content["hard_amount_budget"]:
+            if self.service.prices is None:
+                raise unavailable("硬金额预算所需的模型价格服务")
+            await self.service.prices.require_priced(uow, context, snapshots)
 
     def validate_current(
         self,

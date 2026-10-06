@@ -17,13 +17,10 @@ from creativity_service.modules.skills.schemas import (
     SkillImportPreview,
     SkillImportPreviewInput,
     SkillList,
-    SkillRelease,
-    SkillRevision,
     SkillTestInput,
     SkillTestView,
     SkillToolOption,
     SkillValidation,
-    SkillVersionCreate,
     SkillVersionEdit,
     SkillVersionView,
 )
@@ -87,13 +84,6 @@ async def edit(context: Context, service: Services, skill_id: str, body: SkillEd
     return await service.edit(context, skill_id, body)
 
 
-@router.post("/skills/{skill_id}/versions", response_model=SkillVersionView, status_code=201)
-async def create_version(
-    context: Context, service: Services, skill_id: str, body: SkillVersionCreate
-) -> SkillVersionView:
-    return await service.create_version(context, skill_id, body)
-
-
 @router.get("/skill-versions/{version_id}", response_model=SkillVersionView)
 async def version(context: Context, service: Services, version_id: str) -> SkillVersionView:
     return await service.version(context, version_id)
@@ -121,20 +111,6 @@ async def validate(context: Context, service: Services, version_id: str) -> Skil
     return await service.validate(context, version_id)
 
 
-@router.post("/skill-versions/{version_id}/freeze", response_model=SkillVersionView)
-async def freeze(
-    context: Context, service: Services, version_id: str, body: SkillRevision
-) -> SkillVersionView:
-    return await service.freeze(context, version_id, body.revision)
-
-
-@router.post("/skills/{skill_id}/releases", response_model=SkillDetail)
-async def release(
-    context: Context, service: Services, skill_id: str, body: SkillRelease
-) -> SkillDetail:
-    return await service.release(context, skill_id, body)
-
-
 @router.post("/skill-versions/{version_id}/tests", response_model=SkillTestView)
 async def test(
     context: Context, service: Services, version_id: str, body: SkillTestInput
@@ -150,3 +126,15 @@ async def tests(context: Context, service: Services, version_id: str) -> list[Sk
 @router.post("/skill-versions/{version_id}/exports", response_model=Artifact)
 async def export(context: Context, service: Services, version_id: str) -> Artifact:
     return await service.export(context, version_id)
+
+
+@router.get("/skills/{skill_id}/configuration")
+async def configuration(context: Context, service: Services, skill_id: str) -> SkillVersionView:
+    return await service.version(context, skill_id)
+
+
+@router.patch("/skills/{skill_id}/configuration")
+async def edit_configuration(
+    context: Context, service: Services, skill_id: str, body: SkillVersionEdit
+) -> SkillVersionView:
+    return await service.edit_version(context, skill_id, body)

@@ -136,7 +136,9 @@ def audit_catalog(root: Path) -> list[str]:
         failures.append("智能体模块归档与冻结实现不一致")
     if [t for t in catalog["tables"] if t["revision"] == "0024_evaluations"] != EVALUATION_BASELINE:
         failures.append("评测模块归档与冻结实现不一致")
-    archived = [t for t in catalog["tables"] if t["revision"] == "0001_core"]
+    archived = [
+        t for t in catalog["tables"] if t["revision"] in {"0001_core", "0043_resource_management"}
+    ]
     current_core, current_iam = deepcopy(BASELINE), deepcopy(IAM_BASELINE)
     # 管理目录的增量索引叠加到当前归档，旧基线保持冻结供历史迁移使用。
     for baseline, table_name, columns in (

@@ -37,7 +37,6 @@ from creativity_service.modules.agents.validation import static_issues
 from creativity_service.modules.releases.checks import (
     check_budget,
     check_evidence,
-    published_dependencies_match,
 )
 
 
@@ -394,8 +393,6 @@ class AgentSnapshots(AgentKernel):
                 uow, context, agent, version, "production", require_evaluation=False
             )
             self.require_valid(validation)
-            if not await published_dependencies_match(uow, version, manifest):
-                raise ServiceError("DEPENDENCY_INVALID", "发布依赖或策略已变化，需要重新发布", 409)
             return await self.store_candidate(
                 uow,
                 context,

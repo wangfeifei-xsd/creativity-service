@@ -12,19 +12,15 @@ from creativity_service.core.primitives import unavailable
 from creativity_service.modules.prompts.debug import PromptDebugService
 from creativity_service.modules.prompts.rendering import PromptFieldError
 from creativity_service.modules.prompts.schemas import (
-    PromptCompareView,
     PromptCreate,
-    PromptDraftCreate,
     PromptDraftEdit,
     PromptExportRequest,
     PromptImportRequest,
     PromptListView,
     PromptReference,
-    PromptReleaseRequest,
     PromptReleaseView,
     PromptRenderRequest,
     PromptRenderView,
-    PromptRetireRequest,
     PromptRouteOption,
     PromptSampleCreate,
     PromptSampleView,
@@ -83,18 +79,6 @@ async def update_prompt(
     prompt_id: str, body: PromptUpdate, context: Context, service: Service
 ) -> PromptView:
     return await service.update(context, prompt_id, body)
-
-
-@router.get("/prompts/{prompt_id}/versions")
-async def versions(prompt_id: str, context: Context, service: Service) -> list[PromptVersionView]:
-    return await service.list_versions(context, prompt_id)
-
-
-@router.post("/prompts/{prompt_id}/versions", status_code=201)
-async def create_draft(
-    prompt_id: str, body: PromptDraftCreate, context: Context, service: Service
-) -> PromptVersionView:
-    return await service.create_draft(context, prompt_id, body)
 
 
 @router.get("/prompt-versions/{version_id}")
@@ -163,30 +147,9 @@ async def submit_test(test_id: str, context: Context, service: Service) -> Promp
     return await PromptDebugService(service).submit(context, test_id)
 
 
-@router.get("/prompt-versions/{version_id}/compare/{previous_version_id}")
-async def compare(
-    version_id: str, previous_version_id: str, context: Context, service: Service
-) -> PromptCompareView:
-    return await service.compare(context, version_id, previous_version_id)
-
-
 @router.get("/prompts/{prompt_id}/releases")
 async def releases(prompt_id: str, context: Context, service: Service) -> list[PromptReleaseView]:
     return await service.releases(context, prompt_id)
-
-
-@router.post("/prompts/{prompt_id}/releases")
-async def release(
-    prompt_id: str, body: PromptReleaseRequest, context: Context, service: Service
-) -> PromptReleaseView:
-    return await service.release(context, prompt_id, body)
-
-
-@router.post("/prompt-versions/{version_id}/retire")
-async def retire(
-    version_id: str, body: PromptRetireRequest, context: Context, service: Service
-) -> PromptVersionView:
-    return await service.retire(context, version_id, body.revision)
 
 
 @router.get("/prompts/{prompt_id}/references")
@@ -212,3 +175,15 @@ def register_prompt_errors(app: "FastAPI") -> None:
         )
 
     app.add_exception_handler(PromptFieldError, variable_error)  # type: ignore[arg-type]
+
+
+@router.get("/prompts/{prompt_id}/configuration")
+async def configuration(prompt_id: str, context: Context, service: Service) -> PromptVersionView:
+    return await service.version_detail(context, prompt_id)
+
+
+@router.patch("/prompts/{prompt_id}/configuration")
+async def edit_configuration(
+    prompt_id: str, body: PromptDraftEdit, context: Context, service: Service
+) -> PromptVersionView:
+    return await service.edit_draft(context, prompt_id, body)

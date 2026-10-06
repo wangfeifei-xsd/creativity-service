@@ -1,7 +1,7 @@
 {
   "model_version": "2.0.0",
   "requirements_version": "v0.7",
-  "date": "2026-10-06",
+  "date": "2026-10-07",
   "modules": {
     "core": {
       "title": "公共设施",
@@ -15847,6 +15847,136 @@
           "sensitivity": "内部"
         }
       ]
+    },
+    {
+      "module": "core",
+      "name": "resource_uses",
+      "comment": "资源实际使用记录，每个资源在同一运行中计一次",
+      "columns": [
+        {
+          "name": "id",
+          "type": "varchar(64)",
+          "comment": "记录标识",
+          "required": true,
+          "source": "服务端随机标识",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "channel_id",
+          "type": "varchar(64)",
+          "comment": "所属渠道标识",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "comment": "创建时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "comment": "更新时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "comment": "并发修订号",
+          "required": true,
+          "source": "服务层递增",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "environment",
+          "type": "varchar(16)",
+          "comment": "使用环境",
+          "required": true,
+          "source": "受信执行上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "resource_type",
+          "type": "varchar(64)",
+          "comment": "资源类型",
+          "required": true,
+          "source": "受信执行上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "resource_id",
+          "type": "varchar(64)",
+          "comment": "稳定资源标识",
+          "required": true,
+          "source": "受信执行上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "resource_name",
+          "type": "varchar(128)",
+          "comment": "使用时资源名称",
+          "required": true,
+          "source": "受信执行上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "run_id",
+          "type": "varchar(64)",
+          "comment": "关联运行标识",
+          "required": true,
+          "source": "受信执行上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "agent_name",
+          "type": "varchar(128)",
+          "comment": "使用时智能体名称",
+          "required": false,
+          "source": "受信执行上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "caller_name",
+          "type": "varchar(128)",
+          "comment": "使用时调用方名称",
+          "required": false,
+          "source": "受信执行上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "purpose",
+          "type": "varchar(32)",
+          "comment": "运行用途",
+          "required": true,
+          "source": "受信执行上下文",
+          "sensitivity": "内部"
+        }
+      ],
+      "indexes": [
+        [
+          "channel_id",
+          "id"
+        ],
+        [
+          "channel_id",
+          "resource_type",
+          "resource_id"
+        ],
+        [
+          "channel_id",
+          "run_id"
+        ]
+      ],
+      "scope": "环境",
+      "status": "已实现",
+      "revision": "0043_resource_management",
+      "control_purpose": null
     }
   ],
   "version_payloads": {

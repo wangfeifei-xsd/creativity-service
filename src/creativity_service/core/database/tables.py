@@ -22,7 +22,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import TypeEngine
 
-BASELINE = json.loads(Path(__file__).with_name("tables_v0041_0.json").read_text(encoding="utf-8"))
+BASELINE = json.loads(Path(__file__).with_name("tables_v0043_0.json").read_text(encoding="utf-8"))
 
 
 def column_type(name: str) -> TypeEngine[Any]:

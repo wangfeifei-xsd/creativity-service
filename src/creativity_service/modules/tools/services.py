@@ -50,8 +50,8 @@ def status(value: str) -> DisplayStatus:
     names = {
         "ACTIVE": "已启用",
         "DISABLED": "已停用",
-        "DRAFT": "草稿",
-        "PUBLISHED": "已冻结",
+        "DRAFT": "未发布",
+        "PUBLISHED": "已发布",
         "RETIRED": "已归档",
         "STARTED": "调用中",
         "SUCCEEDED": "成功",
@@ -177,12 +177,17 @@ class ToolService:
             self.engine,
             scope,
             [
+                policy_key(scope.channel_id),
+                policy_key("system"),
                 content_key(scope),
                 record_key(scope.channel_id, "tools", tool_id),
                 record_key(scope.channel_id, "audit_events", audit_id),
             ],
         ) as uow:
             await DeletionGuard(scope).check(uow, [ContentRef("tool", tool_id)])
+            from creativity_service.modules.resources.configuration import require_edit
+
+            await require_edit(uow, context, "tool", tool_id)
             row = await Repository(metadata.tables["tools"], scope).change(
                 uow, tool_id, body.revision, body.model_dump(exclude={"revision"})
             )
@@ -222,12 +227,6 @@ class ToolService:
                 row["id"],
                 [
                     ("edit", "编辑", "tool:manage"),
-                    ("create_version", "新增版本", "version:edit"),
-                    *(
-                        ([("disable", "停用", "tool:manage")])
-                        if row["status"] == "ACTIVE"
-                        else [("enable", "启用", "tool:manage")]
-                    ),
                 ],
                 permissions,
             ),
@@ -247,6 +246,8 @@ class ToolService:
         agents: dict[str, ToolReference] = {}
         visible = []
         for row in await self.repository.rows(context, "tools"):
+            if row["status"] == "DELETED":
+                continue
             if (
                 source_type
                 and row["source_type"] != source_type
@@ -290,12 +291,12 @@ class ToolService:
         scope = context.scope
         async with transaction(self.engine, scope, [content_key(scope)]) as uow:
             row = await Repository(metadata.tables["tools"], scope).get(uow.connection, tool_id)
-            if row is None:
+            if row is None or row["status"] == "DELETED":
                 raise ServiceError("NOT_FOUND", "工具不存在", 404)
             permissions = policy.actions("tool", tool_id, resource_state(context, "tool", row))
             require_action(permissions, "tool:manage")
             versions = await Repository(core_metadata.tables["resource_versions"], scope).find(
-                uow.connection, resource_type="tool", resource_id=tool_id
+                uow.connection, resource_type="tool", resource_id=tool_id, id=tool_id
             )
             mappings = await Repository(core_metadata.tables["release_mappings"], scope).find(
                 uow.connection, resource_type="tool", resource_id=tool_id
@@ -384,6 +385,7 @@ class ToolService:
             )
             tool_id, version_id, audit_id, source_id = self.import_ids(import_key)
             tool_id = target_tool_id or tool_id
+            version_id = tool_id
             repo = Repository(metadata.tables["tools"], context.scope)
             existing = await repo.get(uow.connection, tool_id) if target_tool_id else None
             if target_tool_id and (
@@ -400,20 +402,17 @@ class ToolService:
             content = version.definition.model_dump(mode="json")
             output = version.definition.output_schema
             versions = Repository(core_metadata.tables["resource_versions"], context.scope)
-            if await versions.find(
-                uow.connection,
-                resource_type="tool",
-                resource_id=tool_id,
-                version_label=version.version_label,
-            ):
-                raise ServiceError("VERSION_LABEL_CONFLICT", "版本名称已存在", 409)
+            if await versions.get(uow.connection, tool_id):
+                raise ServiceError(
+                    "CONFIGURATION_EXISTS", "工具已有配置，请直接修改或创建独立工具", 409
+                )
             row = await Repository(core_metadata.tables["resource_versions"], context.scope).add(
                 uow,
                 version_id,
                 {
                     "resource_type": "tool",
                     "resource_id": tool_id,
-                    "version_label": version.version_label,
+                    "version_label": "当前配置",
                     "state": "DRAFT",
                     "content": content,
                     "content_digest": digest({"content": content, "output_schema": output}),
@@ -435,7 +434,7 @@ class ToolService:
                 definition=version.definition,
                 status=status("DRAFT"),
                 execution_enabled=False,
-                unavailable_reason="导入草稿尚未冻结与发布",
+                unavailable_reason="工具尚未发布",
                 actions=[],
             )
         resource = await self.create(context, tool)
@@ -445,7 +444,7 @@ class ToolService:
     def import_ids(import_key: str) -> tuple[str, str, str, str]:
         return (
             digest([import_key, "tool"]),
-            digest([import_key, "version"]),
+            digest([import_key, "tool"]),
             digest([import_key, "audit"]),
             digest([import_key, "source"]),
         )
@@ -461,6 +460,7 @@ class ToolService:
     ) -> list[ResourceKey]:
         tool_id, version_id, audit_id, source_id = cls.import_ids(import_key)
         tool_id = target_tool_id or tool_id
+        version_id = tool_id
         scope = context.scope
         return [
             content_key(scope),
@@ -542,10 +542,10 @@ class ToolService:
         except ServiceError as exc:
             reason = exc.message
         keys = [("test", "测试", "run:create")]
-        if row["state"] == "DRAFT":
-            keys += [("edit", "保存草稿", "version:edit"), ("freeze", "冻结版本", "version:freeze")]
-        elif row["state"] == "PUBLISHED":
-            keys += [("release", "发布到当前环境", "release:publish")]
+        if row["state"] == "DRAFT" or (
+            row["state"] == "PUBLISHED" and "release:publish" in permissions
+        ):
+            keys += [("edit", "修改", "version:edit")]
         return ToolVersionView(
             version=version_view(row),
             revision=row["revision"],

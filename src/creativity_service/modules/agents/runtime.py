@@ -22,7 +22,6 @@ from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.agents.repositories import dependency_rows, repository, required
 from creativity_service.modules.agents.schemas import AgentDefinition, FrozenExecutionSpec
 from creativity_service.modules.agents.services import AgentService
-from creativity_service.modules.releases.checks import published_dependencies_match
 from creativity_service.modules.runs.schemas import ExecutionPolicy, ResolvedDefinition, StepPolicy
 from creativity_service.modules.tools.schemas import ToolDefinition
 from creativity_service.modules.usage.repositories import budget_configuration_key
@@ -328,8 +327,6 @@ class PreparedAgentResolver:
             > spec.definition.limits.token_limit
         ):
             raise ServiceError("BUDGET_NOT_EXECUTABLE", "受理估算超过智能体 Token 上限", 422)
-        if not await published_dependencies_match(uow, version, manifest):
-            raise ServiceError("DEPENDENCY_INVALID", "发布依赖或策略已变化，需要重新发布", 409)
         frozen = await agents.store_candidate(
             uow,
             context,

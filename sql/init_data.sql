@@ -1,5 +1,5 @@
 -- Creativity 初始化数据归档，必须在配套 sql/init.sql 建表后执行。
--- 模型版本：2.0.0；完成后登记迁移基线：0042_channel_admin_publish。
+-- 模型版本：2.0.0；完成后登记迁移基线：0043_resource_management。
 -- 数据源：sql/init_data.json，冻结控制面配置、预置渠道、模型连接及并发策略。
 -- 包含 admin 账号、两种管理员的菜单关联、账号角色关联及历史兼容角色。
 -- 预置渠道的首位管理员复用 admin，仅登记空范围；不复制其他账号或接入凭据。
@@ -504,7 +504,7 @@ WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_ale
 FROM creativity_alembic_version));
 
 -- 最后登记迁移完成标记；失败回滚时不留下半份初始化数据。
-INSERT INTO creativity_alembic_version (version_num, channel_id) SELECT '0042_channel_admin_publish' AS anon_1, 'system' AS anon_2
+INSERT INTO creativity_alembic_version (version_num, channel_id) SELECT '0043_resource_management' AS anon_1, 'system' AS anon_2
 WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
 FROM creativity_alembic_version));
 

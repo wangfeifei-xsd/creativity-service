@@ -152,7 +152,10 @@ class RouteInput(Contract):
 
 
 class RouteVersionInput(Contract):
-    label: str = Field(min_length=1, max_length=64)
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    resource_revision: int | None = Field(default=None, ge=1)
+    label: str = Field(default="当前配置", min_length=1, max_length=64)
+    revision: int | None = Field(default=None, ge=1)
     primary_model: Identifier
     fallback_models: list[Identifier] = Field(default_factory=list, max_length=9)
     required_capabilities: list[Capability] = Field(default=["text"])

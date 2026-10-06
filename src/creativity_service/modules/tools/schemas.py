@@ -92,7 +92,7 @@ class ToolDefinition(Contract):
 
 
 class ToolVersionCreate(Contract):
-    version_label: str = Field(min_length=1, max_length=64)
+    version_label: str = Field(default="当前配置", min_length=1, max_length=64)
     definition: ToolDefinition
 
 
@@ -224,6 +224,8 @@ class RunToolGrant(Contract):
     authorization_revision: str
     purpose: Literal["production", "debug", "evaluation"]
     draft_revisions: dict[str, int] = Field(default_factory=dict)
+    frozen_tool: ResourceVersion | None = None
+    frozen_skills: tuple[ResourceVersion, ...] = ()
 
 
 class BindingOption(Contract):

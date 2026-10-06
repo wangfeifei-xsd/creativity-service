@@ -88,7 +88,13 @@ async def semantic_selection(
             if row["current_version_id"] != ref.version_id or not memory.usable(row, policy):
                 continue
             identifier = digest(
-                [context.scope.model_dump(), ref.memory_id, ref.version_id, model.model_version_id]
+                [
+                    context.scope.model_dump(),
+                    ref.memory_id,
+                    ref.version_id,
+                    model.model_version_id,
+                    route.content_digest,
+                ]
             )
             records[identifier] = row
         cached = await vectors.get_many(uow.connection, records)

@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 from creativity_service.core.context import Environment, Scope
 from creativity_service.core.contracts import DisplayStatus, ResourceVersion, VisibleAction
@@ -68,7 +68,9 @@ class AgentContextPolicy(Contract):
 
 
 class AgentSkillLoading(Contract):
-    version_id: Identifier
+    version_id: Identifier = Field(
+        validation_alias=AliasChoices("skill_id", "version_id"), serialization_alias="skill_id"
+    )
     selected: bool = False
     selected_files: tuple[str, ...] = Field(default=(), max_length=128)
     loading_mode: Literal["mandatory", "on_demand"] | None = None
@@ -77,11 +79,33 @@ class AgentSkillLoading(Contract):
 
 
 class AgentBindings(Contract):
-    embedding_route_version: Identifier | None = None
-    prompt_version: Identifier | None = None
-    model_route_version: Identifier | None = None
-    tool_versions: tuple[Identifier, ...] = Field(default=(), max_length=64)
-    skill_versions: tuple[Identifier, ...] = Field(default=(), max_length=32)
+    embedding_route_version: Identifier | None = Field(
+        default=None,
+        validation_alias=AliasChoices("embedding_route_id", "embedding_route_version"),
+        serialization_alias="embedding_route_id",
+    )
+    prompt_version: Identifier | None = Field(
+        default=None,
+        validation_alias=AliasChoices("prompt_id", "prompt_version"),
+        serialization_alias="prompt_id",
+    )
+    model_route_version: Identifier | None = Field(
+        default=None,
+        validation_alias=AliasChoices("model_route_id", "model_route_version"),
+        serialization_alias="model_route_id",
+    )
+    tool_versions: tuple[Identifier, ...] = Field(
+        default=(),
+        max_length=64,
+        validation_alias=AliasChoices("tool_ids", "tool_versions"),
+        serialization_alias="tool_ids",
+    )
+    skill_versions: tuple[Identifier, ...] = Field(
+        default=(),
+        max_length=32,
+        validation_alias=AliasChoices("skill_ids", "skill_versions"),
+        serialization_alias="skill_ids",
+    )
     skill_loading: tuple[AgentSkillLoading, ...] = Field(default=(), max_length=32)
 
     def ids(self) -> list[str]:

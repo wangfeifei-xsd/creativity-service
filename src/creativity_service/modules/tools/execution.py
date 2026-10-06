@@ -120,9 +120,25 @@ class ToolExecutor:
         tool, version = await self.service.repository.resolve(context, call.tool_version_id)
         if tool["status"] != "ACTIVE":
             raise ServiceError("TOOL_UNAVAILABLE", "工具已停用", 403)
+        grant = await self.runs.authorize_call(context, call)
+        if grant.frozen_tool is not None:
+            frozen = grant.frozen_tool
+            if (
+                frozen.channel_id != context.scope.channel_id
+                or frozen.resource_id != tool["id"]
+                or frozen.version_id != call.tool_version_id
+            ):
+                raise ServiceError("SNAPSHOT_INVALID", "工具快照归属不符", 403)
+            version = {
+                **version,
+                "content": frozen.content,
+                "state": frozen.state,
+                "revision": frozen.configuration_revision
+                or frozen.draft_revision
+                or version["revision"],
+            }
         definition = ToolDefinition.model_validate(version["content"])
         validate_definition(definition)
-        grant = await self.runs.authorize_call(context, call)
         if self.fixture and grant.purpose != "evaluation":
             raise ServiceError("TOOL_FORBIDDEN", "固定工具数据仅用于受控评测", 403)
         if grant.purpose == "evaluation" and definition.effect_type != "READ_ONLY":
@@ -179,6 +195,9 @@ class ToolExecutor:
                     "key_id": context.key_id,
                     "tool_version": call.tool_version_id,
                     "definition": definition.model_dump(mode="json"),
+                    "skill_content": [
+                        (v.version_id, v.content_digest) for v in grant.frozen_skills
+                    ],
                     "agent_version": grant.agent_version_id,
                     "authorization_revision": grant.authorization_revision,
                     "actions": sorted(actions),
@@ -428,6 +447,7 @@ class ToolExecutor:
                                 definition=definition.model_copy(deep=True),
                                 run_id=call.run_id,
                                 operation=operation,
+                                frozen_skills=grant.frozen_skills,
                             )
                         )
                     )

@@ -140,6 +140,7 @@ class RunDetail(AdmissionReceipt):
     evidence: list[RunEvidenceView]
     error: RunError | None
     versions: list[RunVersionView]
+    resource_uses: list[dict[str, Any]] = Field(default_factory=list)
     actions: list[VisibleAction]
     result: ResultEnvelope | None
 

@@ -232,3 +232,25 @@
 普通索引：无。
 
 控制面用途：`migrations`；账号/角色身份引用不赋予其他渠道数据访问权。
+
+## resource_uses
+
+资源实际使用记录，每个资源在同一运行中计一次。状态：已实现；归属：环境；归档修订：0043_resource_management。
+
+| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
+| --- | --- | --- | --- | --- | --- |
+| `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
+| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
+| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
+| `environment` | `varchar(16)` | 使用环境 | 是 | 受信执行上下文 | 内部 |
+| `resource_type` | `varchar(64)` | 资源类型 | 是 | 受信执行上下文 | 内部 |
+| `resource_id` | `varchar(64)` | 稳定资源标识 | 是 | 受信执行上下文 | 内部 |
+| `resource_name` | `varchar(128)` | 使用时资源名称 | 是 | 受信执行上下文 | 内部 |
+| `run_id` | `varchar(64)` | 关联运行标识 | 是 | 受信执行上下文 | 内部 |
+| `agent_name` | `varchar(128)` | 使用时智能体名称 | 否 | 受信执行上下文 | 内部 |
+| `caller_name` | `varchar(128)` | 使用时调用方名称 | 否 | 受信执行上下文 | 内部 |
+| `purpose` | `varchar(32)` | 运行用途 | 是 | 受信执行上下文 | 内部 |
+
+普通索引：`(channel_id, id)`；`(channel_id, resource_type, resource_id)`；`(channel_id, run_id)`。

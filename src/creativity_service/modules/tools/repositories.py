@@ -226,6 +226,10 @@ class ToolRepository:
                         if evidence.evidence_id not in existing_evidence
                     },
                 )
+        if state not in {"DENIED"}:
+            from creativity_service.modules.resources.usage import record_use
+
+            await record_use(self.engine, context, call.run_id, "tool", tool_id)
 
     async def rows(
         self, context: AuthContext, table_name: str, **filters: Any

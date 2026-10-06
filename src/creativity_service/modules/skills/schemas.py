@@ -17,7 +17,7 @@ class SkillVariable(Contract):
 
 class SkillToolRequirement(Contract):
     tool_code: str = Field(pattern=r"^[a-z][a-z0-9_.-]{0,63}$")
-    version_label: str = Field(min_length=1, max_length=64)
+    version_label: str = Field(default="当前配置", min_length=1, max_length=64)
     source_type: Literal["mcp", "http", "builtin"] | None = None
     input_schema: dict[str, Any] | None = None
     output_schema: dict[str, Any] | None = None
@@ -48,7 +48,7 @@ class SkillCreate(Contract):
     owner: str = Field(min_length=1, max_length=128)
     tags: tuple[str, ...] = Field(default=(), max_length=32)
     instructions: str = Field(min_length=1, max_length=1048576)
-    version_label: str = Field(default="初始版本", min_length=1, max_length=64)
+    version_label: str = Field(default="当前配置", min_length=1, max_length=64)
     settings: SkillSettings = SkillSettings()
 
 
@@ -57,7 +57,7 @@ class SkillImport(Contract):
     name: str | None = Field(default=None, min_length=1, max_length=128)
     owner: str = Field(min_length=1, max_length=128)
     archive_base64: str = Field(min_length=1, max_length=12000000)
-    version_label: str = Field(default="导入版本", min_length=1, max_length=64)
+    version_label: str = Field(default="当前配置", min_length=1, max_length=64)
     tool_bindings: dict[str, Identifier] = Field(default_factory=dict, max_length=32)
 
 
@@ -74,11 +74,11 @@ class SkillEdit(SkillRevision):
     description: str = Field(min_length=1, max_length=4000)
     owner: str = Field(min_length=1, max_length=128)
     tags: tuple[str, ...] = Field(default=(), max_length=32)
-    status: Literal["ACTIVE", "DISABLED"]
+    status: Literal["ACTIVE"]
 
 
 class SkillVersionCreate(Contract):
-    version_label: str = Field(min_length=1, max_length=64)
+    version_label: str = Field(default="当前配置", min_length=1, max_length=64)
     base_version_id: Identifier
 
 

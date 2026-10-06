@@ -29,9 +29,7 @@ from creativity_service.modules.models.schemas import (
 )
 from creativity_service.modules.prompts.assembly import build_prompt_service
 from creativity_service.modules.prompts.schemas import (
-    PromptContent,
     PromptCreate,
-    PromptDraftCreate,
 )
 from creativity_service.modules.skills.assembly import build_skill_service
 from creativity_service.modules.tools.assembly import build_tool_services
@@ -144,23 +142,23 @@ async def agent_env(channel_env, request):
     prompt = await env.prompts.create(
         env.context, PromptCreate(prompt_code="agent_prompt", name="业务提示词", purpose="验证配置")
     )
-    draft = await env.prompts.create_draft(
-        env.context,
-        prompt.prompt_id,
-        PromptDraftCreate(version_label="初版", content=PromptContent()),
-    )
+    draft = await env.prompts.version_detail(env.context, prompt.prompt_id)
+    env.prompt_id, env.route_id = prompt.prompt_id, route.id
     # 本单元以已发布提示词为前置夹具；不伪造提示词调试或正式评测结果。
     from creativity_service.core.database import transaction
     from creativity_service.core.deletion import content_key
     from creativity_service.core.locking import record_key
+    from creativity_service.core.primitives import digest
     from creativity_service.core.versioning import version_view
     from creativity_service.modules.agents.repositories import repository
 
+    mapping_id = digest([env.context.scope.channel_id, environment, "prompt", prompt.prompt_id])
     async with transaction(
         env.engine,
         env.context.scope,
         [
             content_key(env.context.scope),
+            record_key(env.context.scope.channel_id, "release_mappings", mapping_id),
             record_key(env.context.scope.channel_id, "resource_versions", draft.version.version_id),
         ],
     ) as uow:
@@ -168,6 +166,28 @@ async def agent_env(channel_env, request):
             uow, draft.version.version_id, draft.revision, {"state": "PUBLISHED"}
         )
         prompt_version = version_view(row)
+        await repository("release_mappings", env.context.scope).add(
+            uow,
+            mapping_id,
+            {
+                "resource_type": "prompt",
+                "resource_id": prompt.prompt_id,
+                "version_id": prompt.prompt_id,
+                "published_by": env.context.principal_id,
+                "release_note": "既有发布配置夹具",
+            },
+        )
+    from creativity_service.modules.resources.schemas import ResourceMutation
+    from creativity_service.modules.resources.services import ResourceManagement
+
+    manager = ResourceManagement(env.engine, env.iam.authorization, {"model_route": models.routing})
+    await manager.mutate(
+        env.context,
+        "model_route",
+        route.id,
+        "publish",
+        ResourceMutation(revision=route.revision, configuration_revision=1),
+    )
     env.tools = build_tool_services(env.engine, env.iam.authorization)
     env.skills = build_skill_service(env.engine, env.iam.authorization, store, env.tools.management)
     env.cleanup = CleanupRegistry()

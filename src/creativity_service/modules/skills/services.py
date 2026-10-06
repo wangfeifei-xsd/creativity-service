@@ -80,8 +80,8 @@ def status(value: str) -> DisplayStatus:
     labels = {
         "ACTIVE": "已启用",
         "DISABLED": "已停用",
-        "DRAFT": "草稿",
-        "PUBLISHED": "已冻结",
+        "DRAFT": "未发布",
+        "PUBLISHED": "已发布",
         "RETIRED": "已归档",
     }
     return DisplayStatus(
@@ -438,6 +438,16 @@ class SkillService:
                 t.get("definition", {}).get("artifact_id") == artifact_id for t in tests
             ):
                 return
+            snapshots = core_metadata.tables["release_snapshots"]
+            if await uow.connection.scalar(
+                select(snapshots.c.id)
+                .where(
+                    snapshots.c.channel_id == context.scope.channel_id,
+                    snapshots.c.versions.contains([{"content": {"artifact_id": artifact_id}}]),
+                )
+                .limit(1)
+            ):
+                return
             repo = repository("artifacts", storage_scope)
             row = await repo.get(uow.connection, artifact_id)
             if row and row["state"] == "AVAILABLE":
@@ -490,7 +500,6 @@ class SkillService:
             retention_seconds=36500 * 86400,
         )
         scope, audit_id = context.scope, new_id("audit")
-        old_artifact: str | None = None
         try:
             await self.require(context, "skill:manage", action_id)
             await self.require(context, "version:edit", action_id)
@@ -541,11 +550,19 @@ class SkillService:
                 if revision is not None:
                     if not current or current["revision"] != revision:
                         raise ServiceError("REVISION_CONFLICT", "技能草稿已变更，请刷新", 409)
-                    if current["state"] != "DRAFT":
-                        raise ServiceError("VERSION_FROZEN", "已冻结版本不能修改", 409)
-                    old_artifact = current["content"]["artifact_id"]
+                    from creativity_service.modules.resources.configuration import require_edit
+
+                    await require_edit(uow, context, "skill", skill_id)
+                    if current["state"] == "PUBLISHED":
+                        await locked_require(uow, context, "release:publish", "skill", skill_id)
+                    elif current["state"] != "DRAFT":
+                        raise ServiceError("SKILL_UNAVAILABLE", "资源已经删除", 409)
                 elif await repo.find(
-                    uow.connection, resource_type="skill", resource_id=skill_id, version_label=label
+                    uow.connection,
+                    resource_type="skill",
+                    resource_id=skill_id,
+                    id=skill_id,
+                    version_label=label,
                 ):
                     raise ServiceError("VERSION_LABEL_CONFLICT", "版本名称已存在", 409)
                 if resource:
@@ -565,6 +582,9 @@ class SkillService:
                         "；".join(i.message for i in invalid_bindings),
                         422,
                     )
+                from creativity_service.modules.resources.configuration import require_dependencies
+
+                await require_dependencies(uow, scope, ids)
                 await self.check_tool_permissions(uow, context, ids)
                 definition = SkillDefinition(
                     **package.settings.model_dump(),
@@ -592,7 +612,7 @@ class SkillService:
                             **values,
                             "resource_type": "skill",
                             "resource_id": skill_id,
-                            "version_label": label,
+                            "version_label": "当前配置",
                             "state": "DRAFT",
                             "created_by": context.principal_id,
                         },
@@ -633,14 +653,14 @@ class SkillService:
         except BaseException:
             await self.orphan(context, artifact.artifact_id)
             raise
-        if old_artifact:
-            await self.orphan(context, old_artifact)
+        # 已受理运行与评测候选继续持有旧包，交由证据留存流程回收。
 
     async def create(self, context: AuthContext, body: SkillCreate) -> SkillDetail:
         package = validate_files(
             {"SKILL.md": entry(body.name, body.description, body.instructions)}, body.settings
         )
-        skill_id, version_id = new_id("skill"), new_id("version")
+        skill_id = new_id("skill")
+        version_id = skill_id
         await self.write_package(
             context,
             skill_id,
@@ -663,8 +683,8 @@ class SkillService:
         await self.write_package(
             context,
             skill_id,
-            new_id("version"),
-            body.version_label,
+            skill_id,
+            "当前配置",
             package,
             resource={
                 "skill_code": body.skill_code,
@@ -719,7 +739,6 @@ class SkillService:
                 row["id"],
                 [
                     ("edit", "编辑技能", "skill:manage"),
-                    ("create_version", "新增版本", "version:edit"),
                 ],
                 permissions,
             ),
@@ -733,7 +752,8 @@ class SkillService:
             rows = [
                 row
                 for row in rows
-                if (
+                if row["status"] != "DELETED"
+                and (
                     not search or search.casefold() in (row["name"] + row["description"]).casefold()
                 )
                 and "skill:manage"
@@ -763,13 +783,10 @@ class SkillService:
             ("test", "加载测试", "skill:manage"),
             ("export", "导出技能包", "data:export"),
         ]
-        if version["state"] == "DRAFT":
+        if version["state"] in {"DRAFT", "PUBLISHED"}:
             actions += [
                 ("edit", "编辑包", "version:edit"),
-                ("freeze", "冻结版本", "version:freeze"),
             ]
-        elif version["state"] == "PUBLISHED":
-            actions.append(("release", "发布到当前环境", "release:publish"))
         return SkillVersionView(
             version_id=version_id,
             version_label=version["version_label"],
@@ -795,7 +812,7 @@ class SkillService:
         policy = await self.authorization.read_policy(context)
         async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
             row = await repository("skills", context.scope).get(uow.connection, skill_id)
-            if not row:
+            if not row or row["status"] == "DELETED":
                 raise ServiceError("NOT_FOUND", "技能不存在", 404)
             permissions = policy.actions("skill", skill_id, resource_state(context, "skill", row))
             require_action(permissions, "skill:manage")
@@ -839,7 +856,6 @@ class SkillService:
             if version["state"] == "DRAFT":
                 actions += [
                     ("edit", "编辑包", "version:edit"),
-                    ("freeze", "冻结版本", "version:freeze"),
                 ]
             elif version["state"] == "PUBLISHED":
                 actions.append(("release", "发布到当前环境", "release:publish"))
@@ -882,17 +898,23 @@ class SkillService:
 
     async def edit(self, context: AuthContext, skill_id: str, body: SkillEdit) -> SkillDetail:
         await self.require(context, "skill:manage", skill_id)
+        scope = context.scope
         audit_id = new_id("audit")
         async with transaction(
             self.engine,
             context.scope,
             [
+                policy_key(scope.channel_id),
+                policy_key("system"),
                 content_key(context.scope),
                 record_key(context.scope.channel_id, "skills", skill_id),
                 record_key(context.scope.channel_id, "audit_events", audit_id),
             ],
         ) as uow:
             await DeletionGuard(context.scope).check(uow, [ContentRef("skill", skill_id)])
+            from creativity_service.modules.resources.configuration import require_edit
+
+            await require_edit(uow, context, "skill", skill_id)
             await repository("skills", context.scope).change(
                 uow, skill_id, body.revision, body.model_dump(mode="json", exclude={"revision"})
             )
@@ -904,23 +926,19 @@ class SkillService:
     async def create_version(
         self, context: AuthContext, skill_id: str, body: SkillVersionCreate
     ) -> SkillVersionView:
-        skill, version = await self.raw(context, body.base_version_id)
-        if skill["id"] != skill_id:
-            raise ServiceError("NOT_FOUND", "技能版本不存在", 404)
-        package = await self.package(
-            context, skill_id, SkillDefinition.model_validate(version["content"])
+        raise ServiceError(
+            "RESOURCE_VERSION_REMOVED", "请直接修改技能，需要不同配置时创建独立技能", 409
         )
-        version_id = new_id("version")
-        await self.write_package(context, skill_id, version_id, body.version_label, package)
-        return await self.version(context, version_id)
 
     async def edit_version(
         self, context: AuthContext, version_id: str, body: SkillVersionEdit
     ) -> SkillVersionView:
         skill, version = await self.raw(context, version_id)
         await self.require(context, "version:edit", skill["id"])
-        if version["state"] != "DRAFT":
-            raise ServiceError("VERSION_FROZEN", "已冻结版本不能修改", 409)
+        if version["state"] == "PUBLISHED":
+            await self.require(context, "release:publish", skill["id"])
+        elif version["state"] != "DRAFT":
+            raise ServiceError("SKILL_UNAVAILABLE", "资源已删除", 409)
         if version["revision"] != body.revision:
             raise ServiceError("REVISION_CONFLICT", "技能草稿已变更", 409)
         package = await self.package(
@@ -1236,6 +1254,11 @@ class SkillService:
             versions = await repository("resource_versions", context.scope).find(
                 uow.connection, resource_type="tool", state="PUBLISHED"
             )
+            mappings = await repository("release_mappings", context.scope).find(
+                uow.connection, resource_type="tool"
+            )
+            published = {r["version_id"] for r in mappings}
+            versions = [v for v in versions if v["id"] == v["resource_id"] and v["id"] in published]
             tools = await resources("tools", context.scope).get_many(
                 uow.connection, [v["resource_id"] for v in versions]
             )

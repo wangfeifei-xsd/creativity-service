@@ -119,8 +119,6 @@ async def resolve_dependencies(
             reason = "目标渠道缺少绑定的已冻结工具版本"
         elif tool["status"] != "ACTIVE":
             reason = "依赖工具已停用"
-        elif requirement.version_label != version["version_label"]:
-            reason = "工具版本名称不符合依赖要求"
         elif requirement.source_type and tool["source_type"] != requirement.source_type:
             reason = "工具来源不符合依赖要求"
         else:

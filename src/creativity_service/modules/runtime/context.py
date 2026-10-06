@@ -167,6 +167,18 @@ class ContextBuilder:
                 for s in rendered.sections
                 if s.source not in {"system", "output", "platform"}
             ]
+            from creativity_service.modules.resources.usage import record_use
+
+            await record_use(
+                self.runs.engine,
+                context,
+                lease.run_id,
+                "prompt",
+                version.resource_id,
+                resource_name=version.resource_name,
+                agent_name=spec.agent_name,
+                purpose=spec.purpose,
+            )
             refs.append(ContentRef("version", version.version_id))
         loaded_files: dict[str, Any] | None = None
         if config.bindings.skill_versions:
@@ -192,7 +204,10 @@ class ContextBuilder:
                         },
                     )
                 )
-            skill_load = await self.skills.loader.load(
+            from creativity_service.modules.skills.frozen import FrozenSkillPort
+            from creativity_service.modules.skills.loader import SkillLoader
+
+            skill_load = await SkillLoader(FrozenSkillPort(self.skills, spec.versions)).load(
                 context,
                 SkillLoadRequest(
                     bindings=tuple(bindings),
@@ -209,6 +224,19 @@ class ContextBuilder:
                 )
             instructions += "\n" + "\n".join(f.text for f in skill_load.loaded)
             instructions += "\n" + "\n".join(f.text for f in skill_load.discoveries)
+            from creativity_service.modules.resources.usage import record_use
+
+            for identifier in {f.version_id for f in skill_load.loaded}:
+                await record_use(
+                    self.runs.engine,
+                    context,
+                    lease.run_id,
+                    "skill",
+                    versions[identifier].resource_id,
+                    resource_name=versions[identifier].resource_name,
+                    agent_name=spec.agent_name,
+                    purpose=spec.purpose,
+                )
             loaded_files = skill_load.model_dump(mode="json")
             refs += [ContentRef("version", v) for v in config.bindings.skill_versions]
         messages: list[dict[str, Any]] = [{"role": "system", "content": instructions}]

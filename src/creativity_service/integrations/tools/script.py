@@ -4,6 +4,8 @@ from creativity_service.core.context import Scope
 from creativity_service.core.primitives import ServiceError, digest, utcnow
 from creativity_service.integrations.sandbox import ContainerSandbox
 from creativity_service.integrations.tools import AdapterRegistration, AdapterRequest, AdapterResult
+from creativity_service.modules.resources.usage import record_use
+from creativity_service.modules.skills.frozen import FrozenSkillPort
 from creativity_service.modules.skills.services import SkillService
 from creativity_service.modules.tools.schemas import ToolBinding
 
@@ -16,24 +18,32 @@ class ScriptAdapter:
         binding = request.definition.binding.script
         if not binding or not request.run_id:
             raise ServiceError(
-                "SCRIPT_BINDING_REQUIRED", "脚本调用须绑定固定技能版本和统一运行", 422
+                "SCRIPT_BINDING_REQUIRED", "脚本调用须绑定受理时的技能配置和统一运行", 422
             )
-        skill = await self.skills.resolve(request.context, binding.skill_version_id, "runtime")
+        skills = (
+            FrozenSkillPort(self.skills, request.frozen_skills)
+            if request.frozen_skills
+            else self.skills
+        )
+        skill = await skills.resolve(request.context, binding.skill_version_id, "runtime")
         if not skill.active or skill.state != "PUBLISHED":
-            raise ServiceError("SCRIPT_VERSION_REQUIRED", "脚本须来自已冻结且启用的技能版本", 409)
+            raise ServiceError("SCRIPT_VERSION_REQUIRED", "脚本须来自已发布的技能配置", 409)
         if not any(file.relative_path == binding.path for file in skill.definition.files):
             raise ServiceError("SCRIPT_NOT_FOUND", "脚本不在固定技能包内", 404)
-        source = (await self.skills.read_files(request.context, skill, (binding.path,), "runtime"))[
+        source = (await skills.read_files(request.context, skill, (binding.path,), "runtime"))[
             binding.path
         ]
         profile = self.sandbox.profile(
             request.context.scope.channel_id, binding.profile_id, "python"
         )
         if digest(profile.model_dump(mode="json")) != binding.profile_digest:
-            raise ServiceError("SANDBOX_PROFILE_CHANGED", "隔离环境已变化，请冻结新的工具版本", 409)
-        await self.skills.recheck(request.context, skill, "runtime")
+            raise ServiceError("SANDBOX_PROFILE_CHANGED", "隔离环境已变化，请更新工具配置", 409)
+        await skills.recheck(request.context, skill, "runtime")
+        await record_use(
+            self.skills.engine, request.context, request.run_id, "skill", skill.skill_id
+        )
         result = await self.sandbox.python(profile, source, request.arguments)
-        await self.skills.recheck(request.context, skill, "runtime")
+        await skills.recheck(request.context, skill, "runtime")
         return AdapterResult(
             data=result,
             source_request_id=request.attempt_id,
@@ -53,7 +63,7 @@ def resolve_script(
     if binding.adapter_key != "sandbox_python":
         return None
     if not binding.script or binding.implementation_version != "1":
-        raise ServiceError("SCRIPT_BINDING_REQUIRED", "隔离脚本须选择技能版本、文件与运行环境", 422)
+        raise ServiceError("SCRIPT_BINDING_REQUIRED", "隔离脚本须选择技能、文件与运行环境", 422)
     profile = sandbox.profile(scope.channel_id, binding.script.profile_id, "python")
     if digest(profile.model_dump(mode="json")) != binding.script.profile_digest:
         raise ServiceError("SANDBOX_PROFILE_CHANGED", "隔离环境配置已变化", 409)

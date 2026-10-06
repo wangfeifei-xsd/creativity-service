@@ -87,6 +87,7 @@ class PromptReadData:
             rows = await repository("resource_versions", context.scope).find_many(
                 connection, "resource_id", identifiers, resource_type="prompt"
             )
+            rows = [row for row in rows if row["id"] == row["resource_id"]]
             indexed = {row["id"]: row for row in rows}
             for row in rows:
                 versions[row["resource_id"]].append(row)
