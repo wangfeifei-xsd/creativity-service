@@ -10,10 +10,13 @@ from creativity_service.modules.iam.schemas import (
     AccountCreate,
     AccountUpdate,
     GrantInput,
+    LoginInput,
     MembershipInput,
+    PasswordChange,
 )
+from tests.support.captcha import captcha_token
 
-from .conftest import INITIAL, provision
+from .conftest import INITIAL, PASSWORD, provision
 
 pytestmark = pytest.mark.integration
 
@@ -24,7 +27,9 @@ async def test_platform_retains_admin_assignment_and_channel_hides_and_protects_
     access, channel_id = env.iam.access, tenant.channel.channel_id
     roles = CustomRoles(access)
     assert "channel_admin" in {role["id"] for role in await roles.list(env.admin)}
-    assert "channel_admin" in {role.role_code for role in await access.roles(env.admin, "channel")}
+    assert "channel_admin" in {
+        role.role_code for role in await env.iam.accounts.role_options(env.admin)
+    }
     assert "channel_admin" not in {role["id"] for role in await roles.list(tenant.manager)}
     assert "channel_admin" not in {role.role_code for role in await access.roles(tenant.manager)}
     options = await access_options(env.iam, tenant.manager, channel_id)
@@ -128,6 +133,21 @@ async def test_channel_created_roles_remain_assignable_without_new_action_restri
             display_name="渠道细分成员",
             initial_password=INITIAL,
         ),
+    )
+    issued = await env.iam.sessions.login(
+        LoginInput(
+            login_name="channel-subordinate",
+            password=INITIAL,
+            captcha_token=await captcha_token(env.iam, "channel-subordinate", "channel-test"),
+        ),
+        "channel-test",
+        new_id("request"),
+    )
+    initial = await env.iam.authentication.admin_session(
+        issued.access_token, new_id("request"), allow_initial=True
+    )
+    await env.iam.accounts.change_password(
+        initial, PasswordChange(current_password=INITIAL, new_password=PASSWORD)
     )
     body = MembershipInput(
         roles=[role["id"]], environments=["test"], data_scopes=[tenant.domain.data_scope_id]

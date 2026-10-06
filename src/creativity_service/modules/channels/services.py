@@ -9,8 +9,9 @@ from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.auth.types import GrantState
 from creativity_service.core.context import AuthContext, ControlScope, Scope
 from creativity_service.core.contracts import VisibleAction
-from creativity_service.core.database import UnitOfWork, transaction
-from creativity_service.core.deletion import RecoveryService
+from creativity_service.core.database import Repository, UnitOfWork, transaction
+from creativity_service.core.database.tables import metadata as core_metadata
+from creativity_service.core.deletion import RecoveryService, barrier_id
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import Contract, ServiceError, new_id, unavailable, utcnow
 from creativity_service.modules.channels.codes import channel_code
@@ -24,6 +25,7 @@ from creativity_service.modules.channels.reading import ChannelReadData
 from creativity_service.modules.channels.repositories import (
     ChannelRepository,
     environment_id,
+    is_management_workspace,
     management_scope_id,
     mapping_key,
     one,
@@ -779,14 +781,18 @@ class ChannelService:
         async with self.repository.engine.connect() as connection:
             first = await self.iam.access.first_administrator(connection, channel_id)
         management_id = management_scope_id(channel_id, body.environment)
+        scope = Scope(
+            channel_id=channel_id, environment=body.environment, data_scope_id=management_id
+        )
         keys = self.keys(channel_id, "channel_environments", env_id, event_id)
+        keys += RecoveryService.keys(scope)
         if first:
             keys += self.iam.access.workspace_provisioning_keys(
                 channel_id, first["user_id"], management_id
             )
         async with transaction(
             self.repository.engine,
-            self.scope(session, channel_id, body.environment),
+            scope,
             keys,
         ) as uow:
             await self.locked(uow, session, "environment:manage")
@@ -800,6 +806,8 @@ class ChannelService:
                 env_id,
                 {**body.model_dump(), "name": clean_name(body.name), "status": "ACTIVE"},
             )
+            # 管理范围同样承载配置读写，必须随环境原子建立恢复屏障。
+            await RecoveryService.initialize_fresh_in(uow, scope)
             current = await self.iam.access.first_administrator(uow.connection, channel_id)
             if first and current and current["user_id"] == first["user_id"]:
                 await self.iam.access.provision_workspace(
@@ -820,6 +828,7 @@ class ChannelService:
         if first is None:
             raise ServiceError("INITIAL_ADMIN_REQUIRED", "首位管理员不可用", 409)
         management_id = management_scope_id(channel_id, environment)
+        scope = Scope(channel_id=channel_id, environment=environment, data_scope_id=management_id)
         event_id = new_id("audit")
         keys = self.keys(
             channel_id, "channel_environments", environment_id(channel_id, environment), event_id
@@ -827,9 +836,8 @@ class ChannelService:
         keys += self.iam.access.workspace_provisioning_keys(
             channel_id, first["user_id"], management_id
         )
-        async with transaction(
-            self.repository.engine, self.scope(session, channel_id, environment), keys
-        ) as uow:
+        keys += RecoveryService.keys(scope)
+        async with transaction(self.repository.engine, scope, keys) as uow:
             await self.locked(uow, session, "environment:manage")
             row = await required(
                 uow.connection, "channel_environments", channel_id, environment=environment
@@ -837,6 +845,12 @@ class ChannelService:
             current = await self.iam.access.first_administrator(uow.connection, channel_id)
             if current is None or current["user_id"] != first["user_id"]:
                 raise ServiceError("INITIAL_ADMIN_REQUIRED", "首位管理员已变更，请刷新", 409)
+            # 兼容已授予管理范围但遗漏初始化的旧环境；已有封锁记录不可覆盖。
+            barrier = await Repository(core_metadata.tables["recovery_barriers"], scope).get(
+                uow.connection, barrier_id(scope)
+            )
+            if barrier is None:
+                await RecoveryService.initialize_fresh_in(uow, scope)
             if management_id in current["data_scopes"]:
                 return
             await self.iam.access.provision_workspace(
@@ -1277,6 +1291,10 @@ class ChannelService:
                 for d in data.domains.values()
                 if data.visible(d["environment"], [d["id"]], action="usage:read")
             ]
+            if isinstance(session.context, AuthContext):
+                current = session.context.scope
+                if is_management_workspace(session.context):
+                    scopes.append(current)
         if not scopes:
             raise ServiceError("FORBIDDEN", "没有可查询的用量范围", 403)
         if self.usage_reader is None:

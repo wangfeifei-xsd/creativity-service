@@ -119,6 +119,7 @@ async def audit_page(
             "model_connection": "model_connections",
             "version": "resource_versions",
             "evaluation": "evaluations",
+            "budget_policy": "budget_policies",
         }
         for kind, name in display_tables.items():
             ids = {identifier for ref_kind, identifier in references if ref_kind == kind}

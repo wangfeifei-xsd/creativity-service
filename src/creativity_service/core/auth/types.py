@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Literal, Protocol, Self
 
-from pydantic import AwareDatetime, Field, PrivateAttr, model_validator
+from pydantic import AwareDatetime, Field, model_validator
 
 from creativity_service.core.context import AuthContext, Environment, Scope
 from creativity_service.core.primitives import Contract, Digest, Identifier, Revision
@@ -50,7 +50,6 @@ class GrantState(Contract):
 
 
 class TokenRecord(Contract):
-    _stored_json: str | None = PrivateAttr(default=None)
     upstream_expires_at: AwareDatetime | None = None
     identity_channel_id: Identifier | None = None
     channel_id: Identifier
@@ -69,6 +68,10 @@ class TokenRecord(Contract):
     issued_at: AwareDatetime
     expires_at: AwareDatetime
     index_keys: list[str] = Field(default_factory=list)
+
+    def same_session(self, other: "TokenRecord") -> bool:
+        """续时只改变到期时间，身份与范围仍须完整一致。"""
+        return self.model_dump(exclude={"expires_at"}) == other.model_dump(exclude={"expires_at"})
 
     @model_validator(mode="after")
     def valid_binding(self) -> Self:

@@ -1,4 +1,4 @@
-"""认证 Redis 是会话真值；脚本原子维护固定期限及撤销索引。"""
+"""认证 Redis 是会话真值；脚本原子维护有效期及撤销索引。"""
 
 import hashlib
 import math
@@ -16,17 +16,27 @@ from creativity_service.core.context import Environment
 from creativity_service.core.database import assert_external_io_allowed
 from creativity_service.core.primitives import ServiceError, new_id, unavailable, utcnow
 
-# 所有索引成员都是摘要；先核对旧会话，再一次性签发与撤销，竞争切换只能成功一次。
+# 会话标识与身份绑定签发后不变，续时不影响替换；竞争切换仍只能成功一次。
 ISSUE_SCRIPT = """
+local old = nil
 if ARGV[4] ~= '' then
-  if redis.call('GET', KEYS[2]) ~= ARGV[4] or redis.call('PTTL', KEYS[2]) <= 0 then
+  local raw = redis.call('GET', KEYS[2])
+  if not raw or redis.call('PTTL', KEYS[2]) <= 0 then
     return 0
   end
+  old = cjson.decode(raw)
+  if old.session_id ~= ARGV[4] then return 0 end
 end
 if redis.call('EXISTS', KEYS[1]) ~= 0 then return -1 end
 local now = redis.call('TIME')
 local ttl = tonumber(ARGV[2]) - tonumber(now[1]) * 1000 - math.floor(tonumber(now[2]) / 1000)
 if ttl <= 0 then return 0 end
+if old then
+  local deadline = tonumber(old.expires_at) or tonumber(ARGV[5])
+  if deadline * 1000 <= tonumber(now[1]) * 1000 + math.floor(tonumber(now[2]) / 1000) then
+    return 0
+  end
+end
 redis.call('SET', KEYS[1], ARGV[1], 'PX', ttl)
 local current = cjson.decode(ARGV[1])
 for _, idx in ipairs(current.index_keys) do
@@ -35,8 +45,7 @@ for _, idx in ipairs(current.index_keys) do
   local last = redis.call('ZREVRANGE', idx, 0, 0, 'WITHSCORES')
   redis.call('EXPIREAT', idx, math.ceil(tonumber(last[2])))
 end
-if ARGV[4] ~= '' then
-  local old = cjson.decode(ARGV[4])
+if old then
   redis.call('DEL', KEYS[2])
   for _, idx in ipairs(old.index_keys) do redis.call('ZREM', idx, old.token_digest) end
 end
@@ -47,6 +56,32 @@ READ_SCRIPT = """
 local value = redis.call('GET', KEYS[1])
 local ttl = redis.call('PTTL', KEYS[1])
 if not value or ttl <= 0 then return nil end
+return value
+"""
+
+# 身份校验成功后续时；会话标识保持不变，删除与续时互斥，旧请求不能重建会话。
+# 到期时间使用时间戳写回同一字段，兼容既有 ISO 时间串；TTL 与撤销索引一起更新。
+RENEW_SCRIPT = """
+local raw = redis.call('GET', KEYS[1])
+if not raw or redis.call('PTTL', KEYS[1]) <= 0 then return nil end
+local current = cjson.decode(raw)
+if current.session_id ~= ARGV[1] then return nil end
+local time = redis.call('TIME')
+local now = tonumber(time[1]) + math.floor(tonumber(time[2]) / 1000) / 1000
+local deadline = tonumber(current.expires_at) or tonumber(ARGV[2])
+if deadline <= now then return nil end
+deadline = math.max(deadline, now + tonumber(ARGV[3]))
+if ARGV[4] ~= '' then deadline = math.min(deadline, tonumber(ARGV[4])) end
+if deadline <= now then return nil end
+current.expires_at = deadline
+local value = cjson.encode(current)
+redis.call('SET', KEYS[1], value, 'PX', math.max(1, math.floor((deadline - now) * 1000)))
+for _, idx in ipairs(current.index_keys) do
+  redis.call('ZREMRANGEBYSCORE', idx, '-inf', now)
+  redis.call('ZADD', idx, deadline, current.token_digest)
+  local last = redis.call('ZREVRANGE', idx, 0, 0, 'WITHSCORES')
+  redis.call('EXPIREAT', idx, math.ceil(tonumber(last[2])))
+end
 return value
 """
 
@@ -87,7 +122,7 @@ return denied
 
 class TokenStore:
     def __init__(
-        self, redis: Redis, prefix: str, management_ttl: int = 7200, service_ttl: int = 3600
+        self, redis: Redis, prefix: str, management_ttl: int = 28800, service_ttl: int = 3600
     ) -> None:
         self.redis, self.prefix = redis, f"{prefix}:auth"
         self.management_ttl, self.service_ttl = management_ttl, service_ttl
@@ -179,7 +214,8 @@ class TokenStore:
                 record.model_dump_json(),
                 math.floor(expires_at.timestamp() * 1000),
                 expires_at.timestamp(),
-                (replace._stored_json or replace.model_dump_json()) if replace else "",
+                replace.session_id if replace else "",
+                replace.expires_at.timestamp() if replace else "",
             )
         except RedisError as exc:
             raise unavailable("认证存储") from exc
@@ -203,6 +239,10 @@ class TokenStore:
             raw = await self._eval(READ_SCRIPT, 1, self.token_key(digest))
         except RedisError as exc:
             raise unavailable("认证存储") from exc
+        return self._parse_record(raw, digest, purposes)
+
+    @staticmethod
+    def _parse_record(raw: Any, digest: str, purposes: set[str]) -> TokenRecord:
         try:
             record = TokenRecord.model_validate_json(raw) if raw else None
         except (ValidationError, TypeError, ValueError):
@@ -216,9 +256,26 @@ class TokenStore:
             raise ServiceError("UNAUTHENTICATED", "请重新登录", 401)
         if record.purpose not in purposes:
             raise ServiceError("TOKEN_PURPOSE_INVALID", "凭据用途不符", 401)
-        # 保留 Redis 原串进行原子比较，兼容新增可选字段前签发的既有会话。
-        record._stored_json = raw.decode() if isinstance(raw, bytes) else raw
         return record
+
+    async def renew(self, record: TokenRecord) -> TokenRecord:
+        """复用已验证身份，只续管理会话；外部登录仍受原始凭据到期时间限制。"""
+        if record.purpose == "service":
+            return record
+        assert_external_io_allowed()
+        try:
+            raw = await self._eval(
+                RENEW_SCRIPT,
+                1,
+                self.token_key(record.token_digest),
+                record.session_id,
+                record.expires_at.timestamp(),
+                self.management_ttl,
+                record.upstream_expires_at.timestamp() if record.upstream_expires_at else "",
+            )
+        except RedisError as exc:
+            raise unavailable("认证存储") from exc
+        return self._parse_record(raw, record.token_digest, {record.purpose})
 
     async def revoke(self, revocation: Revocation) -> None:
         assert_external_io_allowed()

@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy import Select, and_, bindparam, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from creativity_service.core.context import ControlScope, Scope
+from creativity_service.core.context import AuthContext, ControlScope, Scope
 from creativity_service.core.database import ControlRepository, UnitOfWork, validate_row
 from creativity_service.core.database.queries import scoped_select
 from creativity_service.core.locking import ResourceKey, record_key
@@ -25,6 +25,16 @@ def environment_id(channel_id: str, environment: str) -> str:
 def management_scope_id(channel_id: str, environment: str) -> str:
     """管理工作区不创建或冒充外部数据域映射。"""
     return "manage_" + digest([channel_id, environment])[:40]
+
+
+def is_management_workspace(context: AuthContext) -> bool:
+    """只识别当前渠道、环境的管理身份，不将服务或任务身份视为管理工作区。"""
+    scope = context.scope
+    return (
+        context.principal_type == "management"
+        and bool(context.actor_id)
+        and scope.data_scope_id == management_scope_id(scope.channel_id, scope.environment)
+    )
 
 
 def mapping_key(channel_id: str, environment: str, kind: str, external_id: str) -> ResourceKey:

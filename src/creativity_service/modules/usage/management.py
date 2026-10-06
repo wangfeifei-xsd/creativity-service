@@ -23,6 +23,7 @@ from creativity_service.modules.budgets.schemas import (
 )
 from creativity_service.modules.budgets.services import BudgetService, period_start
 from creativity_service.modules.channels.reading import ChannelReadData
+from creativity_service.modules.channels.repositories import is_management_workspace
 from creativity_service.modules.channels.repositories import one as channel_one
 from creativity_service.modules.channels.repositories import rows as channel_rows
 from creativity_service.modules.channels.services import ChannelService
@@ -86,6 +87,9 @@ class UsageManagement:
     async def scopes(self, session: AdminSession, action: str = "usage:read") -> list[Scope]:
         context = await self.context(session, action)
         result = []
+        # 管理范围没有外部映射，也应能查询自身的空用量；不扩大到未授权业务域。
+        if is_management_workspace(context):
+            result.append(context.scope)
         async with self.engine.connect() as connection:
             data = await ChannelReadData.load(connection, session, context.scope.channel_id)
             for domain in data.domains.values():

@@ -42,7 +42,7 @@ def build_iam_services(
     redis: Redis,
     prefix: str,
     *,
-    management_ttl: int = 7200,
+    management_ttl: int = 28800,
     service_ttl: int = 3600,
     channels: ChannelStateReader | None = None,
     services: ServiceIdentityReader | None = None,

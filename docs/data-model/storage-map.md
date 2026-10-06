@@ -11,7 +11,7 @@
 | PostgreSQL 账本与审计 | usage_* / budget_* / audit_events | 元数据建议 365 天 | 不保留敏感原文；按币种和完整性分组；删除不抹消耗事实 |
 | PostgreSQL 删除与恢复 | deletion_markers / recovery_barriers / deletion_jobs / deletion_work_items / deletion_receipts | 标记至少跨所有备份/派生数据存续周期，P0 不自动过期 | 标记进入独立备份账本；恢复先封锁、导入外部标记、核对摘要，再开放 |
 | 独立删除清单卷 | `CREATIVITY_DELETION_LEDGER_PATH/{渠道摘要}/manifest.json` | 不自动过期，与业务备份分离 | 原子落盘意图与恢复封锁；导出最新水位，清理重放证明核对后开放 |
-| Redis 认证库 | `creativity:auth:token:{token_digest}`；值字段见账号模型 | 管理建议 7200 秒；服务建议 3600 秒且不晚于 Key 到期；单次 Lua 内 SET PX，固定到期 | 摘要 ZSET 索引按系统账号、目标渠道成员、目标渠道 Key 建立，TTL 为索引内最晚到期；复核当前状态，不能仅信索引；无 PostgreSQL 第二份真值 |
+| Redis 认证库 | `creativity:auth:token:{token_digest}`；值字段见账号模型 | 管理默认 28800 秒，每次有效使用滑动续期；外部身份不超过上游到期；服务建议 3600 秒且不晚于 Key 到期，固定期限 | 摘要 ZSET 索引按系统账号、目标渠道成员、目标渠道 Key 建立；Lua 原子更新 KV、TTL 和索引最晚到期，撤销后不复活；复核当前状态，不能仅信索引；无 PostgreSQL 第二份真值 |
 | Redis 缓存库 | `creativity:{namespace}:{channel}:{environment}:{digest(Scope, parts)}` | 各模块显式指定 TTL；工具新鲜度须短于来源时效 | parts 包含工具版本、授权摘要、参数摘要；工具缓存带来源运行，按渠道失效且读取再查来源标记；不可跨范围回退 |
 | Redis 限速/委托防重放 | 与 scoped_key 同协议，身份未确定的失败归 system 专用服务键 | 限流周期或委托剩余时长，必须设 TTL | 仅由 04/18 受限入口维护，不构成业务权限 |
 | Celery broker/result | 独立 Redis 库及部署前缀；业务消息含 channel_id / run_id | 队列 TTL 不决定 run 有效性；业务结果后端关闭 | PostgreSQL outbox、deadline、租约为事实；每个 Worker 消息独立加载上下文并清理 |
@@ -23,6 +23,6 @@
 
 系统渠道的跨渠道汇总是独立平台能力，须记录确切 channel_range。普通业务仓储不接收 ControlScope；控制面仓储只接受登记表、用途及精确键查询。价格账本、成员授权、业务域映射均只有所属模块的一份真值。
 
-04 认证索引采用 `creativity:auth:index:{channel_id}:{account|member|key}:{id}`，账号索引归 system，成员和 Key 索引归各业务渠道。登录限速键为 `creativity:auth:limit:system:{login|ip}:{摘要}`，TTL 300 秒。Token KV 必含 channel_id；使用固定期限且不自动续期。PostgreSQL 的 iam_revocations 保存补偿元数据及退出意图，不保存 Token 明文，也不代替 Redis 会话真值。
+04 认证索引采用 `creativity:auth:index:{channel_id}:{account|member|key}:{id}`，账号索引归 system，成员和 Key 索引归各业务渠道。登录限速键为 `creativity:auth:limit:system:{login|ip}:{摘要}`，TTL 300 秒。Token KV 必含 channel_id；管理会话续期同步维护 expires_at 和索引到期时间，服务会话保持固定期限。PostgreSQL 的 iam_revocations 保存补偿元数据及退出意图，不保存 Token 明文，也不代替 Redis 会话真值。
 
 25 已实现默认运行 30 天、会话 90 天、元数据 365 天，以及 SSE 24 小时、暂存/孤儿对象 1 小时、普通导出 7 天。记忆使用自身到期时间；待结算用量受保护。具体覆盖与恢复命令见 [生命周期交接](../operations.md#data-lifecycle)。系统控制面的汇总导出仍由用量模块自身授权及到期任务管理，不从业务渠道扫描跨渠道清理。

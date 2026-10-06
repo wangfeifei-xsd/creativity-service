@@ -17,6 +17,7 @@ from creativity_service.modules.iam.schemas import (
 )
 
 from .conftest import create_user, enter, login, provision
+from .test_authorization import builder
 
 pytestmark = pytest.mark.integration
 
@@ -155,15 +156,15 @@ async def test_background_source_survives_browser_logout_but_not_membership_revo
     iam_env, admin, manager
 ):
     iam = iam_env[0]
-    source = await iam.authentication.identity_source(manager[1].context)
+    # 使用渠道可分配的普通成员验证撤销，渠道管理员只能由平台调整。
+    account, (_, session) = await builder(iam, admin[1], manager[1])
+    source = await iam.authentication.identity_source(session.context)
     assert "token_digest" not in source.model_dump() and "session_id" not in source.model_dump()
-    await iam.sessions.logout(manager[1])
+    await iam.sessions.logout(session)
     worker = source.worker_context(new_id("request"))
-    await iam.authorization.boundary(worker, "audit:read", "channel", "channel_a")
-    _, temporary = await login(iam, "root-admin")
-    _, replacement = await enter(iam, temporary)
-    member = await iam.accounts.repository.membership("channel_a", admin[1].account.id)
-    await iam.access.remove_member(replacement, "channel_a", admin[1].account.id, member.revision)
+    await iam.authorization.boundary(worker, "version:edit", "version", "version_a")
+    member = await iam.accounts.repository.membership("channel_a", account.user_id)
+    await iam.access.remove_member(manager[1], "channel_a", account.user_id, member.revision)
     with pytest.raises(ServiceError) as exc:
-        await iam.authorization.boundary(worker, "audit:read", "channel", "channel_a")
+        await iam.authorization.boundary(worker, "version:edit", "version", "version_a")
     assert exc.value.status == 401

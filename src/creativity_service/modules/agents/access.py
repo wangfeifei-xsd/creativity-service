@@ -12,6 +12,7 @@ from creativity_service.core.locking import read_key
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.integrations.business.delegation import DelegationClaims
 from creativity_service.modules.agents.repositories import repository
+from creativity_service.modules.channels.repositories import is_management_workspace
 from creativity_service.modules.channels.state import current_service
 from creativity_service.modules.iam.authorization import action_allowed, effective_actions
 from creativity_service.modules.iam.repositories import (
@@ -107,7 +108,7 @@ async def read_locked_policy(uow: UnitOfWork, context: AuthContext) -> LockedAut
         or environment["status"] != "ACTIVE"
     ):
         raise ServiceError("FORBIDDEN", "渠道或目标环境不可用", 403)
-    if scope.data_scope_id:
+    if scope.data_scope_id and not is_management_workspace(context):
         if not domain or domain["status"] != "ACTIVE":
             raise ServiceError("FORBIDDEN", "当前业务数据域不可用", 403)
     if context.token_digest and await rows(

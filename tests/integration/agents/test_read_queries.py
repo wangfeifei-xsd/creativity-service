@@ -48,7 +48,8 @@ async def test_agent_list_has_constant_query_count_and_revalidates_next_request(
     assert counts == {
         "platform_accounts": 1,
         "channel_memberships": 1,
-        "custom_roles": 1,
+        # 平台账号与渠道成员分别读取各自的角色目录，次数不随列表条目增长。
+        "custom_roles": 2,
         "resource_grants": 1,
     }
     await env.iam.sessions.logout(env.tenant.manager)

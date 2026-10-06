@@ -31,7 +31,7 @@ def build_channel_services(
     redis: Redis,
     prefix: str,
     *,
-    management_ttl: int = 7200,
+    management_ttl: int = 28800,
     service_ttl: int = 3600,
 ) -> tuple[IamServices, ChannelServices]:
     repository = ChannelRepository(engine)

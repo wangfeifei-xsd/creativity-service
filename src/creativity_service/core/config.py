@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     celery_broker_url: SecretStr
     celery_result_url: SecretStr
     redis_key_prefix: str = Field(default="creativity", pattern=r"^[a-z][a-z0-9_-]*$")
-    management_token_ttl: int = Field(default=7200, ge=60, le=86400)
+    management_token_ttl: int = Field(default=28800, ge=60, le=86400)
     service_token_ttl: int = Field(default=3600, ge=60, le=86400)
     s3_endpoint_url: str
     s3_region: str = Field(min_length=1)

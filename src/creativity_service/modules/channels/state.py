@@ -17,6 +17,7 @@ from creativity_service.core.database.reading import read_connection
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.modules.channels.repositories import (
     ChannelRepository,
+    is_management_workspace,
     management_scope_id,
     one,
     rows,
@@ -114,11 +115,7 @@ class ChannelStateService:
         ):
             raise ServiceError("SCOPE_MISMATCH", "接入身份与当前范围不符", 403)
         async with read_connection(self.repository.engine) as connection:
-            management = (
-                context.principal_type == "management"
-                and bool(context.actor_id)
-                and scope.data_scope_id == management_scope_id(scope.channel_id, scope.environment)
-            )
+            management = is_management_workspace(context)
             current = await scope_rows(connection, scope, management=management)
             channel, environment = current["channels"], current["channel_environments"]
             domain = current.get("data_scopes")

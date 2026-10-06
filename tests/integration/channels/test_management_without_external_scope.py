@@ -246,3 +246,80 @@ async def test_second_environment_gets_management_access_after_first_real_scope(
     assert {
         item.name for item in await env.services.channels.environments(manager, channel_id)
     } == {"生产"}
+
+
+async def test_management_workspace_initializes_configuration_recovery(channel_env):
+    from creativity_service.core.database import transaction
+    from creativity_service.core.deletion import DeletionGuard, content_key
+    from creativity_service.modules.models.assembly import ModelSettings, build_model_services
+    from creativity_service.modules.prompts.schemas import PromptCreate
+    from creativity_service.modules.prompts.services import PromptService
+
+    env = channel_env
+    channel = await env.services.channels.create(
+        env.admin,
+        ChannelCreate(name="配置读写验证渠道", owner="负责人", first_admin_user_id=env.user_id),
+    )
+    await env.services.channels.create_environment(
+        env.admin, channel.channel_id, EnvironmentCreate(environment="dev", name="开发")
+    )
+    _, session = await login(env)
+    issued = await env.iam.sessions.enter(
+        session,
+        ChannelContextInput(
+            channel_id=channel.channel_id,
+            environment="dev",
+            data_scope_id=management_scope_id(channel.channel_id, "dev"),
+        ),
+    )
+    manager = await env.iam.authentication.admin_session(issued.access_token, new_id("request"))
+    models = build_model_services(env.engine, env.iam, settings=ModelSettings(_env_file=None))
+    assert (await models.configuration.models(manager)).items == []
+    prompt = await PromptService(env.engine, env.iam.authorization).create(
+        manager.context,
+        PromptCreate(prompt_code="check", name="配置验证", purpose="验证管理工作区"),
+    )
+    assert prompt.name == "配置验证"
+    scope = manager.context.scope
+    async with transaction(env.engine, scope, [content_key(scope)]) as uow:
+        await DeletionGuard(scope).check(uow, [])
+
+
+async def test_management_repair_initializes_missing_barrier_without_reopening_blocked(channel_env):
+    from sqlalchemy import delete, update
+
+    from creativity_service.core.context import Scope
+    from creativity_service.core.database import Repository, transaction
+    from creativity_service.core.database.tables import metadata
+    from creativity_service.core.deletion import DeletionGuard, barrier_id, content_key
+
+    env = channel_env
+    channel = await env.services.channels.create(
+        env.admin,
+        ChannelCreate(name="管理屏障修复渠道", owner="负责人", first_admin_user_id=env.user_id),
+    )
+    await env.services.channels.create_environment(
+        env.admin, channel.channel_id, EnvironmentCreate(environment="test", name="测试")
+    )
+    scope = Scope(
+        channel_id=channel.channel_id,
+        environment="test",
+        data_scope_id=management_scope_id(channel.channel_id, "test"),
+    )
+    table = metadata.tables["recovery_barriers"]
+    target = (table.c.channel_id == channel.channel_id) & (table.c.id == barrier_id(scope))
+    # 模拟已有授权但尚未初始化内容屏障的旧管理范围。
+    async with env.engine.begin() as connection:
+        await connection.execute(delete(table).where(target))
+    await env.services.channels.enable_management_workspace(env.admin, channel.channel_id, "test")
+    async with transaction(env.engine, scope, [content_key(scope)]) as uow:
+        await DeletionGuard(scope).check(uow, [])
+    async with env.engine.begin() as connection:
+        await connection.execute(update(table).where(target).values(state="BLOCKED"))
+    await env.services.channels.enable_management_workspace(env.admin, channel.channel_id, "test")
+    async with env.engine.connect() as connection:
+        row = await Repository(table, scope).get(connection, barrier_id(scope))
+    assert row["state"] == "BLOCKED"
+    with pytest.raises(ServiceError, match="内容恢复核对尚未完成"):
+        async with transaction(env.engine, scope, [content_key(scope)]) as uow:
+            await DeletionGuard(scope).check(uow, [])

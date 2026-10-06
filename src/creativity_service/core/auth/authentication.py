@@ -65,7 +65,7 @@ class AuthenticationService:
         self, session: AdminSession, *, allow_initial: bool = False, governance: bool = False
     ) -> None:
         record = await self.tokens.read_digest(session.token.token_digest, {"login", "management"})
-        if record != session.token:
+        if not record.same_session(session.token):
             raise ServiceError("UNAUTHENTICATED", "会话归属不符", 401)
         await self.validate_record(record, allow_initial=allow_initial, governance=governance)
 
@@ -180,6 +180,7 @@ class AuthenticationService:
     async def authenticate(self, bearer: str, purpose: str) -> AuthContext:
         record = await self.tokens.read(bearer, {purpose})
         await self.validate_record(record)
+        record = await self.tokens.renew(record)
         return self.context(record)
 
     async def admin_session(
@@ -192,6 +193,7 @@ class AuthenticationService:
         account = identity.account
         if account is None:
             raise ServiceError("UNAUTHENTICATED", "管理身份不完整", 401)
+        record = await self.tokens.renew(record)
         context: AuthContext | ControlAuthContext
         if record.purpose == "login":
             context = ControlAuthContext(
@@ -225,7 +227,9 @@ class AuthenticationService:
                 )
             ):
                 raise ServiceError("UNAUTHENTICATED", "会话归属不符", 401)
-            return await self.validate_record(record, context=context)
+            identity = await self.validate_record(record, context=context)
+            await self.tokens.renew(record)
+            return identity
         elif context.principal_type != "worker":
             raise ServiceError("UNAUTHENTICATED", "缺少会话凭据", 401)
         if context.actor_id:
