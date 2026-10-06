@@ -412,6 +412,17 @@ class DebugExecutor:
             }
         elif descriptor["kind"] == "prompt":
             description = PromptDebugDescriptor.model_validate(descriptor["descriptor"])
+            from creativity_service.modules.resources.usage import record_use
+
+            await record_use(
+                runs.engine,
+                context,
+                lease.run_id,
+                "prompt",
+                description.prompt.resource_id,
+                resource_name=description.prompt.resource_name,
+                purpose="debug",
+            )
             route = next(
                 v for v in spec.versions if v.version_id == description.model_route_version
             )
@@ -466,9 +477,25 @@ class DebugExecutor:
                 data = saved["output"]
             else:
                 await runs.start_step(lease, "skill", descriptor["request"])
-                loaded = await engine.contexts.skills.loader.load(
-                    context, SkillLoadRequest.model_validate(descriptor["request"])
-                )
+                from creativity_service.modules.resources.usage import record_use
+                from creativity_service.modules.skills.frozen import FrozenSkillPort
+                from creativity_service.modules.skills.loader import SkillLoader
+
+                loaded = await SkillLoader(
+                    FrozenSkillPort(engine.contexts.skills, spec.versions)
+                ).load(context, SkillLoadRequest.model_validate(descriptor["request"]))
+                used = {file.version_id for file in loaded.loaded}
+                for version in spec.versions:
+                    if version.resource_type == "skill" and version.version_id in used:
+                        await record_use(
+                            runs.engine,
+                            context,
+                            lease.run_id,
+                            "skill",
+                            version.resource_id,
+                            resource_name=version.resource_name,
+                            purpose="debug",
+                        )
                 data = loaded.model_dump(mode="json")
                 await runs.commit_step(lease, "skill", data)
         else:

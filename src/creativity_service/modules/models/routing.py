@@ -120,8 +120,8 @@ class ModelRouting:
                 reason = permission_reason
                 if row["id"] in released_ids:
                     reason = "该版本已是当前发布版本"
-                elif row["state"] != "PUBLISHED" or route["status"] != "ACTIVE":
-                    reason = "路由或版本已停用"
+                elif row["state"] == "RETIRED" or route["status"] != "ACTIVE":
+                    reason = "路由已不可用"
                 elif reason is None:
                     for snapshot in snapshots[row["id"]]:
                         model = models.get(snapshot.model_id)

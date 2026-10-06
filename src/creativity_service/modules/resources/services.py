@@ -11,7 +11,7 @@ from creativity_service.core.database import transaction
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import record_key
 from creativity_service.core.observability.audit import append_audit
-from creativity_service.core.primitives import ServiceError, digest, new_id
+from creativity_service.core.primitives import ServiceError, digest, new_id, unavailable
 from creativity_service.core.versioning import VersionValidator, version_view
 from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.agents.repositories import repository
@@ -317,7 +317,10 @@ class ResourceManagement:
                 if config is None:
                     raise ServiceError("CONFIGURATION_REQUIRED", "请先保存资源配置", 422)
                 await require_dependencies(uow, scope, config["dependencies"])
-                await self.validators[kind].validate(uow, context, version_view(config), "release")
+                validator = self.validators.get(kind)
+                if validator is None:
+                    raise unavailable("资源发布校验服务")
+                await validator.validate(uow, context, version_view(config), "release")
                 await configs.change(uow, identifier, config["revision"], {"state": "PUBLISHED"})
                 previous = await mappings.get(uow.connection, mapping_id)
                 values = {

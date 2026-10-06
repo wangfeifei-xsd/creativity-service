@@ -85,6 +85,7 @@ class MemoryRepository:
         authorization_scope,
         *,
         source_run_id=None,
+        resource_name=None,
     ):
         self.records[call_id] = dict(state=state, attempt=attempt, result=result, error=error)
 

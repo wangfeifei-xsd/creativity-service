@@ -15,7 +15,6 @@ from creativity_service.modules.prompts.schemas import (
     PromptCreate,
     PromptDebugEvidence,
     PromptDebugRun,
-    PromptDraftCreate,
     PromptDraftEdit,
     PromptReleaseRequest,
     PromptRenderRequest,
@@ -49,8 +48,9 @@ async def draft(service, context, label="v1", code="risk"):
             ],
         }
     )
-    version = await service.create_draft(
-        context, resource.prompt_id, PromptDraftCreate(version_label=label, content=content)
+    current = await service.version_detail(context, resource.prompt_id)
+    version = await service.edit_draft(
+        context, resource.prompt_id, PromptDraftEdit(revision=current.revision, content=content)
     )
     return resource, version
 
@@ -105,7 +105,13 @@ async def prepare_inputs(service, context, version):
         service.engine, service.authorization.authorization, FixtureValidator()
     )
     route = await versions.create_draft(
-        context, "model_route", version.version.version_id, "路由 v1", {"name": "测试路由"}, [], {}
+        context,
+        "model_route",
+        "route_" + version.version.version_id,
+        "路由 v1",
+        {"name": "测试路由"},
+        [],
+        {},
     )
     route = await versions.freeze(context, route.version_id, 1)
     return PromptTestRequest(
@@ -130,7 +136,9 @@ async def test_prm_a02_duplicate_create_and_revision_race(service, context):
     results = await asyncio.gather(
         *[
             service.edit_draft(
-                context, version.version.version_id, PromptDraftEdit(revision=1, content=edited)
+                context,
+                version.version.version_id,
+                PromptDraftEdit(revision=version.revision, content=edited),
             )
             for _ in range(2)
         ],
@@ -166,11 +174,13 @@ async def test_prm_a03_old_test_snapshot_and_result_stay_fixed(service, context)
         update={"change_note": "之后的修改"}
     )
     await service.edit_draft(
-        context, version.version.version_id, PromptDraftEdit(revision=1, content=changed)
+        context,
+        version.version.version_id,
+        PromptDraftEdit(revision=version.revision, content=changed),
     )
     old = await debug.detail(context, test.test_id, True)
     assert old.snapshot.content == version.version.content
-    assert old.draft_revision == 1 and old.output == "固定旧结果"
+    assert old.draft_revision == version.revision and old.output == "固定旧结果"
     assert "忽略前文 {{ principal_id }}" in old.rendered.sections[1].text
     assert (await debug.submit(context, test.test_id)).run_id == test.run_id
     assert service.runner.calls == 1
@@ -178,7 +188,9 @@ async def test_prm_a03_old_test_snapshot_and_result_stay_fixed(service, context)
         await service.release(
             context,
             version.version.resource_id,
-            PromptReleaseRequest(version_id=version.version.version_id, revision=2, note="发布"),
+            PromptReleaseRequest(
+                version_id=version.version.version_id, revision=version.revision + 1, note="发布"
+            ),
         )
 
 
@@ -192,78 +204,45 @@ async def test_missing_runner_and_evidence_fail_closed(service, context):
         await service.release(
             context,
             version.version.resource_id,
-            PromptReleaseRequest(version_id=version.version.version_id, revision=1, note="发布"),
+            PromptReleaseRequest(
+                version_id=version.version.version_id, revision=version.revision, note="发布"
+            ),
         )
     assert (await service.read_version(context, version.version.version_id)).state == "DRAFT"
 
 
-async def test_prm_a04_a06_mapping_switch_keeps_agent_and_old_snapshot(service, context):
+async def test_published_configuration_edit_keeps_old_snapshot(service, context):
     resource, first = await draft(service, context)
     service.runner, service.evidence = FixtureRunner(), FixtureEvidence()
     await PromptDebugService(service).start(
         context, first.version.version_id, await prepare_inputs(service, context, first)
     )
-    first_release = await service.release(
+    await service.release(
         context,
         resource.prompt_id,
-        PromptReleaseRequest(version_id=first.version.version_id, revision=1, note="首版"),
+        PromptReleaseRequest(version_id=resource.prompt_id, revision=first.revision, note="发布"),
     )
-    agent_versions = VersionService(
-        service.engine, service.authorization.authorization, FixtureValidator()
-    )
-    agent = await agent_versions.create_draft(
-        context,
-        "agent",
-        "risk_agent",
-        "智能体 v1",
-        {"name": "风险助手"},
-        [first.version.version_id],
-        {},
-    )
-    agent = await agent_versions.freeze(context, agent.version_id, 1)
-    version_ids = [agent.version_id, first.version.version_id]
+    versions = service.versions
     async with transaction(
         service.engine,
         context.scope,
-        VersionService.snapshot_keys(context.scope, "historical_run", version_ids),
+        VersionService.snapshot_keys(context.scope, "historical_run", [resource.prompt_id]),
     ) as uow:
-        snapshot = await agent_versions.snapshot_in(
-            uow, context, "historical_run", version_ids, "production", {}
+        snapshot = await versions.snapshot_in(
+            uow, context, "historical_run", [resource.prompt_id], "production", {}
         )
-    _, second = await draft(service, context, "v2")
-    await PromptDebugService(service).start(
-        context, second.version.version_id, await prepare_inputs(service, context, second)
+    current = await service.version_detail(context, resource.prompt_id)
+    changed = PromptContent.model_validate(current.version.content).model_copy(
+        update={"change_note": "已发布配置直接修改"}
     )
-    second_release = await service.release(
-        context,
-        resource.prompt_id,
-        PromptReleaseRequest(
-            version_id=second.version.version_id,
-            revision=1,
-            expected_mapping_revision=first_release.revision,
-            note="新版",
-        ),
+    edited = await service.edit_draft(
+        context, resource.prompt_id, PromptDraftEdit(revision=current.revision, content=changed)
     )
+    assert edited.version.state == "PUBLISHED"
+    assert edited.version.content != snapshot.versions[0].content
     assert (
-        await agent_versions.read_version(context, agent.version_id)
-    ).dependency_version_ids == (first.version.version_id,)
-    rolled = await service.release(
-        context,
-        resource.prompt_id,
-        PromptReleaseRequest(
-            version_id=first.version.version_id,
-            revision=2,
-            expected_mapping_revision=second_release.revision,
-            note="恢复首版",
-            operation="rollback",
-        ),
-    )
-    assert rolled.version_id == first.version.version_id
-    assert (
-        await agent_versions.read_snapshot(context, snapshot.snapshot_id)
+        await versions.read_snapshot(context, snapshot.snapshot_id)
     ).versions == snapshot.versions
-    with pytest.raises(ServiceError, match="仍被"):
-        await service.retire(context, first.version.version_id, 2)
 
 
 async def test_channel_and_environment_isolation_and_sensitive_permissions(
@@ -324,7 +303,9 @@ async def test_wrong_or_unbilled_evidence_cannot_publish(service, context):
             context,
             resource.prompt_id,
             PromptReleaseRequest(
-                version_id=version.version.version_id, revision=1, note="缺少用量证据"
+                version_id=version.version.version_id,
+                revision=version.revision,
+                note="缺少用量证据",
             ),
         )
 
@@ -340,7 +321,7 @@ async def test_wrong_or_unbilled_evidence_cannot_publish(service, context):
             context,
             resource.prompt_id,
             PromptReleaseRequest(
-                version_id=version.version.version_id, revision=1, note="错误证据"
+                version_id=version.version.version_id, revision=version.revision, note="错误证据"
             ),
         )
     assert (await service.read_version(context, version.version.version_id)).state == "DRAFT"
@@ -364,7 +345,7 @@ async def test_deleting_sample_or_run_blocks_test_read_and_release(service, cont
             context,
             resource.prompt_id,
             PromptReleaseRequest(
-                version_id=version.version.version_id, revision=1, note="已删来源"
+                version_id=version.version.version_id, revision=version.revision, note="已删来源"
             ),
         )
     assert blocked.value.status == 410
@@ -393,7 +374,7 @@ async def test_context_sources_are_linked_to_frozen_test(service, context, autho
     version = await service.edit_draft(
         context,
         version.version.version_id,
-        PromptDraftEdit(revision=1, content=PromptContent.model_validate(changed)),
+        PromptDraftEdit(revision=version.revision, content=PromptContent.model_validate(changed)),
     )
 
     class ContextProvider:

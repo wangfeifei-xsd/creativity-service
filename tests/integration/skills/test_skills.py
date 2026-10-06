@@ -15,7 +15,6 @@ from creativity_service.modules.skills.repositories import repository
 from creativity_service.modules.skills.schemas import (
     SkillBinding,
     SkillCreate,
-    SkillEdit,
     SkillFileInput,
     SkillImport,
     SkillLoadRequest,
@@ -46,17 +45,15 @@ async def test_version_summaries_do_not_download_historical_packages(skills_env)
     env = skills_env
     detail = await env.skills.create(env.context, body())
     original = detail.versions[0]
-    for number in range(1, 5):
+    with pytest.raises(ServiceError, match="直接修改"):
         await env.skills.create_version(
             env.context,
             detail.skill.skill_id,
-            SkillVersionCreate(
-                base_version_id=original.version_id, version_label=f"历史版{number}"
-            ),
+            SkillVersionCreate(base_version_id=original.version_id, version_label="不再创建版本"),
         )
     env.store.reads.clear()
     summaries = await env.skills.detail(env.context, detail.skill.skill_id)
-    assert len(summaries.versions) == 5
+    assert len(summaries.versions) == 1
     assert not env.store.reads
     selected = await env.skills.version(env.context, original.version_id)
     assert selected.instruction_preview == "只提取用户已经确认的事实。"
@@ -141,32 +138,31 @@ async def test_create_freeze_fork_load_and_release_preserve_history(skills_env):
         SkillTestInput(revision=frozen.revision, selected_files=("references/a.md",)),
     )
     assert test.result.complete and test.run_id is None
-    copied = await env.skills.create_version(
+    from creativity_service.core.versioning import version_view
+    from creativity_service.modules.skills.frozen import FrozenSkillPort
+
+    _, old_row = await env.skills.raw(env.context, frozen.version_id)
+    fixed = FrozenSkillPort(env.skills, (version_view(old_row),))
+    admitted = await fixed.resolve(env.context, frozen.version_id, "runtime")
+    edited = await env.skills.edit_version(
         env.context,
-        detail.skill.skill_id,
-        SkillVersionCreate(base_version_id=frozen.version_id, version_label="第二版"),
-    )
-    await env.skills.edit_version(
-        env.context,
-        copied.version_id,
+        frozen.version_id,
         SkillVersionEdit(
-            revision=copied.revision,
-            settings=copied.settings,
+            revision=frozen.revision,
+            settings=frozen.settings,
             files=(SkillFileInput(relative_path="references/a.md", text="新版资料"),),
         ),
     )
-    old = await env.skills.file(env.context, frozen.version_id, "references/a.md")
-    assert old.text == "原始资料"
+    assert edited.status.value == "PUBLISHED"
+    current = await env.skills.file(env.context, frozen.version_id, "references/a.md")
+    assert current.text == "新版资料"
+    await fixed.recheck(env.context, admitted, "runtime")
+    assert (await fixed.read_files(env.context, admitted, ("references/a.md",), "runtime"))[
+        "references/a.md"
+    ].decode() == "原始资料"
     assert (await env.skills.tests(env.context, frozen.version_id))[0].result.loaded[
         1
     ].text == "原始资料"
-    with pytest.raises(ServiceError) as error:
-        await env.skills.edit_version(
-            env.context,
-            frozen.version_id,
-            SkillVersionEdit(revision=frozen.revision, settings=frozen.settings),
-        )
-    assert error.value.code == "VERSION_FROZEN"
     with pytest.raises(ServiceError) as error:
         await env.skills.test(
             env.context,
@@ -174,18 +170,24 @@ async def test_create_freeze_fork_load_and_release_preserve_history(skills_env):
             SkillTestInput(revision=frozen.revision, execute_scripts=True),
         )
     assert error.value.code == "SKILL_EXECUTION_UNSUPPORTED"
-    disabled = await env.skills.edit(
+    from creativity_service.modules.resources.schemas import ResourceMutation
+    from creativity_service.modules.resources.services import ResourceManagement
+
+    resources = ResourceManagement(
+        env.engine, env.iam.authorization, {"skill": env.skills.versions.validator}
+    )
+    item = (await resources.summaries(env.context, "skill", [detail.skill.skill_id]))[0]
+    await resources.mutate(
         env.context,
+        "skill",
         detail.skill.skill_id,
-        SkillEdit(
-            revision=detail.skill.revision,
-            name=detail.skill.name,
-            description=detail.skill.description,
-            owner=detail.skill.owner,
-            status="DISABLED",
+        "unpublish",
+        ResourceMutation(
+            revision=item.revision, configuration_revision=item.configuration_revision
         ),
     )
-    assert disabled.skill.status.label == "已停用"
+    item = (await resources.summaries(env.context, "skill", [detail.skill.skill_id]))[0]
+    assert item.status.label == "未发布"
     result = await env.skills.loader.load(
         env.context,
         SkillLoadRequest(bindings=(SkillBinding(version_id=frozen.version_id, selected=True),)),
@@ -310,6 +312,11 @@ async def test_dependency_rebinding_unauthorized_tools_and_missing_capabilities(
     )
     frozen_tool = await env.tools.management.freeze(
         env.context, tool_version.version.version_id, tool_version.revision
+    )
+    from creativity_service.modules.tools.schemas import ToolRelease
+
+    await env.tools.management.release(
+        env.context, tool.tool_id, ToolRelease(version_id=frozen_tool.version.version_id)
     )
     created = await env.skills.create(
         env.context,

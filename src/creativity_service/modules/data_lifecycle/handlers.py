@@ -3,7 +3,7 @@
 from typing import Any
 
 from redis.asyncio import Redis
-from sqlalchemy import delete
+from sqlalchemy import delete, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.artifacts import ArtifactService, ObjectStore
@@ -186,6 +186,13 @@ class ContentHandlers:
                     if field in row:
                         values[field] = empty
             elif ref.resource_type == "run":
+                # 保留累计使用事实，随运行清理移除其中可识别的名称证据。
+                uses = metadata.tables["resource_uses"]
+                await uow.connection.execute(
+                    update(uses)
+                    .where(Repository(uses, context.scope).predicate(), uses.c.run_id == row["id"])
+                    .values(resource_name="已清理资源", agent_name=None, caller_name=None)
+                )
                 for table in ("run_contents", "checkpoints", "run_events", "memory_retrievals"):
                     await remove(uow, table, run_id=row["id"])
                 for attempt in await rows(

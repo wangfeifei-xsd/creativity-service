@@ -116,9 +116,12 @@ class FrozenResolver:
         ):
             raise ServiceError("SNAPSHOT_INVALID", "测试描述摘要不符", 403)
         repo = Repository(metadata.tables["resource_versions"], context.scope)
+        rows = await repo.get_many(uow.connection, [v.version_id for v in spec.versions])
         for version in spec.versions:
-            row = await repo.get(uow.connection, version.version_id)
-            if row is None or version_view(row) != version:
+            row = rows.get(version.version_id)
+            if row is None or version_view(row) != version.model_copy(
+                update={"resource_name": None}
+            ):
                 raise ServiceError("REVISION_CONFLICT", "测试依赖发生变化，请重新测试", 409)
         await DeletionGuard(context.scope).check(
             uow, [ContentRef("version", v.version_id) for v in spec.versions]
@@ -283,6 +286,9 @@ class RuntimeAdmission:
         )
 
     async def versions(self, context: AuthContext, ids: list[str]) -> list[ResourceVersion]:
+        from creativity_service.modules.resources.configuration import TABLES
+        from creativity_service.storage import metadata as storage_metadata
+
         result: dict[str, ResourceVersion] = {}
         pending = list(ids)
         async with transaction(
@@ -290,14 +296,30 @@ class RuntimeAdmission:
         ) as uow:
             repo = Repository(metadata.tables["resource_versions"], context.scope)
             while pending:
-                identifier = pending.pop(0)
-                if identifier in result:
-                    continue
-                row = await repo.get(uow.connection, identifier)
-                if row is None or row["state"] == "RETIRED":
+                batch = sorted(set(pending) - result.keys())
+                pending = []
+                if len(result) + len(batch) > 1000:
+                    raise ServiceError("DEPENDENCY_INVALID", "测试依赖数量超过上限", 422)
+                rows = await repo.get_many(uow.connection, batch)
+                if set(batch) - rows.keys() or any(r["state"] == "RETIRED" for r in rows.values()):
                     raise ServiceError("DEPENDENCY_INVALID", "测试依赖不可用", 422)
-                await DeletionGuard(context.scope).check(uow, [ContentRef("version", identifier)])
-                version = version_view(row)
-                result[identifier] = version
-                pending.extend(version.dependency_version_ids)
+                await DeletionGuard(context.scope).check(
+                    uow, [ContentRef("version", identifier) for identifier in batch]
+                )
+                parents = {
+                    kind: await Repository(
+                        storage_metadata.tables[TABLES[kind]], context.scope
+                    ).get_many(
+                        uow.connection,
+                        [r["resource_id"] for r in rows.values() if r["resource_type"] == kind],
+                    )
+                    for kind in {r["resource_type"] for r in rows.values()} & TABLES.keys()
+                }
+                for identifier, row in rows.items():
+                    version = version_view(row)
+                    parent = parents.get(row["resource_type"], {}).get(row["resource_id"])
+                    if parent:
+                        version = version.model_copy(update={"resource_name": parent["name"]})
+                    result[identifier] = version
+                    pending.extend(version.dependency_version_ids)
         return list(result.values())

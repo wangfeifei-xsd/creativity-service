@@ -114,6 +114,7 @@ class ToolRepository:
         authorization_scope: dict[str, Any],
         *,
         source_run_id: str | None = None,
+        resource_name: str | None = None,
     ) -> None:
         scope = context.scope
         refs = [ContentRef("run", call.run_id), ContentRef("version", call.tool_version_id)]
@@ -229,7 +230,9 @@ class ToolRepository:
         if state not in {"DENIED"}:
             from creativity_service.modules.resources.usage import record_use
 
-            await record_use(self.engine, context, call.run_id, "tool", tool_id)
+            await record_use(
+                self.engine, context, call.run_id, "tool", tool_id, resource_name=resource_name
+            )
 
     async def rows(
         self, context: AuthContext, table_name: str, **filters: Any

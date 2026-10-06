@@ -112,6 +112,8 @@ async def test_prompt_sample_creates_metered_debug_run(runtime_env):
     value = await execute(env, test.run_id)
     assert value.result.data["constraints_passed"] is True
     assert value.usage_summary["attempt_count"] == 1
+    detail = await env.runs.detail(env.context, test.run_id)
+    assert {item["type"] for item in detail["resource_uses"]} >= {"提示词"}
 
 
 async def test_skill_loading_without_agent_records_files_in_debug(runtime_env):
@@ -140,6 +142,22 @@ async def test_skill_loading_without_agent_records_files_in_debug(runtime_env):
 async def test_tool_loop_stops_at_frozen_call_limit(runtime_env):
     env = runtime_env
     tool = await create_tool(env)
+    from creativity_service.modules.resources.schemas import ResourceMutation
+    from creativity_service.modules.resources.services import ResourceManagement
+
+    resources = ResourceManagement(
+        env.engine, env.iam.authorization, {"tool": env.tools.management.versions.validator}
+    )
+    item = (await resources.summaries(env.context, "tool", [tool.resource_id]))[0]
+    await resources.mutate(
+        env.context,
+        "tool",
+        tool.resource_id,
+        "publish",
+        ResourceMutation(
+            revision=item.revision, configuration_revision=item.configuration_revision
+        ),
+    )
     env.adapter.tool_arguments = '{"values":["1","2"]}'
     definition = env.definition.model_copy(
         update={

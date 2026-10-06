@@ -356,6 +356,20 @@ def upgrade():
             )
             .values(status="DELETED")
         )
+    # 旧停用资源转换为未发布配置，只有后续显式发布才恢复可选状态。
+    for kind, table_name in KINDS.items():
+        parent = tables[table_name]
+        disabled = sa.select(parent.c.id).where(
+            parent.c.channel_id == releases.c.channel_id, parent.c.status == "DISABLED"
+        )
+        connection.execute(
+            releases.delete().where(
+                releases.c.resource_type == kind, releases.c.resource_id.in_(disabled)
+            )
+        )
+        connection.execute(
+            parent.update().where(parent.c.status == "DISABLED").values(status="ACTIVE")
+        )
     connection.execute(
         versions.update()
         .where(
@@ -387,6 +401,11 @@ def backfill(connection, tables, conversion):
         CREATE TEMP TABLE resource_usage_evidence ON COMMIT DROP AS
         SELECT channel_id, environment, run_id, tool_version_id AS version_id, created_at
         FROM tool_calls WHERE state IN ('SUCCEEDED','FAILED','UNKNOWN','CACHED','STARTED')
+        UNION ALL
+        SELECT t.channel_id,t.environment,t.run_id,t.version_id,MIN(a.sent_at)
+        FROM prompt_tests t JOIN attempts a
+          ON a.channel_id=t.channel_id AND a.run_id=t.run_id AND a.sent_at IS NOT NULL
+        GROUP BY t.channel_id,t.environment,t.run_id,t.version_id
         UNION ALL
         SELECT c.channel_id,c.environment,c.run_id,r.value->>'resource_id',c.created_at
         FROM run_contents c CROSS JOIN LATERAL

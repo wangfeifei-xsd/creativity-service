@@ -137,6 +137,7 @@ class ToolExecutor:
                 or frozen.draft_revision
                 or version["revision"],
             }
+            tool = {**tool, "name": frozen.resource_name or tool.get("name")}
         definition = ToolDefinition.model_validate(version["content"])
         validate_definition(definition)
         if self.fixture and grant.purpose != "evaluation":
@@ -196,7 +197,7 @@ class ToolExecutor:
                     "tool_version": call.tool_version_id,
                     "definition": definition.model_dump(mode="json"),
                     "skill_content": [
-                        (v.version_id, v.content_digest) for v in grant.frozen_skills
+                        [v.version_id, v.content_digest] for v in grant.frozen_skills
                     ],
                     "agent_version": grant.agent_version_id,
                     "authorization_revision": grant.authorization_revision,
@@ -399,6 +400,7 @@ class ToolExecutor:
                         0,
                         auth_scope,
                         source_run_id=source_run_id,
+                        resource_name=tool.get("name"),
                     )
                     return cached
         for number in range(definition.retry_policy.max_attempts):
@@ -428,7 +430,17 @@ class ToolExecutor:
             )
             await self.runs.start_attempt(context, attempt)
             await self.service.repository.record(
-                context, call, call_id, tool_id, "STARTED", attempt, None, None, None, auth_scope
+                context,
+                call,
+                call_id,
+                tool_id,
+                "STARTED",
+                attempt,
+                None,
+                None,
+                None,
+                auth_scope,
+                resource_name=tool.get("name"),
             )
             started = monotonic()
             result: ToolResult | None = None
@@ -517,6 +529,7 @@ class ToolExecutor:
                     error.model_dump(mode="json") if error else None,
                     int((monotonic() - started) * 1000),
                     auth_scope,
+                    resource_name=tool.get("name"),
                 )
                 finish_result = getattr(self.runs, "finish_result", None)
                 if finish_result:

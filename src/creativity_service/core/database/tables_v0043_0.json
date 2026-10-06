@@ -1270,7 +1270,7 @@
         "type": "varchar(64)",
         "comment": "记录标识",
         "required": true,
-        "source": "服务端随机标识",
+        "source": "渠道、运行和稳定资源标识的摘要",
         "sensitivity": "内部"
       },
       {
@@ -1388,6 +1388,8 @@
     "scope": "环境",
     "status": "已实现",
     "revision": "0043_resource_management",
-    "control_purpose": null
+    "control_purpose": null,
+    "content": false,
+    "cleanup_type": null
   }
 ]

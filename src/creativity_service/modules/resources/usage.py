@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import Repository, transaction
-from creativity_service.core.deletion import content_key
+from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import read_key, record_key
 from creativity_service.core.primitives import digest
 from creativity_service.modules.resources.configuration import KINDS, TABLES
@@ -32,6 +32,7 @@ async def record_use(
         scope,
         [read_key(content_key(scope)), record_key(scope.channel_id, "resource_uses", identifier)],
     ) as uow:
+        await DeletionGuard(scope).check(uow, [ContentRef("run", run_id)])
         repo = Repository(metadata.tables["resource_uses"], scope)
         if await repo.get(uow.connection, identifier):
             return

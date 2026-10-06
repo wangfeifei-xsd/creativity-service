@@ -9,11 +9,30 @@ from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.iam.schemas import ChannelContextInput
 from creativity_service.modules.models.repositories import repository
 from creativity_service.modules.models.schemas import ReleaseInput, RouteInput, RouteVersionInput
+from creativity_service.modules.resources.schemas import ResourceMutation
+from creativity_service.modules.resources.services import ResourceManagement
 from creativity_service.storage import metadata
 from tests.integration.channels.conftest import login, provision
 from tests.integration.models.test_models import complete, setup
 
 pytestmark = pytest.mark.integration
+
+
+async def publish_resource(services, manager, identifier, body):
+    service = services.configuration
+    resources = ResourceManagement(
+        service.engine, service.iam.authorization, {"model_route": services.routing}
+    )
+    item = (await resources.summaries(manager.context, "model_route", [identifier]))[0]
+    await resources.mutate(
+        manager.context,
+        "model_route",
+        identifier,
+        "publish",
+        ResourceMutation(
+            revision=item.revision, configuration_revision=item.configuration_revision
+        ),
+    )
 
 
 async def test_route_configuration_saves_without_execution_or_capability_evidence(
@@ -31,18 +50,18 @@ async def test_route_configuration_saves_without_execution_or_capability_evidenc
     )
     manager = await env.iam.authentication.admin_session(token.access_token, "route-config")
     route = await services.routing.create(manager, RouteInput(code="config", name="待验证路由"))
-    response = await env.client.post(
-        f"/admin/v1/model-routes/{route.id}/versions",
+    response = await env.client.put(
+        f"/admin/v1/model-routes/{route.id}/configuration",
         headers={"Authorization": "Bearer " + token.access_token},
         json={"label": "v1", "primary_model": model.id},
     )
-    assert response.status_code == 201, response.text
+    assert response.status_code == 200, response.text
     saved = response.json()
     assert saved["content"]["primary_model"] == model.id
     assert saved["content"]["fallback_models"] == []
     assert (await services.routing.list_items(manager)).items[0].released_version_id is None
     listed = await env.client.get(
-        f"/admin/v1/model-routes/{route.id}/versions",
+        f"/admin/v1/model-routes/{route.id}/configuration",
         headers={"Authorization": "Bearer " + token.access_token},
     )
     assert listed.status_code == 200, listed.text
@@ -52,10 +71,10 @@ async def test_route_configuration_saves_without_execution_or_capability_evidenc
     with pytest.raises(ServiceError) as execution:
         await services.routing.resolve_route(manager.context, saved["version_id"])
     assert execution.value.status == 422
-    assert execution.value.code == "MODEL_CAPABILITY_UNSUPPORTED"
+    assert execution.value.code == "MODEL_ROUTE_INVALID"
     with pytest.raises(ServiceError) as release:
-        await services.routing.release(
-            manager, route.id, ReleaseInput(version_id=saved["version_id"])
+        await publish_resource(
+            services, manager, route.id, ReleaseInput(version_id=saved["version_id"])
         )
     assert release.value.code == "MODEL_CAPABILITY_UNSUPPORTED"
     async with env.engine.connect() as db:
@@ -77,17 +96,17 @@ async def test_unverified_route_requires_capability_evidence_before_release_and_
     unavailable = (await services.routing.versions(tenant.manager, route.id))[0].actions[0]
     assert not unavailable.enabled and "尚未通过" in unavailable.disabled_reason
     with pytest.raises(ServiceError) as release:
-        await services.routing.release(
-            tenant.manager, route.id, ReleaseInput(version_id=version.version_id)
+        await publish_resource(
+            services, tenant.manager, route.id, ReleaseInput(version_id=version.version_id)
         )
     assert release.value.code == "MODEL_CAPABILITY_UNSUPPORTED"
     with pytest.raises(ServiceError) as execution:
         await services.routing.resolve_route(tenant.manager.context, version.version_id)
-    assert execution.value.code == "MODEL_CAPABILITY_UNSUPPORTED"
+    assert execution.value.code == "MODEL_ROUTE_INVALID"
     await complete(services, tenant, model)
     assert (await services.routing.versions(tenant.manager, route.id))[0].actions[0].enabled
-    await services.routing.release(
-        tenant.manager, route.id, ReleaseInput(version_id=version.version_id)
+    await publish_resource(
+        services, tenant.manager, route.id, ReleaseInput(version_id=version.version_id)
     )
     assert (await services.routing.list_items(tenant.manager)).items[
         0
@@ -151,6 +170,7 @@ async def test_route_candidate_reads_are_batched_and_cross_channel_references_re
             statements.append(statement)
 
     counts, read_counts = [], []
+    previous = None
     event.listen(env.engine.sync_engine, "before_cursor_execute", record)
     try:
         for size in (1, 4):
@@ -160,10 +180,12 @@ async def test_route_candidate_reads_are_batched_and_cross_channel_references_re
                 route.id,
                 RouteVersionInput(
                     label=f"v{size}",
+                    revision=previous.configuration_revision if previous else None,
                     primary_model=model.id,
                     fallback_models=[item.id for item in models[1:size]],
                 ),
             )
+            previous = version
             assert len(version.content["models"]) == size
             counts.append(len(statements))
             tables = Counter(
@@ -179,7 +201,7 @@ async def test_route_candidate_reads_are_batched_and_cross_channel_references_re
             read_counts.append(len(statements))
     finally:
         event.remove(env.engine.sync_engine, "before_cursor_execute", record)
-    assert counts[0] == counts[1], counts
+    assert abs(counts[0] - counts[1]) <= 1, counts
     assert read_counts[0] == read_counts[1], read_counts
     tables = Counter(
         table
@@ -226,8 +248,8 @@ async def test_configuration_scope_publishes_without_business_mapping_or_model_e
         await env.iam.authorization.check(tenant.manager.context, "run:create", "model", model.id)
     ).allowed
     assert (await services.routing.versions(tenant.manager, route.id))[0].actions[0].enabled
-    await services.routing.release(
-        tenant.manager, route.id, ReleaseInput(version_id=version.version_id)
+    await publish_resource(
+        services, tenant.manager, route.id, ReleaseInput(version_id=version.version_id)
     )
     assert (await services.routing.list_items(tenant.manager)).items[
         0

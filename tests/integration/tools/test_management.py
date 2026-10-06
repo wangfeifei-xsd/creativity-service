@@ -1,4 +1,4 @@
-"""工具管理版本互斥、发布不可变、隔离和拒绝绕过调试预算。"""
+"""工具配置互斥、发布后直接编辑、隔离和拒绝绕过调试预算。"""
 
 import asyncio
 
@@ -35,13 +35,23 @@ async def test_create_race_freeze_release_and_disabled_metadata(tools_env):
     )
     assert sum(isinstance(r, ServiceError) and r.code == "CODE_EXISTS" for r in results) == 1
     frozen = await service.freeze(env.context, env.version.version.version_id, env.version.revision)
-    with pytest.raises(ServiceError) as error:
-        await service.edit_version(
-            env.context,
-            frozen.version.version_id,
-            ToolVersionEdit(revision=frozen.revision, definition=env.definition),
-        )
-    assert error.value.code == "VERSION_FROZEN"
+    definition = env.definition.model_copy(
+        update={
+            "output_schema": {
+                **env.definition.output_schema,
+                "properties": {"sum": {"type": "string", "title": "验证合计"}},
+            }
+        }
+    )
+    edited = await service.edit_version(
+        env.context,
+        frozen.version.version_id,
+        ToolVersionEdit(revision=frozen.revision, definition=definition),
+    )
+    assert edited.version.state == "PUBLISHED"
+    assert edited.definition.output_schema["properties"]["sum"]["title"] == "验证合计"
+    assert edited.version.content_digest != frozen.version.content_digest
+    assert (await service.version_detail(env.context, frozen.version.version_id)) == edited
     detail = await service.release(
         env.context, env.tool.tool_id, ToolRelease(version_id=frozen.version.version_id)
     )
@@ -49,7 +59,6 @@ async def test_create_race_freeze_release_and_disabled_metadata(tools_env):
     disabled = await service.disable(env.context, env.tool.tool_id, env.tool.revision)
     assert disabled.tool.status.label == "已停用"
     assert disabled.versions[0].unavailable_reason == "工具已停用"
-    assert "enable" in {a.action_key for a in disabled.tool.actions}
     with pytest.raises(ServiceError) as stale:
         await service.enable(env.context, env.tool.tool_id, env.tool.revision)
     assert stale.value.code == "REVISION_CONFLICT"

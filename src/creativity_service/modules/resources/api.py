@@ -21,14 +21,19 @@ Context = Annotated[AuthContext, Depends(require_http_context)]
 
 def service(request: Request) -> ResourceManagement:
     state = request.app.state
-    tools = state.tools.management
-    validators = {
-        "prompt": state.prompts.versions.validator,
-        "tool": tools.versions.validator,
-        "skill": state.skills.versions.validator,
-        "model_route": state.models.routing,
-    }
-    return ResourceManagement(tools.engine, state.iam.authorization, validators)
+    validators = {}
+    for kind, attribute in (("prompt", "prompts"), ("tool", "tools"), ("skill", "skills")):
+        module = getattr(state, attribute, None)
+        if module is not None:
+            module = module.management if kind == "tool" else module
+            if module.versions.validator is not None:
+                validators[kind] = module.versions.validator
+    models = getattr(state, "models", None)
+    if models is not None:
+        validators["model_route"] = models.routing
+    return ResourceManagement(
+        state.iam.access.repository.engine, state.iam.authorization, validators
+    )
 
 
 Service = Annotated[ResourceManagement, Depends(service)]

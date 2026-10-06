@@ -242,8 +242,12 @@ class VersionService:
                             {
                                 **row,
                                 "content": content,
+                                "content_digest": digest(
+                                    {"content": content, "output_schema": output_schema}
+                                ),
                                 "output_schema": output_schema,
                                 "dependencies": dependencies,
+                                "dependencies_digest": digest(sorted(set(dependencies))),
                             }
                         ),
                         "release",
