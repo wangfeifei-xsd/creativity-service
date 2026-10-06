@@ -1,4 +1,4 @@
-"""模型管理接口只负责传输；不提供绕过统一运行时的测试调用入口。"""
+"""模型管理传输层；连接检查只读供应商目录，能力调用进入统一运行时。"""
 
 from typing import Annotated, cast
 
@@ -14,6 +14,7 @@ from creativity_service.modules.models.schemas import (
     CaseDefinition,
     ConnectionInput,
     ConnectionList,
+    ConnectionTestView,
     ConnectionView,
     CredentialInput,
     CredentialView,
@@ -140,6 +141,11 @@ async def create_test(
     model_id: str, body: TestInput, session: Session, service: Services
 ) -> TestView:
     return await service.testing.create(session, model_id, body)
+
+
+@router.post("/models/{model_id}/connection-test", response_model=ConnectionTestView)
+async def test_connection(model_id: str, session: Session, service: Services) -> ConnectionTestView:
+    return await service.connection_testing.check(session, model_id)
 
 
 @router.get("/models/{model_id}/tests", response_model=list[TestView])

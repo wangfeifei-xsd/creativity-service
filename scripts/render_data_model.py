@@ -36,7 +36,7 @@ def render():
         "各模块归档中的 `revision` 保留原始修订来源，供模型归属与一致性检查使用。"
         "全部已实现 PostgreSQL 表统一由 "
         "[初始基线](../../alembic/versions/0001_initial.py) 建库，"
-        "当前修订号为 `0039_account_roles`。"
+        "当前修订号为 `0040_model_networks`。"
         "开发规范引用 [rule.md](../../../rule.md)。",
         "",
         "空库初始化按顺序执行表结构 [sql/init.sql](../../sql/init.sql) 和"

@@ -1,8 +1,7 @@
-"""模型模块装配；出站白名单与密文主密钥仅从服务器配置读取。"""
+"""模型模块装配；连接管理出站地址，密文主密钥从服务器配置读取。"""
 
 import base64
 from dataclasses import dataclass
-from typing import Any
 
 from pydantic import SecretBytes, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,9 +14,10 @@ from creativity_service.core.deletion import CleanupRegistry, ContentRef, Deleti
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError
 from creativity_service.core.security.credentials import CredentialService, KeyProvider
-from creativity_service.core.security.outbound import Destination, OutboundPolicy
+from creativity_service.core.security.outbound import OutboundPolicy
 from creativity_service.integrations.models.adapter import LiteLLMAdapter
 from creativity_service.modules.iam.services import IamServices
+from creativity_service.modules.models.connection_testing import ModelConnectionTesting
 from creativity_service.modules.models.ports import DebugExecutor, ModelPriceReader
 from creativity_service.modules.models.repositories import repository
 from creativity_service.modules.models.routing import ModelRouting
@@ -27,9 +27,11 @@ from creativity_service.modules.models.testing import ModelTesting
 
 class ModelSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="CREATIVITY_MODEL_", env_file=".env", extra="ignore", hide_input_in_errors=True
+        env_prefix="CREATIVITY_MODEL_",
+        env_file=(".env", ".env.local"),
+        extra="ignore",
+        hide_input_in_errors=True,
     )
-    destinations: list[dict[str, Any]] = []
     key_version: str | None = None
     encryption_keys: dict[str, SecretStr] = {}
 
@@ -145,6 +147,7 @@ class ModelServices:
     routing: ModelRouting
     testing: ModelTesting
     adapter: LiteLLMAdapter
+    connection_testing: ModelConnectionTesting
 
 
 def build_model_services(
@@ -161,9 +164,6 @@ def build_model_services(
     settings = settings or ModelSettings()
     if key_provider is None and settings.key_version:
         key_provider = ConfiguredKeys(settings.key_version, settings.encryption_keys)
-    outbound = outbound or OutboundPolicy(
-        tuple(Destination(**value) for value in settings.destinations)
-    )
     iam.authorization.resources = ModelResourceReader(engine, iam.authorization.resources)
     credentials = CredentialService(engine, key_provider, ModelCredentialAuthorization(iam))
     service = ModelService(engine, iam, credentials, outbound, executor, prices)
@@ -203,4 +203,5 @@ def build_model_services(
         routing,
         ModelTesting(service),
         LiteLLMAdapter(credentials, outbound, routing.prepare_attempt),
+        ModelConnectionTesting(service),
     )

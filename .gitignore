@@ -24,6 +24,7 @@ dist/
 
 # 本地配置与日志
 .env
+.env.local
 log/
 .logs/
 *.log

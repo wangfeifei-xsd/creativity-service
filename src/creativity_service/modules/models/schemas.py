@@ -8,6 +8,7 @@ from pydantic import Field, SecretStr
 from creativity_service.core.context import Scope
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.primitives import Contract, Identifier, Revision
+from creativity_service.modules.iam.schemas import AccessAction
 
 ProtocolType = Literal[
     "chat_completions", "responses", "anthropic_messages", "gemini_generate_content"
@@ -45,6 +46,7 @@ class ConnectionInput(Contract):
     provider_id: Identifier
     protocol: ProtocolType
     endpoint: str = Field(min_length=1, max_length=2048)
+    allowed_networks: list[str] = Field(default_factory=list, max_length=32)
     credential_ref: Identifier
     timeout_seconds: int = Field(default=60, ge=1, le=600)
     status: Status = "ACTIVE"
@@ -106,7 +108,17 @@ class ModelView(ModelInput):
     capabilities: list[CapabilityView]
     verified_at: datetime | None
     parameter_reasons: dict[str, str]
-    actions: list[VisibleAction] = Field(default_factory=list)
+    actions: list[AccessAction] = Field(default_factory=list)
+
+
+class ConnectionTestView(Contract):
+    model_id: str
+    connection_id: str
+    success: bool
+    message: str
+    error_code: str | None = None
+    latency_ms: int = Field(ge=0)
+    checked_at: datetime
 
 
 class FrozenModel(Contract):
@@ -121,6 +133,7 @@ class FrozenModel(Contract):
     provider_credential_id: str
     protocol: ProtocolType
     endpoint: str
+    allowed_networks: list[str] = Field(default_factory=list, max_length=32)
     provider_model_name: str
     timeout_seconds: int
     parameters: dict[str, Any]

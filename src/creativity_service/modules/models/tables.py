@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from sqlalchemy import Column, Index, MetaData, Table
+from sqlalchemy.dialects.postgresql import JSONB
 
 from creativity_service.core.database.tables import column_type
 
@@ -31,3 +32,12 @@ def build_metadata() -> MetaData:
 
 
 metadata = build_metadata()
+metadata.tables["model_connections"].append_column(
+    Column(
+        "allowed_networks",
+        JSONB(),
+        nullable=True,
+        comment="连接允许的 IP 网段，空数组仅允许公网",
+        info={"required": True, "source": "连接管理页经服务层校验", "sensitivity": "内部"},
+    )
+)

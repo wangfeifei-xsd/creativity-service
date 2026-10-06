@@ -1,10 +1,12 @@
 -- Creativity 初始化数据归档，必须在配套 sql/init.sql 建表后执行。
--- 模型版本：1.9.3；完成后登记迁移基线：0039_account_roles。
--- 数据源：sql/init_data.json，冻结控制面配置、预置渠道、供应商模板及并发策略。
+-- 模型版本：1.9.3；完成后登记迁移基线：0040_model_networks。
+-- 数据源：sql/init_data.json，冻结控制面配置、预置渠道、模型连接及并发策略。
 -- 包含 admin 账号、两种管理员的菜单关联、账号角色关联及历史兼容角色。
 -- 预置渠道的首位管理员复用 admin，仅登记空范围；不复制其他账号或接入凭据。
 -- 初始密码仅存安全摘要，首次登录须改密；环境与真实业务数据域稍后配置。
 -- 平台并发上限归系统渠道，各渠道并发策略及冻结版本归对应业务渠道。
+-- 包含开发环境 DeepSeek V4 Flash 及密文凭据；解密主密钥和出站策略另行配置。
+-- 不继承能力验证结果、测试运行或用量；目标环境启用后重新验证。
 -- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。
 -- 所有数据和迁移标记在一个事务提交；已有版本记录时整份数据不再插入。
 -- 仅配套新库建表，不用于覆盖已有库，也不重置已有账号密码。
@@ -27,7 +29,7 @@ INSERT INTO channel_code_index (id, channel_id, created_at, updated_at, revision
 WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
 FROM creativity_alembic_version));
 
--- 初始化预置供应商字典及无凭据连接模板，不配置渠道模型或密钥。
+-- 初始化预置供应商字典及无凭据连接模板。
 INSERT INTO provider_catalog (id, channel_id, created_at, updated_at, revision, code, name, protocols, template_content) SELECT CAST('provider_deepseek' AS VARCHAR(64)) AS anon_1, CAST('system' AS VARCHAR(64)) AS anon_2, CURRENT_TIMESTAMP AS current_timestamp_1, CURRENT_TIMESTAMP AS current_timestamp_2, CAST(1 AS BIGINT) AS anon_3, CAST('deepseek' AS VARCHAR(64)) AS anon_4, CAST('DeepSeek' AS VARCHAR(128)) AS anon_5, CAST('["chat_completions"]' AS JSONB) AS anon_6, CAST('{"endpoint": "https://api.deepseek.com", "protocol": "chat_completions", "timeout_seconds": 60}' AS JSONB) AS anon_7
 WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
 FROM creativity_alembic_version));
@@ -454,8 +456,16 @@ INSERT INTO platform_limits (id, channel_id, created_at, updated_at, revision, l
 WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
 FROM creativity_alembic_version));
 
--- 初始化各业务渠道并发策略的冻结版本及内容摘要。
+-- 初始化各业务渠道并发策略、模型及连接的冻结版本及内容摘要。
+INSERT INTO resource_versions (id, channel_id, created_at, updated_at, revision, resource_type, resource_id, version_label, state, content, content_digest, dependencies, dependencies_digest, output_schema, created_by) SELECT CAST('version_0e0ebbfa8c804ad29d8255ff33032d93' AS VARCHAR(64)) AS anon_1, CAST('channel_407de822881947339e26ec7d9d55a8a0' AS VARCHAR(64)) AS anon_2, CURRENT_TIMESTAMP AS current_timestamp_1, CURRENT_TIMESTAMP AS current_timestamp_2, CAST(1 AS BIGINT) AS anon_3, CAST('model_connection' AS VARCHAR(64)) AS anon_4, CAST('connection_3c0b1670eba5422184aa8bf86ebc2417' AS VARCHAR(64)) AS anon_5, CAST('1' AS VARCHAR(128)) AS anon_6, CAST('PUBLISHED' AS VARCHAR(32)) AS anon_7, CAST('{"allowed_networks": [], "credential_ref": "credential_362142ee695842f5ac2775d471613d8a", "current_version_id": "version_0e0ebbfa8c804ad29d8255ff33032d93", "endpoint": "https://api.deepseek.com", "health_checked_at": null, "health_reason": null, "health_status": "UNKNOWN", "name": "DeepSeek", "protocol": "chat_completions", "provider_id": "provider_deepseek", "status": "ACTIVE", "timeout_seconds": 60, "validation_revision": 1}' AS JSONB) AS anon_8, CAST('bcb6ec8322828c1206acad973b1365f1c0ef5de0004129e5fb5c7041669724b3' AS VARCHAR(64)) AS anon_9, CAST('[]' AS JSONB) AS anon_10, CAST('4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945' AS VARCHAR(64)) AS anon_11, CAST('{}' AS JSONB) AS anon_12, CAST('user_1d5e419d2ad54a99aca1ebd45e412c78' AS VARCHAR(128)) AS anon_13
+WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
+FROM creativity_alembic_version));
+
 INSERT INTO resource_versions (id, channel_id, created_at, updated_at, revision, resource_type, resource_id, version_label, state, content, content_digest, dependencies, dependencies_digest, output_schema, created_by) SELECT CAST('version_3847db60070b4660b016b70647128f4b' AS VARCHAR(64)) AS anon_1, CAST('channel_407de822881947339e26ec7d9d55a8a0' AS VARCHAR(64)) AS anon_2, CURRENT_TIMESTAMP AS current_timestamp_1, CURRENT_TIMESTAMP AS current_timestamp_2, CAST(1 AS BIGINT) AS anon_3, CAST('budget_policy' AS VARCHAR(64)) AS anon_4, CAST('budget_9a8a29b040dc49009557a8364f9b31c1' AS VARCHAR(64)) AS anon_5, CAST('预算版本 1' AS VARCHAR(128)) AS anon_6, CAST('FROZEN' AS VARCHAR(32)) AS anon_7, CAST('{"currency": null, "limit_value": "5", "mode": "HARD", "name": "渠道并发", "period": "minute", "scope_id": "channel_407de822881947339e26ec7d9d55a8a0", "scope_type": "channel", "status": "ACTIVE", "thresholds": ["0.8", "1"], "timezone": "Asia/Shanghai", "unit": "concurrency"}' AS JSONB) AS anon_8, CAST('9de5f99f75ef743cf2d98be00435ef98c865b4b54e8a6a0d8b78fc1c356255db' AS VARCHAR(64)) AS anon_9, CAST('[]' AS JSONB) AS anon_10, CAST('4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945' AS VARCHAR(64)) AS anon_11, CAST('{}' AS JSONB) AS anon_12, CAST('user_1d5e419d2ad54a99aca1ebd45e412c78' AS VARCHAR(128)) AS anon_13
+WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
+FROM creativity_alembic_version));
+
+INSERT INTO resource_versions (id, channel_id, created_at, updated_at, revision, resource_type, resource_id, version_label, state, content, content_digest, dependencies, dependencies_digest, output_schema, created_by) SELECT CAST('version_ab199b3f3d1d4d62bde6f40d1362a959' AS VARCHAR(64)) AS anon_1, CAST('channel_407de822881947339e26ec7d9d55a8a0' AS VARCHAR(64)) AS anon_2, CURRENT_TIMESTAMP AS current_timestamp_1, CURRENT_TIMESTAMP AS current_timestamp_2, CAST(1 AS BIGINT) AS anon_3, CAST('model' AS VARCHAR(64)) AS anon_4, CAST('model_03391c4c5e2847ab99a320ac17bbb79e' AS VARCHAR(64)) AS anon_5, CAST('1' AS VARCHAR(128)) AS anon_6, CAST('PUBLISHED' AS VARCHAR(32)) AS anon_7, CAST('{"config_digest": "3c4ebd3a0eef8673ea1de2e5b0f19d61b2b739cd8cd2cc10c27feb8fd6d32d43", "connection_id": "connection_3c0b1670eba5422184aa8bf86ebc2417", "connection_version_id": "version_0e0ebbfa8c804ad29d8255ff33032d93", "context_limit": null, "model_code": "deepseek-v4-flash", "name": "DeepSeek V4 Flash", "parameter_allowlist": ["max_tokens"], "parameters": {"max_tokens": 4096}, "provider_model_name": "deepseek-v4-flash", "status": "ACTIVE", "validation_revision": 1}' AS JSONB) AS anon_8, CAST('c2e79f995e1d6f822c15f1a79a42b2dda11cffca7120c49cd4e8bf1217283dc6' AS VARCHAR(64)) AS anon_9, CAST('["version_0e0ebbfa8c804ad29d8255ff33032d93"]' AS JSONB) AS anon_10, CAST('be67ee2d46890d7c77406c821ce131d489574f833a2221e7161448e7fc57ff77' AS VARCHAR(64)) AS anon_11, CAST('{}' AS JSONB) AS anon_12, CAST('user_1d5e419d2ad54a99aca1ebd45e412c78' AS VARCHAR(128)) AS anon_13
 WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
 FROM creativity_alembic_version));
 
@@ -464,8 +474,41 @@ INSERT INTO budget_policies (id, channel_id, created_at, updated_at, revision, s
 WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
 FROM creativity_alembic_version));
 
+-- 初始化渠道模型的 AES-GCM 密文凭据，主密钥不进入 SQL。
+INSERT INTO credentials (id, channel_id, created_at, updated_at, revision, environment, purpose, ciphertext, key_version, state) SELECT CAST('credential_362142ee695842f5ac2775d471613d8a' AS VARCHAR(64)) AS anon_1, CAST('channel_407de822881947339e26ec7d9d55a8a0' AS VARCHAR(64)) AS anon_2, CURRENT_TIMESTAMP AS current_timestamp_1, CURRENT_TIMESTAMP AS current_timestamp_2, CAST(1 AS BIGINT) AS anon_3, CAST('dev' AS VARCHAR(16)) AS anon_4, CAST('model' AS VARCHAR(32)) AS anon_5, decode('04c8a864ef061cb96a27f44866cc3c81bb44c81a85cf579f663da58edc4ead4ee10ab315f7227f895d952c24ed93473cf2e02dcf5290948d1e2904b456ac05', 'hex') AS decode_1, CAST('local-model-v1' AS VARCHAR(64)) AS anon_6, CAST('ACTIVE' AS VARCHAR(32)) AS anon_7
+WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
+FROM creativity_alembic_version));
+
+-- 初始化开发环境模型连接，健康状态在目标环境重新验证。
+INSERT INTO model_connections (id, channel_id, created_at, updated_at, revision, environment, name, protocol, endpoint, credential_ref, timeout_seconds, status, health_status, provider_id, current_version_id, health_reason, health_checked_at, validation_revision, allowed_networks) SELECT CAST('connection_3c0b1670eba5422184aa8bf86ebc2417' AS VARCHAR(64)) AS anon_1, CAST('channel_407de822881947339e26ec7d9d55a8a0' AS VARCHAR(64)) AS anon_2, CURRENT_TIMESTAMP AS current_timestamp_1, CURRENT_TIMESTAMP AS current_timestamp_2, CAST(1 AS BIGINT) AS anon_3, CAST('dev' AS VARCHAR(16)) AS anon_4, CAST('DeepSeek' AS VARCHAR(128)) AS anon_5, CAST('chat_completions' AS VARCHAR(64)) AS anon_6, CAST('https://api.deepseek.com' AS VARCHAR(2048)) AS anon_7, CAST('credential_362142ee695842f5ac2775d471613d8a' AS VARCHAR(64)) AS anon_8, CAST(60 AS INTEGER) AS anon_9, CAST('ACTIVE' AS VARCHAR(32)) AS anon_10, CAST('UNKNOWN' AS VARCHAR(32)) AS anon_11, CAST('provider_deepseek' AS VARCHAR(64)) AS anon_12, CAST('version_0e0ebbfa8c804ad29d8255ff33032d93' AS VARCHAR(64)) AS anon_13, CAST(NULL AS VARCHAR(512)) AS anon_14, CAST(NULL AS TIMESTAMP WITH TIME ZONE) AS anon_15, CAST(1 AS BIGINT) AS anon_16, CAST('[]' AS JSONB) AS anon_17
+WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
+FROM creativity_alembic_version));
+
+-- 初始化 DeepSeek V4 Flash 模型映射，能力状态保持未验证。
+INSERT INTO models (id, channel_id, created_at, updated_at, revision, model_code, name, connection_id, provider_model_name, context_limit, status, capabilities, verified_at, current_version_id, parameters, parameter_allowlist, validation_revision) SELECT CAST('model_03391c4c5e2847ab99a320ac17bbb79e' AS VARCHAR(64)) AS anon_1, CAST('channel_407de822881947339e26ec7d9d55a8a0' AS VARCHAR(64)) AS anon_2, CURRENT_TIMESTAMP AS current_timestamp_1, CURRENT_TIMESTAMP AS current_timestamp_2, CAST(1 AS BIGINT) AS anon_3, CAST('deepseek-v4-flash' AS VARCHAR(64)) AS anon_4, CAST('DeepSeek V4 Flash' AS VARCHAR(128)) AS anon_5, CAST('connection_3c0b1670eba5422184aa8bf86ebc2417' AS VARCHAR(64)) AS anon_6, CAST('deepseek-v4-flash' AS VARCHAR(256)) AS anon_7, CAST(NULL AS INTEGER) AS anon_8, CAST('ACTIVE' AS VARCHAR(32)) AS anon_9, CAST('{}' AS JSONB) AS anon_10, CAST(NULL AS TIMESTAMP WITH TIME ZONE) AS anon_11, CAST('version_ab199b3f3d1d4d62bde6f40d1362a959' AS VARCHAR(64)) AS anon_12, CAST('{"max_tokens": 4096}' AS JSONB) AS anon_13, CAST('["max_tokens"]' AS JSONB) AS anon_14, CAST(1 AS BIGINT) AS anon_15
+WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
+FROM creativity_alembic_version));
+
+-- 初始化模型版本对连接版本的同渠道依赖。
+INSERT INTO resource_references (id, channel_id, created_at, updated_at, revision, source_version_id, target_version_id, target_resource_type) SELECT CAST('35bb017f8f3f40bd8b193b84aa81b5d325a9e2e543809dde8879f2b167871d50' AS VARCHAR(64)) AS anon_1, CAST('channel_407de822881947339e26ec7d9d55a8a0' AS VARCHAR(64)) AS anon_2, CURRENT_TIMESTAMP AS current_timestamp_1, CURRENT_TIMESTAMP AS current_timestamp_2, CAST(1 AS BIGINT) AS anon_3, CAST('version_ab199b3f3d1d4d62bde6f40d1362a959' AS VARCHAR(64)) AS anon_4, CAST('version_0e0ebbfa8c804ad29d8255ff33032d93' AS VARCHAR(64)) AS anon_5, CAST('model_connection' AS VARCHAR(64)) AS anon_6
+WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
+FROM creativity_alembic_version));
+
+-- 初始化模型及连接的版本来源，保留删除传播关系。
+INSERT INTO source_links (id, channel_id, created_at, updated_at, revision, environment, data_scope_id, subject_type, subject_id, source_type, source_id, derived_type, derived_id, source_version) SELECT CAST('42fe68bfbd9cf13815561bfaf8fc2afdac717f516751c0b46136775c13fd0ab6' AS VARCHAR(64)) AS anon_1, CAST('channel_407de822881947339e26ec7d9d55a8a0' AS VARCHAR(64)) AS anon_2, CURRENT_TIMESTAMP AS current_timestamp_1, CURRENT_TIMESTAMP AS current_timestamp_2, CAST(1 AS BIGINT) AS anon_3, CAST('dev' AS VARCHAR(16)) AS anon_4, CAST('manage_252ada3e9cb7f574a1c60bb7827a7ff89113986b' AS VARCHAR(64)) AS anon_5, CAST(NULL AS VARCHAR(64)) AS anon_6, CAST(NULL AS VARCHAR(128)) AS anon_7, CAST('model_connection' AS VARCHAR(64)) AS anon_8, CAST('connection_3c0b1670eba5422184aa8bf86ebc2417' AS VARCHAR(128)) AS anon_9, CAST('version' AS VARCHAR(64)) AS anon_10, CAST('version_0e0ebbfa8c804ad29d8255ff33032d93' AS VARCHAR(128)) AS anon_11, CAST(NULL AS VARCHAR(128)) AS anon_12
+WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
+FROM creativity_alembic_version));
+
+INSERT INTO source_links (id, channel_id, created_at, updated_at, revision, environment, data_scope_id, subject_type, subject_id, source_type, source_id, derived_type, derived_id, source_version) SELECT CAST('6f29e47f73e9eb94640404066ba8831fcf838bc72b73d94f6c9ea04d72677a8a' AS VARCHAR(64)) AS anon_1, CAST('channel_407de822881947339e26ec7d9d55a8a0' AS VARCHAR(64)) AS anon_2, CURRENT_TIMESTAMP AS current_timestamp_1, CURRENT_TIMESTAMP AS current_timestamp_2, CAST(1 AS BIGINT) AS anon_3, CAST('dev' AS VARCHAR(16)) AS anon_4, CAST('manage_252ada3e9cb7f574a1c60bb7827a7ff89113986b' AS VARCHAR(64)) AS anon_5, CAST(NULL AS VARCHAR(64)) AS anon_6, CAST(NULL AS VARCHAR(128)) AS anon_7, CAST('model' AS VARCHAR(64)) AS anon_8, CAST('model_03391c4c5e2847ab99a320ac17bbb79e' AS VARCHAR(128)) AS anon_9, CAST('version' AS VARCHAR(64)) AS anon_10, CAST('version_ab199b3f3d1d4d62bde6f40d1362a959' AS VARCHAR(128)) AS anon_11, CAST(NULL AS VARCHAR(128)) AS anon_12
+WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
+FROM creativity_alembic_version));
+
+INSERT INTO source_links (id, channel_id, created_at, updated_at, revision, environment, data_scope_id, subject_type, subject_id, source_type, source_id, derived_type, derived_id, source_version) SELECT CAST('75ceaaefa87fd8dfcacd2288031428187a370cef9e9be4b485100c628cfd06a7' AS VARCHAR(64)) AS anon_1, CAST('channel_407de822881947339e26ec7d9d55a8a0' AS VARCHAR(64)) AS anon_2, CURRENT_TIMESTAMP AS current_timestamp_1, CURRENT_TIMESTAMP AS current_timestamp_2, CAST(1 AS BIGINT) AS anon_3, CAST('dev' AS VARCHAR(16)) AS anon_4, CAST('manage_252ada3e9cb7f574a1c60bb7827a7ff89113986b' AS VARCHAR(64)) AS anon_5, CAST(NULL AS VARCHAR(64)) AS anon_6, CAST(NULL AS VARCHAR(128)) AS anon_7, CAST('version' AS VARCHAR(64)) AS anon_8, CAST('version_0e0ebbfa8c804ad29d8255ff33032d93' AS VARCHAR(128)) AS anon_9, CAST('version' AS VARCHAR(64)) AS anon_10, CAST('version_ab199b3f3d1d4d62bde6f40d1362a959' AS VARCHAR(128)) AS anon_11, CAST(NULL AS VARCHAR(128)) AS anon_12
+WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
+FROM creativity_alembic_version));
+
 -- 最后登记迁移完成标记；失败回滚时不留下半份初始化数据。
-INSERT INTO creativity_alembic_version (version_num, channel_id) SELECT '0039_account_roles' AS anon_1, 'system' AS anon_2
+INSERT INTO creativity_alembic_version (version_num, channel_id) SELECT '0040_model_networks' AS anon_1, 'system' AS anon_2
 WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
 FROM creativity_alembic_version));
 

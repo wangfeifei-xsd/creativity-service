@@ -57,7 +57,10 @@ RECOVERABLE = frozenset({"MODEL_TIMEOUT", "MODEL_RATE_LIMITED", "MODEL_PROVIDER_
 
 
 def validate_endpoint(protocol: ProtocolType, endpoint: str) -> str:
-    parsed = urlsplit(endpoint)
+    try:
+        parsed = urlsplit(endpoint)
+    except ValueError as exc:
+        raise ServiceError("MODEL_ENDPOINT_INVALID", "模型基础地址格式不正确", 422) from exc
     if parsed.query or parsed.fragment or parsed.username or parsed.password or not parsed.hostname:
         raise ServiceError("MODEL_ENDPOINT_INVALID", "模型地址不能包含凭据、查询参数或片段", 422)
     path = parsed.path.rstrip("/")
@@ -108,7 +111,13 @@ def configuration_digest(model: dict[str, Any], connection: dict[str, Any]) -> s
             "model_validation_revision": model.get("validation_revision", 1),
             "connection_validation_revision": connection.get("validation_revision", 1),
             "connection": {
-                k: connection[k] for k in ("id", "protocol", "endpoint", "timeout_seconds")
+                **{k: connection[k] for k in ("id", "protocol", "endpoint", "timeout_seconds")},
+                # 空范围与旧公网配置摘要兼容；显式范围改变必须重新验证能力。
+                **(
+                    {"allowed_networks": connection["allowed_networks"]}
+                    if connection.get("allowed_networks")
+                    else {}
+                ),
             },
             "model": {
                 k: model[k]

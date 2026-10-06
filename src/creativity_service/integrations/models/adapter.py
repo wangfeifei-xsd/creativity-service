@@ -25,6 +25,7 @@ from creativity_service.integrations.models.contracts import (
 )
 from creativity_service.integrations.models.transport import ModelTransport, RawCapture
 from creativity_service.integrations.models.usage import normalize_usage
+from creativity_service.modules.models.outbound import validate_connection_target
 from creativity_service.modules.models.policy import PROTOCOLS, may_retry
 from creativity_service.modules.models.schemas import FrozenModel
 
@@ -71,7 +72,7 @@ class LiteLLMAdapter:
     def __init__(
         self,
         credentials: CredentialService,
-        outbound: OutboundPolicy,
+        outbound: OutboundPolicy | None,
         prepare: Callable[..., Awaitable[FrozenModel]],
         *,
         transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None,
@@ -120,7 +121,9 @@ class LiteLLMAdapter:
                         "MODEL_CONFIGURATION_STALE", "尝试登记后的连接或凭据已变化", 409
                     )
                 parameters = validate_request(current, request, attempt, reservation)
-                target = await self.outbound.validate(context.scope, "model", current.endpoint)
+                target = await validate_connection_target(
+                    context.scope, current.endpoint, current.allowed_networks, self.outbound
+                )
 
                 async def invoke(secret: SecretBytes) -> None:
                     nonlocal emitted

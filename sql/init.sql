@@ -1,7 +1,7 @@
 -- Creativity 表结构初始化归档，适用于 PostgreSQL 17 空库或空 schema。
--- 模型版本：1.9.3；配套数据归档迁移基线：0039_account_roles。
+-- 模型版本：1.9.3；配套数据归档迁移基线：0040_model_networks。
 -- 初始建库基线：alembic/versions/0001_initial.py；后续修订在其上追加。
--- 包含 111 张表、1684 个字段、248 个普通索引及全部中文注释。
+-- 包含 111 张表、1685 个字段、248 个普通索引及全部中文注释。
 -- 本文件不写初始化数据；完成后必须执行 sql/init_data.sql，再启动服务或迁移。
 -- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。
 -- 执行方式见 sql/README.md；表创建在连接的当前 schema。
@@ -3819,7 +3819,8 @@ CREATE TABLE model_connections (
 	current_version_id VARCHAR(64),
 	health_reason VARCHAR(512),
 	health_checked_at TIMESTAMP WITH TIME ZONE,
-	validation_revision BIGINT
+	validation_revision BIGINT,
+	allowed_networks JSONB
 );
 
 COMMENT ON TABLE model_connections IS '模型供应商连接';
@@ -3859,6 +3860,8 @@ COMMENT ON COLUMN model_connections.health_reason IS '最近健康异常原因';
 COMMENT ON COLUMN model_connections.health_checked_at IS '最近健康检查时间';
 
 COMMENT ON COLUMN model_connections.validation_revision IS '能力验证语义修订号';
+
+COMMENT ON COLUMN model_connections.allowed_networks IS '连接允许的 IP 网段，空数组仅允许公网';
 
 CREATE INDEX ix_model_connections_0 ON model_connections (channel_id, id);
 

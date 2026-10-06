@@ -127,7 +127,11 @@ def test_seed_contains_platform_and_channel_concurrency_limits_with_frozen_versi
     policies = tables["budget_policies"]
     assert len(policies) == len(tenants)
     assert {row["channel_id"] for row in policies} == tenants
-    versions = {row["id"]: row for row in tables["resource_versions"]}
+    versions = {
+        row["id"]: row
+        for row in tables["resource_versions"]
+        if row["resource_type"] == "budget_policy"
+    }
     assert len(versions) == len(policies)
     for policy in policies:
         assert policy["scope_type"] == "channel"
@@ -152,7 +156,7 @@ def test_seed_contains_platform_and_channel_concurrency_limits_with_frozen_versi
     data = render_init_sql.render_data()
     assert data.count("INSERT INTO platform_limits ") == 1
     assert data.count("INSERT INTO budget_policies ") == len(tenants)
-    assert data.count("INSERT INTO resource_versions ") == len(tenants)
+    assert data.count("INSERT INTO resource_versions ") == len(tables["resource_versions"])
     assert "platform_quota_occupancies" not in data
     assert "INSERT INTO admissions " not in data
     assert "INSERT INTO budget_alerts " not in data
@@ -243,6 +247,53 @@ def test_seed_contains_four_credential_free_provider_templates():
         }
         assert validate_endpoint(provider.protocols[0], endpoint) == endpoint
     assert render_init_sql.render_data().count("INSERT INTO provider_catalog ") == 4
+
+
+def test_seed_contains_deepseek_model_and_ciphertext_without_deployment_secrets():
+    seed = json.loads(render_init_sql.SEED.read_text())
+    render_init_sql.validate_seed(seed)
+    tables = seed["tables"]
+    (model,) = tables["models"]
+    (connection,) = tables["model_connections"]
+    (credential,) = tables["credentials"]
+    assert model["provider_model_name"] == model["model_code"] == "deepseek-v4-flash"
+    assert model["connection_id"] == connection["id"]
+    assert model["capabilities"] == {} and model["verified_at"] is None
+    assert connection["provider_id"] == "provider_deepseek"
+    assert connection["endpoint"] == "https://api.deepseek.com"
+    assert connection["credential_ref"] == credential["id"]
+    assert connection["environment"] == credential["environment"] == "dev"
+    assert len(bytes.fromhex(credential["ciphertext"])) > 28
+    data = render_init_sql.render_data()
+    assert "decode(" in data and "sk-" not in data
+    assert "CREATIVITY_MODEL_ENCRYPTION_KEYS" not in data
+    assert "198.18.0.36" not in data
+    assert len(tables["resource_references"]) == 1
+    assert len(tables["source_links"]) == 3
+
+
+@pytest.mark.parametrize(
+    ("table", "field", "value"),
+    [
+        ("credentials", "channel_id", "system"),
+        ("credentials", "ciphertext", "sk-test-plaintext"),
+        ("credentials", "ciphertext", "abcd"),
+        ("credentials", "environment", "prod"),
+        ("model_connections", "credential_ref", "missing-credential"),
+        ("model_connections", "channel_id", "other-channel"),
+        ("model_connections", "health_status", "HEALTHY"),
+        ("models", "connection_id", "missing-connection"),
+        ("models", "capabilities", {"text": {"state": "SUPPORTED"}}),
+        ("models", "provider_model_name", "changed-name"),
+        ("resource_references", "target_version_id", "missing-version"),
+        ("source_links", "channel_id", "other-channel"),
+    ],
+)
+def test_seed_rejects_plaintext_and_broken_model_dependencies(table, field, value):
+    seed = json.loads(render_init_sql.SEED.read_text())
+    seed["tables"][table][0][field] = value
+    with pytest.raises(ValueError):
+        render_init_sql.validate_seed(seed)
 
 
 @pytest.mark.parametrize(

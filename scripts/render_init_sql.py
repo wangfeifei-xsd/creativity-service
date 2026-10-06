@@ -10,7 +10,7 @@ from typing import Any
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import Numeric, Table, cast, func, insert, literal, select
+from sqlalchemy import LargeBinary, Numeric, Table, cast, func, insert, literal, select
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex, CreateTable, SetColumnComment, SetTableComment
 from sqlalchemy.sql import Executable
@@ -30,6 +30,7 @@ from creativity_service.modules.models.policy import validate_endpoint
 from creativity_service.modules.models.schemas import ProviderInput
 from creativity_service.modules.usage.pricing import timezone
 from creativity_service.storage import metadata
+from scripts.render_init_models import MODEL_SEED_TABLES, validate_initial_models
 
 ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE = ROOT / "sql/init.sql"
@@ -47,9 +48,10 @@ SEED_TABLES = (
     "platform_limits",
     "resource_versions",
     "budget_policies",
+    *MODEL_SEED_TABLES,
 )
 TENANT_SEED_TABLES = ("channel_memberships", "resource_grants")
-TENANT_CONFIGURATION_TABLES = ("resource_versions", "budget_policies")
+TENANT_CONFIGURATION_TABLES = ("resource_versions", "budget_policies", *MODEL_SEED_TABLES)
 IMPORT_TIME_FIELDS = {
     "platform_accounts": {"credential_updated_at"},
     "platform_limits": {"effective_at"},
@@ -62,7 +64,7 @@ def import_time_fields(name: str) -> set[str]:
 
 
 def typed_seed_values(table: Table, row: dict[str, Any]) -> dict[str, Any]:
-    """冻结 JSON 用字符串保存十进制值，校验与 SQL 编译时显式还原类型。"""
+    """冻结 JSON 用字符串保存十进制和密文，校验与 SQL 编译时显式还原类型。"""
     values = dict(row)
     for column in table.c:
         if isinstance(column.type, Numeric) and values.get(column.name) is not None:
@@ -70,6 +72,14 @@ def typed_seed_values(table: Table, row: dict[str, Any]) -> dict[str, Any]:
             if not isinstance(value, str):
                 raise ValueError("初始化十进制值必须使用字符串，不能使用浮点数")
             values[column.name] = Decimal(value)
+        elif isinstance(column.type, LargeBinary) and values.get(column.name) is not None:
+            value = values[column.name]
+            if not isinstance(value, str):
+                raise ValueError("初始化密文必须使用十六进制字符串")
+            try:
+                values[column.name] = bytes.fromhex(value)
+            except ValueError as exc:
+                raise ValueError("初始化密文必须使用十六进制字符串") from exc
     return values
 
 
@@ -93,7 +103,10 @@ def validate_initial_limits(tables: dict[str, Any], tenants: dict[str, Any], adm
         or row["replaces_id"] is not None
     ):
         raise ValueError("初始平台限额必须为启用的并发初始版本")
-    policies, versions = tables["budget_policies"], tables["resource_versions"]
+    policies = tables["budget_policies"]
+    versions = [
+        row for row in tables["resource_versions"] if row["resource_type"] == "budget_policy"
+    ]
     if len(policies) != len(tenants) or {row["channel_id"] for row in policies} != tenants.keys():
         raise ValueError("每个初始业务渠道须有且仅有一份并发策略")
     if len(versions) != len(policies) or {row["id"] for row in versions} != {
@@ -215,7 +228,7 @@ def validate_seed(seed: dict[str, Any]) -> None:
     """生成前验证渠道、身份、空范围授权和并发策略，不把校验写成数据库业务约束。"""
     tables = seed["tables"]
     if set(tables) != set(SEED_TABLES):
-        raise ValueError("初始化数据只能包含预置渠道、控制面配置、初始身份授权和并发策略版本")
+        raise ValueError("初始化数据只能包含预置渠道、控制面配置、初始授权、并发策略及模型配置")
     # 仅用冻结采集时间校验字段类型；真实初始化时间仍由导入事务显式赋值。
     timestamp = datetime.fromisoformat(seed["source"]["captured_at"])
     for name in SEED_TABLES:
@@ -354,6 +367,7 @@ def validate_seed(seed: dict[str, Any]) -> None:
             if any(row[key] != value for key, value in expected.items()):
                 raise ValueError("初始渠道管理员或授权关联不一致，环境和数据域必须为空")
     validate_initial_limits(tables, tenants, admin_id)
+    validate_initial_models(tables, tenants, admin_id)
 
 
 def render_data() -> str:
@@ -363,11 +377,13 @@ def render_data() -> str:
     lines = [
         "-- Creativity 初始化数据归档，必须在配套 sql/init.sql 建表后执行。",
         f"-- 模型版本：{model_version}；完成后登记迁移基线：{revision}。",
-        "-- 数据源：sql/init_data.json，冻结控制面配置、预置渠道、供应商模板及并发策略。",
+        "-- 数据源：sql/init_data.json，冻结控制面配置、预置渠道、模型连接及并发策略。",
         "-- 包含 admin 账号、两种管理员的菜单关联、账号角色关联及历史兼容角色。",
         "-- 预置渠道的首位管理员复用 admin，仅登记空范围；不复制其他账号或接入凭据。",
         "-- 初始密码仅存安全摘要，首次登录须改密；环境与真实业务数据域稍后配置。",
         "-- 平台并发上限归系统渠道，各渠道并发策略及冻结版本归对应业务渠道。",
+        "-- 包含开发环境 DeepSeek V4 Flash 及密文凭据；解密主密钥和出站策略另行配置。",
+        "-- 不继承能力验证结果、测试运行或用量；目标环境启用后重新验证。",
         "-- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。",
         "-- 所有数据和迁移标记在一个事务提交；已有版本记录时整份数据不再插入。",
         "-- 仅配套新库建表，不用于覆盖已有库，也不重置已有账号密码。",
@@ -378,15 +394,20 @@ def render_data() -> str:
     descriptions = {
         "channels": "初始化平台系统渠道及预置业务渠道，主档分别归自身渠道。",
         "channel_code_index": "初始化系统渠道中的业务渠道目录，供列表、定位和编码查重。",
-        "provider_catalog": "初始化预置供应商字典及无凭据连接模板，不配置渠道模型或密钥。",
+        "provider_catalog": "初始化预置供应商字典及无凭据连接模板。",
         "iam_menus": "初始化当前环境菜单目录，保留层级、页面、按钮及启停排序。",
         "builtin_roles": "初始化数据库角色目录，menu_ids 保存角色与菜单关联。",
         "platform_accounts": "初始化 admin；role_id 与 platform_roles 保存账号与角色关联。",
         "channel_memberships": "复用 admin 登记预置渠道的首位管理员，空范围不产生工作区访问权。",
         "resource_grants": "登记首位管理员的空范围初始授权，不预设环境和外部数据域映射。",
         "platform_limits": "初始化平台并发上限，导入时生效；不复制实际运行占用。",
-        "resource_versions": "初始化各业务渠道并发策略的冻结版本及内容摘要。",
+        "resource_versions": "初始化各业务渠道并发策略、模型及连接的冻结版本及内容摘要。",
         "budget_policies": "初始化各业务渠道并发硬上限，不复制用量、预占或预算提醒。",
+        "credentials": "初始化渠道模型的 AES-GCM 密文凭据，主密钥不进入 SQL。",
+        "model_connections": "初始化开发环境模型连接，健康状态在目标环境重新验证。",
+        "models": "初始化 DeepSeek V4 Flash 模型映射，能力状态保持未验证。",
+        "resource_references": "初始化模型版本对连接版本的同渠道依赖。",
+        "source_links": "初始化模型及连接的版本来源，保留删除传播关系。",
     }
     for name in SEED_TABLES:
         lines.append(f"-- {descriptions[name]}")
@@ -406,6 +427,8 @@ def render_data() -> str:
                             postgresql.JSONB,
                         )
                     )
+                elif isinstance(column.type, LargeBinary) and row[column.name] is not None:
+                    values.append(func.decode(literal(row[column.name].hex()), literal("hex")))
                 else:
                     values.append(cast(literal(row[column.name], type_=column.type), column.type))
             append(

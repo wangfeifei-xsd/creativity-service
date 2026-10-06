@@ -13,7 +13,7 @@ import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from redis.asyncio import Redis
-from sqlalchemy import Numeric, create_engine, inspect, text
+from sqlalchemy import LargeBinary, Numeric, create_engine, inspect, text
 from sqlalchemy.exc import DataError, ProgrammingError
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -245,11 +245,13 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
     ] == expected_menus
     for name, rows in expected.items():
         initialized = connection.execute(text(f"SELECT * FROM {name} ORDER BY id")).mappings().all()
-        # JSON 冻结十进制字符串，数据库读取的 Numeric 必须保持精确 Decimal。
+        # JSON 冻结十进制与密文字符串，导入后须还原精确 Decimal 和原始密文字节。
         typed_rows = [
             {
                 key: Decimal(value)
                 if value is not None and isinstance(metadata.tables[name].c[key].type, Numeric)
+                else bytes.fromhex(value)
+                if value is not None and isinstance(metadata.tables[name].c[key].type, LargeBinary)
                 else value
                 for key, value in row.items()
             }
@@ -418,10 +420,19 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
         channel = page.items[0]
         assert channel.name == "寻弈乐竞" and channel.owner == "小苏打"
         assert channel.channel_code == "XYLJ" and channel.status_label == "启用"
-        assert (await channels.channels.detail(session, channel.channel_id)) == channel
+        detail = await channels.channels.detail(session, channel.channel_id)
+        # 列表额外带配置汇总，详情比较渠道主档和可操作范围。
+        assert detail.model_dump(exclude={"configuration_status"}) == channel.model_dump(
+            exclude={"configuration_status"}
+        )
         async with engine.connect() as connection:
             pending = await iam.access.pending_first_member(connection, channel.channel_id)
-        assert pending == {"user_id": account["id"], "display_name": account["display_name"]}
+        assert pending == {
+            "user_id": account["id"],
+            "display_name": account["display_name"],
+            "data_scopes": [],
+            "initial_data_scopes": [],
+        }
         assert await channels.channels.environments(session, channel.channel_id) == []
         assert await channels.channels.data_scopes(session, channel.channel_id) == []
         with pytest.raises(ServiceError) as duplicate:
@@ -450,11 +461,10 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
             "data_scopes",
             "service_clients",
             "channel_keys",
-            "model_connections",
-            "models",
-            "credentials",
         ):
             assert database.connection.scalar(text(f"SELECT count(*) FROM {name}")) == 0
+        for name in ("model_connections", "models", "credentials"):
+            assert database.connection.scalar(text(f"SELECT count(*) FROM {name}")) == 1
         roles = CustomRoles(iam.access)
         directory = await roles.list(session)
         seeds = {

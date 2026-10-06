@@ -46,6 +46,7 @@
 | `health_reason` | `varchar(512)` | 最近健康异常原因 | 否 | 模型服务显式赋值 | 内部 |
 | `health_checked_at` | `timestamptz` | 最近健康检查时间 | 否 | 模型服务显式赋值 | 内部 |
 | `validation_revision` | `bigint` | 能力验证语义修订号 | 是 | 关键配置改变时由模型服务递增 | 内部 |
+| `allowed_networks` | `jsonb` | 连接允许的 IP 网段，空数组仅允许公网 | 是 | 连接管理页经服务层校验 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, status)`。
 
@@ -137,6 +138,7 @@
 | `health_reason` | `varchar(512)` | 最近健康异常原因 | 否 | 模型服务显式赋值 | 内部 |
 | `health_checked_at` | `timestamptz` | 最近健康检查时间 | 否 | 模型服务显式赋值 | 内部 |
 | `validation_revision` | `bigint` | 能力验证语义修订号 | 是 | 关键配置改变时由模型服务递增 | 内部 |
+| `allowed_networks` | `jsonb` | 连接允许的 IP 网段，空数组仅允许公网 | 是 | 连接管理页经服务层校验 | 内部 |
 
 ## 版本内容结构：model
 

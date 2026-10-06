@@ -239,7 +239,7 @@ async def test_tenant_isolation_endpoint_policy_and_http_contract(channel_env):
     with pytest.raises(ServiceError) as exc:
         await services.configuration.detail(other.manager, model.id)
     assert exc.value.status == 404
-    with pytest.raises(ServiceError, match="出站目的地"):
+    with pytest.raises(ServiceError, match="HTTPS"):
         await services.configuration.save_connection(
             tenant.manager, connection_input.model_copy(update={"endpoint": "http://127.0.0.1/v1"})
         )
@@ -329,6 +329,11 @@ async def test_revoked_connection_blocks_attempt_but_keeps_history(channel_env):
     frozen = executor.submissions[0].configuration
     prepared = await services.routing.prepare_attempt(tenant.manager.context, frozen, ["text"])
     assert prepared.provider_credential_id == connection.credential_ref
+    forged = frozen.model_copy(
+        update={"endpoint": "https://untrusted.example", "allowed_networks": ["10.0.0.0/8"]}
+    )
+    trusted = await services.routing.prepare_attempt(tenant.manager.context, forged, ["text"])
+    assert trusted.endpoint == connection.endpoint and trusted.allowed_networks == []
     current = (await services.configuration.connections(tenant.manager)).items[0]
     await services.configuration.save_connection(
         tenant.manager,
@@ -478,3 +483,50 @@ async def test_full_migration_schema_matches_registered_storage(channel_env):
     async with channel_env.engine.connect() as connection:
         failures = await connection.run_sync(lambda conn: audit_database(conn, channel_env.schema))
     assert failures == []
+
+
+async def test_connection_page_authorizes_destination_and_freezes_networks(
+    channel_env, monkeypatch
+):
+    from creativity_service.modules.models import outbound
+
+    tenant, services, body, connection, _, model = await setup(channel_env)
+    _, executor = await complete(services, tenant, model)
+    frozen = executor.submissions[0].configuration
+    calls = []
+
+    async def resolve(host, port):
+        assert_external_io_allowed()
+        calls.append((host, port))
+        return ["93.184.216.34"]
+
+    # 使用正式的连接授权路径，不注入服务器目的地白名单。
+    services.configuration.outbound = None
+    monkeypatch.setattr(outbound, "OutboundPolicy", lambda rules: OutboundPolicy(rules, resolve))
+    current = (await services.configuration.connections(tenant.manager)).items[0]
+    updated = await services.configuration.save_connection(
+        tenant.manager,
+        body.model_copy(
+            update={
+                "allowed_networks": ["93.184.216.34/32"],
+                "revision": current.revision,
+            }
+        ),
+        connection.id,
+    )
+    assert updated.allowed_networks == ["93.184.216.34/32"]
+    assert calls == [("models.example", 443)]
+    changed = await services.configuration.detail(tenant.manager, model.id)
+    assert all(c.state == "UNVERIFIED" for c in changed.capabilities)
+    with pytest.raises(ServiceError, match="模型配置已变化"):
+        await services.routing.prepare_attempt(tenant.manager.context, frozen, ["text"])
+    history = await services.configuration.history(
+        tenant.manager, "model_connection", connection.id
+    )
+    assert history[-1].content["allowed_networks"] == ["93.184.216.34/32"]
+    # 同一凭据可以由有权管理员配置新的公网连接，不依赖额外服务器登记。
+    added = await services.configuration.save_connection(
+        tenant.manager, body.model_copy(update={"endpoint": "https://another.example:8443/v1"})
+    )
+    assert added.endpoint == "https://another.example:8443/v1" and added.allowed_networks == []
+    assert calls[-1] == ("another.example", 8443)

@@ -43,7 +43,7 @@ check:
 	uv run python -m creativity_service.modules.models.export --check
 	uv run python -m creativity_service.modules.evaluations.export --check
 	uv run python scripts/render_data_model.py --check
-	uv run python scripts/render_init_sql.py --check
+	uv run python -m scripts.render_init_sql --check
 	uv run python -m creativity_service.core.database.audit
 
 format:
@@ -64,10 +64,10 @@ migrate:
 	uv run alembic upgrade head
 
 sql:
-	uv run python scripts/render_init_sql.py
+	uv run python -m scripts.render_init_sql
 
 sql-check:
-	uv run python scripts/render_init_sql.py --check
+	uv run python -m scripts.render_init_sql --check
 
 infra-up:
 	./scripts/start-local.sh --infra-only
@@ -95,7 +95,7 @@ contracts:
 
 model-check:
 	uv run python scripts/render_data_model.py --check
-	uv run python scripts/render_init_sql.py --check
+	uv run python -m scripts.render_init_sql --check
 	uv run python -m creativity_service.core.database.audit
 
 storage-audit:

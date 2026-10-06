@@ -27,9 +27,14 @@ from creativity_service.modules.iam.authorization import (
     effective_actions,
     require_platform,
 )
+from creativity_service.modules.iam.reading import resource_state
 from creativity_service.modules.iam.repositories import policy_key
-from creativity_service.modules.iam.schemas import GrantInput, GrantView
+from creativity_service.modules.iam.schemas import AccessAction, GrantInput, GrantView
 from creativity_service.modules.iam.services import IamServices
+from creativity_service.modules.models.outbound import (
+    normalize_networks,
+    validate_connection_target,
+)
 from creativity_service.modules.models.policy import (
     CAPABILITY_LABELS,
     CAPABILITY_NAMES,
@@ -70,7 +75,7 @@ class ModelService:
         engine: AsyncEngine,
         iam: IamServices,
         credentials: CredentialService,
-        outbound: OutboundPolicy,
+        outbound: OutboundPolicy | None,
         executor: DebugExecutor | None = None,
         prices: ModelPriceReader | None = None,
     ) -> None:
@@ -271,7 +276,8 @@ class ModelService:
     ) -> ConnectionView:
         context = await self.context(session)
         endpoint = validate_endpoint(body.protocol, body.endpoint)
-        await self.outbound.validate(context.scope, "model", endpoint)
+        networks = normalize_networks(body.allowed_networks)
+        await validate_connection_target(context.scope, endpoint, networks, self.outbound)
         providers = {p["id"]: p for p in await self.provider_rows()}
         if (
             body.provider_id not in providers
@@ -293,6 +299,7 @@ class ModelService:
             values = {
                 **body.model_dump(exclude={"revision"}),
                 "endpoint": endpoint,
+                "allowed_networks": networks,
                 "current_version_id": version_id,
                 "health_status": "UNKNOWN",
                 "health_reason": None,
@@ -303,7 +310,8 @@ class ModelService:
             ) + int(
                 existing is not None
                 and any(
-                    existing[k] != values[k] for k in ("protocol", "endpoint", "timeout_seconds")
+                    existing[k] != values[k]
+                    for k in ("protocol", "endpoint", "timeout_seconds", "allowed_networks")
                 )
             )
             if existing:
@@ -456,6 +464,7 @@ class ModelService:
         connection: dict[str, Any] | None = None,
         providers: list[dict[str, Any]] | None = None,
         permissions: frozenset[str] | None = None,
+        credential_permissions: frozenset[str] | None = None,
     ) -> ModelView:
         if connection is None:
             async with self.engine.connect() as conn:
@@ -488,17 +497,48 @@ class ModelService:
                     reason=evidence.get("reason") if valid else "当前配置尚未通过真实验证",
                 )
             )
-        actions = [action("edit", "编辑"), action("history", "历史版本")]
+        actions = [
+            AccessAction(action_key="edit", label="编辑", enabled=True),
+            AccessAction(action_key="history", label="历史版本", enabled=True),
+        ]
         try:
-            if permissions is None:
-                permissions = await self.iam.authorization.allowed_actions(
-                    context, "model", row["id"]
-                )
+            if permissions is None or credential_permissions is None:
+                policy = await self.iam.authorization.read_policy(context)
+                if permissions is None:
+                    permissions = (
+                        policy.actions("model", row["id"], resource_state(context, "model", row))
+                        if row["status"] == "ACTIVE"
+                        else frozenset()
+                    )
+                if credential_permissions is None:
+                    credential_permissions = policy.actions(
+                        "credential",
+                        connection["credential_ref"],
+                        resource_state(context, "credential", {"id": connection["credential_ref"]}),
+                    )
             if "run:create" in permissions:
-                actions.insert(1, action("test", "能力验证"))
+                actions.insert(1, AccessAction(action_key="test", label="能力验证", enabled=True))
         except ServiceError as exc:
             if exc.status not in {403, 404}:
                 raise
+        reason = (
+            "模型或连接已停用"
+            if row["status"] != "ACTIVE" or connection["status"] != "ACTIVE"
+            else "该协议尚未启用连接检查"
+            if not PROTOCOLS[connection["protocol"]].enabled
+            else "没有使用连接凭据的权限"
+            if "credential:use" not in (credential_permissions or frozenset())
+            else None
+        )
+        actions.insert(
+            1,
+            AccessAction(
+                action_key="test_connection",
+                label="测试连接",
+                enabled=reason is None,
+                disabled_reason=reason,
+            ),
+        )
         return ModelView(
             protocol=connection["protocol"],
             usage_subsets={
@@ -562,6 +602,17 @@ class ModelService:
                     )
                     if row["status"] == "ACTIVE"
                     else frozenset(),
+                    credential_permissions=policy.actions(
+                        "credential",
+                        connections[row["connection_id"]]["credential_ref"],
+                        resource_state(
+                            context,
+                            "credential",
+                            {
+                                "id": connections[row["connection_id"]]["credential_ref"],
+                            },
+                        ),
+                    ),
                 )
                 for row in visible
             ],
@@ -627,6 +678,7 @@ class ModelService:
             provider_credential_id=connection["credential_ref"],
             protocol=connection["protocol"],
             endpoint=connection["endpoint"],
+            allowed_networks=connection["allowed_networks"] or [],
             provider_model_name=model["provider_model_name"],
             timeout_seconds=connection["timeout_seconds"],
             parameters=model["parameters"],
