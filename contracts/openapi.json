@@ -1,6 +1,41 @@
 {
   "components": {
     "schemas": {
+      "AccessAction": {
+        "additionalProperties": false,
+        "properties": {
+          "action_key": {
+            "title": "Action Key",
+            "type": "string"
+          },
+          "disabled_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disabled Reason"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_key",
+          "label",
+          "enabled"
+        ],
+        "title": "AccessAction",
+        "type": "object"
+      },
       "AccessOptions": {
         "additionalProperties": false,
         "properties": {
@@ -8184,6 +8219,13 @@
             "title": "Action Names",
             "type": "array"
           },
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/AccessAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
           "allowed_actions": {
             "items": {
               "type": "string"
@@ -8215,7 +8257,6 @@
               "type": "string"
             },
             "maxItems": 200,
-            "minItems": 1,
             "title": "Data Scopes",
             "type": "array"
           },
@@ -8237,7 +8278,6 @@
               "type": "string"
             },
             "maxItems": 4,
-            "minItems": 1,
             "title": "Environments",
             "type": "array"
           },
@@ -8318,6 +8358,7 @@
           "environments",
           "data_scopes",
           "grant_id",
+          "actions",
           "grantee_name",
           "resource_name",
           "action_names",
@@ -10603,6 +10644,13 @@
       "MembershipView": {
         "additionalProperties": false,
         "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/AccessAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
           "data_scope_names": {
             "items": {
               "anyOf": [
@@ -10686,6 +10734,7 @@
         },
         "required": [
           "user_id",
+          "actions",
           "display_name",
           "roles",
           "role_names",

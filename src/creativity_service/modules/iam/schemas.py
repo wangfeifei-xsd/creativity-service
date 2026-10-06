@@ -110,8 +110,14 @@ class MembershipInput(Contract):
     status: Status = "ACTIVE"
 
 
+class AccessAction(VisibleAction):
+    enabled: bool
+    disabled_reason: str | None = None
+
+
 class MembershipView(Contract):
     user_id: str
+    actions: list[AccessAction]
     display_name: str | None
     roles: list[str]
     role_names: list[str]
@@ -138,7 +144,11 @@ class GrantInput(Contract):
 
 
 class GrantView(GrantInput):
+    # 分步开通的存量授权可尚未分配范围；响应展示不套用新增授权的必填规则。
+    environments: list[Environment] = Field(max_length=4)
+    data_scopes: list[Identifier] = Field(max_length=200)
     grant_id: str
+    actions: list[AccessAction]
     grantee_name: str | None
     resource_name: str | None
     action_names: list[str]

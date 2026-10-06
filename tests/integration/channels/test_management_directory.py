@@ -24,6 +24,49 @@ from tests.support.captcha import captcha_token
 pytestmark = pytest.mark.integration
 
 
+async def test_role_options_keep_platform_capabilities_and_remove_channel_only_groups(channel_env):
+    env = channel_env
+    roles = CustomRoles(env.iam.access)
+    platform = await roles.options(env.admin, "platform")
+    channel = await roles.options(env.admin, "channel")
+    platform_pages = {row["page_key"] for row in platform["menus"] if row["kind"] == "MENU"}
+    assert platform_pages == {
+        "model-providers",
+        "channels",
+        "accounts",
+        "roles",
+        "menus",
+        "platform-limits",
+        "platform-usage",
+        "audit-events",
+    }
+    excluded = {"menu_group_execution", "menu_group_integration"}
+    assert not excluded & {row["id"] for row in platform["menus"]}
+    assert excluded <= {row["id"] for row in channel["menus"]}
+    builtin = next(row for row in await roles.list(env.admin) if row["id"] == "platform_admin")
+    assert builtin["menu_ids"] is None or {row["id"] for row in platform["menus"]} <= set(
+        builtin["menu_ids"]
+    )
+    # 多层空目录同样移除；一旦包含平台页面，全部祖先都应出现在选项树中。
+    menus = MenuService(env.iam.accounts.repository)
+    outer = await menus.save(env.admin, MenuSave(name="分组验证", kind="DIR"))
+    inner = await menus.save(env.admin, MenuSave(name="子目录", kind="DIR", parent_id=outer["id"]))
+    assert not {outer["id"], inner["id"]} & {
+        row["id"] for row in (await roles.options(env.admin, "platform"))["menus"]
+    }
+    usage = next(row for row in platform["menus"] if row["page_key"] == "platform-usage")
+    await menus.save(
+        env.admin,
+        MenuSave(**{key: usage[key] for key in MenuSave.model_fields}).model_copy(
+            update={"parent_id": inner["id"]}
+        ),
+        usage["id"],
+    )
+    assert {outer["id"], inner["id"]} <= {
+        row["id"] for row in (await roles.options(env.admin, "platform"))["menus"]
+    }
+
+
 async def signed_account(env, name, roles):
     account = await env.iam.accounts.create(
         env.admin,

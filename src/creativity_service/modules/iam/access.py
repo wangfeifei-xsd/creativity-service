@@ -7,7 +7,12 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.auth.authentication import AdminSession, AuthenticationService
-from creativity_service.core.auth.types import GrantState, MembershipState, WorkspaceDirectory
+from creativity_service.core.auth.types import (
+    GrantState,
+    MembershipState,
+    WorkspaceDirectory,
+    WorkspaceOption,
+)
 from creativity_service.core.context import AuthContext, Scope, require_channel_state
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.database import UnitOfWork, transaction
@@ -23,9 +28,11 @@ from creativity_service.modules.iam.authorization import (
     require_platform,
 )
 from creativity_service.modules.iam.display import resource_names
+from creativity_service.modules.iam.reading import require_action
 from creativity_service.modules.iam.repositories import (
     TABLES,
     IdentityRepository,
+    membership_from_catalog,
     membership_id,
     membership_state,
     one,
@@ -40,8 +47,12 @@ from creativity_service.modules.iam.revocations import RevocationService, enqueu
 from creativity_service.modules.iam.roles import (
     ACTION_NAMES,
     INDEPENDENT_ACTIONS,
+    PLATFORM_ASSIGNED_CHANNEL_ROLES,
+    PLATFORM_ASSIGNED_ROLE_MESSAGE,
+    require_channel_assignable_roles,
 )
 from creativity_service.modules.iam.schemas import (
+    AccessAction,
     GrantInput,
     GrantView,
     MembershipInput,
@@ -68,12 +79,16 @@ class AccessService:
         )
         self.revocations, self.directory = revocations, directory
 
-    async def context(self, session: AdminSession, channel_id: str, action: str) -> AuthContext:
+    def channel_context(self, session: AdminSession, channel_id: str) -> AuthContext:
         if not isinstance(session.context, AuthContext):
             raise ServiceError("FORBIDDEN", "请先进入获授权的渠道工作区", 403)
         context = session.context
         if channel_id != context.scope.channel_id:
             raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
+        return context
+
+    async def context(self, session: AdminSession, channel_id: str, action: str) -> AuthContext:
+        context = self.channel_context(session, channel_id)
         await self.authorization.boundary(context, action, "channel", channel_id)
         return context
 
@@ -238,6 +253,10 @@ class AccessService:
         ]
         async with transaction(self.repository.engine, context.scope, keys) as uow:
             member, grants = await self.locked_policy(uow, session, "membership:manage")
+            require_channel_assignable_roles(list(body.roles))
+            requested_actions = await resolved_actions(
+                uow.connection, channel_id, list(body.roles), require_active=True
+            )
             await self.validate_scopes(
                 context, list(body.environments), list(body.data_scopes), known_pairs
             )
@@ -246,9 +265,7 @@ class AccessService:
                 grants,
                 list(body.environments),
                 list(body.data_scopes),
-                await resolved_actions(
-                    uow.connection, channel_id, list(body.roles), require_active=True
-                ),
+                requested_actions,
                 "channel",
                 channel_id,
                 known_pairs,
@@ -260,6 +277,7 @@ class AccessService:
             if existing and existing["id"] != member_id:
                 raise ServiceError("STORAGE_INVARIANT_BROKEN", "成员记录标识不一致", 503)
             if existing:
+                require_channel_assignable_roles(existing["roles"])
                 self.member_delegation(
                     member, grants, await membership_state(uow.connection, existing), known_pairs
                 )
@@ -305,7 +323,28 @@ class AccessService:
                 ),
             )
         await self.revocations.complete(item)
-        return await self.member_view(row, session.account.id)
+        # 写后提示使用事务中已验证的成员与授权；自改角色时按变更后的角色计算。
+        saved = candidate.model_copy(update={"revision": row["revision"]})
+        actor = saved if user_id == member.user_id else member
+        return await self.member_view(
+            row,
+            session.account.id,
+            actions=self.member_actions(
+                saved,
+                actor,
+                grants,
+                known_pairs,
+                effective_actions(
+                    actor,
+                    grants,
+                    context.scope.environment,
+                    context.scope.data_scope_id or "",
+                    "channel",
+                    channel_id,
+                ),
+                account_active=True,
+            ),
+        )
 
     def member_keys(self, channel_id: str, user_id: str) -> list[ResourceKey]:
         return [
@@ -335,6 +374,7 @@ class AccessService:
             row = await one(uow.connection, "channel_memberships", channel_id, user_id=user_id)
             if row is None:
                 raise ServiceError("NOT_FOUND", "成员不存在", 404)
+            require_channel_assignable_roles(row["roles"])
             self.delegation(
                 actor,
                 grants,
@@ -361,35 +401,119 @@ class AccessService:
         await self.revocations.complete(item)
 
     async def list_members(self, session: AdminSession, channel_id: str) -> list[MembershipView]:
-        await self.context(session, channel_id, "membership:read")
-        actor = (
-            await self.authentication.active_member(session.context)
-            if isinstance(session.context, AuthContext)
-            else None
-        )
+        context = self.channel_context(session, channel_id)
+        policy = await self.authorization.read_policy(context)
+        allowed = policy.actions("channel", channel_id)
+        require_action(allowed, "membership:read")
+        actor = policy.member
+        if actor is None:
+            raise ServiceError("FORBIDDEN", "请先进入获授权的渠道工作区", 403)
+        grants = list(policy.grants)
         async with self.repository.engine.connect() as connection:
-            result = await rows(connection, "channel_memberships", channel_id)
-        data = await self.view_data(session.account.id, channel_id, [r["user_id"] for r in result])
+            loaded = await rows(connection, "channel_memberships", channel_id)
         # 只暴露操作者完整可见的成员范围，避免通过授权页面获知其他数据域。
-        return [
-            await self.member_view(row, session.account.id, data)
-            for row in result
-            if actor
-            and set(row["environments"]) <= set(actor.environments)
+        result = [
+            row
+            for row in loaded
+            if set(row["environments"]) <= set(actor.environments)
             and set(row["data_scopes"]) <= set(actor.data_scopes)
         ]
+        options = await self.directory.for_member(actor) if self.directory else []
+        known_pairs: set[tuple[str, str]] = {
+            (option.environment, option.data_scope_id) for option in options
+        }
+        data = await self.view_data(
+            session.account.id, channel_id, [r["user_id"] for r in result], options=options
+        )
+        # 名称和角色目录已批量读取，逐行只构造成员状态并执行纯权限计算。
+        return [
+            await self.member_view(
+                row,
+                session.account.id,
+                data,
+                actions=self.member_actions(
+                    membership_from_catalog(row, data["catalog"]),
+                    actor,
+                    grants,
+                    known_pairs,
+                    allowed,
+                    account_active=bool(
+                        (account := data["accounts"].get(row["user_id"]))
+                        and account.status == "ACTIVE"
+                    ),
+                ),
+            )
+            for row in result
+        ]
+
+    def member_actions(
+        self,
+        target: MembershipState,
+        actor: MembershipState,
+        grants: list[GrantState],
+        known_pairs: set[tuple[str, str]],
+        allowed: frozenset[str],
+        *,
+        account_active: bool,
+    ) -> list[AccessAction]:
+        """编辑需检查潜在授权，移除只检查角色范围；分别沿用写入原子校验。"""
+        result = []
+        for key, label in (("member:edit", "编辑"), ("member:remove", "移除成员")):
+            reason = None
+            if not action_allowed(allowed, "membership:manage"):
+                reason = "没有渠道成员管理权限"
+            elif PLATFORM_ASSIGNED_CHANNEL_ROLES.intersection(target.roles):
+                reason = PLATFORM_ASSIGNED_ROLE_MESSAGE
+            elif key == "member:edit" and not account_active:
+                reason = "账号已停用或不存在"
+            else:
+                try:
+                    if key == "member:edit":
+                        self.member_delegation(actor, grants, target, known_pairs)
+                    else:
+                        self.delegation(
+                            actor,
+                            grants,
+                            list(target.environments),
+                            target.data_scopes,
+                            target.custom_actions,
+                            "channel",
+                            target.channel_id,
+                            known_pairs,
+                        )
+                except ServiceError as exc:
+                    if exc.code != "GRANT_SCOPE_EXCEEDED":
+                        raise
+                    reason = exc.message
+            result.append(
+                AccessAction(
+                    action_key=key, label=label, enabled=reason is None, disabled_reason=reason
+                )
+            )
+        return result
 
     async def view_data(
-        self, viewer_id: str, channel_id: str, user_ids: list[str]
+        self,
+        viewer_id: str,
+        channel_id: str,
+        user_ids: list[str],
+        *,
+        options: list[WorkspaceOption] | None = None,
     ) -> dict[str, Any]:
-        options = await self.directory.list_for(viewer_id) if self.directory else []
+        if options is None:
+            options = await self.directory.list_for(viewer_id) if self.directory else []
         accounts = await self.repository.accounts(user_ids)
         async with self.repository.engine.connect() as connection:
             catalog = await role_catalog(connection, channel_id)
         return {"options": options, "accounts": accounts, "catalog": catalog}
 
     async def member_view(
-        self, row: dict[str, Any], viewer_id: str, data: dict[str, Any] | None = None
+        self,
+        row: dict[str, Any],
+        viewer_id: str,
+        data: dict[str, Any] | None = None,
+        *,
+        actions: list[AccessAction],
     ) -> MembershipView:
         data = (
             data
@@ -405,6 +529,7 @@ class AccessService:
         catalog = data["catalog"]
         return MembershipView(
             user_id=row["user_id"],
+            actions=actions,
             display_name=account.display_name if account else None,
             roles=row["roles"],
             role_names=[catalog[r]["name"] for r in row["roles"] if r in catalog],
@@ -477,6 +602,7 @@ class AccessService:
                 known_pairs,
             )
             if body.grantee_type == "role":
+                require_channel_assignable_roles([body.grantee_id])
                 ceiling = (
                     await resolved_actions(
                         uow.connection, channel_id, [body.grantee_id], require_active=True
@@ -550,7 +676,14 @@ class AccessService:
                     (existing["environments"], existing["data_scopes"]) if existing else ([], []),
                 ),
             )
-        return await self.grant_view(row, context)
+        # 写后响应沿用事务中已校验的数据，并替换本次变更，避免自降权限后仍显示可操作。
+        saved = to_state(GrantState, row)
+        current_grants = [grant for grant in grants if grant.id != saved.id] + [saved]
+        return await self.grant_view(
+            row,
+            context,
+            actions=self.grant_actions(saved, context, actor, current_grants, known_pairs),
+        )
 
     @audit_denials("grant:revoke", "resource_grant", 1)
     async def revoke_grant(
@@ -573,6 +706,8 @@ class AccessService:
             row = await one(uow.connection, "resource_grants", channel_id, id=grant_id)
             if row is None:
                 raise ServiceError("NOT_FOUND", "授权记录不存在", 404)
+            if row["grantee_type"] == "role":
+                require_channel_assignable_roles([row["grantee_id"]])
             if row["allowed_actions"]:
                 self.delegation(
                     member,
@@ -598,14 +733,30 @@ class AccessService:
             )
 
     async def list_grants(self, session: AdminSession, channel_id: str) -> list[GrantView]:
-        context = await self.context(session, channel_id, "grant:read")
-        member = await self.authentication.active_member(context)
-        async with self.repository.engine.connect() as connection:
-            result = await rows(connection, "resource_grants", channel_id)
+        context = self.channel_context(session, channel_id)
+        policy = await self.authorization.read_policy(context)
+        require_action(policy.actions("channel", channel_id), "grant:read")
+        member = policy.member
+        if member is None:
+            raise ServiceError("FORBIDDEN", "请先进入获授权的渠道工作区", 403)
+        # 授权检查已读取完整的本渠道策略，列表与逐行操作直接复用，不能重新查成员和授权。
+        grants = list(policy.grants)
+        result = [
+            grant
+            for grant in grants
+            if grant.allowed_actions
+            and set(grant.environments) <= set(member.environments)
+            and set(grant.data_scopes) <= set(member.data_scopes)
+        ]
+        options = await self.directory.for_member(member) if self.directory else []
+        known_pairs: set[tuple[str, str]] = {
+            (option.environment, option.data_scope_id) for option in options
+        }
         data = await self.view_data(
             context.principal_id,
             channel_id,
-            [r["grantee_id"] for r in result if r["grantee_type"] == "account"],
+            [grant.grantee_id for grant in result if grant.grantee_type == "account"],
+            options=options,
         )
         async with self.repository.engine.connect() as connection:
             data["resources"] = await resource_names(
@@ -613,21 +764,73 @@ class AccessService:
                 self.authorization.resources,
                 context,
                 [
-                    (r["resource_type"], r["resource_id"])
-                    for r in result
-                    if r["resource_type"] != "channel" and r["resource_id"] != "*"
+                    (grant.resource_type, grant.resource_id)
+                    for grant in result
+                    if grant.resource_type != "channel" and grant.resource_id != "*"
                 ],
             )
         return [
-            await self.grant_view(row, context, data)
-            for row in result
-            if row["allowed_actions"]
-            and set(row["environments"]) <= set(member.environments)
-            and set(row["data_scopes"]) <= set(member.data_scopes)
+            await self.grant_view(
+                grant.model_dump(),
+                context,
+                data,
+                actions=self.grant_actions(grant, context, member, grants, known_pairs),
+            )
+            for grant in result
+        ]
+
+    def grant_actions(
+        self,
+        grant: GrantState,
+        context: AuthContext,
+        member: MembershipState,
+        grants: list[GrantState],
+        known_pairs: set[tuple[str, str]],
+    ) -> list[AccessAction]:
+        """行操作复用写入的委托范围校验；只计算权限提示，不替代写入事务复核。"""
+        allowed = effective_actions(
+            member,
+            grants,
+            context.scope.environment,
+            context.scope.data_scope_id or "",
+            "channel",
+            context.scope.channel_id,
+        )
+        reason = None
+        if not action_allowed(allowed, "grant:manage"):
+            reason = "没有资源授权管理权限"
+        elif grant.grantee_type == "role" and grant.grantee_id in PLATFORM_ASSIGNED_CHANNEL_ROLES:
+            reason = PLATFORM_ASSIGNED_ROLE_MESSAGE
+        else:
+            try:
+                self.delegation(
+                    member,
+                    grants,
+                    list(grant.environments),
+                    grant.data_scopes,
+                    frozenset(grant.allowed_actions),
+                    grant.resource_type,
+                    grant.resource_id,
+                    known_pairs,
+                )
+            except ServiceError as exc:
+                if exc.code != "GRANT_SCOPE_EXCEEDED":
+                    raise
+                reason = exc.message
+        return [
+            AccessAction(
+                action_key=key, label=label, enabled=reason is None, disabled_reason=reason
+            )
+            for key, label in (("grant:edit", "编辑"), ("grant:revoke", "撤销授权"))
         ]
 
     async def grant_view(
-        self, row: dict[str, Any], context: AuthContext, data: dict[str, Any] | None = None
+        self,
+        row: dict[str, Any],
+        context: AuthContext,
+        data: dict[str, Any] | None = None,
+        *,
+        actions: list[AccessAction],
     ) -> GrantView:
         data = (
             data
@@ -666,6 +869,7 @@ class AccessService:
         return GrantView(
             **{key: row[key] for key in GrantInput.model_fields},
             grant_id=row["id"],
+            actions=actions,
             grantee_name=account.display_name
             if account
             else data["catalog"].get(row["grantee_id"], {}).get("name"),
@@ -716,7 +920,9 @@ class AccessService:
                 ],
             )
             for code, value in catalog.items()
-            if value["state"] == "ACTIVE" and set(value["allowed_actions"]) <= actions
+            if value["state"] == "ACTIVE"
+            and set(value["allowed_actions"]) <= actions
+            and (scope != "channel" or code not in PLATFORM_ASSIGNED_CHANNEL_ROLES)
         ]
 
     def provisioning_keys(self, channel_id: str, user_id: str) -> list[ResourceKey]:

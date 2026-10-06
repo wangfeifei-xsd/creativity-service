@@ -171,6 +171,8 @@ class WorkspaceOption(Contract):
 class WorkspaceDirectory(Protocol):
     async def list_for(self, user_id: str) -> list[WorkspaceOption]: ...
 
+    async def for_member(self, member: MembershipState) -> list[WorkspaceOption]: ...
+
 
 class AuthorizationDecision(Contract):
     allowed: bool

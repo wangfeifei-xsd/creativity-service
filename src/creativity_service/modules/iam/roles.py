@@ -2,6 +2,18 @@
 
 from typing import Literal, get_args
 
+from creativity_service.core.primitives import ServiceError
+
+# 管理员身份由平台账号管理分配；渠道目录仍保留定义供实时鉴权及名称展示。
+PLATFORM_ASSIGNED_CHANNEL_ROLES = frozenset({"channel_admin"})
+PLATFORM_ASSIGNED_ROLE_MESSAGE = "渠道管理员由平台分配，请在平台账号管理中调整"
+
+
+def require_channel_assignable_roles(codes: list[str]) -> None:
+    if PLATFORM_ASSIGNED_CHANNEL_ROLES.intersection(codes):
+        raise ServiceError("PLATFORM_MANAGED_ROLE", PLATFORM_ASSIGNED_ROLE_MESSAGE, 403)
+
+
 ACTION_NAMES = {
     "account:manage": "管理账号",
     "role:grant": "授予平台角色",

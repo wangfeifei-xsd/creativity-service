@@ -60,6 +60,15 @@ class ChannelFixture:
     async def list_for(self, user_id):
         return self.options
 
+    async def for_member(self, member):
+        return [
+            option
+            for option in self.options
+            if option.channel_id == member.channel_id
+            and option.environment in member.environments
+            and option.data_scope_id in member.data_scopes
+        ]
+
     async def read_current(self, context):
         return ChannelState(
             channel_id=context.scope.channel_id,

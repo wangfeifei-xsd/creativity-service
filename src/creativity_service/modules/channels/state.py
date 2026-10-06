@@ -219,18 +219,6 @@ class ChannelDirectory:
     async def options_for(self, user_id: str, *, authorized: bool) -> list[WorkspaceOption]:
         data = await self.data_for(user_id)
         members = {r["channel_id"]: r for r in data["members"]}
-        channels = {r["channel_id"]: r for r in data["channels"] if r["id"] == r["channel_id"]}
-        environments = {
-            (r["channel_id"], r["environment"]): r for r in data["channel_environments"]
-        }
-        grants = {
-            identifier: [
-                to_state(GrantState, r)
-                for r in data["resource_grants"]
-                if r["channel_id"] == identifier
-            ]
-            for identifier in members
-        }
         states = {
             identifier: membership_from_catalog(
                 row,
@@ -243,6 +231,42 @@ class ChannelDirectory:
                 ),
             )
             for identifier, row in members.items()
+        }
+        return self.options_from_data(data, states, authorized=authorized)
+
+    async def for_member(self, member: MembershipState) -> list[WorkspaceOption]:
+        """复用本次已验证成员，只读取该成员范围的名称与环境归属。"""
+        data: dict[str, list[dict[str, Any]]] = {"resource_grants": []}
+        async with read_connection(self.repository.engine) as connection:
+            for name in ("channels", "channel_environments", "data_scopes"):
+                table = metadata.tables[name]
+                statement = select(table).where(table.c.channel_id == member.channel_id)
+                if name != "channels":
+                    statement = statement.where(table.c.environment.in_(member.environments))
+                if name == "data_scopes":
+                    statement = statement.where(table.c.id.in_(member.data_scopes))
+                data[name] = [dict(row) for row in (await connection.execute(statement)).mappings()]
+        return self.options_from_data(data, {member.channel_id: member}, authorized=False)
+
+    def options_from_data(
+        self,
+        data: dict[str, list[dict[str, Any]]],
+        states: dict[str, MembershipState],
+        *,
+        authorized: bool,
+    ) -> list[WorkspaceOption]:
+        """装配目录与单渠道名称共用投影，不执行查询或重新鉴权。"""
+        channels = {r["channel_id"]: r for r in data["channels"] if r["id"] == r["channel_id"]}
+        environments = {
+            (r["channel_id"], r["environment"]): r for r in data["channel_environments"]
+        }
+        grants = {
+            identifier: [
+                to_state(GrantState, r)
+                for r in data["resource_grants"]
+                if r["channel_id"] == identifier
+            ]
+            for identifier in states
         }
         result = []
         for identifier, member in states.items():

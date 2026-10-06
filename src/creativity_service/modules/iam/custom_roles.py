@@ -36,6 +36,7 @@ from creativity_service.modules.iam.roles import (
     ACTION_NAMES,
     ORDINARY_CHANNEL_ACTIONS,
     PLATFORM_ACTIONS,
+    PLATFORM_ASSIGNED_CHANNEL_ROLES,
     PLATFORM_ONLY_ACTIONS,
 )
 
@@ -119,6 +120,12 @@ class CustomRoles:
                 # 兼容角色留在渠道成员目录，平台账号角色管理只维护可分配的管理角色。
                 catalog = {
                     code: role for code, role in catalog.items() if role["account_assignable"]
+                }
+            else:
+                catalog = {
+                    code: role
+                    for code, role in catalog.items()
+                    if code not in PLATFORM_ASSIGNED_CHANNEL_ROLES
                 }
             if channel_id == "system" and "channel:govern" not in allowed:
                 catalog = {
@@ -208,9 +215,19 @@ class CustomRoles:
                 continue
             if row["kind"] == "BUTTON" and row["action_key"] not in allowed:
                 continue
-            if row["kind"] == "MENU" and not set(PAGES[row["page_key"]][2]) & allowed:
-                continue
+            if row["kind"] == "MENU":
+                page = PAGES[row["page_key"]]
+                if not compatible(page[1], scope) or not set(page[2]) & allowed:
+                    continue
             items.append(menu_view(row))
+        # 目录只承载当前作用域可选的页面和动作，过滤子项后不能留下渠道专用空目录。
+        parent_ids = {
+            parent["id"]
+            for row in items
+            if row["kind"] != "DIR"
+            for parent in ancestors(row, catalog)
+        }
+        items = [row for row in items if row["kind"] != "DIR" or row["id"] in parent_ids]
         return {
             "scope": scope,
             "scope_name": "平台" if scope == "platform" else "渠道",

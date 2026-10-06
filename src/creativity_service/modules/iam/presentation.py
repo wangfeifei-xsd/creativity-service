@@ -8,7 +8,10 @@ from creativity_service.core.primitives import Contract, ServiceError
 from creativity_service.modules.iam.authorization import require_platform
 from creativity_service.modules.iam.display import resource_names
 from creativity_service.modules.iam.repositories import role_catalog, rows
-from creativity_service.modules.iam.roles import ACTION_NAMES
+from creativity_service.modules.iam.roles import (
+    ACTION_NAMES,
+    PLATFORM_ASSIGNED_CHANNEL_ROLES,
+)
 from creativity_service.modules.iam.schemas import RoleView
 from creativity_service.modules.iam.services import IamServices
 
@@ -175,6 +178,7 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
         for code, value in catalog.items()
         if value["state"] == "ACTIVE"
         and "membership:manage" in allowed
+        and code not in PLATFORM_ASSIGNED_CHANNEL_ROLES
         and set(value["allowed_actions"]) <= allowed
     ]
     return AccessOptions(
@@ -195,7 +199,7 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
         grantee_roles=[
             NamedOption(value=k, label=v["name"])
             for k, v in catalog.items()
-            if v["state"] == "ACTIVE"
+            if v["state"] == "ACTIVE" and k not in PLATFORM_ASSIGNED_CHANNEL_ROLES
         ],
         workspaces=options,
         resources=resources,

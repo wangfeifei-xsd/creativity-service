@@ -10,11 +10,73 @@ from creativity_service.modules.channels.schemas import (
     DataScopeCreate,
     EnvironmentCreate,
 )
-from creativity_service.modules.iam.schemas import ChannelContextInput
+from creativity_service.modules.iam.schemas import AccountCreate, ChannelContextInput
 
-from .conftest import login
+from .conftest import INITIAL, login
 
 pytestmark = pytest.mark.integration
+
+
+async def test_grant_list_displays_pending_scope_without_relaxing_writes(channel_env):
+    env = channel_env
+    channel = await env.services.channels.create(
+        env.admin,
+        ChannelCreate(name="待配置授权渠道", owner="负责人", first_admin_user_id=env.user_id),
+    )
+    account = await env.iam.accounts.create(
+        env.admin,
+        AccountCreate(
+            login_name="pending-grantee",
+            display_name="待配置成员",
+            initial_password=INITIAL,
+            role="channel_admin",
+            channel_ids=[channel.channel_id],
+        ),
+    )
+    await env.services.channels.create_environment(
+        env.admin, channel.channel_id, EnvironmentCreate(environment="test", name="测试")
+    )
+    _, session = await login(env)
+    token = await env.iam.sessions.enter(
+        session,
+        ChannelContextInput(
+            channel_id=channel.channel_id,
+            environment="test",
+            data_scope_id=management_scope_id(channel.channel_id, "test"),
+        ),
+    )
+    headers = {"Authorization": "Bearer " + token.access_token}
+    path = f"/admin/v1/channels/{channel.channel_id}/resource-grants"
+    response = await env.client.get(path, headers=headers)
+    assert response.status_code == 200
+    pending = next(row for row in response.json() if row["grantee_id"] == account.user_id)
+    assert pending["grantee_name"] == "待配置成员"
+    assert pending["environments"] == pending["data_scopes"] == []
+    assert pending["environment_names"] == pending["data_scope_names"] == []
+    assert {action["action_key"] for action in pending["actions"]} == {
+        "grant:edit",
+        "grant:revoke",
+    }
+    assert all(not action["enabled"] and action["disabled_reason"] for action in pending["actions"])
+    denied = await env.client.delete(
+        path + f"/{pending['grant_id']}?revision={pending['revision']}", headers=headers
+    )
+    assert denied.status_code == 403
+    assert any(row["data_scopes"] for row in response.json())
+    invalid = await env.client.put(
+        path + "/empty-scope",
+        headers=headers,
+        json={
+            "grantee_type": "account",
+            "grantee_id": account.user_id,
+            "resource_type": "channel",
+            "resource_id": channel.channel_id,
+            "allowed_actions": ["grant:read"],
+            "environments": [],
+            "data_scopes": [],
+        },
+    )
+    assert invalid.status_code == 422
 
 
 async def test_channel_management_does_not_require_external_mapping(channel_env):
