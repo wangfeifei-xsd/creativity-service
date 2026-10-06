@@ -324,7 +324,7 @@ async def test_custom_channel_role_assigns_multiple_channels_and_changes_live(ch
         RoleSave(
             name="渠道用量观察员",
             grant_scope="channel",
-            allowed_actions=["model:manage", "run:read", "usage:read"],
+            allowed_actions=["model:manage", "run:read", "usage:read", "release:publish"],
             menu_ids=[usage_menu["id"]],
             revision=role["revision"],
         ),
@@ -333,7 +333,7 @@ async def test_custom_channel_role_assigns_multiple_channels_and_changes_live(ch
     assert [n.navigation_key for n in (await env.iam.sessions.view(manager)).navigation] == [
         "usage"
     ]
-    assert "model:manage" in await env.iam.authorization.allowed_actions(
+    assert {"model:manage", "release:publish"} <= await env.iam.authorization.allowed_actions(
         manager.context, "channel", a.channel.channel_id
     )
     role = await service.save(
@@ -447,7 +447,7 @@ async def test_account_assignment_validates_role_scope_and_delegation(channel_en
                 channel_ids=[tenant.channel.channel_id],
             ),
         )
-    for actions in (["account:manage"], ["release:publish"]):
+    for actions in (["account:manage"], ["data:read_sensitive"]):
         with pytest.raises(ServiceError):
             await service.save(
                 env.admin,

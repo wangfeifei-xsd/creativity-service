@@ -15,7 +15,7 @@ from creativity_service.modules.channels.tables import metadata as channel_metad
 from creativity_service.modules.iam.audit import append_event, audit_ranges
 from creativity_service.modules.iam.authorization import require_platform
 from creativity_service.modules.iam.repositories import TABLES, membership_id, policy_key, save
-from creativity_service.modules.iam.roles import ORDINARY_CHANNEL_ACTIONS
+from creativity_service.modules.iam.roles import CHANNEL_ROLE_ACTIONS, ORDINARY_CHANNEL_ACTIONS
 
 
 def administrator_grant_id(channel_id: str, user_id: str) -> str:
@@ -88,9 +88,11 @@ async def extend_environment_assignments(uow: UnitOfWork, environment: str) -> i
             assigned = row["grant_id"] == administrator_grant_id(channel_id, row["user_id"])
             if not first and not assigned:
                 continue
-            if (assigned and set(row["grant_actions"]) != ORDINARY_CHANNEL_ACTIONS) or not (
-                enabled - {environment}
-            ) <= set(row["grant_environments"]):
+            if (
+                assigned
+                and frozenset(row["grant_actions"])
+                not in {ORDINARY_CHANNEL_ACTIONS, CHANNEL_ROLE_ACTIONS}
+            ) or not (enabled - {environment}) <= set(row["grant_environments"]):
                 continue
             if not set(row["grant_environments"]) <= set(row["environments"]):
                 continue
@@ -299,7 +301,7 @@ async def synchronize_channels(
                 "resource_id": channel_id,
                 "environments": values["environments"],
                 # 普通授权保存资源范围与上限，不冻结角色动作；角色编辑后实时收窄或扩展。
-                "allowed_actions": sorted(ORDINARY_CHANNEL_ACTIONS),
+                "allowed_actions": sorted(CHANNEL_ROLE_ACTIONS),
             }
             if not grant or any(grant.get(k) != v for k, v in grant_values.items()):
                 await save(

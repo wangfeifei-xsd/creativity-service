@@ -34,7 +34,7 @@ from creativity_service.modules.iam.repositories import (
 )
 from creativity_service.modules.iam.roles import (
     ACTION_NAMES,
-    ORDINARY_CHANNEL_ACTIONS,
+    CHANNEL_ROLE_ACTIONS,
     PLATFORM_ACTIONS,
     PLATFORM_ASSIGNED_CHANNEL_ROLES,
     PLATFORM_ONLY_ACTIONS,
@@ -182,7 +182,7 @@ class CustomRoles:
         if scope == "platform":
             return allowed & PLATFORM_ACTIONS
         if "channel:govern" in allowed:
-            return ORDINARY_CHANNEL_ACTIONS
+            return CHANNEL_ROLE_ACTIONS
         return allowed - PLATFORM_ONLY_ACTIONS
 
     async def scope_actions(self, session: AdminSession) -> tuple[str, frozenset[str]]:
@@ -393,7 +393,7 @@ class CustomRoles:
                 require_platform(actor, "channel:govern")
             allowed = self.manageable_actions(platform_actions(actor), scope)
             requested = frozenset(body.allowed_actions)
-            ceiling = PLATFORM_ACTIONS if scope == "platform" else ORDINARY_CHANNEL_ACTIONS
+            ceiling = PLATFORM_ACTIONS if scope == "platform" else CHANNEL_ROLE_ACTIONS
             if len(requested) != len(body.allowed_actions) or not requested <= ceiling:
                 raise ServiceError("ROLE_ACTIONS_INVALID", "角色动作重复或不适用于当前作用域", 422)
             if not requested <= allowed or (old and not set(old["allowed_actions"]) <= allowed):

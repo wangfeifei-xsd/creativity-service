@@ -48,7 +48,7 @@ async def test_route_configuration_saves_without_execution_or_capability_evidenc
     assert listed.status_code == 200, listed.text
     publish = listed.json()[0]["actions"][0]
     assert publish["label"] == "发布" and not publish["enabled"]
-    assert "当前角色未获此环境的发布权限" in publish["disabled_reason"]
+    assert "尚未通过" in publish["disabled_reason"]
     with pytest.raises(ServiceError) as execution:
         await services.routing.resolve_route(manager.context, saved["version_id"])
     assert execution.value.status == 422
@@ -57,7 +57,7 @@ async def test_route_configuration_saves_without_execution_or_capability_evidenc
         await services.routing.release(
             manager, route.id, ReleaseInput(version_id=saved["version_id"])
         )
-    assert release.value.status == 403
+    assert release.value.code == "MODEL_CAPABILITY_UNSUPPORTED"
     async with env.engine.connect() as db:
         mapped = await repository(manager.context.scope, "models").get(db, model.id)
         assert mapped["capabilities"] == {} and mapped["verified_at"] is None
@@ -98,6 +98,25 @@ async def test_unverified_route_requires_capability_evidence_before_release_and_
 
 async def test_route_publish_action_explains_missing_environment_permission(channel_env):
     tenant, services, _, _, _, model = await setup(channel_env)
+    grants = metadata.tables["resource_grants"]
+    async with channel_env.engine.begin() as db:
+        rows = (
+            (
+                await db.execute(
+                    select(grants).where(grants.c.channel_id == tenant.channel.channel_id)
+                )
+            )
+            .mappings()
+            .all()
+        )
+        for row in rows:
+            await db.execute(
+                update(grants)
+                .where(grants.c.channel_id == tenant.channel.channel_id, grants.c.id == row["id"])
+                .values(
+                    allowed_actions=[a for a in row["allowed_actions"] if a != "release:publish"]
+                )
+            )
     route = await services.routing.create(
         tenant.manager, RouteInput(code="no-release", name="未获发布授权的路由")
     )
@@ -184,7 +203,7 @@ async def test_configuration_scope_publishes_without_business_mapping_or_model_e
     channel_env,
 ):
     env = channel_env
-    tenant, services, _, _, _, model = await setup(env, publish=True, configuration_only=True)
+    tenant, services, _, _, _, model = await setup(env, configuration_only=True)
     await complete(services, tenant, model)
     route = await services.routing.create(
         tenant.manager, RouteInput(code="config-release", name="渠道路由")

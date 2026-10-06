@@ -106,3 +106,5 @@ GOVERNANCE_ACTIONS = frozenset(
 # 审计动作同时用于平台和渠道，不能作为平台独占动作排除。
 PLATFORM_ONLY_ACTIONS = PLATFORM_ACTIONS - {"audit:read"}
 ORDINARY_CHANNEL_ACTIONS = frozenset(ACTION_NAMES) - PLATFORM_ONLY_ACTIONS - INDEPENDENT_ACTIONS
+# 发布可随渠道角色授予；其他独立动作继续通过显式资源授权分配。
+CHANNEL_ROLE_ACTIONS = ORDINARY_CHANNEL_ACTIONS | {"release:publish"}

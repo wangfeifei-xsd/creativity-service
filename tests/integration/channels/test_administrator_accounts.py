@@ -103,7 +103,18 @@ async def test_new_environment_reaches_all_assigned_administrators(
     )
     assert edited.status_code == 200 and edited.json()["name"] == "正式环境"
     grants_before = await env.iam.access.repository.grants(channel_id)
-    # 修复入口重复调用不增加修订，也不新授予发布、导出等独立动作。
+    for environment in ("dev", "prod"):
+        entered = await env.iam.authentication.admin_session(token.access_token, "admin-publish")
+        token = await env.iam.sessions.enter(
+            entered, ChannelContextInput(channel_id=channel_id, environment=environment)
+        )
+        entered = await env.iam.authentication.admin_session(token.access_token, "admin-publish")
+        actions = await env.iam.authorization.allowed_actions(
+            entered.context, "channel", channel_id
+        )
+        assert "release:publish" in actions
+        assert not {"data:export", "data:read_sensitive", "run:approve"} & actions
+    # 读取不改写授权，新增环境只延续角色既有动作。
     assert await env.iam.access.repository.grants(channel_id) == grants_before
 
 

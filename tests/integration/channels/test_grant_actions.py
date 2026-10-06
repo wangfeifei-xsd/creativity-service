@@ -53,7 +53,7 @@ async def test_grant_actions_match_delegation_and_writes_recheck_latest_policy(c
     body = grant_input(tenant)
     created = await access.put_grant(tenant.manager, channel_id, "manageable", body)
     assert enabled(created)
-    excessive = grant_input(tenant, resource_type="agent", allowed_actions=["release:publish"])
+    excessive = grant_input(tenant, resource_type="agent", allowed_actions=["data:export"])
     await stored_grant(env, tenant, "excessive", **excessive.model_dump(exclude={"revision"}))
     listed = {row.grant_id: row for row in await access.list_grants(tenant.manager, channel_id)}
     assert enabled(listed["manageable"])

@@ -51,7 +51,7 @@ async def test_member_actions_distinguish_edit_and_remove_and_recheck_writes(cha
         body.model_copy(update={"revision": member.revision}),
     )
     assert availability(edited) == {"member:edit": True, "member:remove": True}
-    # 其他授权人留下的独立发布权限阻止编辑激活潜在授权，但不阻止收回成员身份。
+    # 其他授权人留下的独立导出权限阻止编辑激活潜在授权，但不阻止收回成员身份。
     await stored_grant(
         env,
         tenant,
@@ -60,7 +60,7 @@ async def test_member_actions_distinguish_edit_and_remove_and_recheck_writes(cha
         grantee_id=member.user_id,
         resource_type="version",
         resource_id="*",
-        allowed_actions=["release:publish"],
+        allowed_actions=["data:export"],
         environments=["test"],
     )
     listed = {row.user_id: row for row in await access.list_members(tenant.manager, channel_id)}

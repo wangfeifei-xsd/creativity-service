@@ -13,7 +13,8 @@
     "预置 DeepSeek、千问、豆包和 OpenAI（ChatGPT）的无凭据连接模板，具体模型能力仍需按渠道验证。",
     "预置寻弈乐竞渠道，负责人为小苏打；首位管理员复用 admin，仅登记空范围，不预设环境、外部映射或接入凭据。",
     "预置平台并发上限 20，导入时立即生效；各初始化业务渠道并发硬上限 5，附同渠道冻结策略版本，不复制运行占用和用量。",
-    "预置寻弈乐竞开发环境 DeepSeek V4 Flash 模型、连接、冻结依赖及密文凭据；不复制验证结果、运行、用量、解密主密钥或本机出站地址。"
+    "预置寻弈乐竞开发环境 DeepSeek V4 Flash 模型、连接、冻结依赖及密文凭据；不复制验证结果、运行、用量、解密主密钥或本机出站地址。",
+    "渠道管理员默认具备已授权渠道环境的正式发布权限；首位管理员的初始资源授权同步包含发布，不授予其他独立动作。"
   ],
   "tables": {
     "channels": [
@@ -1503,6 +1504,7 @@
           "recovery:block",
           "recovery:complete",
           "recovery:initialize",
+          "release:publish",
           "report:read",
           "run:content",
           "run:create",
@@ -1557,6 +1559,7 @@
           "button_recovery_block",
           "button_recovery_complete",
           "button_recovery_initialize",
+          "button_release_publish",
           "button_report_read",
           "button_run_content",
           "button_run_create",
@@ -1743,6 +1746,7 @@
           "recovery:block",
           "recovery:complete",
           "recovery:initialize",
+          "release:publish",
           "report:read",
           "run:content",
           "run:create",

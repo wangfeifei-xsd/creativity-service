@@ -186,7 +186,7 @@ async def test_concurrent_members_and_grants_accept_once_and_revision_conflicts(
 
 async def test_scope_escalation_and_foreign_resources_are_rejected(iam_env, admin, manager):
     iam = iam_env[0]
-    for action in ("release:publish", "data:read_sensitive", "data:export"):
+    for action in ("run:approve", "data:read_sensitive", "data:export"):
         with pytest.raises(ServiceError) as exc:
             await iam.access.put_grant(
                 manager[1],
@@ -222,7 +222,7 @@ async def test_scope_escalation_and_foreign_resources_are_rejected(iam_env, admi
 async def test_latent_role_grant_cannot_be_activated_by_member_edit(iam_env, admin, manager):
     iam, _, _, engine, _ = iam_env
     account, _ = await create_user(iam, admin[1])
-    # 夹具模拟另一个合法授权人以前给 builder 角色授予过独立发布权限。
+    # 夹具模拟另一个合法授权人以前给 builder 角色授予过独立审批权限。
     grant_id = new_id("grant")
     scope = Scope(channel_id="channel_a", environment="prod")
     async with transaction(
@@ -239,7 +239,7 @@ async def test_latent_role_grant_cannot_be_activated_by_member_edit(iam_env, adm
                 grantee_id="builder",
                 resource_type="version",
                 resource_id="version_a",
-                allowed_actions=["release:publish"],
+                allowed_actions=["run:approve"],
                 environments=["prod"],
             ),
         )

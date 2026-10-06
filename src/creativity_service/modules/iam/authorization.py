@@ -15,7 +15,7 @@ from creativity_service.core.auth.types import (
     SubjectAuthorityReader,
 )
 from creativity_service.core.context import AuthContext
-from creativity_service.core.primitives import ServiceError, unavailable, utcnow
+from creativity_service.core.primitives import ServiceError, digest, unavailable, utcnow
 from creativity_service.modules.iam.roles import INDEPENDENT_ACTIONS
 
 SENSITIVE_ACTIONS = frozenset(
@@ -54,6 +54,10 @@ def effective_actions(
 ) -> frozenset[str]:
     if not member.roles or member.status != "ACTIVE" or environment not in member.environments:
         return frozenset()
+    automatic_grants = {
+        "initial_" + member.id,
+        "administrator_" + digest([member.channel_id, member.user_id])[:40],
+    }
     allowed = frozenset(
         action
         for grant in grants
@@ -61,6 +65,10 @@ def effective_actions(
         and environment in grant.environments
         and resource_covers(grant, member.channel_id, resource_type, resource_id)
         for action in grant.allowed_actions
+        # 自动分配的发布权受当前角色约束；独立资源授权继续按显式授权生效。
+        if action != "release:publish"
+        or grant.id not in automatic_grants
+        or action in member.custom_actions
     )
     return allowed & (member.custom_actions | INDEPENDENT_ACTIONS)
 

@@ -1,5 +1,5 @@
 -- Creativity 表结构初始化归档，适用于 PostgreSQL 17 空库或空 schema。
--- 模型版本：2.0.0；配套数据归档迁移基线：0041_channel_environments。
+-- 模型版本：2.0.0；配套数据归档迁移基线：0042_channel_admin_publish。
 -- 初始建库基线：alembic/versions/0001_initial.py；后续修订在其上追加。
 -- 包含 110 张表、1611 个字段、246 个普通索引及全部中文注释。
 -- 本文件不写初始化数据；完成后必须执行 sql/init_data.sql，再启动服务或迁移。
