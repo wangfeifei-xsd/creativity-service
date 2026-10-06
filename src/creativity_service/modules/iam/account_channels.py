@@ -11,6 +11,7 @@ from creativity_service.core.context import Scope
 from creativity_service.core.database import UnitOfWork
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import ServiceError, digest
+from creativity_service.modules.channels.repositories import management_scope_id
 from creativity_service.modules.channels.tables import metadata as channel_metadata
 from creativity_service.modules.iam.audit import append_event, audit_ranges
 from creativity_service.modules.iam.authorization import require_platform
@@ -132,29 +133,35 @@ async def synchronize_channels(
     }
     environments = channel_metadata.tables["channel_environments"]
     domains = channel_metadata.tables["data_scopes"]
-    pairs_by_channel: dict[str, list[Any]] = {}
+    pairs_by_channel: dict[str, set[tuple[str, str]]] = {}
     pairs = (
         await root.connection.execute(
-            select(domains.c.channel_id, domains.c.environment, domains.c.id)
+            select(environments.c.channel_id, environments.c.environment, domains.c.id)
             .select_from(
-                domains.join(
-                    environments,
+                environments.outerjoin(
+                    domains,
                     and_(
                         environments.c.channel_id == domains.c.channel_id,
                         environments.c.environment == domains.c.environment,
+                        domains.c.status == "ACTIVE",
                     ),
                 )
             )
             .where(
-                domains.c.channel_id.in_(selected),
-                domains.c.status == "ACTIVE",
+                environments.c.channel_id.in_(selected),
                 environments.c.status == "ACTIVE",
             )
-            .order_by(domains.c.channel_id, domains.c.environment, domains.c.id)
+            .order_by(environments.c.channel_id, environments.c.environment, domains.c.id)
         )
     ).all()
     for pair in pairs:
-        pairs_by_channel.setdefault(pair.channel_id, []).append(pair)
+        channel_pairs = pairs_by_channel.setdefault(pair.channel_id, set())
+        # 账号分配覆盖启用环境的管理范围；外部映射缺失不能吞掉渠道管理授权。
+        channel_pairs.add(
+            (pair.environment, management_scope_id(pair.channel_id, pair.environment))
+        )
+        if pair.id is not None:
+            channel_pairs.add((pair.environment, pair.id))
     grants = TABLES["resource_grants"]
     loaded_grants = {
         row["channel_id"]: dict(row)
@@ -190,13 +197,13 @@ async def synchronize_channels(
             channel = states.get(channel_id)
             if channel not in {"ACTIVE", "SUSPENDED"}:
                 raise ServiceError("CHANNEL_UNAVAILABLE", "授权渠道不存在或已归档", 422)
-            channel_pairs = pairs_by_channel.get(channel_id, [])
-            # 分步开通的渠道可先授权管理员；空范围只表示待配置，不能签发业务身份。
+            channel_pairs = pairs_by_channel.get(channel_id, set())
+            # 尚无启用环境时可先登记渠道；管理范围不能签发外部业务身份。
             values = {
                 "user_id": user_id,
                 "roles": [role["id"] for role in channel_roles],
-                "environments": sorted({r.environment for r in channel_pairs}),
-                "data_scopes": sorted({r.id for r in channel_pairs}),
+                "environments": sorted({environment for environment, _ in channel_pairs}),
+                "data_scopes": sorted({scope_id for _, scope_id in channel_pairs}),
                 "status": "ACTIVE",
                 "granted_by": actor.id,
             }

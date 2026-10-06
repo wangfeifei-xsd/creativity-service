@@ -5,7 +5,12 @@ import asyncio
 import pytest
 
 from creativity_service.core.primitives import ServiceError, new_id
-from creativity_service.modules.channels.schemas import ChannelCreate
+from creativity_service.modules.channels.repositories import management_scope_id
+from creativity_service.modules.channels.schemas import (
+    ChannelCreate,
+    EnvironmentCreate,
+    EnvironmentUpdate,
+)
 from creativity_service.modules.iam.repositories import rows
 from creativity_service.modules.iam.schemas import (
     AccountCreate,
@@ -324,6 +329,76 @@ async def test_pending_channel_assignment_never_creates_unscoped_access(channel_
         )[0]
     assert member["environments"] == [] and member["data_scopes"] == []
     assert grant["environments"] == [] and grant["data_scopes"] == []
+
+
+@pytest.mark.parametrize("pending_assignment", [False, True])
+async def test_account_assignment_grants_management_without_external_scopes(
+    channel_env, pending_assignment
+):
+    env = channel_env
+    channel = await env.services.channels.create(
+        env.admin,
+        ChannelCreate(name="尚未接入业务渠道", owner="负责人", first_admin_user_id=env.user_id),
+    )
+    account = None
+    body = AccountCreate(
+        login_name="management-only-admin",
+        display_name="渠道管理员",
+        initial_password=INITIAL,
+        role="channel_admin",
+        channel_ids=[channel.channel_id],
+    )
+    if pending_assignment:
+        account = await env.iam.accounts.create(env.admin, body)
+    await env.services.channels.create_environment(
+        env.admin, channel.channel_id, EnvironmentCreate(environment="test", name="测试")
+    )
+    disabled = await env.services.channels.create_environment(
+        env.admin, channel.channel_id, EnvironmentCreate(environment="prod", name="生产")
+    )
+    await env.services.channels.update_environment(
+        env.admin,
+        channel.channel_id,
+        "prod",
+        EnvironmentUpdate(revision=disabled.revision, status="DISABLED"),
+    )
+    if account:
+        # 已有空范围账号重新保存授权时也必须修复，不能只覆盖新建账号。
+        account = await env.iam.accounts.update(
+            env.admin,
+            account.user_id,
+            AccountUpdate(
+                revision=account.revision, role="channel_admin", channel_ids=[channel.channel_id]
+            ),
+        )
+    else:
+        account = await env.iam.accounts.create(env.admin, body)
+    _, session = await activate(env, account)
+    view = await env.iam.sessions.view(session)
+    assert not view.can_access_platform
+    assert len(view.workspace_options) == 1
+    workspace = view.default_workspace
+    assert workspace is not None and workspace.channel_id == channel.channel_id
+    assert workspace.environment == "test"
+    assert workspace.data_scope_id == management_scope_id(channel.channel_id, "test")
+    token = await env.iam.sessions.enter(
+        session,
+        ChannelContextInput(
+            **workspace.model_dump(include={"channel_id", "environment", "data_scope_id"})
+        ),
+    )
+    headers = {"Authorization": "Bearer " + token.access_token}
+    response = await env.client.get("/admin/v1/channels/page", headers=headers)
+    assert response.status_code == 200
+    assert [item["channel_id"] for item in response.json()["items"]] == [channel.channel_id]
+    prefix = f"/admin/v1/channels/{channel.channel_id}"
+    assert (await env.client.get(prefix + "/data-scopes", headers=headers)).json() == []
+    assert (await env.client.get(prefix + "/environments", headers=headers)).status_code == 200
+    assert (await env.client.get("/admin/v1/accounts/page", headers=headers)).status_code == 403
+    manager = await env.iam.authentication.admin_session(token.access_token, new_id("request"))
+    with pytest.raises(ServiceError) as denied:
+        await env.iam.authorization.require(manager.context, "run:create", "new")
+    assert denied.value.status == 403
 
 
 async def test_channel_multiselect_does_not_leave_hidden_legacy_memberships(channel_env):
