@@ -4161,6 +4161,40 @@
         "title": "CaseResult",
         "type": "object"
       },
+      "ChannelConfigurationStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "completed": {
+            "title": "Completed",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "completed",
+          "message",
+          "path"
+        ],
+        "title": "ChannelConfigurationStatus",
+        "type": "object"
+      },
       "ChannelContextInput": {
         "additionalProperties": false,
         "properties": {
@@ -4321,6 +4355,13 @@
           },
           "channel": {
             "$ref": "#/components/schemas/ChannelView"
+          },
+          "data_scope_types": {
+            "items": {
+              "$ref": "#/components/schemas/NamedOption"
+            },
+            "title": "Data Scope Types",
+            "type": "array"
           },
           "pending_administrator": {
             "anyOf": [
@@ -4539,6 +4580,13 @@
           "channel_id": {
             "title": "Channel Id",
             "type": "string"
+          },
+          "configuration_status": {
+            "items": {
+              "$ref": "#/components/schemas/ChannelConfigurationStatus"
+            },
+            "title": "Configuration Status",
+            "type": "array"
           },
           "created_at": {
             "format": "date-time",

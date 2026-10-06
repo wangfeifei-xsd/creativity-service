@@ -124,6 +124,14 @@ class TokenExchange(Contract):
     api_key: SecretStr = Field(min_length=1, max_length=512)
 
 
+class ChannelConfigurationStatus(Contract):
+    key: str
+    label: str
+    completed: bool
+    message: str
+    path: str
+
+
 class ChannelView(Contract):
     channel_id: str
     channel_code: str
@@ -136,6 +144,7 @@ class ChannelView(Contract):
     retention_policy: RetentionPolicy
     revision: int
     actions: list[VisibleAction]
+    configuration_status: list[ChannelConfigurationStatus] = Field(default_factory=list)
 
 
 class EnvironmentView(Contract):

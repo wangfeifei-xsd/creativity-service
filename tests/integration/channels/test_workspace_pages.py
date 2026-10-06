@@ -36,6 +36,13 @@ async def test_chn_page_options_and_platform_return(channel_env, channel):
     governance = await env.client.get(path + "/page", headers=platform)
     assert "key:create" not in {a["action_key"] for a in governance.json()["actions"]}
     assert "key:revoke" in {a["action_key"] for a in governance.json()["actions"]}
+    assert governance.json()["data_scope_types"] == [
+        {"value": "workspace", "label": "工作区（workspace）"},
+        {"value": "organization", "label": "组织（organization）"},
+        {"value": "department", "label": "部门（department）"},
+        {"value": "project", "label": "项目（project）"},
+        {"value": "default", "label": "默认业务域（default）"},
+    ]
 
 
 async def test_initial_password_and_creation_options_require_server_authority(channel_env):

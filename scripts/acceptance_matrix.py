@@ -22,6 +22,7 @@ CHN-F17 = test_client_permission_shrink_affects_existing_token test_rotation_kee
 CHN-A02 IAM-F03 IAM-A02 INT-F02 INT-A02 GLO-A20 = test_no_context_override_or_direct_key_bearer test_untrusted_claims_are_rejected test_model_identity_override_is_blocked_before_business_dispatch
 CHN-A04 RUN-F16 RUN-A01 = test_concurrent_first_admission_and_key_rotation test_delegation_retry_keeps_one_run_across_api_key_rotation test_checkpoint_dedup_recovery_and_stale_lease
 CHN-A10 IAM-F09 IAM-A14 = test_switch_is_atomic_single_winner_and_preserves_old_run_scope test_workspace_atomic_switch_failure_and_session_indexes test_two_account_roles_multichannel_default_and_revocation
+CHN-A17 = test_configuration_status_checks_active_dependencies_and_key_expiration test_configuration_queries_are_constant_and_only_aggregate_current_page test_configuration_key_requires_usable_service_and_capability_intersection test_configuration_status_does_not_expose_other_channels_or_environments
 IAM-F02 IAM-A07 = test_concurrent_members_and_grants_accept_once_and_revision_conflicts test_membership_removal_is_channel_local_and_stops_worker test_scope_escalation_and_foreign_resources_are_rejected test_multichannel_validation_and_revision_conflict_roll_back_all_channels
 IAM-F04 = test_http_delegation_and_anonymous_boundary test_sensitive_ephemeral_and_unverified_facts_rejected
 IAM-F06 IAM-A04 = test_builder_can_edit_but_not_publish_self_grant_or_cross_scope test_agt_a01_tool_scopes_cannot_expand_caller_authorization
@@ -199,6 +200,7 @@ DEFERRED = {
     "TOL-A06": "源业务写工具及写入状态查询为 P1。",
 }
 PARTIAL = {
+    "CHN-A17": "集成用例覆盖状态、关联有效性、分页和授权隔离；红绿呈现、窄屏及快捷跳转另执行前端 tests/channels.spec.ts，不从后端通过推断页面验收。",
     "CHN-A03": "仅验收属性、会话和缓存；向量检索后续阶段。",
     "MEM-A08": "仅验收属性、清空和工作区隔离；向量召回后续阶段。",
     "MEM-F06": "仅验收属性检索；向量检索后续阶段。",

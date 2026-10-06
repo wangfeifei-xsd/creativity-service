@@ -14,6 +14,10 @@ from creativity_service.core.deletion import RecoveryService
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import Contract, ServiceError, new_id, unavailable, utcnow
 from creativity_service.modules.channels.codes import channel_code
+from creativity_service.modules.channels.configuration import (
+    configuration_counts,
+    configuration_status,
+)
 from creativity_service.modules.channels.initialization import system_channel_values
 from creativity_service.modules.channels.ports import ResourceReferenceReader, UsageReader
 from creativity_service.modules.channels.reading import ChannelReadData
@@ -43,6 +47,7 @@ from creativity_service.modules.channels.schemas import (
     UsageQuery,
     UsageView,
 )
+from creativity_service.modules.channels.scope_types import DATA_SCOPE_TYPE_NAMES
 from creativity_service.modules.iam.access import ENVIRONMENT_NAMES
 from creativity_service.modules.iam.accounts import current_actor
 from creativity_service.modules.iam.audit import append_event
@@ -552,8 +557,42 @@ class ChannelService:
         ):
             raise ServiceError("VALIDATION_ERROR", "分页或状态条件不正确", 422)
         if isinstance(session.context, AuthContext):
-            row = await self.detail(session, session.context.scope.channel_id)
-            matched = (not search or search in row.name) and (not status or row.status == status)
+            scope = session.context.scope
+            member = await self.iam.authentication.active_member(
+                session.context, account=session.account
+            )
+            grants = await self.iam.authentication.identities.grants(scope.channel_id)
+            allowed = set(
+                effective_actions(
+                    member,
+                    grants,
+                    scope.environment,
+                    scope.data_scope_id or "",
+                    "channel",
+                    scope.channel_id,
+                )
+            )
+            if "channel:manage" not in allowed:
+                raise ServiceError("FORBIDDEN", "无权查看渠道", 403)
+            async with self.repository.engine.connect() as connection:
+                stored = await required(
+                    connection, "channels", scope.channel_id, id=scope.channel_id
+                )
+                row = self.channel_view(stored, session, allowed)
+                matched = (not search or search in row.name) and (
+                    not status or row.status == status
+                )
+                if matched and offset == 0:
+                    counts = await configuration_counts(
+                        connection, [scope.channel_id], scope=scope, member=member, grants=grants
+                    )
+                    row = row.model_copy(
+                        update={
+                            "configuration_status": configuration_status(
+                                scope.channel_id, counts[scope.channel_id], allowed
+                            )
+                        }
+                    )
             return DirectoryPage(
                 items=[row] if matched and offset == 0 else [],
                 total=int(matched),
@@ -565,8 +604,23 @@ class ChannelService:
             result, total = await self.repository.directory_page(
                 connection, limit, offset, search, status
             )
+            counts = await configuration_counts(connection, [row["id"] for row in result])
+        items = []
+        for stored in result:
+            item = self.channel_view(stored, session)
+            items.append(
+                item.model_copy(
+                    update={
+                        "configuration_status": configuration_status(
+                            item.channel_id,
+                            counts[item.channel_id],
+                            {action.action_key for action in item.actions},
+                        )
+                    }
+                )
+            )
         return DirectoryPage(
-            items=[self.channel_view(r, session) for r in result],
+            items=items,
             total=total,
             offset=offset,
             limit=limit,
@@ -698,9 +752,7 @@ class ChannelService:
         return DataScopeView(
             data_scope_id=row["id"],
             environment_name=env["name"] if env else None,
-            external_scope_type_name={"club": "俱乐部", "default": "默认业务域"}.get(
-                row["external_scope_type"]
-            ),
+            external_scope_type_name=DATA_SCOPE_TYPE_NAMES.get(row["external_scope_type"]),
             status_label=STATUS_LABELS[row["status"]],
             **{
                 k: row[k]

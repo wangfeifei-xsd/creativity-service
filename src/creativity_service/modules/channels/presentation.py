@@ -1,10 +1,16 @@
 """渠道页面入口、操作和字段选项的服务端组装。"""
 
+from pydantic import Field
+
 from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import NavigationItem, VisibleAction
 from creativity_service.core.primitives import Contract
 from creativity_service.modules.channels.schemas import ChannelView
+from creativity_service.modules.channels.scope_types import (
+    DATA_SCOPE_TYPE_NAMES,
+    SUGGESTED_DATA_SCOPE_TYPES,
+)
 from creativity_service.modules.channels.services import SERVICE_ACTIONS, ChannelService
 from creativity_service.modules.iam.authorization import effective_actions
 from creativity_service.modules.iam.presentation import NamedOption, account_options
@@ -22,6 +28,7 @@ class ChannelPage(Contract):
     tabs: list[NavigationItem]
     actions: list[VisibleAction]
     service_actions: list[VisibleAction]
+    data_scope_types: list[NamedOption] = Field(default_factory=list)
     pending_administrator: NamedOption | None = None
 
 
@@ -91,6 +98,10 @@ async def page_view(service: ChannelService, session: AdminSession, channel_id: 
         channel=channel,
         actions=actions,
         pending_administrator=pending_administrator,
+        data_scope_types=[
+            NamedOption(value=value, label=f"{DATA_SCOPE_TYPE_NAMES[value]}（{value}）")
+            for value in SUGGESTED_DATA_SCOPE_TYPES
+        ],
         tabs=[
             NavigationItem(navigation_key=k, label=v)
             for k, v, required in (

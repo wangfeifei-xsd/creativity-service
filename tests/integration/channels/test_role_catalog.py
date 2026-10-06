@@ -6,6 +6,11 @@ from creativity_service.core.context import ControlScope
 from creativity_service.core.database import transaction
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError
+from creativity_service.modules.channels.schemas import (
+    ChannelCreate,
+    DataScopeCreate,
+    EnvironmentCreate,
+)
 from creativity_service.modules.iam.custom_roles import CustomRoles, RoleSave
 from creativity_service.modules.iam.repositories import policy_key, rows, save
 from creativity_service.modules.iam.schemas import (
@@ -14,11 +19,83 @@ from creativity_service.modules.iam.schemas import (
     ChannelContextInput,
     PasswordReset,
 )
-from tests.integration.channels.test_administrator_accounts import activate
+from tests.integration.channels.test_administrator_accounts import activate, login_user
 
 from .conftest import INITIAL, provision
 
 pytestmark = pytest.mark.integration
+
+
+async def test_mixed_roles_require_configured_and_authorized_channel_range(channel_env):
+    env = channel_env
+    chosen = ["platform_admin", "channel_admin"]
+    account = await env.iam.accounts.create(
+        env.admin,
+        AccountCreate(
+            login_name="pending-multi-role",
+            display_name="待配置的多角色账号",
+            initial_password=INITIAL,
+            roles=chosen,
+        ),
+    )
+    channel = await env.services.channels.create(
+        env.admin,
+        ChannelCreate(name="待配置渠道", owner="负责人", first_admin_user_id=account.user_id),
+    )
+    account = await env.iam.accounts.update(
+        env.admin,
+        account.user_id,
+        AccountUpdate(revision=account.revision, roles=chosen, channel_ids=[channel.channel_id]),
+    )
+    assert account.roles == chosen and account.channel_ids == [channel.channel_id]
+    _, session = await activate(env, account)
+    view = await env.iam.sessions.view(session)
+    assert view.can_access_platform and view.workspace is None
+    assert view.workspace_options == [] and view.default_workspace is None
+    with pytest.raises(ServiceError) as missing:
+        await env.iam.sessions.enter(
+            session,
+            ChannelContextInput(
+                channel_id=channel.channel_id, environment="test", data_scope_id="missing"
+            ),
+        )
+    assert missing.value.status == 404
+    await env.services.channels.create_environment(
+        env.admin, channel.channel_id, EnvironmentCreate(environment="test", name="测试")
+    )
+    assert (await env.iam.sessions.view(session)).workspace_options == []
+    domain = await env.services.channels.create_data_scope(
+        env.admin,
+        channel.channel_id,
+        DataScopeCreate(
+            name="业务数据域",
+            environment="test",
+            external_scope_type="org",
+            external_scope_id="001",
+            administrator_id=account.user_id,
+        ),
+    )
+    _, session = await login_user(env, account)
+    view = await env.iam.sessions.view(session)
+    assert view.can_access_platform and view.default_workspace is None
+    assert len(view.workspace_options) == 1
+    option = view.workspace_options[0]
+    assert (option.channel_id, option.environment, option.data_scope_id) == (
+        channel.channel_id,
+        "test",
+        domain.data_scope_id,
+    )
+    token = await env.iam.sessions.enter(
+        session,
+        ChannelContextInput(
+            **option.model_dump(include={"channel_id", "environment", "data_scope_id"})
+        ),
+    )
+    manager = await env.iam.authentication.admin_session(
+        token.access_token, "configured-multi-role"
+    )
+    active = await env.iam.sessions.view(manager)
+    assert active.workspace == option and active.can_access_platform
 
 
 async def test_account_can_select_platform_and_multiple_channel_roles(channel_env):
@@ -56,6 +133,34 @@ async def test_account_can_select_platform_and_multiple_channel_roles(channel_en
     view = await env.iam.sessions.view(session)
     assert view.can_access_platform and view.default_workspace is None
     assert {option.channel_id for option in view.workspace_options} == set(account.channel_ids)
+    for channel in (a, b):
+        previous = token
+        token = await env.iam.sessions.enter(
+            session,
+            ChannelContextInput(
+                channel_id=channel.channel.channel_id,
+                environment="test",
+                data_scope_id=channel.domain.data_scope_id,
+            ),
+        )
+        session = await env.iam.authentication.admin_session(
+            token.access_token, "multi-role-channel"
+        )
+        view = await env.iam.sessions.view(session)
+        assert view.workspace.channel_id == channel.channel.channel_id
+        assert view.can_access_platform and view.default_workspace is None
+        with pytest.raises(ServiceError) as replaced:
+            await env.iam.authentication.admin_session(previous.access_token, "replaced-multi-role")
+        assert replaced.value.status == 401
+    previous = token
+    token = await env.iam.sessions.enter_platform(session)
+    session = await env.iam.authentication.admin_session(token.access_token, "multi-role-platform")
+    view = await env.iam.sessions.view(session)
+    assert view.workspace is None and view.can_access_platform
+    assert view.default_workspace is None
+    with pytest.raises(ServiceError) as replaced:
+        await env.iam.authentication.admin_session(previous.access_token, "replaced-channel")
+    assert replaced.value.status == 401
     assert (
         next(role for role in await roles.list(env.admin) if role["id"] == observer["id"])[
             "member_count"
