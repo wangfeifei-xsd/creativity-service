@@ -6,6 +6,7 @@ from creativity_service.core.context import ControlScope
 from creativity_service.core.database import transaction
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError
+from creativity_service.modules.channels.repositories import management_scope_id
 from creativity_service.modules.channels.schemas import (
     ChannelCreate,
     DataScopeCreate,
@@ -63,7 +64,9 @@ async def test_mixed_roles_require_configured_and_authorized_channel_range(chann
     await env.services.channels.create_environment(
         env.admin, channel.channel_id, EnvironmentCreate(environment="test", name="测试")
     )
-    assert (await env.iam.sessions.view(session)).workspace_options == []
+    assert [
+        option.data_scope_id for option in (await env.iam.sessions.view(session)).workspace_options
+    ] == [management_scope_id(channel.channel_id, "test")]
     domain = await env.services.channels.create_data_scope(
         env.admin,
         channel.channel_id,
@@ -78,8 +81,13 @@ async def test_mixed_roles_require_configured_and_authorized_channel_range(chann
     _, session = await login_user(env, account)
     view = await env.iam.sessions.view(session)
     assert view.can_access_platform and view.default_workspace is None
-    assert len(view.workspace_options) == 1
-    option = view.workspace_options[0]
+    assert {option.data_scope_id for option in view.workspace_options} == {
+        management_scope_id(channel.channel_id, "test"),
+        domain.data_scope_id,
+    }
+    option = next(
+        option for option in view.workspace_options if option.data_scope_id == domain.data_scope_id
+    )
     assert (option.channel_id, option.environment, option.data_scope_id) == (
         channel.channel_id,
         "test",

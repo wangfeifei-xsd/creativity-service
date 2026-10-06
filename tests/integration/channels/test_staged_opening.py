@@ -6,6 +6,7 @@ import pytest
 
 from creativity_service.core.primitives import ServiceError, new_id
 from creativity_service.modules.channels.presentation import page_view
+from creativity_service.modules.channels.repositories import management_scope_id
 from creativity_service.modules.channels.schemas import (
     ChannelCreate,
     DataScopeCreate,
@@ -56,7 +57,10 @@ async def test_staged_channel_no_fake_mapping_and_first_scope_activates_exact_gr
     await env.services.channels.create_environment(
         env.admin, channel_id, EnvironmentCreate(environment="test", name="测试")
     )
-    assert await env.iam.sessions.channels(env.admin) == []
+    manage_id = management_scope_id(channel_id, "test")
+    assert [item.data_scope_id for item in await env.iam.sessions.channels(env.admin)] == [
+        manage_id
+    ]
     body = DataScopeCreate(
         name="研发资料",
         environment="test",
@@ -77,7 +81,7 @@ async def test_staged_channel_no_fake_mapping_and_first_scope_activates_exact_gr
     member = await env.iam.access.repository.membership(channel_id, env.user_id)
     grants = await env.iam.access.repository.grants(channel_id)
     assert member.environments == ["test"]
-    assert member.data_scopes == [scope.data_scope_id]
+    assert set(member.data_scopes) == {manage_id, scope.data_scope_id}
     assert {"run:approve", "data:export"} <= effective_actions(
         member, grants, "test", scope.data_scope_id, "channel", channel_id
     )
@@ -94,7 +98,12 @@ async def test_staged_channel_no_fake_mapping_and_first_scope_activates_exact_gr
         channel_id,
         body.model_copy(update={"external_scope_id": "002/乙", "administrator_id": None}),
     )
-    assert len(await env.iam.access.directory.list_for(env.user_id)) == 1
+    assert {
+        item.data_scope_id for item in await env.iam.access.directory.list_for(env.user_id)
+    } == {
+        manage_id,
+        scope.data_scope_id,
+    }
     assert (
         effective_actions(member, grants, "test", other.data_scope_id, "channel", channel_id)
         == set()
@@ -165,7 +174,8 @@ async def test_first_scope_grant_failure_rolls_back_mapping_and_pending_authoriz
         await env.services.channels.create_data_scope(env.admin, channel.channel_id, body)
     assert await env.services.channels.data_scopes(env.admin, channel.channel_id) == []
     member = await env.iam.access.repository.membership(channel.channel_id, env.user_id)
-    assert member.environments == member.data_scopes == []
+    assert member.environments == ["test"]
+    assert member.data_scopes == [management_scope_id(channel.channel_id, "test")]
     monkeypatch.setattr(env.iam.access, "provision_workspace", original)
     await env.services.channels.create_data_scope(env.admin, channel.channel_id, body)
 
@@ -194,7 +204,10 @@ async def test_concurrent_first_scopes_preserve_initial_actions_in_only_one_scop
     )
     member = await env.iam.access.repository.membership(channel.channel_id, env.user_id)
     grants = await env.iam.access.repository.grants(channel.channel_id)
-    assert set(member.data_scopes) == {scope.data_scope_id for scope in scopes}
+    assert set(member.data_scopes) == {
+        management_scope_id(channel.channel_id, "test"),
+        *(scope.data_scope_id for scope in scopes),
+    }
     assert (
         sum(
             "run:approve"
@@ -209,4 +222,5 @@ async def test_concurrent_first_scopes_preserve_initial_actions_in_only_one_scop
         initial = await one(
             connection, "resource_grants", channel.channel_id, id="initial_" + member.id
         )
-        assert len(initial["data_scopes"]) == 1
+        assert len(initial["data_scopes"]) == 2
+        assert management_scope_id(channel.channel_id, "test") in initial["data_scopes"]

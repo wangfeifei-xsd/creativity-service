@@ -16,7 +16,27 @@ from creativity_service.core.auth.types import (
 )
 from creativity_service.core.context import AuthContext
 from creativity_service.core.primitives import ServiceError, unavailable, utcnow
-from creativity_service.modules.iam.roles import INDEPENDENT_ACTIONS
+from creativity_service.modules.iam.roles import GOVERNANCE_ACTIONS, INDEPENDENT_ACTIONS
+
+MANAGEMENT_SCOPE_ACTIONS = GOVERNANCE_ACTIONS | frozenset(
+    {
+        "model:manage",
+        "agent:manage",
+        "prompt:manage",
+        "tool:manage",
+        "integration:manage",
+        "mcp:manage",
+        "skill:manage",
+        "version:edit",
+        "version:freeze",
+        "version:read",
+        "budget:manage",
+        "audit:read",
+        "usage:read",
+        "credential:write",
+        "credential:use",
+    }
+)
 
 SENSITIVE_ACTIONS = frozenset(
     {
@@ -71,7 +91,9 @@ def effective_actions(
         and resource_covers(grant, member.channel_id, resource_type, resource_id)
         for action in grant.allowed_actions
     )
-    return allowed & (member.custom_actions | INDEPENDENT_ACTIONS)
+    result = allowed & (member.custom_actions | INDEPENDENT_ACTIONS)
+    # 管理工作区不是外部业务数据域，不能借此执行、读取或导出业务数据。
+    return result & MANAGEMENT_SCOPE_ACTIONS if data_scope_id.startswith("manage_") else result
 
 
 def action_allowed(actions: frozenset[str], action: str) -> bool:

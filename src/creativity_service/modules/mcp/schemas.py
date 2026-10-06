@@ -85,7 +85,7 @@ class RemoteTool(Contract):
     output_schema: dict[str, Any] | None = None
     annotations: dict[str, Any] = Field(default_factory=dict)
     schema_hash: str
-    purpose: Literal["business", "subject_review"] = "business"
+    purpose: Literal["business", "subject_review", "data_scope_directory"] = "business"
 
 
 class McpDiscovery(Contract):
@@ -94,6 +94,23 @@ class McpDiscovery(Contract):
     negotiated_version: str
     tools: list[RemoteTool]
     discovered_at: AwareDatetime
+
+
+class DataScopeSource(Contract):
+    connection_id: Identifier
+    remote_tool_name: str
+    label: str
+
+
+class DataScopeDirectoryItem(Contract):
+    name: str = Field(min_length=1, max_length=128)
+    type: str = Field(min_length=1, max_length=64)
+    id: str = Field(min_length=1, max_length=128)
+
+
+class DataScopeDirectory(Contract):
+    items: list[DataScopeDirectoryItem] = Field(max_length=200)
+    source_revision: Revision | None = None
 
 
 class McpDifference(Contract):

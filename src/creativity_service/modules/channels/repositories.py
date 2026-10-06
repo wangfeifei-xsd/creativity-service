@@ -22,6 +22,11 @@ def environment_id(channel_id: str, environment: str) -> str:
     return "env_" + digest([channel_id, environment])[:40]
 
 
+def management_scope_id(channel_id: str, environment: str) -> str:
+    """管理工作区不创建或冒充外部数据域映射。"""
+    return "manage_" + digest([channel_id, environment])[:40]
+
+
 def mapping_key(channel_id: str, environment: str, kind: str, external_id: str) -> ResourceKey:
     return ResourceKey(channel_id, "data-scope-mapping", (environment, kind, external_id))
 
@@ -67,7 +72,9 @@ def _scope_statement() -> Select[Any]:
     )
 
 
-async def scope_rows(connection: AsyncConnection, scope: Scope) -> dict[str, dict[str, Any]]:
+async def scope_rows(
+    connection: AsyncConnection, scope: Scope, *, management: bool = False
+) -> dict[str, dict[str, Any]]:
     """关联读取渠道、环境和域；保留缺失及重复检查，状态由调用服务判断。"""
     found = (
         (
@@ -92,7 +99,10 @@ async def scope_rows(connection: AsyncConnection, scope: Scope) -> dict[str, dic
         if found and found[0][table.c.id] is not None
     }
     required_names = {"channels", "channel_environments"}
-    if scope.data_scope_id:
+    if scope.data_scope_id and not (
+        management
+        and scope.data_scope_id == management_scope_id(scope.channel_id, scope.environment)
+    ):
         required_names.add("data_scopes")
     if not required_names <= result.keys():
         raise ServiceError("NOT_FOUND", "请求资源不存在", 404)

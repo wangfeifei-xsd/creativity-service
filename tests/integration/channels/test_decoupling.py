@@ -121,7 +121,7 @@ async def test_custom_mapping_concurrency_channel_environment_and_no_default(cha
         {**body.model_dump(), "external_scope_id": " 001"},
         {**body.model_dump(), "external_scope_id": "001\n"},
     ):
-        assert (await env.client.post(path, json=invalid, headers=headers)).status_code == 422
+        assert (await env.client.post(path, json=invalid, headers=headers)).status_code == 410
     response = await env.client.patch(
         f"{path}/{first.domain.data_scope_id}",
         headers=headers,

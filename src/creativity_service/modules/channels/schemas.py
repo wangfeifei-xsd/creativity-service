@@ -81,9 +81,19 @@ class DataScopeCreate(InitialDataScope):
     administrator_id: Identifier | None = None
 
 
+class DataScopeSourceInput(Contract):
+    environment: Environment
+    connection_id: Identifier
+    remote_tool_name: str = Field(min_length=1, max_length=256)
+
+
+class DataScopeFromSource(DataScopeSourceInput):
+    external_scope_type: str = Field(min_length=1, max_length=64)
+    external_scope_id: str = Field(min_length=1, max_length=128)
+
+
 class DataScopeUpdate(Contract):
     revision: Revision
-    name: str | None = Field(default=None, min_length=1, max_length=128)
     status: Status | None = None
 
 

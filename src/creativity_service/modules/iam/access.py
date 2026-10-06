@@ -796,10 +796,10 @@ class AccessService:
             affected_scopes=audit_ranges((environments, data_scopes)) or None,
         )
 
-    async def pending_first_member(
+    async def first_administrator(
         self, connection: AsyncConnection, channel_id: str
     ) -> dict[str, Any] | None:
-        """只读取本渠道尚未配置范围的首位管理员，不能据此签发管理身份。"""
+        """按开通时的初始授权定位首位管理员，不能据此签发管理身份。"""
         members, grants, accounts = (
             TABLES[name] for name in ("channel_memberships", "resource_grants", "platform_accounts")
         )
@@ -820,16 +820,17 @@ class AccessService:
         found = (
             (
                 await connection.execute(
-                    select(members.c.user_id, accounts.c.display_name)
+                    select(
+                        members.c.user_id,
+                        members.c.data_scopes,
+                        grants.c.data_scopes.label("initial_data_scopes"),
+                        accounts.c.display_name,
+                    )
                     .select_from(source)
                     .where(
                         members.c.channel_id == channel_id,
                         members.c.status == "ACTIVE",
                         members.c.roles.contains(["channel_admin"]),
-                        members.c.environments == [],
-                        members.c.data_scopes == [],
-                        grants.c.environments == [],
-                        grants.c.data_scopes == [],
                     )
                     .limit(2)
                 )
@@ -841,11 +842,27 @@ class AccessService:
             raise ServiceError("STORAGE_INVARIANT_BROKEN", "首位管理员记录重复", 503)
         return dict(found[0]) if found else None
 
+    async def pending_first_member(
+        self, connection: AsyncConnection, channel_id: str
+    ) -> dict[str, Any] | None:
+        """仅在首位管理员没有真实数据域授权时提示首个映射。"""
+        first = await self.first_administrator(connection, channel_id)
+        if (
+            first
+            and all(scope.startswith("manage_") for scope in first["data_scopes"])
+            and all(scope.startswith("manage_") for scope in first["initial_data_scopes"])
+        ):
+            return first
+        return None
+
     def workspace_provisioning_keys(
         self, channel_id: str, user_id: str, domain_id: str
     ) -> list[ResourceKey]:
         grant_id = "workspace_" + digest([user_id, domain_id])[:40]
         return self.member_keys(channel_id, user_id) + [
+            record_key(
+                channel_id, "resource_grants", "initial_" + membership_id(channel_id, user_id)
+            ),
             record_key(channel_id, "resource_grants", grant_id),
             record_key(channel_id, "audit_events", grant_id),
         ]
@@ -853,10 +870,33 @@ class AccessService:
     async def provision_workspace(
         self, uow: UnitOfWork, session: AdminSession, user_id: str, environment: str, domain_id: str
     ) -> None:
-        """渠道服务创建新数据域时，平台显式选择管理员并在同一事务授予普通权限。"""
-        await current_actor(uow, session, "channel:govern")
-        if isinstance(session.context, AuthContext) or uow.scope.channel_id == "system":
-            raise ServiceError("FORBIDDEN", "工作区初始授权须经平台治理入口", 403)
+        """渠道服务在同一事务授予管理范围或明确选择的首个真实范围。"""
+        if isinstance(session.context, AuthContext):
+            from creativity_service.modules.channels.repositories import management_scope_id
+
+            if domain_id == management_scope_id(uow.scope.channel_id, environment):
+                first = await self.first_administrator(uow.connection, uow.scope.channel_id)
+                if first is None or first["user_id"] != user_id:
+                    raise ServiceError("FORBIDDEN", "管理范围只授予渠道首位管理员", 403)
+                await self.locked_policy(uow, session, "environment:manage")
+            else:
+                if (
+                    session.account.id != user_id
+                    or session.context.scope.data_scope_id
+                    != management_scope_id(uow.scope.channel_id, environment)
+                    or not (
+                        pending := await self.pending_first_member(
+                            uow.connection, uow.scope.channel_id
+                        )
+                    )
+                    or pending["user_id"] != user_id
+                ):
+                    raise ServiceError("FORBIDDEN", "新增范围须由该渠道首位管理员明确授权", 403)
+                await self.locked_policy(uow, session, "data_scope:manage")
+        else:
+            await current_actor(uow, session, "channel:govern")
+        if uow.scope.channel_id == "system":
+            raise ServiceError("FORBIDDEN", "不能在系统渠道授权工作区", 403)
         channel_id = uow.scope.channel_id
         account = await one(uow.connection, "platform_accounts", "system", id=user_id)
         if not account or account["status"] != "ACTIVE":
@@ -868,18 +908,19 @@ class AccessService:
         initial = await one(uow.connection, "resource_grants", channel_id, id=initial_id)
         if (
             existing
-            and not existing["environments"]
-            and not existing["data_scopes"]
+            and all(scope.startswith("manage_") for scope in existing["data_scopes"])
             and initial
-            and not initial["environments"]
-            and not initial["data_scopes"]
+            and all(scope.startswith("manage_") for scope in initial["data_scopes"])
         ):
-            # 平台明确选择首位管理员后，只激活当前新数据域中的初始授权。
+            # 首个真实数据域沿用初始授权；管理范围保持独立，不能冒充源系统映射。
             await save(
                 uow,
                 "resource_grants",
                 initial_id,
-                {"environments": [environment], "data_scopes": [domain_id]},
+                {
+                    "environments": sorted(set(initial["environments"]) | {environment}),
+                    "data_scopes": sorted(set(initial["data_scopes"]) | {domain_id}),
+                },
                 initial["revision"],
             )
         await save(

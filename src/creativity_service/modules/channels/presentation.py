@@ -6,11 +6,8 @@ from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import NavigationItem, VisibleAction
 from creativity_service.core.primitives import Contract
+from creativity_service.modules.channels.repositories import management_scope_id, rows
 from creativity_service.modules.channels.schemas import ChannelView
-from creativity_service.modules.channels.scope_types import (
-    DATA_SCOPE_TYPE_NAMES,
-    SUGGESTED_DATA_SCOPE_TYPES,
-)
 from creativity_service.modules.channels.services import SERVICE_ACTIONS, ChannelService
 from creativity_service.modules.iam.authorization import effective_actions
 from creativity_service.modules.iam.presentation import NamedOption, account_options
@@ -28,8 +25,8 @@ class ChannelPage(Contract):
     tabs: list[NavigationItem]
     actions: list[VisibleAction]
     service_actions: list[VisibleAction]
-    data_scope_types: list[NamedOption] = Field(default_factory=list)
     pending_administrator: NamedOption | None = None
+    management_missing_environments: list[str] = Field(default_factory=list)
 
 
 async def create_options(service: ChannelService, session: AdminSession) -> ChannelCreateOptions:
@@ -49,13 +46,23 @@ async def page_view(service: ChannelService, session: AdminSession, channel_id: 
     channel = await service.detail(session, channel_id)
     governance = not isinstance(session.context, AuthContext)
     pending_administrator = None
+    missing_management: list[str] = []
     if governance:
         async with service.repository.engine.connect() as connection:
-            pending = await service.iam.access.pending_first_member(connection, channel_id)
-        if pending:
-            pending_administrator = NamedOption(
-                value=pending["user_id"], label=pending["display_name"] or "账号名称不可用"
-            )
+            first = await service.iam.access.first_administrator(connection, channel_id)
+            if first:
+                missing_management = [
+                    env["environment"]
+                    for env in await rows(connection, "channel_environments", channel_id)
+                    if management_scope_id(channel_id, env["environment"])
+                    not in first["data_scopes"]
+                ]
+                if all(scope.startswith("manage_") for scope in first["data_scopes"]) and all(
+                    scope.startswith("manage_") for scope in first["initial_data_scopes"]
+                ):
+                    pending_administrator = NamedOption(
+                        value=first["user_id"], label=first["display_name"] or "账号名称不可用"
+                    )
     allowed = {a.action_key for a in channel.actions}
     effective: frozenset[str] = frozenset()
     if isinstance(session.context, AuthContext):
@@ -98,10 +105,7 @@ async def page_view(service: ChannelService, session: AdminSession, channel_id: 
         channel=channel,
         actions=actions,
         pending_administrator=pending_administrator,
-        data_scope_types=[
-            NamedOption(value=value, label=f"{DATA_SCOPE_TYPE_NAMES[value]}（{value}）")
-            for value in SUGGESTED_DATA_SCOPE_TYPES
-        ],
+        management_missing_environments=missing_management,
         tabs=[
             NavigationItem(navigation_key=k, label=v)
             for k, v, required in (

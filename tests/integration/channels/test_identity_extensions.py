@@ -111,14 +111,17 @@ async def test_custom_role_scope_revision_and_immediate_revocation(channel_env):
         await service.save(
             channel.manager, RoleSave(name="非法提升", allowed_actions=["account:manage"])
         )
-    for role_id in ("builder", "platform_admin"):
+    for role_id, expected in (
+        ("builder", "BUILTIN_ROLE_READ_ONLY"),
+        ("platform_admin", "NOT_FOUND"),
+    ):
         with pytest.raises(ServiceError) as builtin:
             await service.save(
                 channel.manager,
                 RoleSave(revision=1, name="改内置", allowed_actions=["run:read"]),
                 role_id,
             )
-        assert builtin.value.code == "BUILTIN_ROLE_READ_ONLY"
+        assert builtin.value.code == expected
     account = await env.iam.accounts.create(
         env.admin,
         AccountCreate(login_name="role-test", display_name="角色验收", initial_password=INITIAL),

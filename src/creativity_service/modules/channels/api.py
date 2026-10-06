@@ -24,7 +24,8 @@ from creativity_service.modules.channels.schemas import (
     ClientCreate,
     ClientUpdate,
     ClientView,
-    DataScopeCreate,
+    DataScopeFromSource,
+    DataScopeSourceInput,
     DataScopeUpdate,
     DataScopeView,
     EnvironmentCreate,
@@ -43,6 +44,8 @@ from creativity_service.modules.channels.schemas import (
     UsageView,
 )
 from creativity_service.modules.iam.schemas import AuditFilter, AuditView, DirectoryPage
+from creativity_service.modules.mcp.schemas import DataScopeDirectory, DataScopeSource
+from creativity_service.modules.mcp.services import McpService
 
 router = APIRouter(tags=["渠道管理"])
 auth_router = APIRouter(tags=["服务认证"])
@@ -175,6 +178,15 @@ async def create_environment(
     return await service.channels.create_environment(session, channel_id, body)
 
 
+@router.post(
+    "/channels/{channel_id}/environments/{environment}/management-workspace", status_code=204
+)
+async def enable_management_workspace(
+    channel_id: str, environment: str, session: Session, service: Services
+) -> None:
+    await service.channels.enable_management_workspace(session, channel_id, environment)
+
+
 @router.patch("/channels/{channel_id}/environments/{environment}", response_model=EnvironmentView)
 async def update_environment(
     channel_id: str, environment: str, body: EnvironmentUpdate, session: Session, service: Services
@@ -187,11 +199,53 @@ async def data_scopes(channel_id: str, session: Session, service: Services) -> l
     return await service.channels.data_scopes(session, channel_id)
 
 
-@router.post("/channels/{channel_id}/data-scopes", response_model=DataScopeView, status_code=201)
-async def create_data_scope(
-    channel_id: str, body: DataScopeCreate, session: Session, service: Services
+def directory_service(request: Request) -> McpService:
+    value = getattr(request.app.state, "mcp", None)
+    if value is None:
+        raise unavailable("MCP 数据域目录")
+    return cast(McpService, value)
+
+
+DirectoryService = Annotated[McpService, Depends(directory_service)]
+
+
+@router.get("/channels/{channel_id}/data-scope-sources", response_model=list[DataScopeSource])
+async def data_scope_sources(
+    channel_id: str, session: Session, service: Services, directory: DirectoryService
+) -> list[DataScopeSource]:
+    return await service.channels.data_scope_sources(session, channel_id, directory)
+
+
+@router.post("/channels/{channel_id}/data-scope-directory", response_model=DataScopeDirectory)
+async def data_scope_directory(
+    channel_id: str,
+    body: DataScopeSourceInput,
+    session: Session,
+    service: Services,
+    directory: DirectoryService,
+) -> DataScopeDirectory:
+    return await service.channels.data_scope_directory(session, channel_id, body, directory)
+
+
+@router.post(
+    "/channels/{channel_id}/data-scopes/from-source", response_model=DataScopeView, status_code=201
+)
+async def create_data_scope_from_source(
+    channel_id: str,
+    body: DataScopeFromSource,
+    session: Session,
+    service: Services,
+    directory: DirectoryService,
 ) -> DataScopeView:
-    return await service.channels.create_data_scope(session, channel_id, body)
+    return await service.channels.create_data_scope_from_source(
+        session, channel_id, body, directory
+    )
+
+
+@router.post("/channels/{channel_id}/data-scopes", status_code=410)
+async def create_data_scope_legacy(channel_id: str, session: Session, service: Services) -> None:
+    await service.channels.authorize(session, channel_id, "data_scope:manage")
+    raise ServiceError("DATA_SCOPE_SOURCE_REQUIRED", "请从已配置的数据域目录选择范围", 410)
 
 
 @router.patch("/channels/{channel_id}/data-scopes/{data_scope_id}", response_model=DataScopeView)

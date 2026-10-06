@@ -17,6 +17,7 @@ from creativity_service.core.database.reading import read_connection
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.modules.channels.repositories import (
     ChannelRepository,
+    management_scope_id,
     one,
     rows,
     scope_rows,
@@ -113,7 +114,12 @@ class ChannelStateService:
         ):
             raise ServiceError("SCOPE_MISMATCH", "接入身份与当前范围不符", 403)
         async with read_connection(self.repository.engine) as connection:
-            current = await scope_rows(connection, scope)
+            management = (
+                context.principal_type == "management"
+                and bool(context.actor_id)
+                and scope.data_scope_id == management_scope_id(scope.channel_id, scope.environment)
+            )
+            current = await scope_rows(connection, scope, management=management)
             channel, environment = current["channels"], current["channel_environments"]
             domain = current.get("data_scopes")
             stored_member = (
@@ -143,7 +149,11 @@ class ChannelStateService:
                 ),
                 client_active=bool(identity) if context.client_id else None,
                 key_active=bool(identity) if context.key_id else None,
-                data_scope_active=domain["status"] == "ACTIVE" if domain else None,
+                data_scope_active=domain["status"] == "ACTIVE"
+                if domain
+                else True
+                if management
+                else None,
                 channel_status=channel["status"],
             )
 
@@ -235,6 +245,51 @@ class ChannelDirectory:
             for identifier, row in members.items()
         }
         result = []
+        for identifier, member in states.items():
+            channel = channels.get(identifier)
+            if not channel or channel["status"] == "ARCHIVED":
+                continue
+            for (channel_id, environment), management_env in environments.items():
+                if channel_id != identifier or environment not in member.environments:
+                    continue
+                management_id = management_scope_id(identifier, environment)
+                if management_id not in member.data_scopes:
+                    continue
+                if authorized:
+                    if not any(
+                        effective_actions(
+                            member,
+                            grants[identifier],
+                            environment,
+                            management_id,
+                            grant.resource_type,
+                            grant.resource_id,
+                        )
+                        for grant in grants[identifier]
+                    ):
+                        continue
+                    if management_env["status"] != "ACTIVE" and not (
+                        effective_actions(
+                            member,
+                            grants[identifier],
+                            environment,
+                            management_id,
+                            "channel",
+                            identifier,
+                        )
+                        & GOVERNANCE_ACTIONS
+                    ):
+                        continue
+                result.append(
+                    WorkspaceOption(
+                        channel_id=identifier,
+                        channel_name=channel["name"],
+                        environment=environment,
+                        environment_name=management_env["name"],
+                        data_scope_id=management_id,
+                        data_scope_name="管理工作区",
+                    )
+                )
         for domain in data["data_scopes"]:
             identifier = domain["channel_id"]
             member, channel = states[identifier], channels.get(identifier)
