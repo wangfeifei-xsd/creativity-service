@@ -149,7 +149,8 @@ class RuntimeExecutor:
             for v in cast(list[dict[str, Any]], route.content["models"])
         ]
         order = cast(list[str], route.content["attempt_order"])
-        native_output = "structured_output" in route.content.get("required_capabilities", [])
+        route_capabilities = cast(list[str], route.content.get("required_capabilities", []))
+        native_output = "structured_output" in route_capabilities
         if not native_output:
             # 普通文本模型也能完成业务结构输出；供应商能力与平台结果校验分别处理。
             instruction = (
@@ -193,7 +194,7 @@ class RuntimeExecutor:
                 tools=tools,
                 output_schema=step.output_schema,
                 output_mode="native" if native_output else "prompt",
-                stream="streaming" in cast(list[str], route.content["required_capabilities"]),
+                stream="streaming" in route_capabilities,
             ),
             candidates,
             order,

@@ -102,7 +102,9 @@ async def agent_env(channel_env, request):
             name="夹具模型",
             connection_id=connection.id,
             provider_model_name="fixture",
-            context_limit=32000,
+            context_limit=parameters.get("context_limit", 32000)
+            if isinstance(parameters, dict)
+            else 32000,
             parameters={"max_tokens": 100},
         ),
     )

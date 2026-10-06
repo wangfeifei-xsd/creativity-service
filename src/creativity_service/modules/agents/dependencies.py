@@ -284,8 +284,8 @@ class DependencyResolver:
             if credential is None or credential["state"] != "ACTIVE":
                 raise ServiceError("DEPENDENCY_INVALID", "模型连接凭据已撤销", 422)
             if (
-                model["context_limit"] is None
-                or definition.context.context_limit > model["context_limit"]
+                model["context_limit"] is not None
+                and definition.context.context_limit > model["context_limit"]
             ):
                 raise ServiceError("CAPABILITY_MISMATCH", "上下文上限超过模型容量", 422)
             try:

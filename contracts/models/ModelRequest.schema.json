@@ -20,6 +20,15 @@
       "title": "Operation",
       "type": "string"
     },
+    "output_mode": {
+      "default": "native",
+      "enum": [
+        "native",
+        "prompt"
+      ],
+      "title": "Output Mode",
+      "type": "string"
+    },
     "output_schema": {
       "anyOf": [
         {

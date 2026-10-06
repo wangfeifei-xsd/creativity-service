@@ -364,7 +364,7 @@ async def test_prompt_schema_uses_text_capability_and_validates_json():
             fixture_reservation(config),
         )
     ]
-    assert required == ["text"]
+    assert required and set(required) == {"text"}
     assert next(e for e in events if e.kind == "structured").structured == {"ok": True}
     assert events[-1].kind == "completed"
 

@@ -15,6 +15,26 @@
           "default": null,
           "title": "Cancel After Chunks"
         },
+        "capability": {
+          "anyOf": [
+            {
+              "enum": [
+                "text",
+                "tools",
+                "structured_output",
+                "streaming",
+                "vision",
+                "embedding"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capability"
+        },
         "case": {
           "enum": [
             "text",

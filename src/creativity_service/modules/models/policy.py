@@ -4,7 +4,13 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from creativity_service.core.primitives import ServiceError, digest
-from creativity_service.modules.models.schemas import ProtocolType, ProtocolView, RetryPolicy
+from creativity_service.modules.models.schemas import (
+    Capability,
+    ProtocolType,
+    ProtocolView,
+    RetryPolicy,
+    TestCase,
+)
 
 PROTOCOLS: dict[str, ProtocolView] = {
     "chat_completions": ProtocolView(
@@ -46,7 +52,7 @@ CAPABILITY_NAMES = {
 }
 CAPABILITY_LABELS = {"SUPPORTED": "已支持", "UNSUPPORTED": "不支持", "UNVERIFIED": "未验证"}
 HEALTH_LABELS = {"UNKNOWN": "未知", "HEALTHY": "正常", "DEGRADED": "异常", "UNAVAILABLE": "不可用"}
-CASE_CAPABILITIES = {
+CASE_CAPABILITIES: dict[TestCase, Capability] = {
     "embedding": "embedding",
     "text": "text",
     "schema": "structured_output",

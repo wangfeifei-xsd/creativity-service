@@ -20,6 +20,7 @@ pytestmark = [
         [
             {
                 "environment": "test",
+                "context_limit": None,
                 "independent_actions": ["release:publish", "data:read_sensitive", "data:export"],
             }
         ],

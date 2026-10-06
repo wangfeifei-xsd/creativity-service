@@ -9,6 +9,7 @@ from creativity_service.core.deletion import ContentRef, DeletionGuard, content_
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.modules.models.policy import (
+    CAPABILITY_NAMES,
     CASE_CAPABILITIES,
     PROTOCOLS,
     configuration_digest,
@@ -17,18 +18,30 @@ from creativity_service.modules.models.repositories import model_key, repository
 from creativity_service.modules.models.schemas import (
     CaseDefinition,
     DebugExecution,
+    TestCase,
     TestCompletion,
     TestInput,
     TestView,
 )
 from creativity_service.modules.models.services import ModelService
 
+
+def _capability_case(case: TestCase, prompt: str, **options: Any) -> CaseDefinition:
+    capability = CASE_CAPABILITIES[case]
+    return CaseDefinition(
+        case=case,
+        name=CAPABILITY_NAMES[capability],
+        capability=capability,
+        prompt=prompt,
+        **options,
+    )
+
+
 CASES = {
-    "embedding": CaseDefinition(case="embedding", name="语义向量", prompt="查询用户的长期偏好"),
-    "text": CaseDefinition(case="text", name="短文本", prompt="请只回复：验证完成"),
-    "schema": CaseDefinition(
+    "embedding": _capability_case(case="embedding", prompt="查询用户的长期偏好"),
+    "text": _capability_case(case="text", prompt="请只回复：验证完成"),
+    "schema": _capability_case(
         case="schema",
-        name="结构化结果",
         prompt="返回 ok 为 true 的对象",
         output_schema={
             "type": "object",
@@ -37,9 +50,8 @@ CASES = {
             "additionalProperties": False,
         },
     ),
-    "tools": CaseDefinition(
+    "tools": _capability_case(
         case="tools",
-        name="工具调用",
         prompt="调用 echo 工具，text 参数为验证完成",
         tools=[
             {
@@ -57,9 +69,8 @@ CASES = {
             }
         ],
     ),
-    "stream_cancel": CaseDefinition(
+    "stream_cancel": _capability_case(
         case="stream_cancel",
-        name="流式中断",
         prompt="逐个列出一到一百的数字",
         cancel_after_chunks=1,
     ),

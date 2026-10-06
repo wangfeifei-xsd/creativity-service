@@ -38,6 +38,7 @@ from creativity_service.modules.models.outbound import (
 from creativity_service.modules.models.policy import (
     CAPABILITY_LABELS,
     CAPABILITY_NAMES,
+    CASE_CAPABILITIES,
     HEALTH_LABELS,
     PROTOCOLS,
     configuration_digest,
@@ -493,7 +494,13 @@ class ModelService:
                     state=state,
                     label=CAPABILITY_LABELS[state],
                     verified_at=evidence.get("verified_at") if valid else None,
-                    reason=evidence.get("reason") if valid else "当前配置尚未通过真实验证",
+                    reason=(
+                        evidence.get("reason")
+                        if valid
+                        else "暂不支持验证"
+                        if key not in CASE_CAPABILITIES.values()
+                        else "当前配置尚未通过真实验证"
+                    ),
                 )
             )
         actions = [

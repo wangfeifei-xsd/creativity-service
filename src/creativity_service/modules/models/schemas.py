@@ -190,6 +190,7 @@ class CaseDefinition(Contract):
     case: TestCase
     name: str
     prompt: str
+    capability: Capability | None = None
     output_schema: dict[str, Any] | None = None
     tools: list[dict[str, Any]] = Field(default_factory=list)
     cancel_after_chunks: int | None = None
