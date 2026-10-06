@@ -1,10 +1,13 @@
-.PHONY: install local local-check local-prepare dev worker check format test integration openapi migrate sql sql-check infra-up infra-down contracts model-check storage-audit dependency-audit iam-reconcile
+.PHONY: install local local-stop local-check local-prepare dev worker check format test integration openapi migrate sql sql-check infra-up infra-down contracts model-check storage-audit dependency-audit iam-reconcile
 
 install:
 	uv sync --locked
 
 local:
 	./scripts/start-local.sh
+
+local-stop:
+	./scripts/stop-local.sh
 
 local-check:
 	./scripts/start-local.sh --check

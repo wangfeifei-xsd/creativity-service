@@ -1,12 +1,13 @@
 # 工程脚本
 
-本地启动使用 `./scripts/start-local.sh` 或 `make local`。以下命令均在 `creativity-service` 目录执行；完整启动参数见 [本地开发](../docs/local-development.md)。
+本地启动使用 `./scripts/start-local.sh` 或 `make local`，停止应用使用 `./scripts/stop-local.sh` 或 `make local-stop`。以下命令均在 `creativity-service` 目录执行；完整启停参数见 [本地开发](../docs/local-development.md)。
 
 ## 日常开发
 
 | 文件 | 用途 | 入口与引用 |
 | --- | --- | --- |
 | [start-local.sh](start-local.sh) | 定位服务目录，准备配置与 Python 环境，调用本地启动器 | `make local`、`make local-check`、`make local-prepare`、`make infra-up`、`make infra-down`；启动集成测试 |
+| [stop-local.sh](stop-local.sh) | 通知本项目启动器清理应用并释放启动锁；可选停止 Docker 依赖，保留数据卷 | `make local-stop`；`./scripts/stop-local.sh --stop-infra` |
 | [render_data_model.py](render_data_model.py) | 从模型清单生成字段文档，或检查文档是否过期 | `uv run python scripts/render_data_model.py`；检查已纳入 `make check` 和 `make model-check` |
 | [render_init_sql.py](render_init_sql.py) | 从当前模型、迁移基线与冻结数据源分别生成表结构和初始数据 SQL，或同时检查两份归档 | `make sql`、`make sql-check`；检查已纳入 `make check` 和 `make model-check` |
 

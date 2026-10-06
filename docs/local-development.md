@@ -1,4 +1,4 @@
-# 本地启动与日志
+# 本地启停与日志
 
 在 `creativity-service` 目录执行：
 
@@ -31,9 +31,13 @@ API 默认地址为 `http://127.0.0.1:8000`，启用源码热重载。管理员�
 | `./scripts/start-local.sh --infra-only` / `make infra-up` | 只检查并准备基础设施 |
 | `./scripts/start-local.sh --prepare-only` / `make local-prepare` | 准备基础设施、迁移与系统渠道后退出 |
 | `./scripts/start-local.sh --port 8001 --no-reload` | 指定 API 端口并关闭热重载 |
+| `./scripts/stop-local.sh` / `make local-stop` | 停止一键启动的 API、Worker、调度器并释放启动锁，保留依赖 |
+| `./scripts/stop-local.sh --stop-infra` | 先停止应用，再停止项目 Docker 依赖，保留数据卷 |
 | `./scripts/start-local.sh --stop-infra` / `make infra-down` | 停止项目 Docker 依赖，保留数据卷 |
 
-脚本以前台方式运行，等待 API 就绪后持续检查子进程。重复运行由 `.local/development/start.lock` 拦截；API 端口已被其他进程占用时退出。按 `Ctrl+C` 或发送 `SIGTERM` 会停止本次启动的应用进程；子进程异常退出也会清理本次启动的其余进程。数据库、Redis、MinIO 和已有外部服务继续保留。需要停止项目 Docker 依赖时使用 `make infra-down`，数据卷保留。
+脚本以前台方式运行，等待 API 就绪后持续检查子进程。重复运行由 `.local/development/start.lock` 拦截；API 端口已被其他进程占用时退出。按 `Ctrl+C`、发送 `SIGTERM` 或在另一个终端执行 `./scripts/stop-local.sh`，都会通过启动器停止本次启动的应用进程；子进程异常退出也会清理本次启动的其余进程。数据库、Redis、MinIO 和已有外部服务继续保留。需要同时停止项目 Docker 依赖时执行 `./scripts/stop-local.sh --stop-infra`，数据卷保留。
+
+默认停止应用只需要系统 `lsof` 和 `ps`，不读取 `.env` 或安装 Python 依赖；通过启动锁持有者、项目目录和启动命令定位进程，因此也兼容已经运行的旧启动脚本。`--stop-infra` 额外调用现有启动入口，需要 uv、本地配置和 Compose。未运行时可重复执行。锁文件本身会保留，不应手动删除；启动器退出后文件锁会自动释放。独立使用 `make dev`、`make worker`、`make scheduler` 启动的进程仍在各自终端按 `Ctrl+C` 停止，不在此脚本的清理范围。
 
 ## 日志
 

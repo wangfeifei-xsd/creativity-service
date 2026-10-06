@@ -109,7 +109,7 @@ curl -fsS http://127.0.0.1:8000/health/ready
 
 就绪检查会报告数据库、Redis 和对象存储状态，必要依赖不可用时返回 HTTP 503。管理接口使用 `/admin/v1` 前缀，业务调用接口使用 `/api/v1` 前缀；认证及调用示例见 [统一 API 接入指南](docs/integration.md#unified-api)。
 
-结束开发时按 `Ctrl+C`，一键脚本会停止本次启动的应用进程。Docker 依赖继续保留，需要停止时执行 `make infra-down`；数据库和对象存储的命名卷会保留。
+结束开发时按 `Ctrl+C`，或在另一个终端执行 `./scripts/stop-local.sh`（也可用 `make local-stop`），一键脚本会停止本次启动的 API、Worker 和调度器并释放启动锁。Docker 依赖继续保留；需要同时停止应用和项目 Docker 依赖时执行 `./scripts/stop-local.sh --stop-infra`，数据库和对象存储的命名卷会保留。
 
 ## 配置
 
@@ -135,6 +135,7 @@ curl -fsS http://127.0.0.1:8000/health/ready
 | 命令 | 说明 |
 | --- | --- |
 | `make local` | 检查并准备依赖，启动 API、Worker 和调度器 |
+| `make local-stop` | 停止一键启动的应用进程，保留开发依赖 |
 | `make local-check` / `make local-prepare` | 仅检查依赖 / 准备依赖与数据 |
 | `make dev` | 启动支持热重载的 API |
 | `make worker` | 启动本地单进程 Worker |
@@ -175,7 +176,7 @@ creativity-service/
 ├── deploy/              # 开发依赖及可选能力的容器配置
 ├── docs/                # 常用指南与数据模型
 ├── examples/            # 后端调用、两套配置与验收脚本
-├── scripts/             # 本地启动、模型和 SQL 生成及验收工具
+├── scripts/             # 本地启停、模型和 SQL 生成及验收工具
 ├── sql/                 # 完整空库初始化 SQL 与执行说明
 ├── sdks/                # 调用 SDK
 ├── tests/               # 单元、契约、集成及端到端测试

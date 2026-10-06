@@ -2,7 +2,6 @@
 
 import json
 import os
-import signal
 import socket
 import subprocess
 import time
@@ -105,7 +104,15 @@ def test_local_launcher_reuses_services_starts_all_roles_and_stops_cleanly(tmp_p
             )
             assert duplicate.returncode == 1
             assert "已在运行" in duplicate.stderr
-            process.send_signal(signal.SIGTERM)
+            stopped = subprocess.run(
+                [str(ROOT / "scripts/stop-local.sh")],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+                timeout=40,
+            )
+            assert stopped.returncode == 0, stopped.stderr
+            assert "API、Worker 和调度器已停止" in stopped.stdout
             process.wait(timeout=30)
             assert process.returncode == 0
         with socket.socket() as connection:
