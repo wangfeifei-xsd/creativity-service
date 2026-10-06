@@ -1063,6 +1063,13 @@
             "title": "Name",
             "type": "string"
           },
+          "required_capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Capabilities",
+            "type": "array"
+          },
           "resource_id": {
             "title": "Resource Id",
             "type": "string"

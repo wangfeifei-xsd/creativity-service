@@ -64,6 +64,13 @@
         "content_digest": {
           "title": "Content Digest",
           "type": "string"
+        },
+        "required_capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Capabilities",
+          "type": "array"
         }
       },
       "required": [

@@ -256,7 +256,8 @@ async def test_failures_have_one_attempt_and_usage(status, code, retryable):
     assert "fixture-secret" not in str(events)
 
 
-async def test_schema_invalid_and_parameter_not_silently_dropped():
+@pytest.mark.parametrize("output_mode", ["native", "prompt"])
+async def test_schema_invalid_and_parameter_not_silently_dropped(output_mode):
     config, calls = fixture_config(), []
 
     async def handler(request):
@@ -288,6 +289,7 @@ async def test_schema_invalid_and_parameter_not_silently_dropped():
                     "properties": {"ok": {"const": True}},
                     "required": ["ok"],
                 },
+                output_mode=output_mode,
             ),
             "MODEL_OUTPUT_INVALID",
         ),
@@ -310,6 +312,61 @@ async def test_schema_invalid_and_parameter_not_silently_dropped():
         ]
         assert events[-1].error_code == code and not events[-1].retryable
     assert len(calls) == 1
+    assert ("response_format" in json.loads(calls[0].content)) == (output_mode == "native")
+
+
+async def test_prompt_schema_uses_text_capability_and_validates_json():
+    config = fixture_config()
+    required = []
+
+    async def prepare(context, frozen, capabilities, *, debug=False):
+        required.extend(capabilities)
+        assert "structured_output" not in capabilities
+        return frozen
+
+    async def handler(request):
+        body = json.loads(request.content)
+        assert "response_format" not in body
+        return httpx.Response(
+            200,
+            json={
+                "id": "r",
+                "object": "chat.completion",
+                "created": 1,
+                "model": "fixture-model",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": '{"ok":true}'},
+                        "finish_reason": "stop",
+                    }
+                ],
+            },
+        )
+
+    run = adapter(handler)
+    run.prepare = prepare
+    events = [
+        e
+        async for e in run.events(
+            context(config),
+            config,
+            ModelRequest(
+                messages=[{"role": "user", "content": "请返回 JSON"}],
+                output_schema={
+                    "type": "object",
+                    "properties": {"ok": {"const": True}},
+                    "required": ["ok"],
+                },
+                output_mode="prompt",
+            ),
+            fixture_attempt(config),
+            fixture_reservation(config),
+        )
+    ]
+    assert required == ["text"]
+    assert next(e for e in events if e.kind == "structured").structured == {"ok": True}
+    assert events[-1].kind == "completed"
 
 
 async def test_cancellation_closes_inflight_request():

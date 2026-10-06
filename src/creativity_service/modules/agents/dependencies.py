@@ -24,6 +24,7 @@ from creativity_service.modules.mcp.bindings import require_current_binding
 from creativity_service.modules.memory.base import MemoryKernel
 from creativity_service.modules.memory.validation import validate_policy
 from creativity_service.modules.models.policy import (
+    CAPABILITY_NAMES,
     PROTOCOLS,
     configuration_digest,
     require_capabilities,
@@ -64,24 +65,28 @@ class DependencyResolver:
         from creativity_service.modules.resources.configuration import require_dependencies
 
         await require_dependencies(uow, scope, [r["id"] for r in rows])
-        types = {
-            bindings.prompt_version: "prompt",
-            bindings.model_route_version: "model_route",
-            **dict.fromkeys(bindings.tool_versions, "tool"),
-            **dict.fromkeys(bindings.skill_versions, "skill"),
-        }
+        types = [
+            (bindings.prompt_version, "prompt"),
+            (bindings.model_route_version, "model_route"),
+            *((identifier, "tool") for identifier in bindings.tool_versions),
+            *((identifier, "skill") for identifier in bindings.skill_versions),
+        ]
         if bindings.embedding_route_version:
-            types[bindings.embedding_route_version] = "model_route"
+            types.append((bindings.embedding_route_version, "model_route"))
             if (
                 not definition.context.memory_policy
                 or not definition.context.memory_policy.read_enabled
             ):
-                raise ServiceError("DEPENDENCY_INVALID", "语义检索需要启用记忆读取", 422)
-        for identifier, kind in types.items():
+                raise ServiceError(
+                    "DEPENDENCY_INVALID",
+                    "语义检索需要启用长期记忆及记忆读取；不使用时请清空语义检索模型路由",
+                    422,
+                )
+        for identifier, kind in types:
             if indexed[identifier]["resource_type"] != kind:
                 raise ServiceError("DEPENDENCY_INVALID", "依赖资源类型与选择位置不符", 422)
-        capabilities = {"text", "structured_output"}
-        if bindings.tool_versions:
+        capabilities = {"text"}
+        if definition.workflow_type == "tool_loop":
             capabilities.add("tools")
         parents = {
             kind: await repository(table, scope).get_many(
@@ -217,10 +222,16 @@ class DependencyResolver:
         snapshots = [FrozenModel.model_validate(v) for v in route.get("models", [])]
         if not snapshots:
             raise ServiceError("DEPENDENCY_INVALID", "模型路由缺少具体候选模型", 422)
-        if not capabilities <= set(route.get("required_capabilities", [])):
+        declared = set(route.get("required_capabilities", []))
+        missing = capabilities - declared
+        if missing:
             raise ServiceError(
-                "CAPABILITY_MISMATCH", "模型路由未声明智能体所需的结构化输出或工具能力", 422
+                "CAPABILITY_MISMATCH",
+                "模型路由未声明当前流程所需能力："
+                + "、".join(CAPABILITY_NAMES[c] for c in sorted(missing)),
+                422,
             )
+        capabilities.update(declared)
         embedding_snapshots: list[FrozenModel] = []
         if bindings.embedding_route_version:
             embedding_route = indexed[bindings.embedding_route_version]["content"]
@@ -237,10 +248,11 @@ class DependencyResolver:
             uow.connection,
             [row["credential_ref"] for row in parents.get("model_connection", {}).values()],
         )
-        for model_snapshot in [*snapshots, *embedding_snapshots]:
-            required_capabilities = (
-                {"embedding"} if model_snapshot in embedding_snapshots else capabilities
-            )
+        # 同一模型用于生成和检索时必须分别满足两种用途，不能只检查向量能力。
+        for model_snapshot, required_capabilities in [
+            *((model, capabilities) for model in snapshots),
+            *((model, {"embedding"}) for model in embedding_snapshots),
+        ]:
             if (
                 model_snapshot.scope.channel_id != scope.channel_id
                 or model_snapshot.scope.environment != scope.environment

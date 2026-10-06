@@ -109,17 +109,20 @@ class AgentBindings(Contract):
     skill_loading: tuple[AgentSkillLoading, ...] = Field(default=(), max_length=32)
 
     def ids(self) -> list[str]:
-        return [
-            v
-            for v in (
-                self.prompt_version,
-                self.model_route_version,
-                self.embedding_route_version,
-                *self.tool_versions,
-                *self.skill_versions,
+        # 同一资源可承担多个用途，依赖清单只保存一次；各用途仍分别校验能力。
+        return list(
+            dict.fromkeys(
+                v
+                for v in (
+                    self.prompt_version,
+                    self.model_route_version,
+                    self.embedding_route_version,
+                    *self.tool_versions,
+                    *self.skill_versions,
+                )
+                if v is not None
             )
-            if v is not None
-        ]
+        )
 
 
 class AgentDefinition(Contract):
@@ -182,6 +185,7 @@ class AgentDependency(Contract):
     revision: int
     state: DisplayStatus
     content_digest: str
+    required_capabilities: list[str] = Field(default_factory=list)
 
 
 class AgentCheck(Contract):

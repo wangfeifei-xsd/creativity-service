@@ -97,7 +97,7 @@ class LiteLLMAdapter:
         required = [
             "text",
             *(["tools"] if request.tools else []),
-            *(["structured_output"] if request.output_schema is not None else []),
+            *(["structured_output"] if request.requires_native_output else []),
             *(["streaming"] if request.stream else []),
         ]
         if request.operation == "embedding":
@@ -331,7 +331,7 @@ class LiteLLMAdapter:
         options["no-log"] = True
         if request.tools:
             options["tools"] = request.tools
-        if request.output_schema is not None:
+        if request.requires_native_output:
             options["response_format"] = {
                 "type": "json_schema",
                 "json_schema": {"name": "result", "strict": True, "schema": request.output_schema},

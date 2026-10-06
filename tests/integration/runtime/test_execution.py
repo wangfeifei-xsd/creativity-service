@@ -61,12 +61,70 @@ async def test_structured_result_budget_and_duplicate_delivery(runtime_env):
     assert value.state == "SUCCEEDED", value.error
     assert value.result.data == {"answer": "验证完成"}
     assert len(env.adapter.calls) == 1
+    assert env.adapter.calls[0][1].output_mode == "native"
     assert value.usage_summary["input_tokens"] == 10
     assert value.usage_summary["attempt_count"] == 1
     detail = await env.runs.detail(env.context, receipt.run_id)
     assert detail["purpose_label"] == "调试"
     async with env.engine.connect() as connection:
         assert not await rows(connection, "run_occupancies", env.context.scope.channel_id)
+
+
+@pytest.mark.parametrize("invalid", [False, True])
+async def test_text_only_route_runs_with_local_output_validation(runtime_env, invalid):
+    from creativity_service.core.locking import record_key
+    from creativity_service.modules.agents.repositories import repository
+    from creativity_service.modules.models.schemas import RetryPolicy, RouteVersionInput
+
+    env = runtime_env
+    async with transaction(
+        env.engine,
+        env.context.scope,
+        [
+            record_key(env.context.scope.channel_id, "models", env.model.id),
+        ],
+    ) as uow:
+        repo = repository("models", env.context.scope)
+        model = await repo.get(uow.connection, env.model.id)
+        await repo.change(
+            uow,
+            env.model.id,
+            model["revision"],
+            {
+                "capabilities": {
+                    **model["capabilities"],
+                    "structured_output": {"state": "UNSUPPORTED"},
+                }
+            },
+        )
+        route = await repository("resource_versions", env.context.scope).get(
+            uow.connection, env.route_id
+        )
+    await env.models.routing.create_version(
+        env.tenant.manager,
+        env.route_id,
+        RouteVersionInput(
+            revision=route["revision"],
+            primary_model=env.model.id,
+            required_capabilities=["text"],
+            retry_policy=RetryPolicy(max_attempts=3, retries_per_model=2),
+        ),
+    )
+    receipt, message = await admitted(env, purpose="production")
+    if invalid:
+        env.adapter.responses = [{"invalid": True}] * 3
+    await execute_message(env.runs, message, "worker", env.runtime)
+    result = await env.runs.get_run(env.context, receipt.run_id)
+    if invalid:
+        assert result.state == "FAILED" and result.error.code == "MODEL_OUTPUT_INVALID"
+        assert result.result is None and len(env.adapter.calls) == 2
+    else:
+        assert result.state == "SUCCEEDED", result.error
+        assert result.result.data == {"answer": "验证完成"}
+    for _, request, _ in env.adapter.calls:
+        assert request.output_mode == "prompt" and not request.requires_native_output
+        assert request.output_schema == env.definition.steps[0].output_schema
+        assert '"business_status"' in request.messages[0]["content"]
 
 
 async def test_stateful_checkpoint_persists_and_lease_blocks_stale_writes(runtime_env):

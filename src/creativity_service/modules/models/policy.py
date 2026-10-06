@@ -39,7 +39,7 @@ PROTOCOLS: dict[str, ProtocolView] = {
 CAPABILITY_NAMES = {
     "text": "文本生成",
     "tools": "工具调用",
-    "structured_output": "结构化输出",
+    "structured_output": "原生结构化输出",
     "streaming": "流式输出",
     "vision": "视觉理解",
     "embedding": "向量生成",

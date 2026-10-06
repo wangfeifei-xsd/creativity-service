@@ -149,6 +149,24 @@ class RuntimeExecutor:
             for v in cast(list[dict[str, Any]], route.content["models"])
         ]
         order = cast(list[str], route.content["attempt_order"])
+        native_output = "structured_output" in route.content.get("required_capabilities", [])
+        if not native_output:
+            # 普通文本模型也能完成业务结构输出；供应商能力与平台结果校验分别处理。
+            instruction = (
+                "最终回复必须是符合以下 JSON Schema 的单个 JSON 对象，不要添加 Markdown 或解释。"
+                "如需调用已提供的工具，可先调用工具，再返回最终 JSON。\n"
+                + json.dumps(step.output_schema, ensure_ascii=False, separators=(",", ":"))
+            )
+            messages = [dict(message) for message in messages]
+            if messages and messages[0].get("role") == "system":
+                messages[0]["content"] = f"{messages[0].get('content') or ''}\n{instruction}"
+            else:
+                messages.insert(0, {"role": "system", "content": instruction})
+            if (
+                len(json.dumps(messages, ensure_ascii=False).encode())
+                > spec.definition.context.context_limit * 4
+            ):
+                raise ServiceError("CONTEXT_LIMIT_EXCEEDED", "实际上下文超过配置上限", 422)
         tools = []
         if spec.definition.workflow_type == "tool_loop":
             for index, version_id in enumerate(spec.definition.bindings.tool_versions):
@@ -174,6 +192,7 @@ class RuntimeExecutor:
                 messages=messages,
                 tools=tools,
                 output_schema=step.output_schema,
+                output_mode="native" if native_output else "prompt",
                 stream="streaming" in cast(list[str], route.content["required_capabilities"]),
             ),
             candidates,

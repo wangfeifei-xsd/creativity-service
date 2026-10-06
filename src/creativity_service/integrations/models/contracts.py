@@ -18,8 +18,14 @@ class ModelRequest(Contract):
     messages: list[dict[str, Any]] = Field(min_length=1, max_length=1000)
     tools: list[dict[str, Any]] = Field(default_factory=list, max_length=100)
     output_schema: dict[str, Any] | None = None
+    # 输出校验始终执行；模式仅决定是否要求供应商原生结构化输出。
+    output_mode: Literal["native", "prompt"] = "native"
     parameters: dict[str, Any] = Field(default_factory=dict)
     stream: bool = False
+
+    @property
+    def requires_native_output(self) -> bool:
+        return self.output_schema is not None and self.output_mode == "native"
 
 
 class ModelEvent(Contract):
@@ -119,7 +125,7 @@ def validate_request(
         if tool.get("type") != "function" or not isinstance(tool.get("function"), dict):
             raise ServiceError("MODEL_INPUT_INVALID", "工具定义格式不正确", 422)
         validate_schema(tool["function"].get("parameters", {}))
-    if request.output_schema is not None and config.protocol == "anthropic_messages":
+    if request.requires_native_output and config.protocol == "anthropic_messages":
         # 首批 Messages 不模拟原生 schema 保证，能力测试会明确失败。
         raise ServiceError(
             "MODEL_CAPABILITY_UNSUPPORTED", "当前 Messages 适配器未启用结构化输出", 422

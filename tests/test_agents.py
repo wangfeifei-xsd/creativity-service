@@ -10,6 +10,7 @@ from creativity_service.core.context import Scope
 from creativity_service.core.primitives import digest, utcnow
 from creativity_service.modules.agents.registry import legacy_templates, templates
 from creativity_service.modules.agents.schemas import (
+    AgentBindings,
     AgentCondition,
     AgentDefinition,
     AgentEdge,
@@ -44,6 +45,24 @@ def test_generic_workflows_and_legacy_entrypoints_are_separate():
         "analysis.v1",
     }
     assert not codes(all_templates[0].definition)
+
+
+def test_shared_route_has_one_dependency_without_rejecting_distinct_uses():
+    bindings = AgentBindings(
+        prompt_id="prompt", model_route_id="shared_route", embedding_route_id="shared_route"
+    )
+    assert bindings.ids() == ["prompt", "shared_route"]
+    assert not codes(changed(bindings=bindings))
+
+
+@pytest.mark.parametrize("field", ["tool_ids", "skill_ids"])
+def test_duplicate_resource_within_one_binding_is_rejected(field):
+    issues = static_issues(
+        changed(bindings=AgentBindings.model_validate({field: ["same", "same"]}))
+    )
+    assert any(
+        issue.path == f"bindings.{field}" and "不能重复" in issue.message for issue in issues
+    )
 
 
 def test_generic_workflow_accepts_configured_steps_and_legacy_keeps_topology():

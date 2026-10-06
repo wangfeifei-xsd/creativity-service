@@ -105,7 +105,7 @@ class ModelRunner:
             required = [
                 "text",
                 *(["tools"] if request.tools else []),
-                *(["structured_output"] if request.output_schema is not None else []),
+                *(["structured_output"] if request.requires_native_output else []),
                 *(["streaming"] if request.stream else []),
             ]
             if request.operation == "embedding":

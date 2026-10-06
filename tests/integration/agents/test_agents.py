@@ -183,17 +183,10 @@ async def test_agt_a01_missing_dependencies_capabilities_and_channel_isolation(a
             )
         }
     )
-    detail = await env.agents.create(env.context, env.body.model_copy(update={"definition": bad}))
-    result = await env.agents.validate(
-        env.context,
-        detail.versions[0].version_id,
-        AgentValidateInput(revision=1, purpose="production"),
-    )
-    assert not result.valid and any(
-        i.code == "DEPENDENCY_INVALID" for c in result.checks for i in c.issues
-    )
-    with pytest.raises(ServiceError):
-        await publish(env, detail)
+    with pytest.raises(ServiceError) as missing:
+        await env.agents.create(env.context, env.body.model_copy(update={"definition": bad}))
+    assert missing.value.code == "DEPENDENCY_UNPUBLISHED"
+    detail = await env.agents.create(env.context, env.body)
     await env.agents.edit_version(
         env.context,
         detail.versions[0].version_id,
@@ -229,6 +222,93 @@ async def test_agt_a01_missing_dependencies_capabilities_and_channel_isolation(a
         "/admin/v1/agents", json={**env.body.model_dump(mode="json"), "channel_id": "other"}
     )
     assert response.status_code == 422
+
+
+async def test_shared_route_debug_checks_each_use_and_freezes_one_dependency(agent_env):
+    from creativity_service.core.deletion import content_key
+    from creativity_service.core.locking import record_key
+    from creativity_service.modules.memory.schemas import MemoryPolicy
+
+    env = agent_env
+    definition = env.definition.model_copy(
+        update={
+            "bindings": env.definition.bindings.model_copy(
+                update={"embedding_route_version": env.route_id}
+            )
+        }
+    )
+    detail = await env.agents.create(
+        env.context, env.body.model_copy(update={"definition": definition})
+    )
+    version_id = detail.versions[0].version_id
+    with pytest.raises(ServiceError, match="清空语义检索模型路由"):
+        await env.agents.freeze_candidate(env.context, version_id, 1)
+    definition = definition.model_copy(
+        update={
+            "context": definition.context.model_copy(
+                update={"memory_policy": MemoryPolicy(suggest_enabled=False, write_mode="DISABLED")}
+            )
+        }
+    )
+    await env.agents.edit_version(
+        env.context, version_id, AgentVersionEdit(revision=1, definition=definition)
+    )
+    with pytest.raises(ServiceError, match="语义检索路由须声明向量能力"):
+        await env.agents.freeze_candidate(env.context, version_id, 2)
+
+    # 构造声明双用途的路由夹具，仅验证受理检查和快照，不伪造模型执行。
+    async with transaction(
+        env.engine,
+        env.context.scope,
+        [
+            content_key(env.context.scope),
+            record_key(env.context.scope.channel_id, "resource_versions", env.route_id),
+        ],
+    ) as uow:
+        repo = repository("resource_versions", env.context.scope)
+        row = await repo.get(uow.connection, env.route_id)
+        content = {
+            **row["content"],
+            "required_capabilities": ["text", "structured_output", "tools", "embedding"],
+        }
+        await repo.change(
+            uow,
+            env.route_id,
+            row["revision"],
+            {
+                "content": content,
+                "content_digest": digest(
+                    {"content": content, "output_schema": row["output_schema"]}
+                ),
+            },
+        )
+        draft = await repo.get(uow.connection, version_id)
+        assert draft["dependencies"].count(env.route_id) == 1
+    options = await env.agents.options(env.context)
+    route = next(d for d in options.dependencies if d.resource_id == env.route_id)
+    assert "embedding" in route.required_capabilities
+    frozen = await env.agents.freeze_candidate(env.context, version_id, 2)
+    assert sum(v.version_id == env.route_id for v in frozen.versions) == 1
+
+    async with transaction(
+        env.engine,
+        env.context.scope,
+        [
+            record_key(env.context.scope.channel_id, "models", env.model.id),
+        ],
+    ) as uow:
+        repo = repository("models", env.context.scope)
+        row = await repo.get(uow.connection, env.model.id)
+        await repo.change(
+            uow,
+            env.model.id,
+            row["revision"],
+            {
+                "capabilities": {**row["capabilities"], "text": {"state": "UNSUPPORTED"}},
+            },
+        )
+    with pytest.raises(ServiceError, match="模型所需能力"):
+        await env.agents.freeze_candidate(env.context, version_id, 2)
 
 
 async def test_prod_without_matching_evaluation_is_blocked_and_digests_survive_publish(agent_env):
@@ -434,6 +514,22 @@ async def with_tool(env, required_scopes=("run:create",)):
     frozen = await env.tools.management.freeze(
         env.context, version.version.version_id, version.revision
     )
+    from creativity_service.modules.resources.schemas import ResourceMutation
+    from creativity_service.modules.resources.services import ResourceManagement
+
+    resources = ResourceManagement(
+        env.engine, env.iam.authorization, {"tool": env.tools.management.versions.validator}
+    )
+    item = (await resources.summaries(env.context, "tool", [tool.tool_id]))[0]
+    await resources.mutate(
+        env.context,
+        "tool",
+        tool.tool_id,
+        "publish",
+        ResourceMutation(
+            revision=item.revision, configuration_revision=item.configuration_revision
+        ),
+    )
     definition = env.definition.model_copy(
         update={
             "bindings": env.definition.bindings.model_copy(
@@ -580,10 +676,9 @@ async def test_candidate_cleanup_follows_deleted_sources_and_preserves_digests(a
     assert row["spec"] == {} and row["candidate_digest"] == candidate.candidate_digest
 
 
-async def test_draft_dependency_revision_is_frozen_and_requires_publication(agent_env):
+async def test_published_dependency_edit_preserves_admitted_content(agent_env):
     from creativity_service.modules.prompts.schemas import (
         PromptContent,
-        PromptDraftCreate,
         PromptDraftEdit,
     )
 
@@ -592,12 +687,10 @@ async def test_draft_dependency_revision_is_frozen_and_requires_publication(agen
         prompt = await repository("resource_versions", env.context.scope).get(
             connection, env.definition.bindings.prompt_version
         )
-    draft = await env.prompts.create_draft(
+    draft = await env.prompts.edit_draft(
         env.context,
         prompt["resource_id"],
-        PromptDraftCreate(
-            version_label="待评测草稿", content=PromptContent(change_note="原始内容")
-        ),
+        PromptDraftEdit(revision=prompt["revision"], content=PromptContent(change_note="原始内容")),
     )
     definition = env.definition.model_copy(
         update={
@@ -622,12 +715,12 @@ async def test_draft_dependency_revision_is_frozen_and_requires_publication(agen
     )
     assert new.dependencies_digest != candidate.dependencies_digest
     original = next(v for v in candidate.versions if v.resource_type == "prompt")
+    assert original.content["change_note"] == "原始内容"
     assert (
-        original.draft_revision == draft.revision and original.content["change_note"] == "原始内容"
+        next(v for v in new.versions if v.resource_type == "prompt").content["change_note"]
+        == "变更后的内容"
     )
-    with pytest.raises(ServiceError) as exc:
-        await publish(env, detail)
-    assert exc.value.code == "DEPENDENCY_INVALID"
+    await publish(env, detail)
 
 
 async def test_amount_budget_requires_prices_and_scope_overrides_fail(agent_env):

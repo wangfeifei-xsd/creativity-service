@@ -286,6 +286,9 @@ class AgentKernel:
             revision=row["revision"],
             state=status(row["state"]),
             content_digest=row["content_digest"],
+            required_capabilities=row["content"].get("required_capabilities", [])
+            if row["resource_type"] == "model_route"
+            else [],
         )
 
     @staticmethod

@@ -269,6 +269,10 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
         fail("工具循环必须选择工具并配置调用次数", "bindings.tool_versions")
     if not definition.context.conversation_enabled and definition.context.summary_policy != "none":
         fail("未启用会话时不能读取会话摘要", "context.summary_policy")
-    if len(definition.bindings.ids()) != len(set(definition.bindings.ids())):
-        fail("依赖版本不能重复", "bindings")
+    for path, label, identifiers in (
+        ("tool_ids", "工具白名单", definition.bindings.tool_versions),
+        ("skill_ids", "技能", definition.bindings.skill_versions),
+    ):
+        if len(identifiers) != len(set(identifiers)):
+            fail(f"{label}不能重复选择同一资源", f"bindings.{path}")
     return issues
