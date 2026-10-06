@@ -9,6 +9,7 @@
           "type": "string"
         },
         "version_label": {
+          "default": "当前配置",
           "maxLength": 64,
           "minLength": 1,
           "title": "Version Label",
@@ -59,8 +60,7 @@
         }
       },
       "required": [
-        "tool_code",
-        "version_label"
+        "tool_code"
       ],
       "title": "SkillToolRequirement",
       "type": "object"

@@ -1846,6 +1846,14 @@
             "type": "array",
             "title": "Versions"
           },
+          "resource_uses": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Resource Uses"
+          },
           "actions": {
             "items": {
               "$ref": "#/components/schemas/VisibleAction"

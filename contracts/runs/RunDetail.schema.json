@@ -677,6 +677,14 @@
       "title": "Versions",
       "type": "array"
     },
+    "resource_uses": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Resource Uses",
+      "type": "array"
+    },
     "actions": {
       "items": {
         "$ref": "#/$defs/VisibleAction"

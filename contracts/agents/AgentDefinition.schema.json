@@ -3,7 +3,7 @@
     "AgentBindings": {
       "additionalProperties": false,
       "properties": {
-        "embedding_route_version": {
+        "embedding_route_id": {
           "anyOf": [
             {
               "maxLength": 128,
@@ -16,9 +16,9 @@
             }
           ],
           "default": null,
-          "title": "Embedding Route Version"
+          "title": "Embedding Route Id"
         },
-        "prompt_version": {
+        "prompt_id": {
           "anyOf": [
             {
               "maxLength": 128,
@@ -31,9 +31,9 @@
             }
           ],
           "default": null,
-          "title": "Prompt Version"
+          "title": "Prompt Id"
         },
-        "model_route_version": {
+        "model_route_id": {
           "anyOf": [
             {
               "maxLength": 128,
@@ -46,9 +46,9 @@
             }
           ],
           "default": null,
-          "title": "Model Route Version"
+          "title": "Model Route Id"
         },
-        "tool_versions": {
+        "tool_ids": {
           "default": [],
           "items": {
             "maxLength": 128,
@@ -57,10 +57,10 @@
             "type": "string"
           },
           "maxItems": 64,
-          "title": "Tool Versions",
+          "title": "Tool Ids",
           "type": "array"
         },
-        "skill_versions": {
+        "skill_ids": {
           "default": [],
           "items": {
             "maxLength": 128,
@@ -69,7 +69,7 @@
             "type": "string"
           },
           "maxItems": 32,
-          "title": "Skill Versions",
+          "title": "Skill Ids",
           "type": "array"
         },
         "skill_loading": {
@@ -265,11 +265,11 @@
     "AgentSkillLoading": {
       "additionalProperties": false,
       "properties": {
-        "version_id": {
+        "skill_id": {
           "maxLength": 128,
           "minLength": 1,
           "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-          "title": "Version Id",
+          "title": "Skill Id",
           "type": "string"
         },
         "selected": {
@@ -325,7 +325,7 @@
         }
       },
       "required": [
-        "version_id"
+        "skill_id"
       ],
       "title": "AgentSkillLoading",
       "type": "object"
@@ -634,11 +634,11 @@
     "bindings": {
       "$ref": "#/$defs/AgentBindings",
       "default": {
-        "embedding_route_version": null,
-        "prompt_version": null,
-        "model_route_version": null,
-        "tool_versions": [],
-        "skill_versions": [],
+        "embedding_route_id": null,
+        "prompt_id": null,
+        "model_route_id": null,
+        "tool_ids": [],
+        "skill_ids": [],
         "skill_loading": []
       }
     },

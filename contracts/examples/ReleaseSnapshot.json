@@ -34,6 +34,7 @@
     "versions": [
       {
         "channel_id": "channel_demo",
+        "configuration_revision": null,
         "content": {
           "entrypoint": "structured"
         },
@@ -45,6 +46,7 @@
           "type": "object"
         },
         "resource_id": "agent_demo",
+        "resource_name": null,
         "resource_type": "agent",
         "state": "PUBLISHED",
         "version_id": "version_demo",

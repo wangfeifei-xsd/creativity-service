@@ -11,6 +11,19 @@
           "title": "Channel Id",
           "type": "string"
         },
+        "configuration_revision": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Configuration Revision"
+        },
         "content": {
           "additionalProperties": {
             "$ref": "#/$defs/JsonValue"
@@ -63,6 +76,18 @@
           "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
           "title": "Resource Id",
           "type": "string"
+        },
+        "resource_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource Name"
         },
         "resource_type": {
           "maxLength": 128,

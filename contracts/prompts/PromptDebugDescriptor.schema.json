@@ -102,6 +102,31 @@
     "ResourceVersion": {
       "additionalProperties": false,
       "properties": {
+        "resource_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource Name"
+        },
+        "configuration_revision": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Configuration Revision"
+        },
         "channel_id": {
           "maxLength": 128,
           "minLength": 1,
