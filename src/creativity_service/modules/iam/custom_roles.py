@@ -98,6 +98,7 @@ class CustomRoles:
                     accounts.c.channel_id == "system",
                     accounts.c.status == "ACTIVE",
                     accounts.c.platform_roles.contains([identifier])
+                    | accounts.c.role_ids.contains([identifier])
                     | (accounts.c.role_id == identifier),
                 )
             )
@@ -135,6 +136,11 @@ class CustomRoles:
             if channel_id == "system":
                 members = TABLES["channel_memberships"]
                 bindings = account_bindings.union(
+                    select(func.jsonb_array_elements_text(table.c.role_ids), table.c.id).where(
+                        table.c.channel_id == "system",
+                        table.c.status == "ACTIVE",
+                        func.jsonb_typeof(table.c.role_ids) == "array",
+                    ),
                     select(table.c.role_id, table.c.id).where(
                         table.c.channel_id == "system",
                         table.c.status == "ACTIVE",
@@ -465,7 +471,9 @@ class CustomRoles:
                 select(table.c.id)
                 .where(
                     table.c.channel_id == channel_id,
-                    field.contains([identifier]) | (table.c.role_id == identifier)
+                    field.contains([identifier])
+                    | table.c.role_ids.contains([identifier])
+                    | (table.c.role_id == identifier)
                     if channel_id == "system"
                     else field.contains([identifier]),
                 )

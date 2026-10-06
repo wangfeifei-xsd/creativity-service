@@ -14,6 +14,7 @@ from creativity_service.core.contracts import ResourceVersion, VisibleAction
 from creativity_service.core.database import UnitOfWork, transaction, validate_row
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import ResourceKey, record_key
+from creativity_service.core.name_codes import name_code
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.core.security.credentials import CredentialService
@@ -181,11 +182,16 @@ class ModelService:
             ):
                 raise ServiceError("MODEL_TEMPLATE_INVALID", "模板协议和地址不完整", 422)
             validate_endpoint(protocol, body.template_content["endpoint"])
+        name = body.name.strip()
+        code = name_code(name, "供应商")
         table, now = metadata.tables["provider_catalog"], utcnow()
         audit_id = new_id("audit")
-        identifier = "provider_" + body.code
-        if len(identifier) > 64:
-            raise ServiceError("VALIDATION_ERROR", "供应商编码过长", 422)
+        # 编码仅在创建时生成；编辑按原标识定位，名称变更不破坏既有模型连接。
+        identifier = body.id if body.revision is not None else "provider_" + code
+        if body.revision is not None and identifier is None:
+            identifier = "provider_" + (body.code or code)
+        if identifier is None or (body.revision is None and body.id is not None):
+            raise ServiceError("VALIDATION_ERROR", "供应商标识与保存操作不一致", 422)
         scope = ControlScope(purpose="catalog", actor_id=session.account.id)
         async with transaction(
             self.engine,
@@ -211,9 +217,17 @@ class ModelService:
             if (current is None and body.revision is not None) or (
                 current is not None and current["revision"] != body.revision
             ):
-                raise ServiceError("REVISION_CONFLICT", "供应商已变更，请刷新后重试", 409)
+                raise ServiceError(
+                    "REVISION_CONFLICT",
+                    "名称首字母生成的供应商编码已存在，请调整名称"
+                    if current is not None and body.revision is None
+                    else "供应商已变更，请刷新后重试",
+                    409,
+                )
             row = {
-                **body.model_dump(exclude={"revision"}),
+                **body.model_dump(exclude={"revision", "id", "code"}),
+                "name": name,
+                "code": current["code"] if current else code,
                 "id": identifier,
                 "channel_id": "system",
                 "created_at": current["created_at"] if current else now,

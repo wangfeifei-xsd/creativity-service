@@ -35,6 +35,53 @@ from tests.integration.channels.conftest import channel_body, login, provision
 pytestmark = pytest.mark.integration
 
 
+async def test_provider_code_is_server_generated_and_stable_when_renamed(channel_env):
+    env = channel_env
+    tenant, services, *_ = await setup(env)
+    config = services.configuration
+    provider = await config.save_provider(
+        env.admin,
+        ProviderInput(name="云", code="client-must-not-choose", protocols=["chat_completions"]),
+    )
+    assert provider.code == "YYYY" and provider.id == "provider_YYYY"
+    renamed = await config.save_provider(
+        env.admin,
+        ProviderInput(
+            id=provider.id,
+            name="云端模型",
+            protocols=["chat_completions"],
+            revision=provider.revision,
+        ),
+    )
+    assert renamed.id == provider.id and renamed.code == provider.code
+    assert renamed.name == "云端模型" and renamed.revision == provider.revision + 1
+    with pytest.raises(ServiceError) as collision:
+        await config.save_provider(
+            env.admin,
+            ProviderInput(name="云", protocols=["chat_completions"]),
+        )
+    assert collision.value.status == 409
+    with pytest.raises(ServiceError) as forbidden:
+        await config.save_provider(
+            tenant.manager,
+            ProviderInput(name="不允许", protocols=["chat_completions"]),
+        )
+    assert forbidden.value.status == 403
+
+
+async def test_provider_initial_collision_is_serialized(channel_env):
+    env = channel_env
+    _, services, *_ = await setup(env)
+    body = ProviderInput(name="AI", protocols=["chat_completions"])
+    results = await asyncio.gather(
+        services.configuration.save_provider(env.admin, body),
+        services.configuration.save_provider(env.admin, body),
+        return_exceptions=True,
+    )
+    assert sum(not isinstance(result, Exception) for result in results) == 1
+    assert [result.status for result in results if isinstance(result, ServiceError)] == [409]
+
+
 class Keys:
     async def current(self):
         return "test-v1", SecretBytes(b"m" * 32)

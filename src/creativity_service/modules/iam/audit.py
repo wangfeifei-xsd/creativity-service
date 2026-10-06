@@ -140,6 +140,7 @@ FIELD_NAMES = {
     "state": "状态",
     "platform_roles": "平台角色",
     "role_id": "角色",
+    "role_ids": "角色",
     "grant_scope": "作用域",
     "channel_ids": "授权渠道",
     "password": "密码凭据",

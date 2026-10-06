@@ -1,7 +1,7 @@
 -- Creativity 表结构初始化归档，适用于 PostgreSQL 17 空库或空 schema。
--- 模型版本：1.9.2；配套数据归档迁移基线：0038_builtin_role_menus。
+-- 模型版本：1.9.3；配套数据归档迁移基线：0039_account_roles。
 -- 初始建库基线：alembic/versions/0001_initial.py；后续修订在其上追加。
--- 包含 111 张表、1683 个字段、248 个普通索引及全部中文注释。
+-- 包含 111 张表、1684 个字段、248 个普通索引及全部中文注释。
 -- 本文件不写初始化数据；完成后必须执行 sql/init_data.sql，再启动服务或迁移。
 -- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。
 -- 执行方式见 sql/README.md；表创建在连接的当前 schema。
@@ -4038,7 +4038,8 @@ CREATE TABLE platform_accounts (
 	must_change_password BOOLEAN,
 	credential_updated_at TIMESTAMP WITH TIME ZONE,
 	credential_version BIGINT,
-	role_id VARCHAR(64)
+	role_id VARCHAR(64),
+	role_ids JSONB
 );
 
 COMMENT ON TABLE platform_accounts IS '平台账号';
@@ -4070,6 +4071,8 @@ COMMENT ON COLUMN platform_accounts.credential_updated_at IS '凭据更新时间
 COMMENT ON COLUMN platform_accounts.credential_version IS '凭据撤销代次';
 
 COMMENT ON COLUMN platform_accounts.role_id IS '账号选择的管理角色';
+
+COMMENT ON COLUMN platform_accounts.role_ids IS '账号选择的管理角色清单，空值兼容旧单角色';
 
 CREATE INDEX ix_platform_accounts_0 ON platform_accounts (channel_id, id);
 

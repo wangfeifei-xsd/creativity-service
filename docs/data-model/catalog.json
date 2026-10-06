@@ -1,5 +1,5 @@
 {
-  "model_version": "1.9.2",
+  "model_version": "1.9.3",
   "requirements_version": "v0.7",
   "date": "2026-10-06",
   "modules": {
@@ -2271,6 +2271,14 @@
           "name": "role_id",
           "type": "varchar(64)",
           "comment": "账号选择的管理角色",
+          "required": false,
+          "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "role_ids",
+          "type": "jsonb",
+          "comment": "账号选择的管理角色清单，空值兼容旧单角色",
           "required": false,
           "source": "受信上下文与服务层校验",
           "sensitivity": "内部"

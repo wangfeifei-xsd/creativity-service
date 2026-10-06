@@ -54,6 +54,15 @@ identity.tables["platform_accounts"].append_column(
         info={"required": False, "source": "受信上下文与服务层校验", "sensitivity": "内部"},
     )
 )
+identity.tables["platform_accounts"].append_column(
+    Column(
+        "role_ids",
+        JSONB(),
+        nullable=True,
+        comment="账号选择的管理角色清单，空值兼容旧单角色",
+        info={"required": False, "source": "受信上下文与服务层校验", "sensitivity": "内部"},
+    )
+)
 identity.tables["builtin_roles"].append_column(
     Column(
         "account_assignable",

@@ -147,6 +147,24 @@
               }
             ],
             "title": "Role"
+          },
+          "roles": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roles"
           }
         },
         "required": [
@@ -227,6 +245,24 @@
               }
             ],
             "title": "Role"
+          },
+          "roles": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roles"
           },
           "status": {
             "anyOf": [
@@ -338,6 +374,20 @@
           "role_name": {
             "title": "Role Name",
             "type": "string"
+          },
+          "role_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Role Names",
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
           },
           "status": {
             "enum": [
@@ -13729,11 +13779,31 @@
         "additionalProperties": false,
         "properties": {
           "code": {
-            "maxLength": 64,
-            "minLength": 1,
-            "pattern": "^[a-z][a-z0-9_-]*$",
-            "title": "Code",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
           },
           "name": {
             "maxLength": 128,
@@ -13775,7 +13845,6 @@
           }
         },
         "required": [
-          "code",
           "name",
           "protocols"
         ],
@@ -13786,9 +13855,6 @@
         "additionalProperties": false,
         "properties": {
           "code": {
-            "maxLength": 64,
-            "minLength": 1,
-            "pattern": "^[a-z][a-z0-9_-]*$",
             "title": "Code",
             "type": "string"
           },
@@ -13836,10 +13902,10 @@
           }
         },
         "required": [
+          "id",
           "code",
           "name",
-          "protocols",
-          "id"
+          "protocols"
         ],
         "title": "ProviderView",
         "type": "object"

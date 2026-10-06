@@ -50,6 +50,7 @@ class AccountCreate(Contract):
     initial_password: SecretStr = Field(min_length=12, max_length=256)
     platform_roles: list[Identifier] = Field(default_factory=list, max_length=50)
     role: Identifier | None = None
+    roles: list[Identifier] | None = Field(default=None, max_length=50)
     channel_ids: list[Identifier] | None = Field(default=None, max_length=200)
 
 
@@ -59,6 +60,7 @@ class AccountUpdate(Contract):
     status: Status | None = None
     platform_roles: list[Identifier] | None = Field(default=None, max_length=50)
     role: Identifier | None = None
+    roles: list[Identifier] | None = Field(default=None, max_length=50)
     channel_ids: list[Identifier] | None = Field(default=None, max_length=200)
 
 
@@ -80,6 +82,8 @@ class AccountView(Contract):
     platform_role_names: list[str]
     role: str | None
     role_name: str
+    roles: list[str] = Field(default_factory=list)
+    role_names: list[str] = Field(default_factory=list)
     grant_scope: Literal["platform", "channel"] | None = None
     channel_ids: list[str] = Field(default_factory=list)
     channel_names: list[str | None] = Field(default_factory=list)

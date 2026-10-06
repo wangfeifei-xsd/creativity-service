@@ -21,6 +21,93 @@ from .conftest import INITIAL, provision
 pytestmark = pytest.mark.integration
 
 
+async def test_account_can_select_platform_and_multiple_channel_roles(channel_env):
+    env = channel_env
+    a = await provision(env, "alpha", None)
+    b = await provision(env, "beta", None)
+    roles = CustomRoles(env.iam.access)
+    observer = await roles.save(
+        env.admin, RoleSave(name="渠道观察员", allowed_actions=["run:read"], grant_scope="channel")
+    )
+    chosen = ["platform_admin", "channel_admin", observer["id"]]
+    account = await env.iam.accounts.create(
+        env.admin,
+        AccountCreate(
+            login_name="multiple-roles",
+            display_name="多角色账号",
+            initial_password=INITIAL,
+            roles=chosen,
+            channel_ids=[a.channel.channel_id, b.channel.channel_id],
+        ),
+    )
+    assert account.roles == chosen
+    assert account.role_names == ["平台管理员", "渠道管理员", "渠道观察员"]
+    assert account.platform_roles == ["platform_admin"]
+    assert account.role is None
+    async with env.engine.connect() as connection:
+        for channel in (a.channel, b.channel):
+            member = (
+                await rows(
+                    connection, "channel_memberships", channel.channel_id, user_id=account.user_id
+                )
+            )[0]
+            assert member["roles"] == ["channel_admin", observer["id"]]
+    token, session = await activate(env, account)
+    view = await env.iam.sessions.view(session)
+    assert view.can_access_platform and view.default_workspace is None
+    assert {option.channel_id for option in view.workspace_options} == set(account.channel_ids)
+    assert (
+        next(role for role in await roles.list(env.admin) if role["id"] == observer["id"])[
+            "member_count"
+        ]
+        == 1
+    )
+    updated = await env.iam.accounts.update(
+        env.admin,
+        account.user_id,
+        AccountUpdate(
+            revision=(await env.iam.accounts.get(env.admin, account.user_id)).revision,
+            roles=["platform_admin"],
+            channel_ids=[],
+        ),
+    )
+    assert updated.roles == ["platform_admin"] and not updated.channel_ids
+    with pytest.raises(ServiceError) as revoked:
+        await env.iam.authentication.admin_session(token.access_token, "revoked-multi-role")
+    assert revoked.value.status == 401
+
+
+async def test_multi_role_validation_rolls_back_and_protects_last_admin(channel_env):
+    env = channel_env
+    account = await env.iam.accounts.create(
+        env.admin,
+        AccountCreate(
+            login_name="role-validation",
+            display_name="校验账号",
+            initial_password=INITIAL,
+            roles=["channel_admin"],
+        ),
+    )
+    for chosen in (["channel_admin", "channel_admin"], ["channel_admin", "missing-role"]):
+        with pytest.raises(ServiceError) as unavailable:
+            await env.iam.accounts.update(
+                env.admin,
+                account.user_id,
+                AccountUpdate(revision=account.revision, roles=chosen),
+            )
+        assert unavailable.value.status == 422
+        current = await env.iam.accounts.get(env.admin, account.user_id)
+        assert current.revision == account.revision and current.roles == ["channel_admin"]
+    admin = await env.iam.accounts.get(env.admin, env.user_id)
+    with pytest.raises(ServiceError) as protected:
+        await env.iam.accounts.update(
+            env.admin,
+            admin.user_id,
+            AccountUpdate(revision=admin.revision, roles=["channel_admin"]),
+        )
+    assert protected.value.code == "LAST_PLATFORM_ADMIN"
+
+
 async def test_builtin_roles_and_account_choices_read_the_same_database(channel_env):
     env = channel_env
     tenant = await provision(env)

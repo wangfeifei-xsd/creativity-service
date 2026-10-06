@@ -147,6 +147,13 @@ def audit_catalog(root: Path) -> list[str]:
     # 新增角色目录字段叠加到当前模型，不修改历史账号迁移的冻结定义。
     for table_name, name, type_, comment, required in (
         ("platform_accounts", "role_id", "varchar(64)", "账号选择的管理角色", False),
+        (
+            "platform_accounts",
+            "role_ids",
+            "jsonb",
+            "账号选择的管理角色清单，空值兼容旧单角色",
+            False,
+        ),
         ("builtin_roles", "account_assignable", "boolean", "可用于账号管理", True),
         ("builtin_roles", "menu_ids", "jsonb", "可见菜单节点清单，空值沿用按动作生成", False),
     ):

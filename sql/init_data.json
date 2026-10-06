@@ -9,7 +9,10 @@
     "仅保留 admin 账号，密码替换为指定初始密码的安全摘要并要求首次改密。",
     "旧 admin 的平台角色关联保留，单选角色补为 platform_admin。",
     "平台管理员补齐 menu:manage，确保最高管理员可以维护菜单。",
-    "两种管理员按当前有效动作与真实菜单目录冻结显式菜单关联；历史兼容角色仍按动作生成。"
+    "两种管理员按当前有效动作与真实菜单目录冻结显式菜单关联；历史兼容角色仍按动作生成。",
+    "预置 DeepSeek、千问、豆包和 OpenAI（ChatGPT）的无凭据连接模板，具体模型能力仍需按渠道验证。",
+    "预置寻弈乐竞渠道，负责人为小苏打；首位管理员复用 admin，仅登记空范围，不预设环境、外部映射或接入凭据。",
+    "预置平台并发上限 20，导入时立即生效；各初始化业务渠道并发硬上限 5，附同渠道冻结策略版本，不复制运行占用和用量。"
   ],
   "tables": {
     "channels": [
@@ -27,6 +30,97 @@
         },
         "budget_policy_refs": [],
         "rate_limit_policy_refs": []
+      },
+      {
+        "id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "revision": 1,
+        "channel_code": "XYLJ",
+        "name": "寻弈乐竞",
+        "status": "ACTIVE",
+        "owner": "小苏打",
+        "archived_at": null,
+        "retention_policy": {
+          "retention_days": 90,
+          "run_content_days": 30,
+          "metadata_days": 365,
+          "sse_hours": 24,
+          "temporary_hours": 1,
+          "export_days": 7
+        },
+        "budget_policy_refs": [],
+        "rate_limit_policy_refs": []
+      }
+    ],
+    "channel_code_index": [
+      {
+        "id": "code_207453461f024c36b63cd170357eb42e",
+        "channel_id": "system",
+        "revision": 1,
+        "channel_code": "XYLJ",
+        "target_channel_id": "channel_407de822881947339e26ec7d9d55a8a0"
+      }
+    ],
+    "provider_catalog": [
+      {
+        "id": "provider_deepseek",
+        "channel_id": "system",
+        "revision": 1,
+        "code": "deepseek",
+        "name": "DeepSeek",
+        "protocols": [
+          "chat_completions"
+        ],
+        "template_content": {
+          "protocol": "chat_completions",
+          "endpoint": "https://api.deepseek.com",
+          "timeout_seconds": 60
+        }
+      },
+      {
+        "id": "provider_qwen",
+        "channel_id": "system",
+        "revision": 1,
+        "code": "qwen",
+        "name": "千问",
+        "protocols": [
+          "chat_completions"
+        ],
+        "template_content": {
+          "protocol": "chat_completions",
+          "endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+          "timeout_seconds": 60
+        }
+      },
+      {
+        "id": "provider_doubao",
+        "channel_id": "system",
+        "revision": 1,
+        "code": "doubao",
+        "name": "豆包",
+        "protocols": [
+          "chat_completions"
+        ],
+        "template_content": {
+          "protocol": "chat_completions",
+          "endpoint": "https://ark.cn-beijing.volces.com/api/v3",
+          "timeout_seconds": 60
+        }
+      },
+      {
+        "id": "provider_openai",
+        "channel_id": "system",
+        "revision": 1,
+        "code": "openai",
+        "name": "OpenAI（ChatGPT）",
+        "protocols": [
+          "chat_completions"
+        ],
+        "template_content": {
+          "protocol": "chat_completions",
+          "endpoint": "https://api.openai.com/v1",
+          "timeout_seconds": 60
+        }
       }
     ],
     "iam_menus": [
@@ -1595,7 +1689,161 @@
         "must_change_password": true,
         "credential_version": 1,
         "role_id": "platform_admin",
-        "password_hash": "pbkdf2_sha256$600000$23089d19a639245ce2528313dcc67d1065badf6070be33e95dcad1823bc9b331$f6952b875a8a624c19352accb2b95639f6816b9970dec8e6626524bd839014df"
+        "password_hash": "pbkdf2_sha256$600000$23089d19a639245ce2528313dcc67d1065badf6070be33e95dcad1823bc9b331$f6952b875a8a624c19352accb2b95639f6816b9970dec8e6626524bd839014df",
+        "role_ids": [
+          "platform_admin"
+        ]
+      }
+    ],
+    "channel_memberships": [
+      {
+        "id": "member_0c7dceb596f7b92e0129bf2cc33457e9aaaf0417",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "revision": 1,
+        "user_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "roles": [
+          "channel_admin"
+        ],
+        "environments": [],
+        "data_scopes": [],
+        "status": "ACTIVE",
+        "granted_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+      }
+    ],
+    "resource_grants": [
+      {
+        "id": "initial_member_0c7dceb596f7b92e0129bf2cc33457e9aaaf0417",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "revision": 1,
+        "grantee_type": "account",
+        "grantee_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "resource_type": "channel",
+        "resource_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "allowed_actions": [
+          "agent:manage",
+          "analysis:run",
+          "artifact:cleanup",
+          "artifact:download",
+          "artifact:upload",
+          "audit:read",
+          "budget:manage",
+          "channel:manage",
+          "client:manage",
+          "content:cleanup",
+          "content:delete",
+          "content:derive",
+          "conversation:read",
+          "conversation:write",
+          "credential:use",
+          "credential:write",
+          "data_scope:manage",
+          "environment:manage",
+          "evaluation:content",
+          "evaluation:manage",
+          "evaluation:read",
+          "evaluation:review",
+          "feedback:manage",
+          "grant:manage",
+          "grant:read",
+          "integration:manage",
+          "key:manage",
+          "mcp:manage",
+          "membership:manage",
+          "membership:read",
+          "memory:delete",
+          "memory:preferences",
+          "memory:read",
+          "memory:write",
+          "metric:read",
+          "model:manage",
+          "prompt:manage",
+          "recovery:block",
+          "recovery:complete",
+          "recovery:initialize",
+          "report:read",
+          "run:content",
+          "run:create",
+          "run:read",
+          "skill:manage",
+          "snapshot:read",
+          "tool:manage",
+          "usage:read",
+          "version:edit",
+          "version:freeze",
+          "version:read"
+        ],
+        "environments": [],
+        "data_scopes": []
+      }
+    ],
+    "platform_limits": [
+      {
+        "id": "platform_limit_a64f4593700c429aa5dda3c16e4b8915",
+        "channel_id": "system",
+        "revision": 1,
+        "limit_code": "concurrency",
+        "name": "平台并发",
+        "kind": "concurrency",
+        "period": "minute",
+        "timezone": "Asia/Shanghai",
+        "limit_value": "20",
+        "unit": "concurrency",
+        "status": "ACTIVE",
+        "replaces_id": null
+      }
+    ],
+    "resource_versions": [
+      {
+        "id": "version_3847db60070b4660b016b70647128f4b",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "revision": 1,
+        "resource_type": "budget_policy",
+        "resource_id": "budget_9a8a29b040dc49009557a8364f9b31c1",
+        "version_label": "预算版本 1",
+        "state": "FROZEN",
+        "content": {
+          "name": "渠道并发",
+          "scope_type": "channel",
+          "scope_id": "channel_407de822881947339e26ec7d9d55a8a0",
+          "period": "minute",
+          "timezone": "Asia/Shanghai",
+          "currency": null,
+          "limit_value": "5",
+          "unit": "concurrency",
+          "mode": "HARD",
+          "thresholds": [
+            "0.8",
+            "1"
+          ],
+          "status": "ACTIVE"
+        },
+        "content_digest": "9de5f99f75ef743cf2d98be00435ef98c865b4b54e8a6a0d8b78fc1c356255db",
+        "dependencies": [],
+        "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "output_schema": {},
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+      }
+    ],
+    "budget_policies": [
+      {
+        "id": "budget_9a8a29b040dc49009557a8364f9b31c1",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "revision": 1,
+        "name": "渠道并发",
+        "scope_type": "channel",
+        "scope_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "period": "minute",
+        "timezone": "Asia/Shanghai",
+        "currency": null,
+        "limit_value": "5",
+        "unit": "concurrency",
+        "mode": "HARD",
+        "thresholds": [
+          "0.8",
+          "1"
+        ],
+        "status": "ACTIVE",
+        "version_id": "version_3847db60070b4660b016b70647128f4b"
       }
     ]
   }

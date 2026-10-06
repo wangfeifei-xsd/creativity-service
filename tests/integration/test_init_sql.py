@@ -1,7 +1,9 @@
 """在真实 PostgreSQL 隔离 schema 验证全量 SQL、迁移衔接及失败回滚。"""
 
+import asyncio
 import json
 from concurrent.futures import ThreadPoolExecutor
+from decimal import Decimal
 from pathlib import Path
 from shutil import copytree, ignore_patterns
 from types import SimpleNamespace
@@ -11,19 +13,27 @@ import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from redis.asyncio import Redis
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import Numeric, create_engine, inspect, text
 from sqlalchemy.exc import DataError, ProgrammingError
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import command
 from creativity_service.core.config import Settings
+from creativity_service.core.context import AuthContext, Scope
+from creativity_service.core.contracts import Admission
+from creativity_service.core.database import transaction
 from creativity_service.core.database.audit import audit_database
 from creativity_service.core.primitives import ServiceError, new_id
+from creativity_service.modules.budgets.services import BudgetService
 from creativity_service.modules.channels.assembly import build_channel_services
 from creativity_service.modules.channels.initialization import system_channel_values
+from creativity_service.modules.channels.schemas import ChannelCreate
 from creativity_service.modules.iam.custom_roles import CustomRoles
 from creativity_service.modules.iam.menus import MenuService
 from creativity_service.modules.iam.schemas import AccountCreate, LoginInput, PasswordChange
+from creativity_service.modules.models.assembly import ModelSettings, build_model_services
+from creativity_service.modules.models.schemas import ProviderView
+from creativity_service.modules.usage.assembly import build_usage_services
 from creativity_service.storage import metadata
 from tests.support.captcha import captcha_token
 
@@ -204,14 +214,8 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
     database = isolated_database
     connection = database.connection
     connection.exec_driver_sql(ARCHIVE.read_text(encoding="utf-8"))
-    # 表结构归档不混入系统渠道、角色、账号或迁移版本数据。
-    for name in (
-        "channels",
-        "iam_menus",
-        "builtin_roles",
-        "platform_accounts",
-        "creativity_alembic_version",
-    ):
+    # 表结构归档不混入渠道、供应商、账号授权或迁移版本数据。
+    for name in (*json.loads(SEED.read_text())["tables"], "creativity_alembic_version"):
         assert connection.scalar(text(f"SELECT count(*) FROM {name}")) == 0
     connection.exec_driver_sql(DATA_ARCHIVE.read_text(encoding="utf-8"))
     assert audit_database(connection, database.schema) == []
@@ -222,7 +226,11 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
     assert connection.execute(text("SELECT * FROM creativity_alembic_version")).all() == [
         (head, "system")
     ]
-    system = connection.execute(text("SELECT * FROM channels")).mappings().one()
+    system = (
+        connection.execute(text("SELECT * FROM channels WHERE channel_id='system' AND id='system'"))
+        .mappings()
+        .one()
+    )
     assert system["id"] == system["channel_id"] == "system"
     assert system["revision"] == 1
     assert system["created_at"] == system["updated_at"]
@@ -237,9 +245,22 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
     ] == expected_menus
     for name, rows in expected.items():
         initialized = connection.execute(text(f"SELECT * FROM {name} ORDER BY id")).mappings().all()
+        # JSON 冻结十进制字符串，数据库读取的 Numeric 必须保持精确 Decimal。
+        typed_rows = [
+            {
+                key: Decimal(value)
+                if value is not None and isinstance(metadata.tables[name].c[key].type, Numeric)
+                else value
+                for key, value in row.items()
+            }
+            for row in rows
+        ]
         assert [{key: row[key] for key in rows[0]} for row in initialized] == sorted(
-            rows, key=lambda row: row["id"]
+            typed_rows, key=lambda row: row["id"]
         )
+    limit = connection.execute(text("SELECT * FROM platform_limits")).mappings().one()
+    assert limit["effective_at"] == limit["created_at"] == limit["updated_at"]
+    assert limit["effective_at"] <= connection.scalar(text("SELECT CURRENT_TIMESTAMP"))
 
     migrated = database.schema + "_migrated"
     try:
@@ -288,7 +309,11 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
         config.attributes["connection"] = upgrade_connection
         command.upgrade(config, "head")
         upgraded_system = (
-            upgrade_connection.execute(text("SELECT * FROM channels")).mappings().one()
+            upgrade_connection.execute(
+                text("SELECT * FROM channels WHERE channel_id='system' AND id='system'")
+            )
+            .mappings()
+            .one()
         )
         assert upgraded_system["migration_test_value"] is None
         assert {key: upgraded_system[key] for key in system} == system
@@ -303,7 +328,12 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
     assert failure.value.orig.sqlstate == "42P07"
     connection.exec_driver_sql("ROLLBACK")
     assert snapshot(connection, database.schema) == actual
-    assert connection.execute(text("SELECT * FROM channels")).mappings().one() == system
+    assert (
+        connection.execute(text("SELECT * FROM channels WHERE channel_id='system' AND id='system'"))
+        .mappings()
+        .one()
+        == system
+    )
     assert connection.execute(text("SELECT * FROM creativity_alembic_version")).all() == [
         (head, "system")
     ]
@@ -383,6 +413,48 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
         assert view.can_access_platform
         assert view.workspace_options == []
         assert {"accounts", "roles", "menus"} <= {n.navigation_key for n in view.navigation}
+        page = await channels.channels.list_page(session, search="寻弈乐竞", status="ACTIVE")
+        assert page.total == len(page.items) == 1
+        channel = page.items[0]
+        assert channel.name == "寻弈乐竞" and channel.owner == "小苏打"
+        assert channel.channel_code == "XYLJ" and channel.status_label == "启用"
+        assert (await channels.channels.detail(session, channel.channel_id)) == channel
+        async with engine.connect() as connection:
+            pending = await iam.access.pending_first_member(connection, channel.channel_id)
+        assert pending == {"user_id": account["id"], "display_name": account["display_name"]}
+        assert await channels.channels.environments(session, channel.channel_id) == []
+        assert await channels.channels.data_scopes(session, channel.channel_id) == []
+        with pytest.raises(ServiceError) as duplicate:
+            await channels.channels.create(
+                session,
+                ChannelCreate(name="寻弈乐竞", owner="小苏打", first_admin_user_id=account["id"]),
+            )
+        assert duplicate.value.code == "CODE_EXISTS"
+        models = build_model_services(engine, iam, settings=ModelSettings(_env_file=None))
+        providers = await models.configuration.providers(session)
+        expected_providers = json.loads(SEED.read_text())["tables"]["provider_catalog"]
+        assert sorted(
+            [provider.model_dump() for provider in providers], key=lambda row: row["id"]
+        ) == sorted(
+            [{key: row[key] for key in ProviderView.model_fields} for row in expected_providers],
+            key=lambda row: row["id"],
+        )
+        usage = build_usage_services(engine, channels.channels)
+        limits = await usage.management.platform_limits(session)
+        assert len(limits) == 1
+        assert limits[0].limit_code == limits[0].unit == "concurrency"
+        assert limits[0].limit_value == 20 and limits[0].status == "ACTIVE"
+        assert (limits[0].used, limits[0].remaining) == (0, 20)
+        for name in (
+            "channel_environments",
+            "data_scopes",
+            "service_clients",
+            "channel_keys",
+            "model_connections",
+            "models",
+            "credentials",
+        ):
+            assert database.connection.scalar(text(f"SELECT count(*) FROM {name}")) == 0
         roles = CustomRoles(iam.access)
         directory = await roles.list(session)
         seeds = {
@@ -406,7 +478,7 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
         restricted = await iam.sessions.view(session)
         assert [n.navigation_key for n in restricted.navigation] == ["accounts"]
         assert await menus.list(session)
-        assert database.connection.execute(text("SELECT count(*) FROM channels")).scalar_one() == 1
+        assert database.connection.execute(text("SELECT count(*) FROM channels")).scalar_one() == 2
         roles = database.connection.execute(text("SELECT role_code FROM builtin_roles")).scalars()
         assert set(roles) == set(seeds)
         # 即使用户已改密，重复执行数据归档也不回写默认凭据。
@@ -431,9 +503,31 @@ def test_initial_data_repeat_preserves_all_records(isolated_database):
     connection.execute(
         text("UPDATE iam_menus SET name='已修改菜单' WHERE id='menu_platform-usage'")
     )
+    connection.execute(
+        text(
+            "UPDATE channels SET name='已修改渠道', owner='新负责人', revision=2 "
+            "WHERE channel_code='XYLJ' AND channel_id != 'system'"
+        )
+    )
+    connection.execute(text("UPDATE platform_limits SET limit_value=30, revision=2"))
+    connection.execute(text("UPDATE budget_policies SET limit_value=8, status='DISABLED'"))
+    providers = metadata.tables["provider_catalog"]
+    connection.execute(
+        providers.update()
+        .where(providers.c.channel_id == "system", providers.c.id == "provider_deepseek")
+        .values(
+            name="已修改供应商",
+            template_content={
+                "protocol": "chat_completions",
+                "endpoint": "https://models.example/v1",
+                "timeout_seconds": 120,
+            },
+            revision=2,
+        )
+    )
     before = {
         name: connection.execute(text(f"SELECT * FROM {name} ORDER BY id")).mappings().all()
-        for name in ("channels", "iam_menus", "builtin_roles", "platform_accounts")
+        for name in json.loads(SEED.read_text())["tables"]
     }
     connection.exec_driver_sql(DATA_ARCHIVE.read_text(encoding="utf-8"))
     for name, rows in before.items():
@@ -441,6 +535,90 @@ def test_initial_data_repeat_preserves_all_records(isolated_database):
             connection.execute(text(f"SELECT * FROM {name} ORDER BY id")).mappings().all() == rows
         )
     assert connection.scalar(text("SELECT count(*) FROM creativity_alembic_version")) == 1
+
+
+@pytest.mark.parametrize(
+    ("capacity", "error_code"), [(5, "BUDGET_EXCEEDED"), (20, "PLATFORM_LIMIT_EXCEEDED")]
+)
+async def test_initialized_concurrency_limits_enforce_admission_and_release(
+    isolated_database, capacity, error_code
+):
+    database = isolated_database
+    connection = database.connection
+    connection.exec_driver_sql(ARCHIVE.read_text(encoding="utf-8"))
+    connection.exec_driver_sql(DATA_ARCHIVE.read_text(encoding="utf-8"))
+    if capacity == 20:
+        # 仅在本测试 schema 禁用渠道策略，独立验证平台边界及失败整批回滚。
+        connection.execute(text("UPDATE budget_policies SET status='DISABLED'"))
+    channel_id = connection.scalar(text("SELECT id FROM channels WHERE channel_id != 'system'"))
+    # 直接验证准入层；不为预置渠道写入环境、数据域或业务访问授权。
+    context = AuthContext(
+        scope=Scope(channel_id=channel_id, environment="dev"),
+        principal_type="worker",
+        principal_id="test-worker",
+        request_id=new_id("request"),
+    )
+    engine = create_async_engine(
+        Settings().database_url.get_secret_value(),
+        connect_args={"options": f"-csearch_path={database.schema}"},
+    )
+    budgets = BudgetService(engine)
+
+    async def admit(run_id):
+        async with transaction(
+            engine, context.scope, budgets.admission_keys(context, run_id)
+        ) as uow:
+            return await budgets.admit(uow, context, run_id)
+
+    def assert_occupancy():
+        admissions = connection.execute(text("SELECT * FROM admissions")).mappings().all()
+        occupancies = (
+            connection.execute(text("SELECT * FROM platform_quota_occupancies")).mappings().all()
+        )
+        held = [row for row in admissions if row["status"] == "HELD"]
+        platform_held = [row for row in occupancies if row["status"] == "HELD"]
+        assert len(held) == len(platform_held) == capacity
+        assert {row["run_id"] for row in held} == {row["run_id"] for row in platform_held}
+        assert all(row["channel_id"] == channel_id for row in admissions)
+        assert all(
+            row["channel_id"] == "system"
+            and row["target_channel_id"] == channel_id
+            and row["limit_code"] == "concurrency"
+            for row in occupancies
+        )
+        assert len(admissions) == len(occupancies)
+        if capacity == 5:
+            policy = connection.execute(text("SELECT * FROM budget_policies")).mappings().one()
+            assert all(
+                row["policy_refs"] == [{"id": policy["id"], "version_id": policy["version_id"]}]
+                for row in admissions
+            )
+        return admissions
+
+    try:
+        runs = [new_id("run") for _ in range(capacity + 1)]
+        results = await asyncio.gather(*(admit(run_id) for run_id in runs), return_exceptions=True)
+        accepted = [result for result in results if isinstance(result, Admission)]
+        rejected = [result for result in results if isinstance(result, ServiceError)]
+        assert len(accepted) == capacity and len(rejected) == 1
+        assert rejected[0].code == error_code and rejected[0].status == 429
+        assert len(assert_occupancy()) == capacity
+        await budgets.finish_admission(context, accepted[0].run_id)
+        assert connection.scalar(text("SELECT count(*) FROM admissions WHERE status='HELD'")) == (
+            capacity - 1
+        )
+        assert connection.scalar(
+            text("SELECT count(*) FROM platform_quota_occupancies WHERE status='HELD'")
+        ) == (capacity - 1)
+        replacement = await admit(new_id("run"))
+        assert isinstance(replacement, Admission)
+        assert len(assert_occupancy()) == capacity + 1
+        with pytest.raises(ServiceError) as exceeded:
+            await admit(new_id("run"))
+        assert exceeded.value.code == error_code
+        assert len(assert_occupancy()) == capacity + 1
+    finally:
+        await engine.dispose()
 
 
 def test_concurrent_initial_data_import_does_not_duplicate_records(isolated_database):
@@ -464,23 +642,17 @@ def test_concurrent_initial_data_import_does_not_duplicate_records(isolated_data
     assert database.connection.scalar(text("SELECT count(*) FROM creativity_alembic_version")) == 1
 
 
-def test_initial_data_failure_rolls_back_data_and_version(isolated_database):
+@pytest.mark.parametrize("marker", ["-- 初始化数据库角色目录", "-- 最后登记迁移完成标记"])
+def test_initial_data_failure_rolls_back_data_and_version(isolated_database, marker):
     connection = isolated_database.connection
     connection.exec_driver_sql(ARCHIVE.read_text(encoding="utf-8"))
     data = DATA_ARCHIVE.read_text(encoding="utf-8")
-    marker = "-- 初始化数据库角色目录"
     assert marker in data
     broken = data.replace(marker, "SELECT CAST('无效修订' AS BIGINT);\n" + marker, 1)
     with pytest.raises(DataError):
         connection.exec_driver_sql(broken)
     connection.exec_driver_sql("ROLLBACK")
-    for name in (
-        "channels",
-        "iam_menus",
-        "builtin_roles",
-        "platform_accounts",
-        "creativity_alembic_version",
-    ):
+    for name in (*json.loads(SEED.read_text())["tables"], "creativity_alembic_version"):
         assert connection.scalar(text(f"SELECT count(*) FROM {name}")) == 0
     connection.exec_driver_sql(data)
     assert connection.scalar(text("SELECT count(*) FROM platform_accounts")) == 1
@@ -504,7 +676,7 @@ def test_builtin_menu_migration_preserves_existing_accounts_and_roles(isolated_d
         )
         account = connection.execute(text("SELECT * FROM platform_accounts")).mappings().one()
         roles = connection.execute(text("SELECT * FROM builtin_roles ORDER BY id")).mappings().all()
-        command.upgrade(config, "head")
+        command.upgrade(config, "0038_builtin_role_menus")
         upgraded = (
             connection.execute(text("SELECT * FROM builtin_roles ORDER BY id")).mappings().all()
         )
@@ -517,4 +689,4 @@ def test_builtin_menu_migration_preserves_existing_accounts_and_roles(isolated_d
             connection.execute(text("SELECT * FROM builtin_roles ORDER BY id")).mappings().all()
             == roles
         )
-        command.upgrade(config, "head")
+        command.upgrade(config, "0038_builtin_role_menus")

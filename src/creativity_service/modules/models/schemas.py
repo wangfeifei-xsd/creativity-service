@@ -27,7 +27,8 @@ class ProtocolView(Contract):
 
 
 class ProviderInput(Contract):
-    code: str = Field(min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9_-]*$")
+    id: Identifier | None = None
+    code: str | None = Field(default=None, min_length=1, max_length=64)
     name: str = Field(min_length=1, max_length=128)
     protocols: list[ProtocolType] = Field(min_length=1, max_length=4)
     template_content: dict[str, Any] = Field(default_factory=dict)
@@ -36,6 +37,7 @@ class ProviderInput(Contract):
 
 class ProviderView(ProviderInput):
     id: str
+    code: str
 
 
 class ConnectionInput(Contract):

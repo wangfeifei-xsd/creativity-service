@@ -6,7 +6,13 @@ from copy import deepcopy
 import pytest
 
 from creativity_service.core.auth.passwords import PasswordHasher
-from creativity_service.modules.iam.repositories import role_catalog_rows
+from creativity_service.core.primitives import digest
+from creativity_service.modules.budgets.schemas import BudgetCreate
+from creativity_service.modules.channels.codes import channel_code
+from creativity_service.modules.channels.schemas import RetentionPolicy
+from creativity_service.modules.iam.repositories import membership_id, role_catalog_rows
+from creativity_service.modules.models.policy import PROTOCOLS, validate_endpoint
+from creativity_service.modules.models.schemas import ProviderView
 from scripts import render_init_sql
 
 
@@ -20,6 +26,256 @@ def test_structure_and_initial_data_are_separate_and_reproducible():
     assert data == render_init_sql.render_data()
     assert "qwerty123$%^" not in data
     assert "qwerty123$%^" not in render_init_sql.SEED.read_text()
+
+
+def test_seed_contains_initialized_channel_and_pending_administrator():
+    seed = json.loads(render_init_sql.SEED.read_text())["tables"]
+    channels = [row for row in seed["channels"] if row["id"] != "system"]
+    assert len(channels) == 1
+    channel = channels[0]
+    assert channel["name"] == "寻弈乐竞" and channel["owner"] == "小苏打"
+    assert channel["channel_code"] == channel_code(channel["name"]) == "XYLJ"
+    assert channel["channel_id"] == channel["id"] != "system"
+    assert channel["status"] == "ACTIVE" and channel["archived_at"] is None
+    assert channel["retention_policy"] == RetentionPolicy().model_dump()
+    assert channel["budget_policy_refs"] == channel["rate_limit_policy_refs"] == []
+    index = seed["channel_code_index"][0]
+    assert index["channel_id"] == "system"
+    assert index["target_channel_id"] == channel["id"]
+    assert index["channel_code"] == channel["channel_code"]
+    admin = seed["platform_accounts"][0]
+    member = seed["channel_memberships"][0]
+    grant = seed["resource_grants"][0]
+    assert member["channel_id"] == grant["channel_id"] == channel["id"]
+    assert member["id"] == membership_id(channel["id"], admin["id"])
+    assert member["user_id"] == member["granted_by"] == grant["grantee_id"] == admin["id"]
+    assert member["roles"] == ["channel_admin"] and member["status"] == "ACTIVE"
+    assert grant["id"] == "initial_" + member["id"]
+    assert grant["resource_type"] == "channel" and grant["resource_id"] == channel["id"]
+    assert grant["grantee_type"] == "account"
+    role = next(row for row in seed["builtin_roles"] if row["role_code"] == "channel_admin")
+    assert grant["allowed_actions"] == sorted(role["allowed_actions"])
+    assert member["environments"] == member["data_scopes"] == []
+    assert grant["environments"] == grant["data_scopes"] == []
+    assert channel["revision"] == index["revision"] == member["revision"] == grant["revision"] == 1
+    assert render_init_sql.render_data().count("INSERT INTO channels ") == 2
+
+
+@pytest.mark.parametrize(
+    ("table", "field", "value", "message"),
+    [
+        ("channels", "channel_id", "system", "主档归属"),
+        ("channels", "channel_code", "WRNG", "名称生成规则"),
+        ("channel_code_index", "target_channel_id", "missing-channel", "目录缺失"),
+        ("channel_code_index", "channel_code", "WRNG", "目录编码"),
+        ("channel_code_index", "channel_id", "other-channel", "系统渠道"),
+        ("channel_memberships", "channel_id", "system", "空范围授权"),
+        ("channel_memberships", "user_id", "missing-account", "管理员或授权关联"),
+        ("channel_memberships", "environments", ["dev"], "必须为空"),
+        ("channel_memberships", "data_scopes", ["unknown-domain"], "必须为空"),
+        ("resource_grants", "resource_id", "other-channel", "管理员或授权关联"),
+        ("resource_grants", "grantee_id", "missing-account", "管理员或授权关联"),
+        ("resource_grants", "allowed_actions", [], "管理员或授权关联"),
+        ("resource_grants", "environments", ["prod"], "必须为空"),
+    ],
+)
+def test_seed_validation_rejects_invalid_channel_associations(table, field, value, message):
+    changed = json.loads(render_init_sql.SEED.read_text())
+    row = next(
+        row for row in changed["tables"][table] if table != "channels" or row["id"] != "system"
+    )
+    row[field] = value
+    with pytest.raises(ValueError, match=message):
+        render_init_sql.validate_seed(changed)
+
+
+def test_seed_validation_requires_system_channel_and_unique_channel_codes():
+    original = json.loads(render_init_sql.SEED.read_text())
+    changed = deepcopy(original)
+    changed["tables"]["channels"] = [
+        row for row in changed["tables"]["channels"] if row["id"] != "system"
+    ]
+    with pytest.raises(ValueError, match="必须包含系统渠道"):
+        render_init_sql.validate_seed(changed)
+    changed = deepcopy(original)
+    tenant = next(row for row in changed["tables"]["channels"] if row["id"] != "system")
+    changed["tables"]["channels"].append(
+        {**tenant, "id": "other-channel", "channel_id": "other-channel"}
+    )
+    with pytest.raises(ValueError, match="渠道编码重复"):
+        render_init_sql.validate_seed(changed)
+    changed = deepcopy(original)
+    indexes = changed["tables"]["channel_code_index"]
+    indexes.append({**indexes[0], "id": "duplicate-index"})
+    with pytest.raises(ValueError, match="目录缺失"):
+        render_init_sql.validate_seed(changed)
+
+
+def test_seed_contains_platform_and_channel_concurrency_limits_with_frozen_versions():
+    seed = json.loads(render_init_sql.SEED.read_text())
+    render_init_sql.validate_seed(seed)
+    tables = seed["tables"]
+    platform = tables["platform_limits"]
+    assert len(platform) == 1
+    limit = platform[0]
+    assert limit["channel_id"] == "system"
+    assert limit["limit_code"] == limit["kind"] == limit["unit"] == "concurrency"
+    assert limit["limit_value"] == "20" and limit["status"] == "ACTIVE"
+    assert limit["revision"] == 1 and limit["replaces_id"] is None
+    assert "effective_at" not in limit
+    tenants = {row["id"] for row in tables["channels"] if row["id"] != "system"}
+    policies = tables["budget_policies"]
+    assert len(policies) == len(tenants)
+    assert {row["channel_id"] for row in policies} == tenants
+    versions = {row["id"]: row for row in tables["resource_versions"]}
+    assert len(versions) == len(policies)
+    for policy in policies:
+        assert policy["scope_type"] == "channel"
+        assert policy["scope_id"] == policy["channel_id"]
+        assert policy["limit_value"] == "5" and policy["unit"] == "concurrency"
+        assert policy["mode"] == "HARD" and policy["status"] == "ACTIVE"
+        assert policy["currency"] is None and policy["thresholds"] == ["0.8", "1"]
+        payload = BudgetCreate.model_validate(
+            {key: policy[key] for key in BudgetCreate.model_fields}
+        ).model_dump(mode="json")
+        version = versions[policy["version_id"]]
+        assert version["channel_id"] == policy["channel_id"]
+        assert version["resource_type"] == "budget_policy"
+        assert version["resource_id"] == policy["id"]
+        assert version["state"] == "FROZEN" and version["content"] == payload
+        assert version["version_label"] == "预算版本 1"
+        assert version["revision"] == policy["revision"] == 1
+        assert version["content_digest"] == digest({"content": payload, "output_schema": {}})
+        assert version["dependencies"] == [] and version["dependencies_digest"] == digest([])
+        assert version["output_schema"] == {}
+        assert version["created_by"] == tables["platform_accounts"][0]["id"]
+    data = render_init_sql.render_data()
+    assert data.count("INSERT INTO platform_limits ") == 1
+    assert data.count("INSERT INTO budget_policies ") == len(tenants)
+    assert data.count("INSERT INTO resource_versions ") == len(tenants)
+    assert "platform_quota_occupancies" not in data
+    assert "INSERT INTO admissions " not in data
+    assert "INSERT INTO budget_alerts " not in data
+
+
+@pytest.mark.parametrize(
+    ("table", "field", "value", "message"),
+    [
+        ("platform_limits", "channel_id", "other-channel", "系统渠道"),
+        ("platform_limits", "limit_value", "0", "正整数"),
+        ("platform_limits", "limit_value", "20.5", "正整数"),
+        ("platform_limits", "limit_value", "NaN", "正整数"),
+        ("platform_limits", "limit_value", "Infinity", "正整数"),
+        ("platform_limits", "limit_value", 20.0, "十进制值必须使用字符串"),
+        ("platform_limits", "unit", "requests", "并发初始版本"),
+        ("platform_limits", "kind", "requests", "并发初始版本"),
+        ("platform_limits", "status", "DISABLED", "并发初始版本"),
+        ("platform_limits", "replaces_id", "old-limit", "并发初始版本"),
+        ("platform_limits", "timezone", "Invalid/Timezone", "时区无效"),
+        ("platform_limits", "effective_at", "2026-10-05T00:00:00+00:00", "字段与模型"),
+        ("budget_policies", "channel_id", "system", "每个初始业务渠道"),
+        ("budget_policies", "scope_id", "other-channel", "策略归属"),
+        ("budget_policies", "limit_value", "0", "正整数上限"),
+        ("budget_policies", "limit_value", "5.5", "正整数上限"),
+        ("budget_policies", "limit_value", 5.0, "十进制值必须使用字符串"),
+        ("budget_policies", "unit", "requests", "硬控制配置"),
+        ("budget_policies", "mode", "ALERT_ONLY", "硬控制配置"),
+        ("budget_policies", "status", "DISABLED", "硬控制配置"),
+        ("budget_policies", "currency", "CNY", "硬控制配置"),
+        ("budget_policies", "thresholds", [], "硬控制配置"),
+        ("budget_policies", "thresholds", ["1.1"], "硬控制配置"),
+        ("budget_policies", "version_id", "missing-version", "策略版本缺失"),
+        ("resource_versions", "channel_id", "other-channel", "摘要或归属"),
+        ("resource_versions", "resource_id", "other-policy", "摘要或归属"),
+        ("resource_versions", "content", {}, "版本内容"),
+        ("resource_versions", "content_digest", "wrong-digest", "摘要或归属"),
+        ("resource_versions", "dependencies_digest", "wrong-digest", "摘要或归属"),
+        ("resource_versions", "state", "DRAFT", "摘要或归属"),
+        ("resource_versions", "created_by", "other-admin", "摘要或归属"),
+    ],
+)
+def test_seed_validation_rejects_invalid_initial_concurrency_configuration(
+    table, field, value, message
+):
+    changed = json.loads(render_init_sql.SEED.read_text())
+    changed["tables"][table][0][field] = value
+    with pytest.raises(ValueError, match=message):
+        render_init_sql.validate_seed(changed)
+
+
+@pytest.mark.parametrize("table", ["platform_limits", "budget_policies", "resource_versions"])
+def test_seed_validation_requires_exactly_one_initial_concurrency_configuration(table):
+    original = json.loads(render_init_sql.SEED.read_text())
+    changed = deepcopy(original)
+    changed["tables"][table] = []
+    with pytest.raises(ValueError, match="初始数据缺失"):
+        render_init_sql.validate_seed(changed)
+    changed = deepcopy(original)
+    rows = changed["tables"][table]
+    rows.append({**rows[0], "id": "duplicate-configuration"})
+    with pytest.raises(ValueError, match="平台并发限额|一份并发策略|策略版本缺失"):
+        render_init_sql.validate_seed(changed)
+
+
+def test_seed_contains_four_credential_free_provider_templates():
+    seed = json.loads(render_init_sql.SEED.read_text())
+    rows = seed["tables"]["provider_catalog"]
+    expected = {
+        "deepseek": ("DeepSeek", "https://api.deepseek.com"),
+        "qwen": ("千问", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+        "doubao": ("豆包", "https://ark.cn-beijing.volces.com/api/v3"),
+        "openai": ("OpenAI（ChatGPT）", "https://api.openai.com/v1"),
+    }
+    assert len(rows) == len(expected)
+    assert {row["code"] for row in rows} == expected.keys()
+    for row in rows:
+        provider = ProviderView.model_validate({key: row[key] for key in ProviderView.model_fields})
+        name, endpoint = expected[provider.code]
+        assert row["channel_id"] == "system"
+        assert provider.id == "provider_" + provider.code
+        assert provider.name == name and provider.revision == 1
+        assert provider.protocols == ["chat_completions"]
+        assert PROTOCOLS[provider.protocols[0]].enabled
+        assert provider.template_content == {
+            "protocol": "chat_completions",
+            "endpoint": endpoint,
+            "timeout_seconds": 60,
+        }
+        assert validate_endpoint(provider.protocols[0], endpoint) == endpoint
+    assert render_init_sql.render_data().count("INSERT INTO provider_catalog ") == 4
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("channel_id", "other-channel", "系统渠道"),
+        ("id", "provider_other", "标识与编码"),
+        ("protocols", ["chat_completions", "chat_completions"], "协议重复"),
+        ("protocol", "responses", "模板只能包含"),
+        ("api_key", "不可归档的凭据", "不含凭据"),
+        ("endpoint", "https://api.deepseek.com/chat/completions", "基础地址不合法"),
+        ("endpoint", "https://api.deepseek.com?api_key=secret", "基础地址不合法"),
+        ("endpoint", "https://secret@api.deepseek.com", "基础地址不合法"),
+        ("timeout_seconds", 0, "超时必须"),
+        ("timeout_seconds", 601, "超时必须"),
+        ("timeout_seconds", True, "超时必须"),
+    ],
+)
+def test_seed_validation_rejects_invalid_provider_templates(field, value, message):
+    changed = json.loads(render_init_sql.SEED.read_text())
+    row = changed["tables"]["provider_catalog"][0]
+    target = row if field in {"channel_id", "id", "protocols"} else row["template_content"]
+    target[field] = value
+    with pytest.raises(ValueError, match=message):
+        render_init_sql.validate_seed(changed)
+
+
+def test_seed_validation_rejects_duplicate_provider_codes():
+    changed = json.loads(render_init_sql.SEED.read_text())
+    providers = changed["tables"]["provider_catalog"]
+    providers[1]["code"] = providers[0]["code"]
+    with pytest.raises(ValueError, match="供应商编码重复"):
+        render_init_sql.validate_seed(changed)
 
 
 async def test_seed_default_password_and_persisted_role_associations():

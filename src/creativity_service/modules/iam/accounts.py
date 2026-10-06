@@ -1,5 +1,7 @@
 """账号生命周期与初始化；登录名及凭据变更在公共互斥事务内完成。"""
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 from typing import Any
 
@@ -51,15 +53,16 @@ def account_view(
     channels: list[dict[str, Any]] | None = None,
 ) -> AccountView:
     catalog = catalog or {}
-    role = row.get("role_id")
-    if role is None and len(row["platform_roles"]) == 1:
-        role = row["platform_roles"][0]
+    selected = row.get("role_ids")
+    if selected is None:
+        selected = [row["role_id"]] if row.get("role_id") else list(row["platform_roles"])
     # 历史账号只展示真实授权，不把未分配角色或混合成员角色伪装成渠道管理员。
-    if role is None and not row["platform_roles"]:
+    if not selected and row.get("role_ids") is None and not row["platform_roles"]:
         codes = {code for c in channels or [] for code in c["roles"]}
-        if len(codes) == 1 and catalog.get(next(iter(codes)), {}).get("account_assignable"):
-            role = next(iter(codes))
+        selected = sorted(code for code in codes if catalog.get(code, {}).get("account_assignable"))
+    role = selected[0] if len(selected) == 1 else None
     definition = catalog.get(role or "", {})
+    role_names = [catalog.get(code, {}).get("name", "角色不可用") for code in selected]
     platform_role_names = [
         catalog.get(code, {}).get("name", "角色不可用") for code in row["platform_roles"]
     ]
@@ -75,7 +78,9 @@ def account_view(
         platform_roles=row["platform_roles"],
         platform_role_names=platform_role_names,
         role=role,
-        role_name=definition.get("name", role_name),
+        role_name="、".join(role_names) or role_name,
+        roles=selected,
+        role_names=role_names,
         grant_scope=definition.get("grant_scope"),
         channel_ids=[c["channel_id"] for c in channels or []],
         channel_names=[c["channel_name"] for c in channels or []],
@@ -250,35 +255,44 @@ class AccountService:
     @staticmethod
     def administrator_values(
         catalog: dict[str, dict[str, Any]], actor: AccountState, body: AccountCreate | AccountUpdate
-    ) -> tuple[Sequence[str] | None, dict[str, Any] | None]:
+    ) -> tuple[Sequence[str] | None, Sequence[dict[str, Any]] | None]:
         """在策略锁内解析角色管理的定义，账号接口不维护另一套身份枚举。"""
-        if body.role is None:
+        codes = body.roles if body.roles is not None else [body.role] if body.role else None
+        if codes is None:
             if body.channel_ids is not None:
                 raise ServiceError("VALIDATION_ERROR", "配置渠道时须选择管理员角色", 422)
             return None, None
         require_platform(actor, "role:grant")
-        definition = catalog.get(body.role)
-        if (
-            not definition
-            or definition["state"] != "ACTIVE"
-            or not definition["account_assignable"]
+        if body.roles is not None and body.role is not None and body.roles != [body.role]:
+            raise ServiceError("VALIDATION_ERROR", "单角色与多角色选择不一致", 422)
+        if len(codes) != len(set(codes)) or any(
+            code not in catalog
+            or catalog[code]["state"] != "ACTIVE"
+            or not catalog[code]["account_assignable"]
+            for code in codes
         ):
             raise ServiceError("ROLE_UNAVAILABLE", "角色不存在或已停用", 422)
-        scope = definition["grant_scope"]
-        roles = [body.role] if scope == "platform" else []
-        if scope == "channel":
+        definitions = [catalog[code] for code in codes]
+        roles = [code for code in codes if catalog[code]["grant_scope"] == "platform"]
+        channel_roles = [value for value in definitions if value["grant_scope"] == "channel"]
+        if channel_roles:
             require_platform(actor, "channel:govern")
-        elif not set(definition["allowed_actions"]) <= platform_actions(actor):
+        if not {
+            action
+            for value in definitions
+            if value["grant_scope"] == "platform"
+            for action in value["allowed_actions"]
+        } <= platform_actions(actor):
             raise ServiceError("FORBIDDEN", "不能授予超出本人权限的平台角色", 403)
         if body.platform_roles and body.platform_roles != roles:
             raise ServiceError("VALIDATION_ERROR", "管理员角色与平台授权不一致", 422)
-        if scope == "platform" and body.channel_ids:
+        if not channel_roles and body.channel_ids:
             raise ServiceError("VALIDATION_ERROR", "平台角色不配置授权渠道", 422)
         if body.channel_ids is not None and (
             len(body.channel_ids) != len(set(body.channel_ids)) or "system" in body.channel_ids
         ):
             raise ServiceError("VALIDATION_ERROR", "授权渠道重复或无效", 422)
-        return roles, definition
+        return roles, definitions
 
     @staticmethod
     def validate_roles(
@@ -312,8 +326,10 @@ class AccountService:
         if not actions <= platform_actions(actor):
             raise ServiceError("FORBIDDEN", "无权维护权限超出本人范围的账号", 403)
         if "channel:govern" not in platform_actions(actor):
-            definition = catalog.get(row.get("role_id") or "", {})
-            if definition.get("grant_scope") == "channel":
+            selected = row.get("role_ids")
+            if selected is None:
+                selected = [row["role_id"]] if row.get("role_id") else []
+            if any(catalog.get(code, {}).get("grant_scope") == "channel" for code in selected):
                 raise ServiceError("FORBIDDEN", "无权维护具有渠道授权的账号", 403)
             # 兼容没有账号级角色标记的旧成员，不能通过密码重置接管其渠道权限。
             members = TABLES["channel_memberships"]
@@ -385,9 +401,16 @@ class AccountService:
             uow = units["system"]
             catalog = await role_catalog(uow.connection, "system", all_scopes=True)
             actor = await current_actor(uow, session, "account:manage", catalog=catalog)
-            roles, definition = self.administrator_values(catalog, actor, body)
+            roles, definitions = self.administrator_values(catalog, actor, body)
             if roles is not None:
-                body = body.model_copy(update={"platform_roles": roles})
+                codes = [value["id"] for value in definitions or []]
+                body = body.model_copy(
+                    update={
+                        "platform_roles": roles,
+                        "roles": codes,
+                        "role": codes[0] if len(codes) == 1 else None,
+                    }
+                )
             if body.platform_roles:
                 self.validate_roles(catalog, actor, body.platform_roles)
             if await one(uow.connection, "platform_accounts", "system", login_name=name):
@@ -401,7 +424,7 @@ class AccountService:
                     selected,
                     event_id,
                     session.context.request_id,
-                    definition,
+                    definitions or [],
                 )
             await append_event(
                 uow,
@@ -435,6 +458,7 @@ class AccountService:
                 "password_hash": password_hash,
                 "platform_roles": list(body.platform_roles),
                 "role_id": body.role,
+                "role_ids": body.roles,
                 "status": "ACTIVE",
                 "must_change_password": True,
                 "credential_updated_at": utcnow(),
@@ -454,7 +478,7 @@ class AccountService:
                     r["channel_id"]
                     for r in (await account_channels(connection, [user_id])).get(user_id, [])
                 ]
-                if body.role is not None
+                if body.role is not None or body.roles is not None
                 else None
             )
             scopes: Sequence[Scope] = (
@@ -483,19 +507,24 @@ class AccountService:
             uow = units["system"]
             catalog = await role_catalog(uow.connection, "system", all_scopes=True)
             actor = await current_actor(uow, session, "account:manage", catalog=catalog)
-            roles, definition = self.administrator_values(catalog, actor, body)
+            roles, definitions = self.administrator_values(catalog, actor, body)
             row = await one(uow.connection, "platform_accounts", "system", id=user_id)
             if row is None:
                 raise ServiceError("NOT_FOUND", "账号不存在", 404)
             await self.validate_target(uow, catalog, actor, row)
-            values = body.model_dump(exclude={"revision", "role", "channel_ids"}, exclude_none=True)
+            values = body.model_dump(
+                exclude={"revision", "role", "roles", "channel_ids"}, exclude_none=True
+            )
             if roles is not None:
                 values["platform_roles"] = roles
-                values["role_id"] = body.role
-                if definition and definition["grant_scope"] == "platform":
+                codes = [value["id"] for value in definitions or []]
+                values["role_ids"] = codes
+                values["role_id"] = codes[0] if len(codes) == 1 else None
+                if not any(value["grant_scope"] == "channel" for value in definitions or []):
                     selected = []
             elif "platform_roles" in values:
                 values["role_id"] = None
+                values["role_ids"] = None
             if "display_name" in values:
                 values["display_name"] = values["display_name"].strip()
                 if not values["display_name"]:
@@ -513,14 +542,14 @@ class AccountService:
                     selected,
                     event_id,
                     session.context.request_id,
-                    definition,
+                    definitions or [],
                 )
                 if channel_changed:
                     changed_fields.append("channel_ids")
             if (
                 any(
-                    key in values and values[key] != row[key]
-                    for key in ("status", "platform_roles", "role_id")
+                    key in values and values[key] != row.get(key)
+                    for key in ("status", "platform_roles", "role_id", "role_ids")
                 )
                 or channel_changed
             ):
