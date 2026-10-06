@@ -150,8 +150,16 @@ def require_capabilities(evidence: dict[str, Any], config_digest: str, required:
 
 
 def attempt_order(models: list[str], policy: RetryPolicy) -> tuple[str, ...]:
-    if not models or len(set(models)) != len(models):
-        raise ServiceError("MODEL_ROUTE_INVALID", "路由模型不能为空或重复", 422)
+    if not models:
+        raise ServiceError("MODEL_ROUTE_INVALID", "请选择首选模型", 422)
+    if models[0] in models[1:]:
+        raise ServiceError(
+            "MODEL_ROUTE_INVALID",
+            "回退模型不能与首选模型相同；如需重试，请设置每个模型重试上限",
+            422,
+        )
+    if len(set(models)) != len(models):
+        raise ServiceError("MODEL_ROUTE_INVALID", "回退模型不能重复选择", 422)
     return tuple(model for model in models for _ in range(policy.retries_per_model + 1))[
         : policy.max_attempts
     ]

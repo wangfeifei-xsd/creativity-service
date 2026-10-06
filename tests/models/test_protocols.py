@@ -546,3 +546,25 @@ def test_models_contract_exports_are_current():
     from creativity_service.modules.models.export import export
 
     export(check=True)
+
+
+@pytest.mark.parametrize(
+    "models,reason",
+    [
+        ([], "请选择首选模型"),
+        (["primary", "primary"], "回退模型不能与首选模型相同"),
+        (["primary", "fallback", "fallback"], "回退模型不能重复选择"),
+    ],
+)
+def test_route_candidates_report_specific_invalid_selection(models, reason):
+    with pytest.raises(ServiceError, match=reason) as error:
+        attempt_order(models, RetryPolicy())
+    assert error.value.code == "MODEL_ROUTE_INVALID" and error.value.status == 422
+
+
+def test_single_model_route_retries_without_duplicate_fallback():
+    assert attempt_order(["primary"], RetryPolicy(max_attempts=10, retries_per_model=2)) == (
+        "primary",
+        "primary",
+        "primary",
+    )
