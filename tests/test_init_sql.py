@@ -14,6 +14,8 @@ from creativity_service.modules.iam.repositories import membership_id, role_cata
 from creativity_service.modules.models.policy import PROTOCOLS, validate_endpoint
 from creativity_service.modules.models.schemas import ProviderView
 from scripts import render_init_sql
+from scripts.render_weather_seed import load_weather, merged_tables, validate_weather
+from scripts.restore_init_objects import archived_objects
 
 
 def test_structure_and_initial_data_are_separate_and_reproducible():
@@ -155,9 +157,12 @@ def test_seed_contains_platform_and_channel_concurrency_limits_with_frozen_versi
     data = render_init_sql.render_data()
     assert data.count("INSERT INTO platform_limits ") == 1
     assert data.count("INSERT INTO budget_policies ") == len(tenants)
-    assert data.count("INSERT INTO resource_versions ") == len(tables["resource_versions"])
+    weather = load_weather(tables)
+    combined = merged_tables(tables, weather["tables"])
+    assert data.count("INSERT INTO resource_versions ") == len(combined["resource_versions"])
     assert "platform_quota_occupancies" not in data
-    assert "INSERT INTO admissions " not in data
+    assert data.count("INSERT INTO admissions ") == len(weather["tables"]["admissions"])
+    assert all(row["status"] == "RELEASED" for row in weather["tables"]["admissions"])
     assert "INSERT INTO budget_alerts " not in data
 
 
@@ -266,7 +271,7 @@ def test_seed_contains_deepseek_model_and_ciphertext_without_deployment_secrets(
     data = render_init_sql.render_data()
     assert "decode(" in data and "sk-" not in data
     assert "CREATIVITY_MODEL_ENCRYPTION_KEYS" not in data
-    assert "198.18.0.36" not in data
+    assert "198.18.0.36/32" in data  # 保留天气验证时的真实连接配置及摘要。
     assert len(tables["resource_references"]) == 1
     assert len(tables["source_links"]) == 3
 
@@ -383,3 +388,34 @@ def test_check_detects_stale_data_archive_independently(tmp_path, monkeypatch):
         render_init_sql.main()
     data.write_text("数据归档")
     render_init_sql.main()
+
+
+@pytest.mark.parametrize("fault", ["failed", "date", "evidence", "session", "object"])
+def test_weather_archive_rejects_incomplete_or_unverified_chain(fault):
+    base = json.loads(render_init_sql.SEED.read_text())["tables"]
+    weather = load_weather(base)
+    run_id = weather["source"]["cases"]["天气如何？"]
+    run = next(row for row in weather["tables"]["runs"] if row["id"] == run_id)
+    result = next(
+        row["payload"]
+        for row in weather["tables"]["run_contents"]
+        if row["id"] == run["result_ref"]
+    )
+    if fault == "failed":
+        run["state"] = "FAILED"
+    elif fault == "date":
+        result["data"]["date"] = "2026-10-07"
+    elif fault == "evidence":
+        result["evidence_refs"] = []
+    elif fault == "session":
+        run["identity"]["token_digest"] = "不应恢复的登录会话"
+    else:
+        weather["objects"][0]["base64"] = "AA=="
+    with pytest.raises(ValueError):
+        validate_weather(weather, base)
+
+
+def test_sql_contains_complete_skill_object_without_external_file_dependency():
+    base = json.loads(render_init_sql.SEED.read_text())["tables"]
+    weather = load_weather(base)
+    assert archived_objects(render_init_sql.DATA_ARCHIVE) == weather["objects"]

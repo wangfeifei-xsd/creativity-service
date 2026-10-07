@@ -3,7 +3,6 @@
 import asyncio
 import json
 from concurrent.futures import ThreadPoolExecutor
-from decimal import Decimal
 from pathlib import Path
 from shutil import copytree, ignore_patterns
 from types import SimpleNamespace
@@ -13,7 +12,7 @@ import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from redis.asyncio import Redis
-from sqlalchemy import LargeBinary, Numeric, create_engine, inspect, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import DataError, ProgrammingError
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -35,12 +34,19 @@ from creativity_service.modules.models.assembly import ModelSettings, build_mode
 from creativity_service.modules.models.schemas import ProviderView
 from creativity_service.modules.usage.assembly import build_usage_services
 from creativity_service.storage import metadata
+from scripts.render_weather_seed import load_weather, merged_tables, typed_archive_values
 from tests.support.captcha import captcha_token
 
 pytestmark = pytest.mark.integration
 ARCHIVE = Path(__file__).resolve().parents[2] / "sql/init.sql"
 DATA_ARCHIVE = ARCHIVE.with_name("init_data.sql")
 SEED = ARCHIVE.with_name("init_data.json")
+
+
+def archived_tables():
+    """实际交付数据同时包含基础种子与成功天气链路。"""
+    base = json.loads(SEED.read_text())["tables"]
+    return merged_tables(base, load_weather(base)["tables"])
 
 
 @pytest.fixture
@@ -209,9 +215,11 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
     connection = database.connection
     connection.exec_driver_sql(ARCHIVE.read_text(encoding="utf-8"))
     # 表结构归档不混入渠道、供应商、账号授权或迁移版本数据。
-    for name in (*json.loads(SEED.read_text())["tables"], "creativity_alembic_version"):
+    for name in (*archived_tables(), "creativity_alembic_version"):
         assert connection.scalar(text(f"SELECT count(*) FROM {name}")) == 0
-    connection.exec_driver_sql(DATA_ARCHIVE.read_text(encoding="utf-8"))
+    connection.exec_driver_sql(
+        DATA_ARCHIVE.read_text(encoding="utf-8"), execution_options={"no_parameters": True}
+    )
     assert audit_database(connection, database.schema) == []
     actual = snapshot(connection, database.schema)
     assert set(actual) == {*metadata.tables, "creativity_alembic_version"}
@@ -229,7 +237,7 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
     assert system["revision"] == 1
     assert system["created_at"] == system["updated_at"]
     assert {name: system[name] for name in system_channel_values()} == system_channel_values()
-    expected = json.loads(SEED.read_text())["tables"]
+    expected = archived_tables()
     expected_menus = sorted(expected["iam_menus"], key=lambda row: row["id"])
     initialized_menus = (
         connection.execute(text("SELECT * FROM iam_menus ORDER BY id")).mappings().all()
@@ -239,21 +247,13 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
     ] == expected_menus
     for name, rows in expected.items():
         initialized = connection.execute(text(f"SELECT * FROM {name} ORDER BY id")).mappings().all()
-        # JSON 冻结十进制与密文字符串，导入后须还原精确 Decimal 和原始密文字节。
-        typed_rows = [
-            {
-                key: Decimal(value)
-                if value is not None and isinstance(metadata.tables[name].c[key].type, Numeric)
-                else bytes.fromhex(value)
-                if value is not None and isinstance(metadata.tables[name].c[key].type, LargeBinary)
-                else value
-                for key, value in row.items()
-            }
-            for row in rows
-        ]
-        assert [{key: row[key] for key in rows[0]} for row in initialized] == sorted(
-            typed_rows, key=lambda row: row["id"]
-        )
+        # 每条冻结记录分别核对字段，天气记录保留真实时间，基础数据仍用导入时间。
+        expected_by_id = {row["id"]: row for row in rows}
+        assert {row["id"] for row in initialized} == expected_by_id.keys()
+        for row in initialized:
+            source = expected_by_id[row["id"]]
+            typed = typed_archive_values(metadata.tables[name], source)
+            assert {key: row[key] for key in source} == typed
     limit = connection.execute(text("SELECT * FROM platform_limits")).mappings().one()
     assert limit["effective_at"] == limit["created_at"] == limit["updated_at"]
     assert limit["effective_at"] <= connection.scalar(text("SELECT CURRENT_TIMESTAMP"))
@@ -354,7 +354,9 @@ def test_init_sql_rolls_back_partial_ddl_on_conflict(isolated_database):
 async def test_init_sql_supports_channel_and_admin_services(isolated_database):
     database = isolated_database
     database.connection.exec_driver_sql(ARCHIVE.read_text(encoding="utf-8"))
-    database.connection.exec_driver_sql(DATA_ARCHIVE.read_text(encoding="utf-8"))
+    database.connection.exec_driver_sql(
+        DATA_ARCHIVE.read_text(encoding="utf-8"), execution_options={"no_parameters": True}
+    )
     settings = Settings()
     engine = create_async_engine(
         settings.database_url.get_secret_value(),
@@ -407,7 +409,7 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
         view = await iam.sessions.view(session)
         assert not session.account.must_change_password
         assert view.can_access_platform
-        assert view.workspace_options == []
+        assert [option.environment for option in view.workspace_options] == ["dev"]
         assert {"accounts", "roles", "menus"} <= {n.navigation_key for n in view.navigation}
         page = await channels.channels.list_page(session, search="寻弈乐竞", status="ACTIVE")
         assert page.total == len(page.items) == 1
@@ -424,10 +426,12 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
         assert pending == {
             "user_id": account["id"],
             "display_name": account["display_name"],
-            "environments": [],
-            "initial_environments": [],
+            "environments": ["dev"],
+            "initial_environments": ["dev"],
         }
-        assert await channels.channels.environments(session, channel.channel_id) == []
+        assert [
+            e.environment for e in await channels.channels.environments(session, channel.channel_id)
+        ] == ["dev"]
         with pytest.raises(ServiceError) as duplicate:
             await channels.channels.create(
                 session,
@@ -450,7 +454,6 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
         assert limits[0].limit_value == 20 and limits[0].status == "ACTIVE"
         assert (limits[0].used, limits[0].remaining) == (0, 20)
         for name in (
-            "channel_environments",
             "service_clients",
             "channel_keys",
         ):
@@ -484,7 +487,9 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
         roles = database.connection.execute(text("SELECT role_code FROM builtin_roles")).scalars()
         assert set(roles) == set(seeds)
         # 即使用户已改密，重复执行数据归档也不回写默认凭据。
-        database.connection.exec_driver_sql(DATA_ARCHIVE.read_text(encoding="utf-8"))
+        database.connection.exec_driver_sql(
+            DATA_ARCHIVE.read_text(encoding="utf-8"), execution_options={"no_parameters": True}
+        )
         saved = (
             database.connection.execute(text("SELECT * FROM platform_accounts")).mappings().one()
         )
@@ -501,7 +506,9 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
 def test_initial_data_repeat_preserves_all_records(isolated_database):
     connection = isolated_database.connection
     connection.exec_driver_sql(ARCHIVE.read_text(encoding="utf-8"))
-    connection.exec_driver_sql(DATA_ARCHIVE.read_text(encoding="utf-8"))
+    connection.exec_driver_sql(
+        DATA_ARCHIVE.read_text(encoding="utf-8"), execution_options={"no_parameters": True}
+    )
     connection.execute(
         text("UPDATE iam_menus SET name='已修改菜单' WHERE id='menu_platform-usage'")
     )
@@ -531,7 +538,9 @@ def test_initial_data_repeat_preserves_all_records(isolated_database):
         name: connection.execute(text(f"SELECT * FROM {name} ORDER BY id")).mappings().all()
         for name in json.loads(SEED.read_text())["tables"]
     }
-    connection.exec_driver_sql(DATA_ARCHIVE.read_text(encoding="utf-8"))
+    connection.exec_driver_sql(
+        DATA_ARCHIVE.read_text(encoding="utf-8"), execution_options={"no_parameters": True}
+    )
     for name, rows in before.items():
         assert (
             connection.execute(text(f"SELECT * FROM {name} ORDER BY id")).mappings().all() == rows
@@ -548,7 +557,9 @@ async def test_initialized_concurrency_limits_enforce_admission_and_release(
     database = isolated_database
     connection = database.connection
     connection.exec_driver_sql(ARCHIVE.read_text(encoding="utf-8"))
-    connection.exec_driver_sql(DATA_ARCHIVE.read_text(encoding="utf-8"))
+    connection.exec_driver_sql(
+        DATA_ARCHIVE.read_text(encoding="utf-8"), execution_options={"no_parameters": True}
+    )
     if capacity == 20:
         # 仅在本测试 schema 禁用渠道策略，独立验证平台边界及失败整批回滚。
         connection.execute(text("UPDATE budget_policies SET status='DISABLED'"))
@@ -573,7 +584,12 @@ async def test_initialized_concurrency_limits_enforce_admission_and_release(
             return await budgets.admit(uow, context, run_id)
 
     def assert_occupancy():
-        admissions = connection.execute(text("SELECT * FROM admissions")).mappings().all()
+        archived_ids = {row["id"] for row in archived_tables()["admissions"]}
+        admissions = [
+            row
+            for row in connection.execute(text("SELECT * FROM admissions")).mappings()
+            if row["id"] not in archived_ids
+        ]
         occupancies = (
             connection.execute(text("SELECT * FROM platform_quota_occupancies")).mappings().all()
         )
@@ -633,13 +649,13 @@ def test_concurrent_initial_data_import_does_not_duplicate_records(isolated_data
             isolation_level="AUTOCOMMIT"
         ) as connection:
             connection.exec_driver_sql(f'SET search_path TO "{database.schema}"')
-            connection.exec_driver_sql(data)
+            connection.exec_driver_sql(data, execution_options={"no_parameters": True})
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [executor.submit(import_data) for _ in range(2)]
         for future in futures:
             future.result()
-    for name, rows in json.loads(SEED.read_text())["tables"].items():
+    for name, rows in archived_tables().items():
         assert database.connection.scalar(text(f"SELECT count(*) FROM {name}")) == len(rows)
     assert database.connection.scalar(text("SELECT count(*) FROM creativity_alembic_version")) == 1
 
@@ -652,11 +668,11 @@ def test_initial_data_failure_rolls_back_data_and_version(isolated_database, mar
     assert marker in data
     broken = data.replace(marker, "SELECT CAST('无效修订' AS BIGINT);\n" + marker, 1)
     with pytest.raises(DataError):
-        connection.exec_driver_sql(broken)
+        connection.exec_driver_sql(broken, execution_options={"no_parameters": True})
     connection.exec_driver_sql("ROLLBACK")
-    for name in (*json.loads(SEED.read_text())["tables"], "creativity_alembic_version"):
+    for name in (*archived_tables(), "creativity_alembic_version"):
         assert connection.scalar(text(f"SELECT count(*) FROM {name}")) == 0
-    connection.exec_driver_sql(data)
+    connection.exec_driver_sql(data, execution_options={"no_parameters": True})
     assert connection.scalar(text("SELECT count(*) FROM platform_accounts")) == 1
 
 

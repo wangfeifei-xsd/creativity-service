@@ -31,6 +31,7 @@ from creativity_service.modules.models.schemas import ProviderInput
 from creativity_service.modules.usage.pricing import timezone
 from creativity_service.storage import metadata
 from scripts.render_init_models import MODEL_SEED_TABLES, validate_initial_models
+from scripts.render_weather_seed import OBJECT_MARKER, load_weather, typed_archive_values
 
 ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE = ROOT / "sql/init.sql"
@@ -173,8 +174,12 @@ def model() -> tuple[str, str, Table]:
 
 
 def append(lines: list[str], statement: Executable) -> None:
+    # 交付物是直接执行的 SQL 文本，使用命名参数方言避免把 URL 百分号编译成 %%；
+    # 同时匹配文件头的标准字符串设置，嵌套 JSON 反斜杠不能再次转义。
+    dialect = postgresql.dialect(paramstyle="named")
+    dialect._backslash_escapes = False
     compiled = str(
-        statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})
+        statement.compile(dialect=dialect, compile_kwargs={"literal_binds": True})
     ).strip()
     lines.append("\n".join(line.rstrip() for line in compiled.splitlines()) + ";")
     lines.append("")
@@ -374,16 +379,19 @@ def render_data() -> str:
     model_version, revision, version = model()
     seed = json.loads(SEED.read_text(encoding="utf-8"))
     validate_seed(seed)
+    weather = load_weather(seed["tables"])
     lines = [
         "-- Creativity 初始化数据归档，必须在配套 sql/init.sql 建表后执行。",
         f"-- 模型版本：{model_version}；完成后登记迁移基线：{revision}。",
         "-- 数据源：sql/init_data.json，冻结控制面配置、预置渠道、模型连接及并发策略。",
         "-- 包含 admin 账号、两种管理员的菜单关联、账号角色关联及历史兼容角色。",
-        "-- 预置渠道的首位管理员复用 admin，仅登记空范围；不复制其他账号或接入凭据。",
-        "-- 初始密码仅存安全摘要，首次登录须改密；环境稍后配置。",
+        "-- 天气链路数据源：sql/weather_data.json；仅保留成功运行及必要依赖。",
+        "-- 预置渠道的首位管理员复用 admin，天气示例仅开放开发环境。",
+        "-- 初始密码仅存安全摘要，首次登录须改密；不复制其他账号或接入凭据。",
         "-- 平台并发上限归系统渠道，各渠道并发策略及冻结版本归对应业务渠道。",
         "-- 包含开发环境 DeepSeek V4 Flash 及密文凭据；解密主密钥和出站策略另行配置。",
-        "-- 不继承能力验证结果、测试运行或用量；目标环境启用后重新验证。",
+        "-- 保留天气链路所需能力验证、真实输入输出和用量；历史身份不携带登录会话。",
+        "-- 技能对象字节随本 SQL 注释封存，导入后运行 scripts.restore_init_objects 恢复对象存储。",
         "-- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。",
         "-- 所有数据和迁移标记在一个事务提交；已有版本记录时整份数据不再插入。",
         "-- 仅配套新库建表，不用于覆盖已有库，也不重置已有账号密码。",
@@ -398,8 +406,8 @@ def render_data() -> str:
         "iam_menus": "初始化当前环境菜单目录，保留层级、页面、按钮及启停排序。",
         "builtin_roles": "初始化数据库角色目录，menu_ids 保存角色与菜单关联。",
         "platform_accounts": "初始化 admin；role_id 与 platform_roles 保存账号与角色关联。",
-        "channel_memberships": "复用 admin 登记预置渠道的首位管理员，空范围不产生工作区访问权。",
-        "resource_grants": "登记首位管理员的空范围初始授权，不预设环境。",
+        "channel_memberships": "首位管理员基础成员种子；天气归档补齐开发环境。",
+        "resource_grants": "初始授权基础种子；天气归档限定开发环境及成功记录。",
         "platform_limits": "初始化平台并发上限，导入时生效；不复制实际运行占用。",
         "resource_versions": "初始化各业务渠道并发策略、模型及连接的冻结版本及内容摘要。",
         "budget_policies": "初始化各业务渠道并发硬上限，不复制用量、预占或预算提醒。",
@@ -413,6 +421,8 @@ def render_data() -> str:
         lines.append(f"-- {descriptions[name]}")
         table = metadata.tables[name]
         for source in sorted(seed["tables"][name], key=lambda item: item["id"]):
+            if source["id"] in {row["id"] for row in weather["tables"].get(name, [])}:
+                continue
             row = typed_seed_values(table, source)
             values = []
             for column in table.c:
@@ -435,6 +445,32 @@ def render_data() -> str:
                 lines,
                 insert(table).from_select(list(table.c.keys()), select(*values).where(pending)),
             )
+    lines.append("-- 成功天气链路：保留采集时的真实时间、发布配置、调用证据与用量。")
+    for name, rows in weather["tables"].items():
+        table = metadata.tables[name]
+        lines.append(f"-- 天气归档 {name}：{len(rows)} 条。")
+        for source in rows:
+            row = typed_archive_values(table, source)
+            values = []
+            for column in table.c:
+                value = row[column.name]
+                if isinstance(column.type, postgresql.JSONB) and value is not None:
+                    expression = cast(
+                        literal(json.dumps(value, ensure_ascii=False, sort_keys=True)),
+                        postgresql.JSONB,
+                    )
+                elif isinstance(column.type, LargeBinary) and value is not None:
+                    expression = func.decode(literal(value.hex()), literal("hex"))
+                else:
+                    expression = cast(literal(value, type_=column.type), column.type)
+                values.append(expression)
+            append(
+                lines,
+                insert(table).from_select(list(table.c.keys()), select(*values).where(pending)),
+            )
+    for item in weather["objects"]:
+        lines.append(OBJECT_MARKER + json.dumps(item, ensure_ascii=False, sort_keys=True))
+    lines.append("")
     lines.append("-- 最后登记迁移完成标记；失败回滚时不留下半份初始化数据。")
     append(
         lines,
