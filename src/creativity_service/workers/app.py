@@ -88,12 +88,8 @@ app.conf.beat_schedule = {
     "runs-sweep": {"task": "runs.sweep", "schedule": 5.0},
 }
 
-# 远程连接健康检查按渠道恢复，短事务领取后再等待远端。
+# 仅保留旧 MCP 消息的兼容消费者，不再登记连接测试定时任务。
 app.conf.imports = tuple(app.conf.imports or ()) + ("creativity_service.modules.mcp.tasks",)
-app.conf.beat_schedule = {
-    **(app.conf.beat_schedule or {}),
-    "mcp-sweep": {"task": "mcp.sweep", "schedule": 30.0},
-}
 
 # 删除意图和到期内容共用可重放清理调度。
 app.conf.imports = tuple(app.conf.imports or ()) + ("creativity_service.workers.cleanup",)

@@ -48,6 +48,8 @@ Token 到期后重新交换并签名查询原运行。创建响应丢失时保�
 
 API 和 Worker 配置一致的 `CREATIVITY_MCP_DESTINATIONS`、`CREATIVITY_MCP_KEY_VERSION`、`CREATIVITY_MCP_ENCRYPTION_KEYS`。创建连接、更新服务凭据、发现远端工具，导入业务工具草稿并测试发布。Agent 绑定具体工具版本，远端 schema 或连接修订变化后重新验证发布。
 
+连接测试和工具发现仅由管理端手动触发，不安排后台周期检查。历史检查间隔与调度字段仅为已有数据兼容保留，不再参与调度；升级前已排队的 `mcp.sweep` 消息直接完成，不访问远端或生成记录。
+
 源端另提供 `_meta["creativity/purpose"]="subject_review"` 的只读身份工具，在管理端 `/subject-review-bindings` 绑定渠道、环境、接入服务和发现快照。身份工具不能导入模型工具目录；缺配置、主体停用、范围扩大、过期或超时均拒绝执行。
 
 业务 MCP 使用连接专属凭据。受信身份放在 `_meta["creativity.identity"]`，业务数据放在 `structuredContent`，来源、范围、完整性与真实影响放在 `_meta["creativity.result"]`。对应 [身份](../contracts/mcp/McpIdentity.schema.json)、[主体复核](../contracts/mcp/SubjectReviewResponse.schema.json) 和 [结果元数据](../contracts/mcp/McpResultMetadata.schema.json) 契约；配置示例见 [MCP 示例](../examples/mcp/README.md)。

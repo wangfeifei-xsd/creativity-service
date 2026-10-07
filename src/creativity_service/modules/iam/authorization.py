@@ -83,6 +83,14 @@ def action_allowed(actions: frozenset[str], action: str) -> bool:
     return True
 
 
+def channel_run_actions(
+    member: MembershipState, grants: list[GrantState], environment: str
+) -> frozenset[str]:
+    """当前渠道管理权包含运行内容读取，不授予其他敏感原文或导出权限。"""
+    actions = effective_actions(member, grants, environment, "channel", member.channel_id)
+    return frozenset({"run:read", "run:content"}) if "channel:manage" in actions else frozenset()
+
+
 def platform_actions(account: AccountState) -> frozenset[str]:
     return account.custom_actions
 
@@ -202,7 +210,11 @@ class ReadAuthorization:
             )
         else:
             raise unavailable("当前身份授权数据")
-        return frozenset(value for value in actions if action_allowed(actions, value))
+        allowed = frozenset(value for value in actions if action_allowed(actions, value))
+        if self.member is not None and resource_type == "run":
+            # 渠道、环境、资源归属已核验；只对当前有效成员应用渠道管理权限。
+            allowed |= channel_run_actions(self.member, list(self.grants), target.scope.environment)
+        return allowed
 
 
 class IamAuthorization:

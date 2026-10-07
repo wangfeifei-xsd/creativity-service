@@ -15,6 +15,7 @@ class McpTimeouts(Contract):
 
 
 class McpHealthPolicy(Contract):
+    # 兼容既有配置与历史快照；检查间隔不再触发后台任务。
     interval_seconds: int = Field(default=300, ge=30, le=86400, strict=True)
     failure_threshold: int = Field(default=3, ge=1, le=10, strict=True)
 

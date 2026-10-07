@@ -13,6 +13,7 @@ from creativity_service.modules.iam.audit import append_event
 from creativity_service.modules.iam.authorization import (
     IamAuthorization,
     action_allowed,
+    channel_run_actions,
     effective_actions,
     platform_actions,
 )
@@ -322,6 +323,7 @@ class SessionService:
                     ]
                 )
             )
+            actions |= channel_run_actions(member, grants, context.scope.environment)
             workspace = next(
                 (
                     o

@@ -1,6 +1,7 @@
 """IAM-A04/A05/A06/A07/A09/A11/A13：当前范围与授权不可自增。"""
 
 import asyncio
+from dataclasses import replace
 
 import pytest
 
@@ -76,7 +77,9 @@ async def test_builder_can_edit_but_not_publish_self_grant_or_cross_scope(iam_en
     assert "accounts" not in {item.navigation_key for item in view.navigation}
 
 
-async def test_governance_is_not_business_content_permission(iam_env, admin, manager):
+async def test_channel_manager_reads_runs_without_global_sensitive_permission(
+    iam_env, admin, manager
+):
     iam, client, _, _, _ = iam_env
     assert (
         await client.get(
@@ -87,8 +90,15 @@ async def test_governance_is_not_business_content_permission(iam_env, admin, man
         await iam.authentication.authenticate(admin[0].access_token, "management")
     context = manager[1].context
     await iam.authorization.boundary(context, "audit:read", "channel", "channel_a")
+    await iam.authorization.boundary(context, "run:content", "run", "resource_a")
+    assert {"run:read", "run:content"} <= {
+        item.action_key for item in (await iam.sessions.view(manager[1])).actions
+    }
+    with pytest.raises(ServiceError) as foreign:
+        await iam.authorization.boundary(context, "run:content", "run", "foreign")
+    assert foreign.value.status == 404
     for action, resource_type in (
-        ("run:content", "run"),
+        ("data:read_sensitive", "run"),
         ("snapshot:read", "snapshot"),
         ("artifact:download", "artifact"),
     ):
@@ -122,6 +132,56 @@ async def test_membership_removal_is_channel_local_and_stops_worker(iam_env, adm
     assert (
         await iam.accounts.repository.membership("channel_b", account.user_id)
     ).status == "ACTIVE"
+
+
+async def test_run_content_uses_channel_capability_and_keeps_business_boundary(iam_env, manager):
+    from creativity_service.modules.iam.authorization import ReadAuthorization
+
+    from .conftest import ServiceFixture, SubjectFixture
+
+    iam, _, channels, _, _ = iam_env
+    policy = await iam.authorization.read_policy(manager[1].context)
+    member = policy.member.model_copy(
+        update={"roles": ["custom_manager"], "custom_actions": frozenset({"channel:manage"})}
+    )
+    grant = next(g for g in policy.grants if g.grantee_id == member.user_id).model_copy(
+        update={"allowed_actions": ["channel:manage"], "environments": ["test"]}
+    )
+    custom = replace(policy, member=member, grants=(grant,))
+    assert {"run:read", "run:content"} <= custom.actions("run", "*")
+    for scoped in (
+        replace(custom, member=member.model_copy(update={"status": "DISABLED"})),
+        replace(custom, member=member.model_copy(update={"environments": ["prod"]})),
+        replace(custom, grants=(grant.model_copy(update={"environments": ["prod"]}),)),
+        replace(custom, grants=(grant.model_copy(update={"channel_id": "channel_b"}),)),
+        replace(custom, grants=()),
+    ):
+        assert "run:content" not in scoped.actions("run", "*")
+
+    context = manager[1].context.model_copy(
+        update={
+            "principal_type": "service",
+            "principal_id": "client_a",
+            "actor_id": None,
+            "client_id": "client_a",
+            "key_id": "key_a",
+            "scope": manager[1].context.scope.model_copy(
+                update={"subject_type": "user", "subject_id": "subject_a"}
+            ),
+        }
+    )
+    for sensitive in (False, True):
+        channels.service_actions = frozenset({"run:read", "run:content"}) | (
+            {"data:read_sensitive"} if sensitive else set()
+        )
+        channels.subject_actions = channels.service_actions
+        business = ReadAuthorization(
+            context,
+            service=await ServiceFixture(channels).read_current(context),
+            subject=await SubjectFixture(channels).read_current(context),
+        )
+        state = await iam.authorization.resources.read_current(context, "run", "run_a")
+        assert ("run:content" in business.actions("run", "run_a", state)) == sensitive
 
 
 async def test_revoking_grant_stops_next_boundary_without_relying_on_menu(iam_env, admin, manager):

@@ -214,14 +214,15 @@ async def test_unified_executor_records_attempt_and_preserves_inflight_result(mc
     assert len(runs.starts) == 1
 
 
-async def test_health_schedule_claim_threshold_and_manual_status_are_independent(mcp_env):
+async def test_connection_checks_only_run_manually_even_with_legacy_due_messages(mcp_env):
     from datetime import timedelta
 
     from creativity_service.core.database import transaction
     from creativity_service.core.locking import record_key
     from creativity_service.core.primitives import utcnow
     from creativity_service.modules.mcp.repositories import repository
-    from creativity_service.modules.mcp.tasks import check_due
+    from creativity_service.modules.mcp.tasks import sweep_mcp_task
+    from creativity_service.workers.app import app
 
     env = mcp_env
     conn, _ = await ready(env)
@@ -237,14 +238,25 @@ async def test_health_schedule_claim_threshold_and_manual_status_are_independent
             row["revision"],
             {"next_check_at": utcnow() - timedelta(seconds=1)},
         )
-    assert (
-        sum(
-            await asyncio.gather(
-                *(check_due(env.mcp, env.context, conn.connection_id) for _ in range(3))
-            )
-        )
-        == 1
-    )
+    before = await env.mcp.detail(env.context, conn.connection_id)
+    remote_calls = len(env.source.calls)
+    assert all(item["task"] != "mcp.sweep" for item in app.conf.beat_schedule.values())
+    for _ in range(3):
+        sweep_mcp_task.run()
+    assert await env.mcp.detail(env.context, conn.connection_id) == before
+    assert len(env.source.calls) == remote_calls
+
+    checked = await env.mcp.probe(env.context, conn.connection_id, False)
+    after = await env.mcp.detail(env.context, conn.connection_id)
+    assert checked.health.value == "HEALTHY"
+    assert len(after.checks) == len(before.checks) + 1
+    assert after.discoveries == before.discoveries
+    assert len(env.source.calls) > remote_calls
+
+
+async def test_manual_health_failure_threshold_does_not_disable_connection(mcp_env):
+    env = mcp_env
+    conn, _ = await ready(env)
     env.source.mode = "protocol"
     for _ in range(3):
         await env.mcp.probe(env.context, conn.connection_id, False)
