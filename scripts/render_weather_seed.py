@@ -12,8 +12,10 @@ from typing import Any
 
 from sqlalchemy import Date, DateTime, LargeBinary, Numeric, Table
 
+from creativity_service.core.context import Scope
 from creativity_service.core.contracts import BusinessResult
 from creativity_service.core.database import validate_row
+from creativity_service.core.deletion import barrier_id
 from creativity_service.core.primitives import digest
 from creativity_service.storage import metadata
 
@@ -26,7 +28,7 @@ WEATHER_TABLES = frozenset(
     "agent_release_records resource_versions model_connections credentials release_mappings "
     "resource_references mcp_discoveries mcp_imports mcp_checks skill_files artifacts "
     "evidence_refs usage_events usage_adjustments resource_grants source_links audit_events "
-    "channel_memberships".split()
+    "channel_memberships recovery_barriers".split()
 )
 # 同一模型和初始管理员沿用原标识；天气归档只补充已验证配置及开发环境。
 OVERRIDE_TABLES = frozenset(
@@ -88,6 +90,27 @@ def validate_weather(seed: dict[str, Any], base: dict[str, Any]) -> None:
                 raise ValueError("天气归档不能混入其他渠道或环境")
     merged = merged_tables(base, tables)
     index = {name: {r["id"]: r for r in rows} for name, rows in merged.items()}
+    # SQL 导入不会经过环境创建服务，必须显式带齐所有内容范围的恢复屏障。
+    scopes = {
+        barrier_id(scope): scope
+        for name, rows in tables.items()
+        if name != "recovery_barriers" and "environment" in metadata.tables[name].c
+        for row in rows
+        if row.get("environment")
+        for scope in [Scope(**{key: row.get(key) for key in Scope.model_fields})]
+    }
+    barriers = index["recovery_barriers"]
+    if barriers.keys() != scopes.keys():
+        raise ValueError("初始化内容范围的恢复屏障缺失或多余")
+    for identifier, scope in scopes.items():
+        row = barriers[identifier]
+        if (
+            any(row[key] != value for key, value in scope.model_dump().items())
+            or row["state"] != "READY"
+            or row["marker_digest"] != digest([])
+            or row["verified_at"] is None
+        ):
+            raise ValueError("初始化恢复屏障范围、状态或删除摘要不正确")
     for row in tables["resource_versions"]:
         if not set(row["dependencies"]) <= index["resource_versions"].keys():
             raise ValueError("天气版本依赖缺失")
@@ -143,6 +166,25 @@ def validate_weather(seed: dict[str, Any], base: dict[str, Any]) -> None:
             row["resource_id"] not in runs or row["allowed_actions"] != ["data:read_sensitive"]
         ):
             raise ValueError("天气原文查看必须限定成功记录")
+    admin = base["platform_accounts"][0]["id"]
+    content_grants = [
+        row
+        for row in tables["resource_grants"]
+        if row["resource_type"] in {"conversation", "memory"}
+    ]
+    if len(content_grants) != 2 or {row["resource_type"] for row in content_grants} != {
+        "conversation",
+        "memory",
+    }:
+        raise ValueError("初始管理员的会话与记忆原文授权缺失或重复")
+    if any(
+        row["grantee_type"] != "account"
+        or row["grantee_id"] != admin
+        or row["resource_id"] != "*"
+        or row["allowed_actions"] != ["data:read_sensitive"]
+        for row in content_grants
+    ):
+        raise ValueError("会话与记忆原文授权只能授予初始管理员及指定资源类型")
     if any(row["status"] != "RELEASED" for row in tables["admissions"]):
         raise ValueError("不能恢复运行中的配额占用")
     for question, run_id in cases.items():

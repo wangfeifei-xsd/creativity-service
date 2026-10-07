@@ -11,25 +11,36 @@ from uuid import uuid4
 import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+from httpx import ASGITransport, AsyncClient
+from pydantic import SecretStr
 from redis.asyncio import Redis
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.exc import DataError, ProgrammingError
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import command
+from creativity_service.app import create_app
 from creativity_service.core.config import Settings
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.contracts import Admission
 from creativity_service.core.database import transaction
 from creativity_service.core.database.audit import audit_database
+from creativity_service.core.deletion.ledger import DeletionLedger
 from creativity_service.core.primitives import ServiceError, new_id
 from creativity_service.modules.budgets.services import BudgetService
 from creativity_service.modules.channels.assembly import build_channel_services
 from creativity_service.modules.channels.initialization import system_channel_values
 from creativity_service.modules.channels.schemas import ChannelCreate
+from creativity_service.modules.data_lifecycle.recovery import backup_manifest
 from creativity_service.modules.iam.custom_roles import CustomRoles
 from creativity_service.modules.iam.menus import MenuService
-from creativity_service.modules.iam.schemas import AccountCreate, LoginInput, PasswordChange
+from creativity_service.modules.iam.schemas import (
+    AccountCreate,
+    ChannelContextInput,
+    LoginInput,
+    PasswordChange,
+)
 from creativity_service.modules.models.assembly import ModelSettings, build_model_services
 from creativity_service.modules.models.schemas import ProviderView
 from creativity_service.modules.usage.assembly import build_usage_services
@@ -501,6 +512,109 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
             await redis.delete(*keys)
         await redis.aclose()
         await engine.dispose()
+
+
+async def test_initialized_admin_pages_and_content_boundaries(
+    isolated_database, tmp_path, monkeypatch
+):
+    database = isolated_database
+    database.connection.exec_driver_sql(ARCHIVE.read_text())
+    database.connection.exec_driver_sql(
+        DATA_ARCHIVE.read_text(), execution_options={"no_parameters": True}
+    )
+    monkeypatch.setenv("CREATIVITY_DELETION_LEDGER_PATH", str(tmp_path / "ledger"))
+    settings = Settings()
+    url = make_url(settings.database_url.get_secret_value()).update_query_dict(
+        {"options": f"-csearch_path={database.schema}"}
+    )
+    settings = settings.model_copy(
+        update={
+            "database_url": SecretStr(url.render_as_string(hide_password=False)),
+            "redis_key_prefix": database.schema,
+            "log_directory": tmp_path / "log",
+            "otel_enabled": False,
+        }
+    )
+    app = create_app(settings)
+    async with app.router.lifespan_context(app):
+        iam = app.state.iam
+        redis = app.state.infrastructure.redis_clients["redis_auth"]
+        try:
+            channel = archived_tables()["channel_environments"][0]["channel_id"]
+            # 与部署步骤一致：独立删除清单不由纯 SQL 写入。
+            await backup_manifest(app.state.data_lifecycle, channel)
+            password = "qwerty123$%^"
+            login = await iam.sessions.login(
+                LoginInput(
+                    login_name="admin",
+                    password=password,
+                    captcha_token=await captcha_token(iam, "admin", "page-init-test"),
+                ),
+                "page-init-test",
+                new_id("request"),
+            )
+            session = await iam.authentication.admin_session(
+                login.access_token, new_id("request"), allow_initial=True, governance=True
+            )
+            await iam.accounts.change_password(
+                session,
+                PasswordChange(current_password=password, new_password="Changed-password-5678"),
+            )
+            login = await iam.sessions.login(
+                LoginInput(
+                    login_name="admin",
+                    password="Changed-password-5678",
+                    captcha_token=await captcha_token(iam, "admin", "page-init-test"),
+                ),
+                "page-init-test",
+                new_id("request"),
+            )
+            session = await iam.authentication.admin_session(
+                login.access_token, new_id("request"), governance=True
+            )
+            token = await iam.sessions.enter(
+                session, ChannelContextInput(channel_id=channel, environment="dev")
+            )
+            paths = [
+                "models",
+                "model-routes",
+                "skills",
+                "conversations",
+                "memories",
+                "memory-subjects",
+            ]
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers={"Authorization": f"Bearer {token.access_token}"},
+            ) as client:
+                for path in paths:
+                    response = await client.get(f"/admin/v1/{path}")
+                    assert response.status_code == 200, (path, response.text)
+                    if path in {"models", "model-routes", "skills"}:
+                        assert response.json()["items"]
+                # 补齐初始化数据不能绕过独立恢复封锁。
+                await DeletionLedger().operate(channel, blocked=True, required=True)
+                response = await client.get("/admin/v1/skills")
+                assert response.status_code == 503
+                assert response.json()["error"]["code"] == "RECOVERY_BLOCKED"
+                await DeletionLedger().operate(channel, blocked=False, required=True)
+                # 移除显式授权后仍拒绝敏感原文，内置管理员角色不被整体扩权。
+                database.connection.execute(
+                    text(
+                        "DELETE FROM resource_grants "
+                        "WHERE resource_type IN ('conversation', 'memory')"
+                    )
+                )
+                for path in ("conversations", "memories", "memory-subjects"):
+                    response = await client.get(f"/admin/v1/{path}")
+                    assert response.status_code == 403, (path, response.text)
+                response = await client.get("/admin/v1/skills")
+                assert response.status_code == 200
+        finally:
+            keys = [key async for key in redis.scan_iter(f"{database.schema}:*")]
+            if keys:
+                await redis.delete(*keys)
 
 
 def test_initial_data_repeat_preserves_all_records(isolated_database):

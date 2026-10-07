@@ -6941,6 +6941,40 @@
         "environments": [
           "dev"
         ]
+      },
+      {
+        "id": "initial_content_3df0ed85e6f013f92c934573cfdd43f910c92d0f",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-07T03:58:03.309760+08:00",
+        "updated_at": "2026-10-07T03:58:03.309760+08:00",
+        "revision": 1,
+        "grantee_type": "account",
+        "grantee_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "resource_type": "conversation",
+        "resource_id": "*",
+        "environments": [
+          "dev"
+        ],
+        "allowed_actions": [
+          "data:read_sensitive"
+        ]
+      },
+      {
+        "id": "initial_content_7fcc18ad5e093f5307b8874b5ed9237158431eea",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-07T03:58:03.309760+08:00",
+        "updated_at": "2026-10-07T03:58:03.309760+08:00",
+        "revision": 1,
+        "grantee_type": "account",
+        "grantee_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "resource_type": "memory",
+        "resource_id": "*",
+        "environments": [
+          "dev"
+        ],
+        "allowed_actions": [
+          "data:read_sensitive"
+        ]
       }
     ],
     "resource_references": [
@@ -22516,6 +22550,22 @@
         "latest_event_id": "usage_event_6f0a9cd74e794569aa8afe53d67fcce0",
         "final_reported": true,
         "source_request_id": "3bf7a2d3-a58f-4e63-b92e-3fa15e9533bb"
+      }
+    ],
+    "recovery_barriers": [
+      {
+        "id": "67063cdddc6abc0c4827de56f1ef0f4c03baf66c16343121bb91ae379708c1e9",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "environment": "dev",
+        "subject_type": null,
+        "subject_id": null,
+        "created_at": "2026-10-07T03:58:03.309760+08:00",
+        "updated_at": "2026-10-07T03:58:03.309760+08:00",
+        "revision": 1,
+        "state": "READY",
+        "recovery_id": "init_sql_46bf8e4cf552b3ca93baac12148e7ccf567f0f1f",
+        "marker_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "verified_at": "2026-10-07T03:58:03.309760+08:00"
       }
     ]
   },

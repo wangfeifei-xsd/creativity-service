@@ -419,3 +419,22 @@ def test_sql_contains_complete_skill_object_without_external_file_dependency():
     base = json.loads(render_init_sql.SEED.read_text())["tables"]
     weather = load_weather(base)
     assert archived_objects(render_init_sql.DATA_ARCHIVE) == weather["objects"]
+
+
+@pytest.mark.parametrize("fault", ["missing", "scope", "blocked", "digest", "unverified"])
+def test_weather_archive_requires_verified_content_barriers(fault):
+    base = json.loads(render_init_sql.SEED.read_text())["tables"]
+    weather = load_weather(base)
+    barrier = weather["tables"]["recovery_barriers"][0]
+    if fault == "missing":
+        barrier["id"] = "wrong-scope"
+    elif fault == "scope":
+        barrier.update(subject_type="user", subject_id="other-user")
+    elif fault == "blocked":
+        barrier["state"] = "BLOCKED"
+    elif fault == "digest":
+        barrier["marker_digest"] = digest(["unreconciled-deletion"])
+    else:
+        barrier["verified_at"] = None
+    with pytest.raises(ValueError, match="恢复屏障"):
+        validate_weather(weather, base)
