@@ -164,7 +164,14 @@ class DockerRuntime:
             return
         if shutil.which("docker") is None:
             raise StartupError("缺少 Docker；请安装并启动 Docker，或在 .env 配置现有依赖。")
-        self.run(["info", "--format", "{{.ServerVersion}}"], timeout=10)
+        try:
+            self.run(["info", "--format", "{{.ServerVersion}}"], timeout=10)
+        except StartupError:
+            raise StartupError(
+                "Docker 服务不可用。若使用 Colima，请先执行 colima start；"
+                "若使用 Docker Desktop，请先启动应用。确认 docker info 成功后重试；"
+                "仍失败时检查 docker context ls 和 DOCKER_HOST、DOCKER_CONTEXT 配置。"
+            ) from None
         plugin = subprocess.run(
             ["docker", "compose", "version"], capture_output=True, timeout=10, check=False
         )

@@ -10,6 +10,8 @@
 
 Compose 优先使用 `docker compose` 插件，也支持 PATH 中的独立 `docker-compose` 或项目上级 `.tools/docker/docker-compose`。
 
+如果提示无法连接 `~/.colima/default/docker.sock` 或该文件不存在，通常是 Colima 尚未启动。先执行 `colima start`，等 `docker info` 成功后重新运行启动脚本。使用 Docker Desktop 时先打开应用并等待引擎就绪。若仍无法连接，用 `docker context ls` 核对当前连接目标，同时检查 `DOCKER_HOST`、`DOCKER_CONTEXT` 是否覆盖了目标配置。
+
 API 默认地址为 `http://127.0.0.1:8000`，启用源码热重载。管理员仍通过 `uv run creativity-iam init-admin --login-name admin --display-name 管理员` 交互设置密码；前端按其自身 README 启动。
 
 ## 依赖复用
