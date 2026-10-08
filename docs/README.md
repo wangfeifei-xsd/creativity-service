@@ -11,6 +11,7 @@
 | 排查任务、SSE、会话与记忆 | [运行指南](runtime.md) |
 | 管理费用、评测、删除与恢复 | [运维指南](operations.md) |
 | 执行检查与验收 | [测试指南](testing.md) |
+| 设计租号订单 AI 协助 | [接入方案（方案稿）](solutions/gamerental-order-ai-assistant.md) |
 
 字段及存储关系查 [数据模型](data-model/README.md)，接口查 [OpenAPI](../contracts/openapi.json)，初始化数据库查 [SQL 说明](../sql/README.md)。
 
