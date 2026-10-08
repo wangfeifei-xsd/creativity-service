@@ -469,8 +469,11 @@ async def test_init_sql_supports_channel_and_admin_services(isolated_database):
             "channel_keys",
         ):
             assert database.connection.scalar(text(f"SELECT count(*) FROM {name}")) == 0
+        tables = archived_tables()
         for name in ("model_connections", "models", "credentials"):
-            assert database.connection.scalar(text(f"SELECT count(*) FROM {name}")) == 1
+            assert database.connection.scalar(text(f"SELECT count(*) FROM {name}")) == len(
+                tables[name]
+            )
         roles = CustomRoles(iam.access)
         directory = await roles.list(session)
         seeds = {

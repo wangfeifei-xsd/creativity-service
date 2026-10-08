@@ -28,7 +28,8 @@ def test_removal_cleans_legacy_records_and_preserves_other_credentials():
                     connection.execute(
                         text(
                             "INSERT INTO credentials "
-                            "(id, channel_id, environment, purpose, ciphertext, key_version, state) "
+                            "(id, channel_id, environment, purpose, "
+                            "ciphertext, key_version, state) "
                             "VALUES (:id, :channel, 'test', :purpose, "
                             ":ciphertext, :version, 'ACTIVE')"
                         ),
