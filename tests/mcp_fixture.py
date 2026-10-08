@@ -5,6 +5,7 @@ import socket
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
+from urllib.parse import parse_qs
 from uuid import uuid4
 
 import pytest
@@ -18,6 +19,9 @@ def mcp_source():
         mode="normal",
         token=None,
         schema_revision=1,
+        app_id="isolated-app",
+        app_secret="isolated-app-secret-only",
+        token_exchanges=0,
     )
 
     class Handler(BaseHTTPRequestHandler):
@@ -35,7 +39,31 @@ def mcp_source():
                 self.wfile.write(content)
 
         def do_POST(self):
-            message = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            body = self.rfile.read(int(self.headers["Content-Length"]))
+            if self.path == "/token":
+                form = parse_qs(body.decode())
+                state.token_exchanges += 1
+                if form != {
+                    "grant_type": ["client_credentials"],
+                    "client_id": [state.app_id],
+                    "client_secret": [state.app_secret],
+                    "resource": [state.endpoint],
+                    "scope": ["mcp"],
+                }:
+                    self.answer(401, {"error": "invalid_client"})
+                    return
+                state.token = uuid4().hex
+                self.answer(
+                    200,
+                    {
+                        "access_token": state.token,
+                        "token_type": "Bearer",
+                        "expires_in": 900,
+                        "scope": "mcp",
+                    },
+                )
+                return
+            message = json.loads(body)
             state.calls.append(
                 (message, self.headers.get("Authorization"), self.headers.get("Mcp-Session-Id"))
             )

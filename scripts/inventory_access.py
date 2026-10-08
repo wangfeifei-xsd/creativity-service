@@ -1,4 +1,4 @@
-"""部署人员只读盘点 19 的兼容对象；仅输出配置标识、计数和摘要，不输出凭据或业务原文。"""
+"""部署人员只读盘点渠道接入与历史引用；仅输出配置标识、计数和摘要，不输出凭据或业务原文。"""
 
 import argparse
 import hashlib
@@ -45,20 +45,6 @@ def inventory(connection):
                     {k: row[k] for k in ("id", "client_id", "environment", "status")}
                     for row in records("channel_keys")
                 ],
-                "legacy_http": [
-                    {
-                        k: row[k]
-                        for k in (
-                            "id",
-                            "environment",
-                            "adapter_code",
-                            "adapter_version",
-                            "allowed_operations",
-                            "revision",
-                        )
-                    }
-                    for row in records("integrations")
-                ],
                 "agent_versions": [
                     {
                         "id": row["id"],
@@ -95,7 +81,7 @@ def inventory(connection):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="盘点渠道、旧 HTTP 连接、Agent 入口与历史引用")
+    parser = argparse.ArgumentParser(description="盘点渠道、接入服务、Agent 入口与历史引用")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     engine = create_engine(Settings().database_url.get_secret_value())

@@ -16,7 +16,7 @@
 | resource_versions → resource_references → resource_versions | source_version_id → target_version_id，均同渠道 | 发布时依赖必须已发布；被引用版本保留追溯；退休前检查引用 |
 | resource_versions → release_mappings | 渠道 + 环境 + 资源类型 + 资源 id → version_id | 映射切换与内容冻结分别操作；回滚重新校验当前授权，不改历史内容 |
 | release_mappings → release_snapshots → runs | 受理冻结整份依赖闭包；run_id 与 snapshot_id 双向关联 | 草稿调试固定 revision、内容摘要与正文；正式运行只绑定发布版本 |
-| credentials → model_connections / mcp_connections / integrations / delegation_keys | 同渠道环境 credential_ref，密文 AAD 固定渠道、环境、用途及 id | ACTIVE → DISABLED；密钥版本由外部密钥服务解析，轮换保留解密能力 |
+| credentials → model_connections / mcp_connections / delegation_keys | 同渠道环境 credential_ref；MCP 使用 secret_value 原文，其他用途密文 AAD 固定渠道、环境、用途及 id | ACTIVE → DISABLED；MCP 无需主密钥，其他用途按密钥版本解析并保留轮换解密能力 |
 | runs → run_idempotency / dispatch_outbox / admissions | 单事务受理；幂等包含 client_id，不含可轮换 key_id | QUEUED → RUNNING → SUCCEEDED/FAILED/TIMED_OUT；取消竞争遵循先提交者，终态不可反转 |
 | runs → run_steps → attempts → usage_records / usage_events | run_id / step_id / attempt_id，继承受理身份 | 重试新增 attempt；累计用量有效值替换，修正留 usage_adjustments |
 | budget_policies → budget_reservations / budget_alerts | 策略版本、周期、币种、渠道共同定范围 | HELD → PENDING/SETTLED/RELEASED；待核实消耗不当零；迟到事件只修账本 |
@@ -27,7 +27,6 @@
 | skill_files / tool_calls / evidence_refs → artifacts | 具体版本或调用 id；文件路径不作为授权 | 文件属于上传上下文；证据带来源版本、观测时间与位置；访问重新授权 |
 | evaluation_datasets → evaluation_dataset_versions → evaluation_cases / evaluation_fixtures | 样本修订产生新行，新版本固定 case_ids 与 fixture_ids | 人工标注不改旧基线；来源删除使原文不可见，报告注明不可复现 |
 | evaluations → evaluation_results → runs / evaluation_reports | 同渠道快照、样本和子 run；purpose=evaluation | 未完成/无效不当通过；发布门禁绑定依赖摘要 |
-| integrations → delegation_keys / integration_tests | 接入配置绑定渠道和环境；业务数据权限由源系统校验 | 委托受众、来源、有效期和环境均须匹配；领域差异由业务 MCP 负责，旧 HTTP 协议按 19/20 兼容处理 |
 | 任意内容 → source_links → 派生内容 | 同渠道，边保存在派生范围；source_type/id/version → derived_type/id，回溯使用各来源真实范围 | 消息→摘要/记忆→上下文→运行/恢复点→文件/样本/报告；删除任一祖先阻断后代读写 |
 | deletion_markers → deletion_jobs → deletion_work_items | 标记同渠道原范围、目标类型和 id，不含原文 | 先写永久标记再清理；重试幂等；未登记处理器阻止完成；来源有独立依据的记忆由 13/25 重算 |
 | recovery_barriers → 所有恢复内容入口 | 完整内容范围 + recovery_id + 外部删除账本摘要 | 缺失/BLOCKED 拒绝；仅新空范围可初始化；已有内容导入标记并核对后 READY |
@@ -51,7 +50,7 @@
 
 ### 18 业务接入关系
 
-接入配置的 credential_ref 引用同渠道环境的 http_tool 密文。delegation_keys 按稳定 service_clients 与环境绑定独立 delegation 密文，rotated_from 保留轮换来源。delegation_nonces 按已验证的渠道、环境、主体上下文关联 kid，保存请求及身份摘要，运行只保存 delegation_id；同 nonce 重发不新增运行。integration_tests 固定连接配置 revision，不保存业务参数与原文。
+delegation_keys 按稳定 service_clients 与环境绑定独立 delegation 密文，rotated_from 保留轮换来源。delegation_nonces 按已验证的渠道、环境、主体上下文关联 kid，保存请求及身份摘要，运行只保存 delegation_id；同 nonce 重发不新增运行。固定业务 HTTP 的 integrations、integration_tests 及 http_tool 凭据由 0046_remove_legacy_http 移除。
 
 ## 技能包实现关系
 

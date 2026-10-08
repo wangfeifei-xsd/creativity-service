@@ -5,9 +5,9 @@
 | 文件 | 内容 |
 | --- | --- |
 | [init.sql](init.sql) | 全部应用表与迁移版本表的最终结构、普通索引、中文表和字段注释，不含数据写入 |
-| [init_data.sql](init_data.sql) | 系统渠道、预置业务渠道及目录、开发环境首位管理员与内容授权、供应商模板、DeepSeek 模型及密文凭据、并发限额与版本、菜单、内置角色，以及成功天气链路、内容恢复屏障、技能对象字节，最后登记迁移版本 |
+| [init_data.sql](init_data.sql) | 系统渠道、预置业务渠道及目录、开发环境首位管理员与内容授权、供应商模板、DeepSeek 模型及密文凭据、租号 MCP 基本配置与鉴权、并发限额与版本、菜单、内置角色，以及成功天气链路、内容恢复屏障、技能对象字节，最后登记迁移版本 |
 
-文件头记录配套模型版本与迁移基线。[init_data.json](init_data.json) 保存基础种子，[weather_data.json](weather_data.json) 保存成功天气链路及必要依赖。生成器先校验基础种子，再按标识合并天气归档；正常生成与检查不重新查询数据库。
+文件头记录配套模型版本与迁移基线。[init_data.json](init_data.json) 保存基础种子及租号 MCP 基本配置与鉴权，[weather_data.json](weather_data.json) 保存成功天气链路及必要依赖。生成器先校验基础种子，再按标识合并天气归档；正常生成与检查不重新查询数据库。
 
 ## 执行
 
@@ -32,7 +32,7 @@ psql -X --set=ON_ERROR_STOP=1 --file=sql/init.sql --file=sql/init_data.sql
 - 角色：平台管理员
 - 首次登录必须改密；改密前不能执行管理操作。
 
-SQL 和 JSON 中仅保存该密码的 PBKDF2-SHA256 安全摘要，不保存明文密码。默认密码是公开的部署初始凭据，不作为正式环境长期凭据。**此次归档不修改当前环境 admin 的密码或账号关联。** 仅复制下述预置渠道、初始管理员开发环境权限、指定 DeepSeek 模型及天气成功链路；不复制其他账号、生产环境权限、登录 Token 或渠道接入凭据。归档保留四个不可用于账号分配的历史兼容角色，避免破坏成员角色目录。
+SQL 和 JSON 中仅保存该密码的 PBKDF2-SHA256 安全摘要，不保存明文密码。默认密码是公开的部署初始凭据，不作为正式环境长期凭据。**此次归档不修改当前环境 admin 的密码或账号关联。** 仅复制下述预置渠道、初始管理员开发环境权限、指定 DeepSeek 模型、租号 MCP 基本配置与鉴权及天气成功链路；不复制其他账号、生产环境权限、登录 Token 或渠道接入凭据。归档保留四个不可用于账号分配的历史兼容角色，避免破坏成员角色目录。
 
 预置业务渠道为“寻弈乐竞”，负责人“小苏打”，编码 `XYLJ`，状态“启用”；渠道主档归自身，目录归系统渠道。首位管理员复用初始 admin，登记 channel_admin 成员及开发环境授权；首次改密后可进入天气示例所在的开发环境。接入服务和 Key 不预设。
 
@@ -48,11 +48,19 @@ SQL 和 JSON 中仅保存该密码的 PBKDF2-SHA256 安全摘要，不保存明�
 
 导入后可执行 `make storage-audit`。Redis 与对象存储由各自部署步骤初始化；可选 pgvector 扩展按 [向量环境说明](../deploy/vector.md) 启用。
 
+## 租号 MCP 配置归档
+
+“寻弈乐竞”开发环境预置“租号服务”（连接标识 `mcp_799886052a5241f4828df8660c16e249`），只归档基本配置和鉴权：Streamable HTTP、服务地址 `http://127.0.0.1:32701/mcp`、连接超时 10 秒、操作超时 30 秒、连续失败阈值 3 次，以及 `client_credentials` 鉴权地址 `http://127.0.0.1:32701/mcp/token` 和 appId `mcp_6b7a55a2ee2d4dafb0b3c1ee35a9ad08`。
+
+appSecret 原文保存在 `credentials.secret_value` 并随 SQL、JSON 直接归档，`ciphertext` 与 `key_version` 均为空；MCP 不需要部署解密主密钥。不同环境修改连接地址、appId 和 appSecret 后手动测试即可。短期 Token 与 OAuth 临时授权不归档。出站配置 `CREATIVITY_MCP_DESTINATIONS` 分别允许该渠道环境的 `mcp` 服务地址与 `oauth` 鉴权地址，示例见 [租号接入说明](../examples/mcp/README.md#租号服务基础连接)。
+
+新库恢复为“未启用 / 未知”，不复制租号连接的检查、发现或运行记录；在目标环境完成连接测试、工具发现后启用。地址为当前开发机配置，部署到其他主机时应按实际租号地址调整。生成归档不会改变现有开发库的连接或启用状态。
+
 ## 初始迁移基线
 
 项目尚未上线，原 26 个历史迁移已合并为 [0001_initial.py](../alembic/versions/0001_initial.py)。该文件冻结模型 1.8.0 的最终结构，一次创建 109 张应用表；版本表由迁移环境创建，共 110 张表、1665 个字段、244 个普通索引。基线不读取运行时模型，后续模型修改不会改变已经冻结的建库结果。
 
-初始基线修订号保留为 `0034_admission_indexes`，与合并前最新版本相同。当前最新修订为 `0043_resource_management`；`0035_management` 新增菜单目录、自定义角色可见菜单清单与管理列表索引，`0036_role_catalog` 将内置角色目录纳入建库初始数据，增加账号选择角色及自定义角色授权类别，`0037_remove_business_type` 删除冗余渠道业务分类列，`0038_builtin_role_menus` 新增内置角色菜单清单。旧内置角色空值继续按有效动作生成导航，增量升级不回填菜单、不修改账号或密码。`0039_account_roles` 新增账号管理角色清单，旧账号未填写时继续解析已有单角色及授权关系。`0040_model_networks` 新增连接网络范围，已有连接回填空数组（仅公网）；旧服务器目的地中的内网或代理范围需转填到相应连接页面。
+初始基线修订号保留为 `0034_admission_indexes`，与合并前最新版本相同。当前最新修订为 `0046_mcp_plain_credentials`；`0035_management` 新增菜单目录、自定义角色可见菜单清单与管理列表索引，`0036_role_catalog` 将内置角色目录纳入建库初始数据，增加账号选择角色及自定义角色授权类别，`0037_remove_business_type` 删除冗余渠道业务分类列，`0038_builtin_role_menus` 新增内置角色菜单清单。旧内置角色空值继续按有效动作生成导航，增量升级不回填菜单、不修改账号或密码。`0039_account_roles` 新增账号管理角色清单，旧账号未填写时继续解析已有单角色及授权关系。`0040_model_networks` 新增连接网络范围，已有连接回填空数组（仅公网）；旧服务器目的地中的内网或代理范围需转填到相应连接页面。
 
 空库可使用本目录两份 SQL，或使用 `make migrate`。后者仍使用冻结历史菜单和角色种子，需另执行 `make channels-init`，再用 `uv run creativity-iam init-admin --login-name admin --display-name 管理员` 交互设置初始密码；不应再执行本目录的数据 SQL。开发库执行 `make migrate` 只执行新增修订，不重建既有表。
 
@@ -112,3 +120,11 @@ uv run --locked python -m scripts.restore_init_objects --check
 然后按 [天气示例启动说明](../examples/weather/README.md) 启动本机 MCP，配置精确出站目的地；模型解密主密钥沿用上文的部署配置。天气预报是验证发生时的数据，新执行会重新请求 Open-Meteo。
 
 归档校验同时检查成功终态、无活动配额、日期与默认城市、真实工具参数、技能正文加载、证据归属、版本依赖、技能文件摘要及完整恢复屏障。PostgreSQL 集成测试在独立空 schema 导入并逐条比对全部冻结数据，包含嵌套 JSON、换行和 URL 百分号的无损恢复；另通过真实认证请求模型、路由、技能、会话和记忆接口，并验证恢复封锁与撤销原文授权仍然生效。
+
+## MCP 凭据直接存储
+
+`0046_mcp_plain_credentials` 新增凭据原文字段，MCP 的 appSecret、静态 Token、OAuth 令牌及 PKCE verifier 均直接存储。空库导入不需要 MCP 主密钥。已有密文的数据库在线升级时一次性使用原 `CREATIVITY_MCP_ENCRYPTION_KEYS` 转换，成功后清空旧密文和密钥版本并可移除 MCP 主密钥配置；转换失败则事务回滚、保留原数据。离线迁移仅用于空库。模型、主体委托和 Webhook 的加密方式不变。
+
+## 移除固定业务 HTTP 接入
+
+`0046_remove_legacy_http` 删除旧 `integrations`、`integration_tests` 两张表，并清除用途为 `http_tool` 的旧连接密文（包含未绑定连接的遗留凭据）。升级时停止 API 与 Worker；已有旧配置的环境应先备份，并将仍需使用的业务能力配置为 MCP 工具。此迁移不支持自动回退，回退须恢复升级前备份。模型、MCP、主体委托与 Webhook 凭据保留；`CREATIVITY_BUSINESS_ENCRYPTION_KEYS` 继续用于主体委托，旧 `CREATIVITY_BUSINESS_DESTINATIONS` 配置不再使用。完整初始化 SQL 已不含这两张旧表。

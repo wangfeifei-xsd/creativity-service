@@ -2,7 +2,6 @@
 
 from typing import Any
 
-from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -10,23 +9,23 @@ from creativity_service.core.auth.types import ResourceState, ResourceStateReade
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.database import Repository
 from creativity_service.core.database.tables import metadata as core_metadata
-from creativity_service.core.security.credentials import CredentialService, KeyProvider
+from creativity_service.core.security.credentials import CredentialService
 from creativity_service.core.security.outbound import Destination, OutboundPolicy
 from creativity_service.integrations.tools.mcp_adapter import resolve_adapter
 from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.mcp.repositories import repository
 from creativity_service.modules.mcp.services import McpService
-from creativity_service.modules.models.assembly import ConfiguredKeys
 from creativity_service.modules.tools.assembly import ToolServices
 
 
 class McpSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="CREATIVITY_MCP_", env_file=".env", extra="ignore", hide_input_in_errors=True
+        env_prefix="CREATIVITY_MCP_",
+        env_file=(".env", ".env.local"),
+        extra="ignore",
+        hide_input_in_errors=True,
     )
     destinations: list[dict[str, Any]] = []
-    key_version: str | None = None
-    encryption_keys: dict[str, SecretStr] = {}
 
 
 class McpResources:
@@ -80,18 +79,12 @@ def build_mcp_service(
     tools: ToolServices,
     *,
     settings: McpSettings | None = None,
-    key_provider: KeyProvider | None = None,
     outbound: OutboundPolicy | None = None,
 ) -> McpService:
     settings = settings or McpSettings()
-    keys = key_provider or (
-        ConfiguredKeys(settings.key_version, settings.encryption_keys)
-        if settings.key_version
-        else None
-    )
     outbound = outbound or OutboundPolicy(tuple(Destination(**d) for d in settings.destinations))
     authorization.resources = McpResources(engine, authorization.resources)
-    credentials = CredentialService(engine, keys, McpCredentialAuthorization(authorization))
+    credentials = CredentialService(engine, authorization=McpCredentialAuthorization(authorization))
     service = McpService(engine, authorization, tools.management, credentials, outbound)
     tools.registry.register_resolver(
         lambda scope, binding: resolve_adapter(service, scope, binding)

@@ -281,11 +281,20 @@ class ConfiguredSubjectReader:
                 **current.model_dump(exclude={"protocol", "active", "observed_at"})
             )
 
-        credentials = CredentialService(
-            self.engine, self.mcp.credentials.keys, BoundAuthorization()
-        )
+        credentials = CredentialService(self.engine, authorization=BoundAuthorization())
+
+        async def authenticated(secret: SecretBytes) -> SubjectAuthority:
+            async def with_token(token: SecretBytes | None) -> SubjectAuthority:
+                if token is None:
+                    raise ServiceError("MCP_AUTH_FAILED", "主体复核缺少访问令牌", 403)
+                return await invoke(token)
+
+            if (row.get("authentication") or {}).get("mode") == "client_credentials":
+                return await self.mcp.client_credentials.call(context, row, secret, with_token)
+            return await invoke(secret)
+
         try:
-            return await credentials.call(context, row["credential_ref"], "mcp", invoke)
+            return await credentials.call(context, row["credential_ref"], "mcp", authenticated)
         except ServiceError as exc:
             if exc.code.startswith(("MCP_", "CREDENTIAL_")):
                 raise ServiceError(

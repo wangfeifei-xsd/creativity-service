@@ -1,5 +1,7 @@
 """API 与 Worker 共用调度及投递装配，未登记的出站地址保持拒绝。"""
 
+from typing import Any
+
 from pydantic_settings import SettingsConfigDict
 
 from creativity_service.core.security.outbound import Destination, OutboundPolicy
@@ -18,6 +20,8 @@ class AutomationSettings(IntegrationSettings):
         extra="ignore",
         hide_input_in_errors=True,
     )
+
+    destinations: list[dict[str, Any]] = []
 
 
 def install_automation(runs: RunService, authorization: IamAuthorization) -> None:

@@ -46,7 +46,13 @@ Token 到期后重新交换并签名查询原运行。创建响应丢失时保�
 
 ## MCP 工具与主体复核
 
-API 和 Worker 配置一致的 `CREATIVITY_MCP_DESTINATIONS`、`CREATIVITY_MCP_KEY_VERSION`、`CREATIVITY_MCP_ENCRYPTION_KEYS`。创建连接、更新服务凭据、发现远端工具，导入业务工具草稿并测试发布。Agent 绑定具体工具版本，远端 schema 或连接修订变化后重新验证发布。
+API 和 Worker 配置一致的 `CREATIVITY_MCP_DESTINATIONS`；MCP 鉴权不需要加密主密钥。创建连接、配置鉴权、发现远端工具，导入业务工具草稿并测试发布。Agent 绑定具体工具版本，远端 schema 或连接修订变化后重新验证发布。
+
+MCP 的 appSecret、静态 Token、OAuth 令牌和 PKCE verifier 直接保存在同渠道、同环境的 `credentials.secret_value`，无需配置解密主密钥。连接通过凭据引用读取，管理响应与日志不回显原文。初始化归档可直接携带配置凭据；不同环境修改连接地址与凭据后，手动测试、发现并启用。短期 Token 和 OAuth 临时授权不作为初始配置归档。
+
+服务间鉴权使用 `POST /admin/v1/mcp-connections/{id}/authentication`，提交当前 revision、token_endpoint、app_id 和 app_secret。密钥原文存入独立凭据记录，连接仅保存鉴权方式、地址与应用标识；同一应用可省略密钥以保留现值。平台以 client_credentials 表单交换短期 Token，缓存按渠道、环境、连接与凭据修订隔离，到期前续取。令牌端点须以 `purpose=oauth` 单独加入出站许可。业务收到无效 Token 时清理缓存，不自动重放该业务，下一次调用重新交换。传输选择 streamable_http，独立于 oauth 用户授权码模式。
+
+`streamable_http` 支持完整 JSON 和 SSE 响应，源服务可以按场景选择，无需增加旧版 `/sse` 连接。租号服务基础连接正文见 [配置示例](../examples/mcp/gamerental.connection.json)，当前只提供握手与空工具目录，业务工具和主体复核后续配置。
 
 连接测试和工具发现仅由管理端手动触发，不安排后台周期检查。历史检查间隔与调度字段仅为已有数据兼容保留，不再参与调度；升级前已排队的 `mcp.sweep` 消息直接完成，不访问远端或生成记录。
 
@@ -61,4 +67,4 @@ API 和 Worker 配置一致的 `CREATIVITY_MCP_DESTINATIONS`、`CREATIVITY_MCP_K
 
 ## 新业务与旧连接
 
-新业务配置 MCP、Skills 和 Agent，示例见 [接入演示](../examples/onboarding/README.md)。旧 HTTP integration 与旧 Agent 入口保留兼容；迁移时新建 MCP 连接、工具版本和 Agent 草稿，完成调试评测后切换发布映射。旧版本及在途快照保留。
+新业务配置 MCP、Skills 和 Agent，示例见 [接入演示](../examples/onboarding/README.md)。固定业务 HTTP 接入及凭据管理已移除，业务工具统一通过 MCP 发现和导入。业务接入页面管理当前主体复核、身份委托及运行与事件；旧 Agent 入口和历史运行快照按既有版本规则保留。

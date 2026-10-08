@@ -76,6 +76,7 @@ async def test_credential_aad_no_plaintext_and_current_authorization(
             connection, credential_id
         )
     assert b"sensitive-provider-key" not in bytes(row["ciphertext"])
+    assert row["secret_value"] is None
 
     async def operation(secret):
         assert secret.get_secret_value() == b"sensitive-provider-key"
@@ -88,3 +89,32 @@ async def test_credential_aad_no_plaintext_and_current_authorization(
     authorization.denied = True
     with pytest.raises(ServiceError):
         await service.call(context, credential_id, "model", operation)
+
+
+@pytest.mark.parametrize(
+    "value", ["app-secret-for-test", "static-token-for-test", '{"access_token":"oauth-token"}']
+)
+async def test_mcp_credentials_without_keys_keep_scope_and_authorization(
+    engine, context, authorization, value
+):
+    service = CredentialService(engine, authorization=authorization)
+    credential_id = await service.store(context, "mcp", SecretBytes(value.encode()))
+    async with engine.connect() as connection:
+        row = await Repository(metadata.tables["credentials"], context.scope).get(
+            connection, credential_id
+        )
+    assert row["secret_value"] == value
+    assert row["ciphertext"] is None and row["key_version"] is None
+
+    async def operation(secret):
+        assert secret.get_secret_value() == value.encode()
+        return "已调用"
+
+    assert await service.call(context, credential_id, "mcp", operation) == "已调用"
+    for update in ({"channel_id": "foreign"}, {"environment": "prod"}):
+        foreign = context.model_copy(update={"scope": context.scope.model_copy(update=update)})
+        with pytest.raises(ServiceError):
+            await service.call(foreign, credential_id, "mcp", operation)
+    authorization.denied = True
+    with pytest.raises(ServiceError):
+        await service.call(context, credential_id, "mcp", operation)

@@ -1,7 +1,7 @@
 -- Creativity 表结构初始化归档，适用于 PostgreSQL 17 空库或空 schema。
--- 模型版本：2.0.0；配套数据归档迁移基线：0043_resource_management。
+-- 模型版本：2.1.0；配套数据归档迁移基线：0046_mcp_plain_credentials。
 -- 初始建库基线：alembic/versions/0001_initial.py；后续修订在其上追加。
--- 包含 111 张表、1624 个字段、249 个普通索引及全部中文注释。
+-- 包含 109 张表、1597 个字段、245 个普通索引及全部中文注释。
 -- 本文件不写初始化数据；完成后必须执行 sql/init_data.sql，再启动服务或迁移。
 -- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。
 -- 执行方式见 sql/README.md；表创建在连接的当前 schema。
@@ -1541,7 +1541,8 @@ CREATE TABLE credentials (
 	purpose VARCHAR(32),
 	ciphertext BYTEA,
 	key_version VARCHAR(64),
-	state VARCHAR(32)
+	state VARCHAR(32),
+	secret_value TEXT
 );
 
 COMMENT ON TABLE credentials IS '加密服务凭据';
@@ -1565,6 +1566,8 @@ COMMENT ON COLUMN credentials.ciphertext IS '认证加密密文';
 COMMENT ON COLUMN credentials.key_version IS '加密密钥版本';
 
 COMMENT ON COLUMN credentials.state IS '凭据状态';
+
+COMMENT ON COLUMN credentials.secret_value IS 'MCP 凭据原文';
 
 CREATE INDEX ix_credentials_0 ON credentials (channel_id, id);
 
@@ -2516,113 +2519,6 @@ CREATE INDEX ix_iam_revocations_1 ON iam_revocations (channel_id, kind, target_i
 
 CREATE INDEX ix_iam_revocations_2 ON iam_revocations (completed_at);
 
--- integration_tests：接入契约验证。
-CREATE TABLE integration_tests (
-	id VARCHAR(64),
-	channel_id VARCHAR(64),
-	created_at TIMESTAMP WITH TIME ZONE,
-	updated_at TIMESTAMP WITH TIME ZONE,
-	revision BIGINT,
-	environment VARCHAR(16),
-	integration_id VARCHAR(64),
-	config_revision BIGINT,
-	cases JSONB,
-	results JSONB,
-	capabilities JSONB,
-	state VARCHAR(32)
-);
-
-COMMENT ON TABLE integration_tests IS '接入契约验证';
-
-COMMENT ON COLUMN integration_tests.id IS '记录标识';
-
-COMMENT ON COLUMN integration_tests.channel_id IS '所属渠道标识';
-
-COMMENT ON COLUMN integration_tests.created_at IS '创建时间';
-
-COMMENT ON COLUMN integration_tests.updated_at IS '更新时间';
-
-COMMENT ON COLUMN integration_tests.revision IS '并发修订号';
-
-COMMENT ON COLUMN integration_tests.environment IS '所属环境';
-
-COMMENT ON COLUMN integration_tests.integration_id IS '连接标识';
-
-COMMENT ON COLUMN integration_tests.config_revision IS '测试对应配置修订';
-
-COMMENT ON COLUMN integration_tests.cases IS '验证能力清单';
-
-COMMENT ON COLUMN integration_tests.results IS '脱敏验证结论';
-
-COMMENT ON COLUMN integration_tests.capabilities IS '通过验证的能力';
-
-COMMENT ON COLUMN integration_tests.state IS '验证状态';
-
-CREATE INDEX ix_integration_tests_0 ON integration_tests (channel_id, id);
-
-CREATE INDEX ix_integration_tests_1 ON integration_tests (channel_id, environment, integration_id);
-
--- integrations：业务系统适配连接。
-CREATE TABLE integrations (
-	id VARCHAR(64),
-	channel_id VARCHAR(64),
-	created_at TIMESTAMP WITH TIME ZONE,
-	updated_at TIMESTAMP WITH TIME ZONE,
-	revision BIGINT,
-	environment VARCHAR(16),
-	name VARCHAR(128),
-	adapter_code VARCHAR(64),
-	adapter_version VARCHAR(64),
-	business_endpoint VARCHAR(2048),
-	credential_ref VARCHAR(64),
-	allowed_operations JSONB,
-	operation_paths JSONB,
-	field_mapping JSONB,
-	health VARCHAR(32),
-	contract_version VARCHAR(64),
-	status VARCHAR(32)
-);
-
-COMMENT ON TABLE integrations IS '业务系统适配连接';
-
-COMMENT ON COLUMN integrations.id IS '记录标识';
-
-COMMENT ON COLUMN integrations.channel_id IS '所属渠道标识';
-
-COMMENT ON COLUMN integrations.created_at IS '创建时间';
-
-COMMENT ON COLUMN integrations.updated_at IS '更新时间';
-
-COMMENT ON COLUMN integrations.revision IS '并发修订号';
-
-COMMENT ON COLUMN integrations.environment IS '所属环境';
-
-COMMENT ON COLUMN integrations.name IS '接入名称';
-
-COMMENT ON COLUMN integrations.adapter_code IS '适配器编码';
-
-COMMENT ON COLUMN integrations.adapter_version IS '适配器版本';
-
-COMMENT ON COLUMN integrations.business_endpoint IS '源服务地址';
-
-COMMENT ON COLUMN integrations.credential_ref IS '服务凭据引用';
-
-COMMENT ON COLUMN integrations.allowed_operations IS '已授权能力';
-
-COMMENT ON COLUMN integrations.operation_paths IS '固定能力接口路径';
-
-COMMENT ON COLUMN integrations.field_mapping IS '源字段转换配置';
-
-COMMENT ON COLUMN integrations.health IS '连接健康状态';
-
-COMMENT ON COLUMN integrations.contract_version IS '标准契约版本';
-
-COMMENT ON COLUMN integrations.status IS '启用状态';
-
-CREATE INDEX ix_integrations_0 ON integrations (channel_id, id);
-
-CREATE INDEX ix_integrations_1 ON integrations (channel_id, environment, status);
-
 -- key_identity_index：系统渠道密钥身份索引。
 CREATE TABLE key_identity_index (
 	id VARCHAR(64),
@@ -2773,7 +2669,8 @@ CREATE TABLE mcp_connections (
 	last_check_at TIMESTAMP WITH TIME ZONE,
 	auth_failed BOOLEAN,
 	health_actor_id VARCHAR(64),
-	next_check_at TIMESTAMP WITH TIME ZONE
+	next_check_at TIMESTAMP WITH TIME ZONE,
+	authentication JSONB
 );
 
 COMMENT ON TABLE mcp_connections IS '远程工具连接';
@@ -2823,6 +2720,8 @@ COMMENT ON COLUMN mcp_connections.auth_failed IS '凭据失效阻断状态';
 COMMENT ON COLUMN mcp_connections.health_actor_id IS '健康检查授权成员';
 
 COMMENT ON COLUMN mcp_connections.next_check_at IS '下次健康检查时间';
+
+COMMENT ON COLUMN mcp_connections.authentication IS '鉴权方式、令牌地址与应用标识；凭据单独保存';
 
 CREATE INDEX ix_mcp_connections_0 ON mcp_connections (channel_id, id);
 
@@ -2989,7 +2888,7 @@ COMMENT ON COLUMN mcp_oauth_flows.owner_id IS '归属身份摘要';
 
 COMMENT ON COLUMN mcp_oauth_flows.state IS '授权流程状态';
 
-COMMENT ON COLUMN mcp_oauth_flows.verifier_ref IS '加密验证凭据引用';
+COMMENT ON COLUMN mcp_oauth_flows.verifier_ref IS 'PKCE 验证凭据引用';
 
 COMMENT ON COLUMN mcp_oauth_flows.expires_at IS '授权流程截止时间';
 
@@ -3048,7 +2947,7 @@ COMMENT ON COLUMN mcp_oauth_tokens.ownership IS '凭据归属类型';
 
 COMMENT ON COLUMN mcp_oauth_tokens.owner_id IS '归属身份摘要';
 
-COMMENT ON COLUMN mcp_oauth_tokens.credential_ref IS '加密委托令牌引用';
+COMMENT ON COLUMN mcp_oauth_tokens.credential_ref IS '委托令牌凭据引用';
 
 COMMENT ON COLUMN mcp_oauth_tokens.expires_at IS '访问令牌截止时间';
 

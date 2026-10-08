@@ -26,7 +26,7 @@
 
 | 文件 | 用途 | 入口与引用 |
 | --- | --- | --- |
-| [inventory_access.py](inventory_access.py) | 为方案 19 盘点渠道、旧 HTTP 连接和历史引用，输出标识与摘要 | `uv run python scripts/inventory_access.py --output <输出文件>`；兼容迁移集成测试仍调用 `inventory()` |
+| [inventory_access.py](inventory_access.py) | 盘点渠道、接入服务和历史引用，输出标识与摘要 | `uv run python scripts/inventory_access.py --output <输出文件>`；接入集成测试调用 `inventory()` |
 | [verify_business_independence.py](verify_business_independence.py) | 为方案 23 创建固定版本的独立检出，构建并验证三渠道业务接入 | 由 [接入验证样例](../examples/onboarding/README.md) 引用；使用 `--service-ref`、`--web-ref` 指定待测版本 |
 
 `verify_business_independence.py` 默认检出服务端 `a28b59f` 和前端 `305a077`，用于历史版本复现。当前工作区的组合验收使用 `verify_acceptance.py`。专项脚本有明确的复现或测试引用，按需使用；本地启动不依赖它们。

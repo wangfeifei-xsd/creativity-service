@@ -124,7 +124,7 @@ async def test_pkce_replay_wrong_user_refresh_and_revoke(mcp_env, monkeypatch):
     with pytest.raises(ServiceError):
         await service.oauth.call(context, row, read)
 
-    # 过期流程无人回调时也清除 verifier 密文。
+    # 过期流程无人回调时也清除 verifier 凭据。
     from creativity_service.core.database.tables import metadata as core_metadata
     from creativity_service.core.primitives import digest
 

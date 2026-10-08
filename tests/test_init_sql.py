@@ -259,7 +259,7 @@ def test_seed_contains_deepseek_model_and_ciphertext_without_deployment_secrets(
     tables = seed["tables"]
     (model,) = tables["models"]
     (connection,) = tables["model_connections"]
-    (credential,) = tables["credentials"]
+    (credential,) = (row for row in tables["credentials"] if row["purpose"] == "model")
     assert model["provider_model_name"] == model["model_code"] == "deepseek-v4-flash"
     assert model["connection_id"] == connection["id"]
     assert model["capabilities"] == {} and model["verified_at"] is None
@@ -277,11 +277,48 @@ def test_seed_contains_deepseek_model_and_ciphertext_without_deployment_secrets(
 
 
 @pytest.mark.parametrize(
+    ("target", "field", "value"),
+    [
+        ("connection", "credential_ref", "missing-credential"),
+        ("connection", "credential_revision", 99),
+        ("connection", "status", "ENABLED"),
+        ("connection", "tested_revision", 1),
+        ("credential", "environment", "prod"),
+        ("credential", "channel_id", "system"),
+        ("credential", "ciphertext", "plaintext-secret"),
+        ("credential", "ciphertext", "abcd"),
+        ("credential", "secret_value", None),
+        ("credential", "secret_value", ""),
+        ("credential", "secret_value", "too-short"),
+        ("credential", "key_version", "old-mcp-key"),
+        ("credential", "purpose", "webhook"),
+        ("authentication", "app_secret", "plaintext-secret"),
+        ("authentication", "token_endpoint", "http://localhost/token?secret=plaintext"),
+    ],
+)
+def test_initial_mcp_rejects_unusable_credentials_and_runtime_state(target, field, value):
+    seed = json.loads(render_init_sql.SEED.read_text())
+    connection = seed["tables"]["mcp_connections"][0]
+    credential = next(
+        row for row in seed["tables"]["credentials"] if row["id"] == connection["credential_ref"]
+    )
+    row = {
+        "connection": connection,
+        "credential": credential,
+        "authentication": connection["authentication"],
+    }[target]
+    row[field] = value
+    with pytest.raises(ValueError):
+        render_init_sql.validate_seed(seed)
+
+
+@pytest.mark.parametrize(
     ("table", "field", "value"),
     [
         ("credentials", "channel_id", "system"),
         ("credentials", "ciphertext", "sk-test-plaintext"),
         ("credentials", "ciphertext", "abcd"),
+        ("credentials", "secret_value", "provider-plaintext"),
         ("credentials", "environment", "prod"),
         ("model_connections", "credential_ref", "missing-credential"),
         ("model_connections", "channel_id", "other-channel"),

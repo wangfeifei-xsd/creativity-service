@@ -1,6 +1,6 @@
 # 远程工具连接模型
 
-模型版本 2.0.0；负责方案 14；需求 [09-MCP配置.md](../../../../需求文档/09-MCP配置.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 14；需求 [09-MCP配置.md](../../../../需求文档/09-MCP配置.md)。总索引见 [README](../README.md)。
 
 ## mcp_connections
 
@@ -31,6 +31,7 @@
 | `auth_failed` | `boolean` | 凭据失效阻断状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `health_actor_id` | `varchar(64)` | 健康检查授权成员 | 是 | 受信服务上下文 | 内部 |
 | `next_check_at` | `timestamptz` | 下次健康检查时间 | 是 | 受信服务上下文 | 内部 |
+| `authentication` | `jsonb` | 鉴权方式、令牌地址与应用标识；凭据单独保存 | 否 | 管理员鉴权配置 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, status)`；`(channel_id, environment, next_check_at)`。
 
@@ -125,7 +126,7 @@ MCP 一次性授权流程。状态：已实现；归属：主体；归档修订�
 | `ownership` | `varchar(16)` | 凭据归属类型 | 是 | 受信授权流程 | 内部 |
 | `owner_id` | `varchar(64)` | 归属身份摘要 | 是 | 受信授权流程 | 内部 |
 | `state` | `varchar(16)` | 授权流程状态 | 是 | 受信授权流程 | 内部 |
-| `verifier_ref` | `varchar(64)` | 加密验证凭据引用 | 是 | 受信授权流程 | 内部 |
+| `verifier_ref` | `varchar(64)` | PKCE 验证凭据引用 | 是 | 受信授权流程 | 内部 |
 | `expires_at` | `timestamptz` | 授权流程截止时间 | 是 | 受信授权流程 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, connection_id)`。
@@ -149,7 +150,7 @@ MCP 分身份委托凭据。状态：已实现；归属：主体；归档修订�
 | `profile_digest` | `varchar(64)` | 提供方配置摘要 | 是 | 受信授权流程 | 内部 |
 | `ownership` | `varchar(16)` | 凭据归属类型 | 是 | 受信授权流程 | 内部 |
 | `owner_id` | `varchar(64)` | 归属身份摘要 | 是 | 受信授权流程 | 内部 |
-| `credential_ref` | `varchar(64)` | 加密委托令牌引用 | 是 | 受信授权流程 | 内部 |
+| `credential_ref` | `varchar(64)` | 委托令牌凭据引用 | 是 | 受信授权流程 | 内部 |
 | `expires_at` | `timestamptz` | 访问令牌截止时间 | 是 | 受信授权流程 | 内部 |
 | `state` | `varchar(16)` | 委托状态 | 是 | 受信授权流程 | 内部 |
 | `refresh_until` | `timestamptz` | 刷新占用截止时间 | 否 | 受信授权流程 | 内部 |

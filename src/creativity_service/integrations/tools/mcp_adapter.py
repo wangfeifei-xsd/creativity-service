@@ -53,7 +53,7 @@ class McpAdapter:
                 )
 
         bound_credentials = CredentialService(
-            service.engine, service.credentials.keys, BoundCredentialAuthorization()
+            service.engine, authorization=BoundCredentialAuthorization()
         )
 
         identity: dict[str, Any] = {}
@@ -97,8 +97,14 @@ class McpAdapter:
         try:
             if row["transport"] == "oauth":
                 return await service.oauth.call(context, row, operation)
+
+            async def authenticated(secret: SecretBytes) -> AdapterResult:
+                if (row.get("authentication") or {}).get("mode") == "client_credentials":
+                    return await service.client_credentials.call(context, row, secret, operation)
+                return await operation(secret)
+
             return (
-                await bound_credentials.call(context, row["credential_ref"], "mcp", operation)
+                await bound_credentials.call(context, row["credential_ref"], "mcp", authenticated)
                 if row["credential_ref"]
                 else await operation(None)
             )

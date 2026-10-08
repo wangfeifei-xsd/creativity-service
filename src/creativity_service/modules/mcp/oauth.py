@@ -1,4 +1,4 @@
-"""授权码与 PKCE、一次性状态、分身份密文令牌及事务外刷新。"""
+"""授权码与 PKCE、一次性状态、分身份令牌及事务外刷新。"""
 
 import base64
 import hashlib
@@ -163,9 +163,7 @@ class OAuthService:
         )
 
     def credentials(self, context: AuthContext, *refs: str) -> CredentialService:
-        return CredentialService(
-            self.service.engine, self.service.credentials.keys, BoundKeys(context, set(refs))
-        )
+        return CredentialService(self.service.engine, authorization=BoundKeys(context, set(refs)))
 
     async def require(self, context: AuthContext, connection_id: str, ownership: str) -> None:
         if ownership == "service" or context.principal_type == "management":
@@ -176,7 +174,7 @@ class OAuthService:
             )
 
     async def discard(self, context: AuthContext, reference: str) -> None:
-        """流程结束、替换或撤销后清除不再使用的加密令牌。"""
+        """流程结束、替换或撤销后清除不再使用的令牌凭据。"""
         table = core_metadata.tables["credentials"]
         async with transaction(
             self.service.engine,

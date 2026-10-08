@@ -1,32 +1,6 @@
 # 业务接入与身份委托模型
 
-模型版本 2.0.0；负责方案 18/19/20；需求 [14-业务接入与适配.md](../../../../需求文档/14-业务接入与适配.md)。总索引见 [README](../README.md)。
-
-## integrations
-
-业务系统适配连接。状态：已实现；归属：环境；归档修订：0018_integrations。
-
-| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
-| --- | --- | --- | --- | --- | --- |
-| `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
-| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
-| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
-| `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `name` | `varchar(128)` | 接入名称 | 是 | 服务层校验与受信上下文 | 内部 |
-| `adapter_code` | `varchar(64)` | 适配器编码 | 是 | 服务层校验与受信上下文 | 内部 |
-| `adapter_version` | `varchar(64)` | 适配器版本 | 是 | 服务层校验与受信上下文 | 内部 |
-| `business_endpoint` | `varchar(2048)` | 源服务地址 | 是 | 服务层校验与受信上下文 | 内部 |
-| `credential_ref` | `varchar(64)` | 服务凭据引用 | 是 | 服务层校验与受信上下文 | 内部 |
-| `allowed_operations` | `jsonb` | 已授权能力 | 是 | 服务层校验与受信上下文 | 内部 |
-| `operation_paths` | `jsonb` | 固定能力接口路径 | 是 | 服务层校验与受信上下文 | 内部 |
-| `field_mapping` | `jsonb` | 源字段转换配置 | 是 | 服务层校验与受信上下文 | 内部 |
-| `health` | `varchar(32)` | 连接健康状态 | 是 | 服务层校验与受信上下文 | 内部 |
-| `contract_version` | `varchar(64)` | 标准契约版本 | 是 | 服务层校验与受信上下文 | 内部 |
-| `status` | `varchar(32)` | 启用状态 | 是 | 服务层校验与受信上下文 | 内部 |
-
-普通索引：`(channel_id, id)`；`(channel_id, environment, status)`。
+模型版本 2.1.0；负责方案 18/19/20；需求 [14-业务接入与适配.md](../../../../需求文档/14-业务接入与适配.md)。总索引见 [README](../README.md)。
 
 ## delegation_keys
 
@@ -53,27 +27,6 @@
 | `rotated_from` | `varchar(64)` | 轮换前密钥编号 | 否 | 服务层校验与受信上下文 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, client_id)`。
-
-## integration_tests
-
-接入契约验证。状态：已实现；归属：环境；归档修订：0018_integrations。
-
-| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
-| --- | --- | --- | --- | --- | --- |
-| `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
-| `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
-| `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
-| `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
-| `integration_id` | `varchar(64)` | 连接标识 | 是 | 服务层校验与受信上下文 | 内部 |
-| `config_revision` | `bigint` | 测试对应配置修订 | 是 | 服务层校验与受信上下文 | 内部 |
-| `cases` | `jsonb` | 验证能力清单 | 是 | 服务层校验与受信上下文 | 内部 |
-| `results` | `jsonb` | 脱敏验证结论 | 是 | 服务层校验与受信上下文 | 内部 |
-| `capabilities` | `jsonb` | 通过验证的能力 | 是 | 服务层校验与受信上下文 | 内部 |
-| `state` | `varchar(32)` | 验证状态 | 是 | 服务层校验与受信上下文 | 内部 |
-
-普通索引：`(channel_id, id)`；`(channel_id, environment, integration_id)`。
 
 ## delegation_nonces
 

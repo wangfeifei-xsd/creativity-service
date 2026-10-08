@@ -8,6 +8,7 @@ from creativity_service.core.context import AuthContext, require_http_context
 from creativity_service.core.primitives import unavailable
 from creativity_service.modules.mcp.oauth import OAuthCallback, OAuthStart, OAuthView
 from creativity_service.modules.mcp.schemas import (
+    McpAuthenticationInput,
     McpCheck,
     McpConnection,
     McpCreate,
@@ -103,6 +104,13 @@ async def credential(
     context: Context, service: Service, connection_id: str, body: McpCredential
 ) -> McpConnection:
     return await service.rotate(context, connection_id, body)
+
+
+@router.post("/{connection_id}/authentication", response_model=McpConnection)
+async def configure_authentication(
+    context: Context, service: Service, connection_id: str, body: McpAuthenticationInput
+) -> McpConnection:
+    return await service.configure_authentication(context, connection_id, body)
 
 
 @router.post("/{connection_id}/test", response_model=McpCheck | McpDiscovery)

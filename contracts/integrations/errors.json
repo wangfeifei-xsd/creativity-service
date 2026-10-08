@@ -1,36 +1,4 @@
 {
-  "BUSINESS_UNSUPPORTED": {
-    "message": "业务能力尚不支持",
-    "http_status": 422
-  },
-  "BUSINESS_FORBIDDEN": {
-    "message": "无权访问业务数据",
-    "http_status": 403
-  },
-  "BUSINESS_TIMEOUT": {
-    "message": "业务服务响应超时",
-    "http_status": 504
-  },
-  "BUSINESS_NO_DATA": {
-    "message": "业务服务暂无数据",
-    "http_status": 404
-  },
-  "BUSINESS_UNLISTED": {
-    "message": "业务对象已下架",
-    "http_status": 410
-  },
-  "BUSINESS_NOT_FOUND": {
-    "message": "业务对象不存在",
-    "http_status": 404
-  },
-  "BUSINESS_CONTRACT_CHANGED": {
-    "message": "业务数据契约已变化",
-    "http_status": 502
-  },
-  "BUSINESS_UNAVAILABLE": {
-    "message": "业务服务暂不可用",
-    "http_status": 503
-  },
   "DELEGATION_REQUIRED": {
     "message": "缺少业务主体委托",
     "http_status": 401

@@ -470,38 +470,6 @@
         "title": "AccountView",
         "type": "object"
       },
-      "AdapterOption": {
-        "additionalProperties": false,
-        "properties": {
-          "capabilities": {
-            "items": {
-              "$ref": "#/components/schemas/Capability"
-            },
-            "title": "Capabilities",
-            "type": "array"
-          },
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "name",
-          "version",
-          "capabilities"
-        ],
-        "title": "AdapterOption",
-        "type": "object"
-      },
       "Admission": {
         "additionalProperties": false,
         "properties": {
@@ -3577,63 +3545,6 @@
         "title": "BudgetView",
         "type": "object"
       },
-      "BusinessCapabilityView": {
-        "additionalProperties": false,
-        "properties": {
-          "allowed": {
-            "title": "Allowed",
-            "type": "boolean"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "operation": {
-            "enum": [
-              "dictionary",
-              "candidates",
-              "quote",
-              "recheck",
-              "risk_facts",
-              "policies",
-              "metric_catalog",
-              "metric_results"
-            ],
-            "title": "Operation",
-            "type": "string"
-          },
-          "public": {
-            "default": false,
-            "title": "Public",
-            "type": "boolean"
-          },
-          "required_actions": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Required Actions",
-            "type": "array"
-          },
-          "supported": {
-            "title": "Supported",
-            "type": "boolean"
-          },
-          "verified": {
-            "title": "Verified",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "operation",
-          "name",
-          "required_actions",
-          "supported",
-          "allowed",
-          "verified"
-        ],
-        "title": "BusinessCapabilityView",
-        "type": "object"
-      },
       "BusinessResult": {
         "additionalProperties": false,
         "properties": {
@@ -3731,48 +3642,6 @@
           "revision"
         ],
         "title": "CandidateInput",
-        "type": "object"
-      },
-      "Capability": {
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "operation": {
-            "enum": [
-              "dictionary",
-              "candidates",
-              "quote",
-              "recheck",
-              "risk_facts",
-              "policies",
-              "metric_catalog",
-              "metric_results"
-            ],
-            "title": "Operation",
-            "type": "string"
-          },
-          "public": {
-            "default": false,
-            "title": "Public",
-            "type": "boolean"
-          },
-          "required_actions": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Required Actions",
-            "type": "array"
-          }
-        },
-        "required": [
-          "operation",
-          "name",
-          "required_actions"
-        ],
-        "title": "Capability",
         "type": "object"
       },
       "CapabilityView": {
@@ -5441,209 +5310,6 @@
         "title": "ContextView",
         "type": "object"
       },
-      "ContractCase": {
-        "additionalProperties": false,
-        "properties": {
-          "arguments": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "title": "Arguments",
-            "type": "object"
-          },
-          "operation": {
-            "enum": [
-              "dictionary",
-              "candidates",
-              "quote",
-              "recheck",
-              "risk_facts",
-              "policies",
-              "metric_catalog",
-              "metric_results"
-            ],
-            "title": "Operation",
-            "type": "string"
-          }
-        },
-        "required": [
-          "operation"
-        ],
-        "title": "ContractCase",
-        "type": "object"
-      },
-      "ContractCaseResult": {
-        "additionalProperties": false,
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Code"
-          },
-          "item_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Item Count"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "operation": {
-            "enum": [
-              "dictionary",
-              "candidates",
-              "quote",
-              "recheck",
-              "risk_facts",
-              "policies",
-              "metric_catalog",
-              "metric_results"
-            ],
-            "title": "Operation",
-            "type": "string"
-          },
-          "passed": {
-            "title": "Passed",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "operation",
-          "name",
-          "passed",
-          "message"
-        ],
-        "title": "ContractCaseResult",
-        "type": "object"
-      },
-      "ContractTestInput": {
-        "additionalProperties": false,
-        "properties": {
-          "cases": {
-            "items": {
-              "$ref": "#/components/schemas/ContractCase"
-            },
-            "maxItems": 8,
-            "minItems": 1,
-            "title": "Cases",
-            "type": "array"
-          },
-          "revision": {
-            "minimum": 1.0,
-            "title": "Revision",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "revision",
-          "cases"
-        ],
-        "title": "ContractTestInput",
-        "type": "object"
-      },
-      "ContractTestView": {
-        "additionalProperties": false,
-        "properties": {
-          "capabilities": {
-            "items": {
-              "enum": [
-                "dictionary",
-                "candidates",
-                "quote",
-                "recheck",
-                "risk_facts",
-                "policies",
-                "metric_catalog",
-                "metric_results"
-              ],
-              "type": "string"
-            },
-            "title": "Capabilities",
-            "type": "array"
-          },
-          "config_revision": {
-            "minimum": 1.0,
-            "title": "Config Revision",
-            "type": "integer"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "integration_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Integration Id",
-            "type": "string"
-          },
-          "results": {
-            "items": {
-              "$ref": "#/components/schemas/ContractCaseResult"
-            },
-            "title": "Results",
-            "type": "array"
-          },
-          "state": {
-            "title": "State",
-            "type": "string"
-          },
-          "state_name": {
-            "title": "State Name",
-            "type": "string"
-          },
-          "test_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Test Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "test_id",
-          "integration_id",
-          "config_revision",
-          "state",
-          "state_name",
-          "results",
-          "capabilities",
-          "created_at"
-        ],
-        "title": "ContractTestView",
-        "type": "object"
-      },
       "ControlAuthContext": {
         "additionalProperties": false,
         "properties": {
@@ -5981,18 +5647,22 @@
         "title": "ConversationView",
         "type": "object"
       },
-      "CredentialReference": {
+      "CredentialInput": {
         "additionalProperties": false,
         "properties": {
-          "credential_ref": {
-            "title": "Credential Ref",
-            "type": "string"
+          "secret": {
+            "format": "password",
+            "maxLength": 16384,
+            "minLength": 1,
+            "title": "Secret",
+            "type": "string",
+            "writeOnly": true
           }
         },
         "required": [
-          "credential_ref"
+          "secret"
         ],
-        "title": "CredentialReference",
+        "title": "CredentialInput",
         "type": "object"
       },
       "CredentialView": {
@@ -8455,400 +8125,6 @@
         "title": "InstructionBlocks",
         "type": "object"
       },
-      "IntegrationCreate": {
-        "additionalProperties": false,
-        "description": "旧 HTTP 业务协议的兼容配置；新业务工具使用 MCP 连接与发现。",
-        "properties": {
-          "adapter_code": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Adapter Code",
-            "type": "string"
-          },
-          "adapter_version": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Adapter Version",
-            "type": "string"
-          },
-          "allowed_operations": {
-            "items": {
-              "enum": [
-                "dictionary",
-                "candidates",
-                "quote",
-                "recheck",
-                "risk_facts",
-                "policies",
-                "metric_catalog",
-                "metric_results"
-              ],
-              "type": "string"
-            },
-            "maxItems": 8,
-            "minItems": 1,
-            "title": "Allowed Operations",
-            "type": "array"
-          },
-          "business_endpoint": {
-            "maxLength": 2048,
-            "minLength": 1,
-            "title": "Business Endpoint",
-            "type": "string"
-          },
-          "credential_ref": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Credential Ref",
-            "type": "string"
-          },
-          "field_mapping": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Field Mapping",
-            "type": "object"
-          },
-          "name": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          },
-          "operation_paths": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "propertyNames": {
-              "enum": [
-                "dictionary",
-                "candidates",
-                "quote",
-                "recheck",
-                "risk_facts",
-                "policies",
-                "metric_catalog",
-                "metric_results"
-              ]
-            },
-            "title": "Operation Paths",
-            "type": "object"
-          }
-        },
-        "required": [
-          "name",
-          "adapter_code",
-          "adapter_version",
-          "business_endpoint",
-          "credential_ref",
-          "allowed_operations",
-          "operation_paths"
-        ],
-        "title": "IntegrationCreate",
-        "type": "object"
-      },
-      "IntegrationEdit": {
-        "additionalProperties": false,
-        "properties": {
-          "adapter_code": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Adapter Code",
-            "type": "string"
-          },
-          "adapter_version": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Adapter Version",
-            "type": "string"
-          },
-          "allowed_operations": {
-            "items": {
-              "enum": [
-                "dictionary",
-                "candidates",
-                "quote",
-                "recheck",
-                "risk_facts",
-                "policies",
-                "metric_catalog",
-                "metric_results"
-              ],
-              "type": "string"
-            },
-            "maxItems": 8,
-            "minItems": 1,
-            "title": "Allowed Operations",
-            "type": "array"
-          },
-          "business_endpoint": {
-            "maxLength": 2048,
-            "minLength": 1,
-            "title": "Business Endpoint",
-            "type": "string"
-          },
-          "credential_ref": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Credential Ref",
-            "type": "string"
-          },
-          "field_mapping": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Field Mapping",
-            "type": "object"
-          },
-          "name": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          },
-          "operation_paths": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "propertyNames": {
-              "enum": [
-                "dictionary",
-                "candidates",
-                "quote",
-                "recheck",
-                "risk_facts",
-                "policies",
-                "metric_catalog",
-                "metric_results"
-              ]
-            },
-            "title": "Operation Paths",
-            "type": "object"
-          },
-          "revision": {
-            "minimum": 1.0,
-            "title": "Revision",
-            "type": "integer"
-          },
-          "status": {
-            "pattern": "^(ACTIVE|DISABLED)$",
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "adapter_code",
-          "adapter_version",
-          "business_endpoint",
-          "credential_ref",
-          "allowed_operations",
-          "operation_paths",
-          "revision",
-          "status"
-        ],
-        "title": "IntegrationEdit",
-        "type": "object"
-      },
-      "IntegrationList": {
-        "additionalProperties": false,
-        "properties": {
-          "actions": {
-            "items": {
-              "$ref": "#/components/schemas/VisibleAction"
-            },
-            "title": "Actions",
-            "type": "array"
-          },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/IntegrationView"
-            },
-            "title": "Items",
-            "type": "array"
-          }
-        },
-        "required": [
-          "items",
-          "actions"
-        ],
-        "title": "IntegrationList",
-        "type": "object"
-      },
-      "IntegrationOptions": {
-        "additionalProperties": false,
-        "properties": {
-          "adapters": {
-            "items": {
-              "$ref": "#/components/schemas/AdapterOption"
-            },
-            "title": "Adapters",
-            "type": "array"
-          },
-          "clients": {
-            "items": {
-              "$ref": "#/components/schemas/NamedOption"
-            },
-            "title": "Clients",
-            "type": "array"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/NamedOption"
-            },
-            "title": "Operations",
-            "type": "array"
-          }
-        },
-        "required": [
-          "adapters",
-          "clients",
-          "operations"
-        ],
-        "title": "IntegrationOptions",
-        "type": "object"
-      },
-      "IntegrationView": {
-        "additionalProperties": false,
-        "properties": {
-          "actions": {
-            "items": {
-              "$ref": "#/components/schemas/VisibleAction"
-            },
-            "title": "Actions",
-            "type": "array"
-          },
-          "adapter_code": {
-            "title": "Adapter Code",
-            "type": "string"
-          },
-          "adapter_name": {
-            "title": "Adapter Name",
-            "type": "string"
-          },
-          "adapter_version": {
-            "title": "Adapter Version",
-            "type": "string"
-          },
-          "allowed_operations": {
-            "items": {
-              "enum": [
-                "dictionary",
-                "candidates",
-                "quote",
-                "recheck",
-                "risk_facts",
-                "policies",
-                "metric_catalog",
-                "metric_results"
-              ],
-              "type": "string"
-            },
-            "title": "Allowed Operations",
-            "type": "array"
-          },
-          "business_endpoint": {
-            "title": "Business Endpoint",
-            "type": "string"
-          },
-          "contract_version": {
-            "title": "Contract Version",
-            "type": "string"
-          },
-          "credential_ref": {
-            "title": "Credential Ref",
-            "type": "string"
-          },
-          "environment_name": {
-            "title": "Environment Name",
-            "type": "string"
-          },
-          "field_mapping": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Field Mapping",
-            "type": "object"
-          },
-          "health": {
-            "title": "Health",
-            "type": "string"
-          },
-          "health_name": {
-            "title": "Health Name",
-            "type": "string"
-          },
-          "integration_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Integration Id",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "operation_paths": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "propertyNames": {
-              "enum": [
-                "dictionary",
-                "candidates",
-                "quote",
-                "recheck",
-                "risk_facts",
-                "policies",
-                "metric_catalog",
-                "metric_results"
-              ]
-            },
-            "title": "Operation Paths",
-            "type": "object"
-          },
-          "revision": {
-            "minimum": 1.0,
-            "title": "Revision",
-            "type": "integer"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          },
-          "status_name": {
-            "title": "Status Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "integration_id",
-          "name",
-          "environment_name",
-          "adapter_name",
-          "adapter_code",
-          "adapter_version",
-          "business_endpoint",
-          "credential_ref",
-          "allowed_operations",
-          "operation_paths",
-          "field_mapping",
-          "health",
-          "health_name",
-          "status",
-          "status_name",
-          "contract_version",
-          "revision",
-          "actions"
-        ],
-        "title": "IntegrationView",
-        "type": "object"
-      },
       "InterruptionView": {
         "additionalProperties": false,
         "properties": {
@@ -9381,6 +8657,91 @@
         "title": "LoginInput",
         "type": "object"
       },
+      "McpAuthentication": {
+        "additionalProperties": false,
+        "properties": {
+          "app_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Id"
+          },
+          "mode": {
+            "default": "bearer",
+            "enum": [
+              "bearer",
+              "client_credentials"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "token_endpoint": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Endpoint"
+          }
+        },
+        "title": "McpAuthentication",
+        "type": "object"
+      },
+      "McpAuthenticationInput": {
+        "additionalProperties": false,
+        "properties": {
+          "app_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]+$",
+            "title": "App Id",
+            "type": "string"
+          },
+          "app_secret": {
+            "anyOf": [
+              {
+                "format": "password",
+                "maxLength": 4096,
+                "minLength": 16,
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Secret"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "token_endpoint": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Token Endpoint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "token_endpoint",
+          "app_id"
+        ],
+        "title": "McpAuthenticationInput",
+        "type": "object"
+      },
       "McpCheck": {
         "additionalProperties": false,
         "properties": {
@@ -9488,6 +8849,12 @@
             },
             "title": "Actions",
             "type": "array"
+          },
+          "authentication": {
+            "$ref": "#/components/schemas/McpAuthentication",
+            "default": {
+              "mode": "bearer"
+            }
           },
           "configuration_revision": {
             "minimum": 1.0,
@@ -20273,42 +19640,6 @@
           "revision"
         ],
         "title": "RerunInput",
-        "type": "object"
-      },
-      "creativity_service__modules__integrations__api__CredentialInput": {
-        "additionalProperties": false,
-        "properties": {
-          "secret": {
-            "format": "password",
-            "maxLength": 4096,
-            "minLength": 1,
-            "title": "Secret",
-            "type": "string",
-            "writeOnly": true
-          }
-        },
-        "required": [
-          "secret"
-        ],
-        "title": "CredentialInput",
-        "type": "object"
-      },
-      "creativity_service__modules__models__schemas__CredentialInput": {
-        "additionalProperties": false,
-        "properties": {
-          "secret": {
-            "format": "password",
-            "maxLength": 16384,
-            "minLength": 1,
-            "title": "Secret",
-            "type": "string",
-            "writeOnly": true
-          }
-        },
-        "required": [
-          "secret"
-        ],
-        "title": "CredentialInput",
         "type": "object"
       },
       "creativity_service__modules__models__schemas__RetryPolicy": {
@@ -49696,2038 +49027,6 @@
         ]
       }
     },
-    "/admin/v1/integration-credentials": {
-      "post": {
-        "deprecated": true,
-        "operationId": "credential_admin_v1_integration_credentials_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/creativity_service__modules__integrations__api__CredentialInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CredentialReference"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Credential",
-        "tags": [
-          "业务接入"
-        ]
-      }
-    },
-    "/admin/v1/integrations": {
-      "get": {
-        "deprecated": true,
-        "operationId": "integrations_admin_v1_integrations_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IntegrationList"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Integrations",
-        "tags": [
-          "业务接入"
-        ]
-      },
-      "post": {
-        "deprecated": true,
-        "operationId": "create_admin_v1_integrations_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/IntegrationCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IntegrationView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Create",
-        "tags": [
-          "业务接入"
-        ]
-      }
-    },
-    "/admin/v1/integrations/options": {
-      "get": {
-        "deprecated": true,
-        "operationId": "options_admin_v1_integrations_options_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IntegrationOptions"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Options",
-        "tags": [
-          "业务接入"
-        ]
-      }
-    },
-    "/admin/v1/integrations/{integration_id}": {
-      "get": {
-        "deprecated": true,
-        "operationId": "detail_admin_v1_integrations__integration_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "integration_id",
-            "required": true,
-            "schema": {
-              "title": "Integration Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IntegrationView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Detail",
-        "tags": [
-          "业务接入"
-        ]
-      },
-      "patch": {
-        "deprecated": true,
-        "operationId": "edit_admin_v1_integrations__integration_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "integration_id",
-            "required": true,
-            "schema": {
-              "title": "Integration Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/IntegrationEdit"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IntegrationView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Edit",
-        "tags": [
-          "业务接入"
-        ]
-      }
-    },
-    "/admin/v1/integrations/{integration_id}/capabilities": {
-      "get": {
-        "deprecated": true,
-        "operationId": "capabilities_admin_v1_integrations__integration_id__capabilities_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "integration_id",
-            "required": true,
-            "schema": {
-              "title": "Integration Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/BusinessCapabilityView"
-                  },
-                  "title": "Response Capabilities Admin V1 Integrations  Integration Id  Capabilities Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Capabilities",
-        "tags": [
-          "业务接入"
-        ]
-      }
-    },
-    "/admin/v1/integrations/{integration_id}/tests": {
-      "get": {
-        "deprecated": true,
-        "operationId": "tests_admin_v1_integrations__integration_id__tests_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "integration_id",
-            "required": true,
-            "schema": {
-              "title": "Integration Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ContractTestView"
-                  },
-                  "title": "Response Tests Admin V1 Integrations  Integration Id  Tests Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Tests",
-        "tags": [
-          "业务接入"
-        ]
-      },
-      "post": {
-        "deprecated": true,
-        "operationId": "test_admin_v1_integrations__integration_id__tests_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "integration_id",
-            "required": true,
-            "schema": {
-              "title": "Integration Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ContractTestInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ContractTestView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Test",
-        "tags": [
-          "业务接入"
-        ]
-      }
-    },
     "/admin/v1/mcp-connections": {
       "get": {
         "operationId": "list_connections_admin_v1_mcp_connections_get",
@@ -52841,6 +50140,241 @@
           }
         ],
         "summary": "Edit",
+        "tags": [
+          "MCP 连接"
+        ]
+      }
+    },
+    "/admin/v1/mcp-connections/{connection_id}/authentication": {
+      "post": {
+        "operationId": "configure_authentication_admin_v1_mcp_connections__connection_id__authentication_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpAuthenticationInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpConnection"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Configure Authentication",
         "tags": [
           "MCP 连接"
         ]
@@ -61002,7 +58536,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/creativity_service__modules__models__schemas__CredentialInput"
+                "$ref": "#/components/schemas/CredentialInput"
               }
             }
           },

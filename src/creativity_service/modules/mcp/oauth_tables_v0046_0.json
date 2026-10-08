@@ -1,0 +1,338 @@
+[
+  {
+    "module": "mcp",
+    "name": "mcp_oauth_flows",
+    "comment": "MCP 一次性授权流程",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_type",
+        "type": "varchar(64)",
+        "comment": "业务主体类型",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_id",
+        "type": "varchar(128)",
+        "comment": "业务主体编号",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "个人"
+      },
+      {
+        "name": "connection_id",
+        "type": "varchar(64)",
+        "comment": "连接标识",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "configuration_revision",
+        "type": "bigint",
+        "comment": "连接配置修订",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "profile_id",
+        "type": "varchar(64)",
+        "comment": "身份提供方配置",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "profile_digest",
+        "type": "varchar(64)",
+        "comment": "提供方配置摘要",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "ownership",
+        "type": "varchar(16)",
+        "comment": "凭据归属类型",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "owner_id",
+        "type": "varchar(64)",
+        "comment": "归属身份摘要",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "state",
+        "type": "varchar(16)",
+        "comment": "授权流程状态",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "verifier_ref",
+        "type": "varchar(64)",
+        "comment": "PKCE 验证凭据引用",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "expires_at",
+        "type": "timestamptz",
+        "comment": "授权流程截止时间",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "connection_id"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0029_mcp_oauth",
+    "scope": "主体",
+    "control_purpose": null,
+    "content": true,
+    "cleanup_type": "oauth_flow"
+  },
+  {
+    "module": "mcp",
+    "name": "mcp_oauth_tokens",
+    "comment": "MCP 分身份委托凭据",
+    "columns": [
+      {
+        "name": "id",
+        "type": "varchar(64)",
+        "comment": "记录标识",
+        "required": true,
+        "source": "服务端随机标识",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "所属渠道标识",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "comment": "创建时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "comment": "更新时间",
+        "required": true,
+        "source": "服务端时钟",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "revision",
+        "type": "bigint",
+        "comment": "并发修订号",
+        "required": true,
+        "source": "服务层递增",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "environment",
+        "type": "varchar(16)",
+        "comment": "所属环境",
+        "required": true,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_type",
+        "type": "varchar(64)",
+        "comment": "业务主体类型",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "subject_id",
+        "type": "varchar(128)",
+        "comment": "业务主体编号",
+        "required": false,
+        "source": "受信服务上下文",
+        "sensitivity": "个人"
+      },
+      {
+        "name": "connection_id",
+        "type": "varchar(64)",
+        "comment": "连接标识",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "profile_id",
+        "type": "varchar(64)",
+        "comment": "身份提供方配置",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "profile_digest",
+        "type": "varchar(64)",
+        "comment": "提供方配置摘要",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "ownership",
+        "type": "varchar(16)",
+        "comment": "凭据归属类型",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "owner_id",
+        "type": "varchar(64)",
+        "comment": "归属身份摘要",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "credential_ref",
+        "type": "varchar(64)",
+        "comment": "委托令牌凭据引用",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "expires_at",
+        "type": "timestamptz",
+        "comment": "访问令牌截止时间",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "state",
+        "type": "varchar(16)",
+        "comment": "委托状态",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "refresh_until",
+        "type": "timestamptz",
+        "comment": "刷新占用截止时间",
+        "required": false,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "refresh_nonce",
+        "type": "varchar(64)",
+        "comment": "刷新互斥代次",
+        "required": false,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "authorized_at",
+        "type": "timestamptz",
+        "comment": "授权发起时间",
+        "required": true,
+        "source": "受信授权流程",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "id"
+      ],
+      [
+        "channel_id",
+        "environment",
+        "connection_id"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0029_mcp_oauth",
+    "scope": "主体",
+    "control_purpose": null,
+    "content": true,
+    "cleanup_type": "oauth_token"
+  }
+]

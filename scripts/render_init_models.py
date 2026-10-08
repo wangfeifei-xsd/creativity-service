@@ -22,7 +22,7 @@ MODEL_SEED_TABLES = (
 
 def validate_initial_models(tables: dict[str, Any], tenants: dict[str, Any], admin_id: str) -> None:
     """配置只引用同渠道开发环境密文，并完整归档版本及来源关联。"""
-    credentials = {row["id"]: row for row in tables["credentials"]}
+    credentials = {row["id"]: row for row in tables["credentials"] if row["purpose"] == "model"}
     connections = {row["id"]: row for row in tables["model_connections"]}
     providers = {row["id"]: row for row in tables["provider_catalog"]}
     versions = {row["id"]: row for row in tables["resource_versions"]}
@@ -34,6 +34,7 @@ def validate_initial_models(tables: dict[str, Any], tenants: dict[str, Any], adm
             or row["purpose"] != "model"
             or row["state"] != "ACTIVE"
             or not row["key_version"]
+            or row["secret_value"] is not None
             or len(bytes.fromhex(row["ciphertext"])) < 29
         ):
             raise ValueError("初始模型凭据归属、密文或密钥版本不合法")

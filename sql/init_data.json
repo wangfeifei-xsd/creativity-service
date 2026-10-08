@@ -14,7 +14,8 @@
     "预置寻弈乐竞渠道，负责人为小苏打；首位管理员复用 admin，仅登记空范围，不预设环境、外部映射或接入凭据。",
     "预置平台并发上限 20，导入时立即生效；各初始化业务渠道并发硬上限 5，附同渠道冻结策略版本，不复制运行占用和用量。",
     "预置寻弈乐竞开发环境 DeepSeek V4 Flash 模型、连接、冻结依赖及密文凭据；不复制验证结果、运行、用量、解密主密钥或本机出站地址。",
-    "渠道管理员默认具备已授权渠道环境的正式发布权限；首位管理员的初始资源授权同步包含发布，不授予其他独立动作。"
+    "渠道管理员默认具备已授权渠道环境的正式发布权限；首位管理员的初始资源授权同步包含发布，不授予其他独立动作。",
+    "预置寻弈乐竞开发环境租号服务的基本配置与服务间鉴权；appSecret 原文随配置归档，无需解密主密钥；不归档 Token、检查和发现记录，导入后重新测试与启用。"
   ],
   "tables": {
     "channels": [
@@ -1903,7 +1904,19 @@
         "purpose": "model",
         "ciphertext": "04c8a864ef061cb96a27f44866cc3c81bb44c81a85cf579f663da58edc4ead4ee10ab315f7227f895d952c24ed93473cf2e02dcf5290948d1e2904b456ac05",
         "key_version": "local-model-v1",
-        "state": "ACTIVE"
+        "state": "ACTIVE",
+        "secret_value": null
+      },
+      {
+        "id": "credential_08323bcf5c4349f999e820d0b66cbe63",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "revision": 1,
+        "environment": "dev",
+        "purpose": "mcp",
+        "ciphertext": null,
+        "key_version": null,
+        "state": "ACTIVE",
+        "secret_value": "EtyWZ6KWJ3TVcqrbCsDmVG4IIlI0DKuCEvHz0BKOIrY"
       }
     ],
     "model_connections": [
@@ -1999,6 +2012,41 @@
         "derived_type": "version",
         "derived_id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
         "source_version": null
+      }
+    ],
+    "mcp_connections": [
+      {
+        "id": "mcp_799886052a5241f4828df8660c16e249",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "revision": 1,
+        "environment": "dev",
+        "name": "租号服务",
+        "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:32701/mcp",
+        "credential_ref": "credential_08323bcf5c4349f999e820d0b66cbe63",
+        "timeouts": {
+          "connect_seconds": 10,
+          "operation_seconds": 30
+        },
+        "status": "DISABLED",
+        "health_status": "UNKNOWN",
+        "configuration_revision": 1,
+        "credential_revision": 1,
+        "tested_revision": null,
+        "discovered_revision": null,
+        "failure_count": 0,
+        "health_policy": {
+          "interval_seconds": 300,
+          "failure_threshold": 3
+        },
+        "last_check_at": null,
+        "auth_failed": false,
+        "health_actor_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "authentication": {
+          "mode": "client_credentials",
+          "app_id": "mcp_6b7a55a2ee2d4dafb0b3c1ee35a9ad08",
+          "token_endpoint": "http://127.0.0.1:32701/mcp/token"
+        }
       }
     ]
   }

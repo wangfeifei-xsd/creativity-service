@@ -889,7 +889,8 @@
         "purpose": "model",
         "ciphertext": "04c8a864ef061cb96a27f44866cc3c81bb44c81a85cf579f663da58edc4ead4ee10ab315f7227f895d952c24ed93473cf2e02dcf5290948d1e2904b456ac05",
         "key_version": "local-model-v1",
-        "state": "ACTIVE"
+        "state": "ACTIVE",
+        "secret_value": null
       }
     ],
     "evidence_refs": [
@@ -1201,7 +1202,8 @@
         "last_check_at": "2026-10-06T19:54:54.695201+00:00",
         "auth_failed": false,
         "health_actor_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "next_check_at": "2026-10-06T19:59:54.695203+00:00"
+        "next_check_at": "2026-10-06T19:59:54.695203+00:00",
+        "authentication": null
       }
     ],
     "mcp_discoveries": [

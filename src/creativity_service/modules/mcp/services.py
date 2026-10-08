@@ -26,6 +26,8 @@ from creativity_service.modules.mcp.differences import differences
 from creativity_service.modules.mcp.reading import import_reasons
 from creativity_service.modules.mcp.repositories import repository
 from creativity_service.modules.mcp.schemas import (
+    McpAuthentication,
+    McpAuthenticationInput,
     McpCheck,
     McpConnection,
     McpCreate,
@@ -52,6 +54,7 @@ from creativity_service.modules.tools.schemas import (
 from creativity_service.modules.tools.services import ToolService
 
 ERRORS = {
+    "MCP_ACCESS_TOKEN_REJECTED": "访问令牌已失效，请重新测试以获取新令牌",
     "MCP_AUTH_FAILED": "远端鉴权失败，请更新凭据",
     "MCP_PROTOCOL_MISMATCH": "远端协议或工具能力不兼容",
     "MCP_TOOL_CHANGED": "远端契约已变更，请导入新版本并重新验证",
@@ -127,6 +130,9 @@ class McpService:
         from creativity_service.modules.mcp.oauth import OAuthService
 
         self.oauth = OAuthService(self)
+        from creativity_service.modules.mcp.client_credentials import ClientCredentials
+
+        self.client_credentials = ClientCredentials(outbound)
 
     async def require(self, context: AuthContext, connection_id: str) -> None:
         if context.principal_type not in {"management", "worker"} or not context.actor_id:
@@ -203,7 +209,7 @@ class McpService:
                 VisibleAction(action_key=k, label=v)
                 for k, v in [
                     ("edit", "编辑"),
-                    ("credential", "更新凭据"),
+                    ("credential", "配置鉴权"),
                     ("test", "连接测试"),
                     ("discover", "发现工具"),
                     ("disable", "停用") if row["status"] == "ENABLED" else ("enable", "启用"),
@@ -228,6 +234,7 @@ class McpService:
             revision=row["revision"],
             configuration_revision=row["configuration_revision"],
             credential_mask="••••••••" if row["credential_ref"] else None,
+            authentication=McpAuthentication.model_validate(row.get("authentication") or {}),
             timeouts=row["timeouts"],
             health_policy=row["health_policy"],
             status=display(row["status"]),
@@ -274,6 +281,7 @@ class McpService:
                 connection_id,
                 {
                     **body.model_dump(mode="json"),
+                    "authentication": None,
                     "status": "DISABLED",
                     "health_status": "UNKNOWN",
                     "configuration_revision": 1,
@@ -297,6 +305,10 @@ class McpService:
         await self.require(context, connection_id)
         # 页面不回传密钥引用；省略引用时保留现有凭据，轮换使用专用接口。
         current = await self.get(context, "mcp_connections", connection_id)
+        if (current.get("authentication") or {}).get(
+            "mode"
+        ) == "client_credentials" and body.transport != "streamable_http":
+            raise ServiceError("MCP_AUTH_FAILED", "服务间鉴权仅适用于 Streamable HTTP", 422)
         config = body.model_copy(
             update={
                 "credential_ref": body.credential_ref
@@ -327,6 +339,18 @@ class McpService:
         action: str,
         name: str | None = None,
     ) -> McpConnection:
+        row = await self.change_row(context, connection_id, revision, values, action, name)
+        return await self.view(context, row)
+
+    async def change_row(
+        self,
+        context: AuthContext,
+        connection_id: str,
+        revision: int,
+        values: dict[str, Any],
+        action: str,
+        name: str | None = None,
+    ) -> dict[str, Any]:
         scope, audit_id = context.scope, new_id("audit")
         keys = [
             record_key(scope.channel_id, "mcp_connections", connection_id),
@@ -344,7 +368,7 @@ class McpService:
             await append_audit(
                 uow, context, audit_id, f"mcp.{action}", "mcp_connection", connection_id, {}
             )
-        return await self.view(context, row)
+        return row
 
     async def rotate(
         self, context: AuthContext, connection_id: str, body: McpCredential
@@ -363,6 +387,7 @@ class McpService:
             connection_id,
             body.revision,
             {
+                "authentication": {"mode": "bearer"},
                 "credential_ref": ref,
                 "credential_revision": 1,
                 "configuration_revision": row["configuration_revision"] + 1,
@@ -375,6 +400,64 @@ class McpService:
             },
             "credential",
         )
+
+    async def configure_authentication(
+        self, context: AuthContext, connection_id: str, body: McpAuthenticationInput
+    ) -> McpConnection:
+        await self.require(context, connection_id)
+        row = await self.get(context, "mcp_connections", connection_id)
+        if row["revision"] != body.revision:
+            raise ServiceError("REVISION_CONFLICT", "配置已变更，请刷新后重试", 409)
+        if row["transport"] != "streamable_http":
+            raise ServiceError("MCP_AUTH_FAILED", "服务间鉴权需要 Streamable HTTP 连接", 422)
+        if urlsplit(body.token_endpoint).query:
+            raise ServiceError("MCP_AUTH_FAILED", "鉴权地址不能包含查询参数", 422)
+        await self.outbound.validate(context.scope, "oauth", body.token_endpoint)
+        old = row.get("authentication") or {}
+        ref, cred_revision = row["credential_ref"], row["credential_revision"]
+        if body.app_secret is None:
+            if (
+                old.get("mode") != "client_credentials"
+                or old.get("app_id") != body.app_id
+                or not ref
+            ):
+                raise ServiceError("MCP_AUTH_FAILED", "首次配置或更换应用时须填写应用密钥", 422)
+            await self.credential_row(context, ref)
+        else:
+            value = body.app_secret.get_secret_value()
+            if any(ord(c) < 33 or ord(c) > 126 for c in value):
+                raise ServiceError("MCP_AUTH_FAILED", "应用密钥不能包含空白或控制字符", 422)
+            ref = await self.credentials.store(context, "mcp", SecretBytes(value.encode()))
+            cred_revision = 1
+        try:
+            saved = await self.change_row(
+                context,
+                connection_id,
+                body.revision,
+                {
+                    "authentication": {
+                        "mode": "client_credentials",
+                        "app_id": body.app_id,
+                        "token_endpoint": body.token_endpoint,
+                    },
+                    "credential_ref": ref,
+                    "credential_revision": cred_revision,
+                    "configuration_revision": row["configuration_revision"] + 1,
+                    "tested_revision": None,
+                    "discovered_revision": None,
+                    "status": "DISABLED",
+                    "health_status": "UNKNOWN",
+                    "failure_count": 0,
+                    "auth_failed": False,
+                },
+                "authentication",
+            )
+        except BaseException:
+            if ref != row["credential_ref"] and ref:
+                await self.oauth.discard(context, ref)
+            raise
+        # 已提交的绑定不能因详情读取失败而删除新凭据。
+        return await self.view(context, saved)
 
     async def set_enabled(
         self, context: AuthContext, connection_id: str, revision: int, enabled: bool
@@ -478,10 +561,17 @@ class McpService:
                     McpTimeouts.model_validate(row["timeouts"]),
                 )
 
+            async def authenticated(secret: SecretBytes) -> DiscoveryResult:
+                if (row.get("authentication") or {}).get("mode") == "client_credentials":
+                    return await self.client_credentials.call(context, row, secret, operation)
+                return await operation(secret)
+
             result = (
                 await self.oauth.call(context, row, operation)
                 if row["transport"] == "oauth"
-                else await self.credentials.call(context, row["credential_ref"], "mcp", operation)
+                else await self.credentials.call(
+                    context, row["credential_ref"], "mcp", authenticated
+                )
                 if row["credential_ref"]
                 else await operation(None)
             )

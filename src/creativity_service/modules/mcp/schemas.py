@@ -42,6 +42,19 @@ class McpCredential(Contract):
     token: SecretStr = Field(min_length=1, max_length=8192)
 
 
+class McpAuthentication(Contract):
+    mode: Literal["bearer", "client_credentials"] = "bearer"
+    token_endpoint: str | None = Field(default=None, max_length=2048)
+    app_id: str | None = Field(default=None, max_length=128)
+
+
+class McpAuthenticationInput(Contract):
+    revision: Revision
+    token_endpoint: str = Field(min_length=1, max_length=2048)
+    app_id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9._-]+$")
+    app_secret: SecretStr | None = Field(default=None, min_length=16, max_length=4096)
+
+
 class McpConnection(Contract):
     connection_id: Identifier
     name: str
@@ -51,6 +64,7 @@ class McpConnection(Contract):
     revision: Revision
     configuration_revision: Revision
     credential_mask: str | None
+    authentication: McpAuthentication = McpAuthentication()
     timeouts: McpTimeouts
     health_policy: McpHealthPolicy
     status: DisplayStatus

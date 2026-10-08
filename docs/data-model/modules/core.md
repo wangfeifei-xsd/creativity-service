@@ -1,6 +1,6 @@
 # 公共设施模型
 
-模型版本 2.0.0；负责方案 03；需求 [00-需求总纲.md](../../../../需求文档/00-需求总纲.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 03；需求 [00-需求总纲.md](../../../../需求文档/00-需求总纲.md)。总索引见 [README](../README.md)。
 
 ## resource_versions
 
@@ -124,9 +124,10 @@
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `purpose` | `varchar(32)` | 凭据用途 | 是 | 服务层校验后的业务输入 | 内部 |
-| `ciphertext` | `bytea` | 认证加密密文 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `key_version` | `varchar(64)` | 加密密钥版本 | 是 | 服务层校验后的业务输入 | 内部 |
+| `ciphertext` | `bytea` | 认证加密密文 | 否 | 服务层校验后的业务输入 | 敏感内容 |
+| `key_version` | `varchar(64)` | 加密密钥版本 | 否 | 服务层校验后的业务输入 | 内部 |
 | `state` | `varchar(32)` | 凭据状态 | 是 | 服务层校验后的业务输入 | 内部 |
+| `secret_value` | `text` | MCP 凭据原文 | 否 | 服务层校验后的业务输入 | 敏感内容 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, purpose, state)`。
 

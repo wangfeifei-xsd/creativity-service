@@ -3,25 +3,16 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
-from pydantic import Field, SecretBytes, SecretStr
 
 from creativity_service.core.context import AuthContext, require_http_context
-from creativity_service.core.primitives import Contract, unavailable
+from creativity_service.core.primitives import unavailable
 from creativity_service.modules.integrations.assembly import IntegrationServices
 from creativity_service.modules.integrations.schemas import (
-    BusinessCapabilityView,
-    ContractTestInput,
-    ContractTestView,
     DelegationKeyCreate,
     DelegationKeyIssued,
     DelegationKeyOptions,
     DelegationKeyRotate,
     DelegationKeyView,
-    IntegrationCreate,
-    IntegrationEdit,
-    IntegrationList,
-    IntegrationOptions,
-    IntegrationView,
     NamedOption,
     RevisionInput,
 )
@@ -42,14 +33,6 @@ def services(request: Request) -> IntegrationServices:
 
 
 Services = Annotated[IntegrationServices, Depends(services)]
-
-
-class CredentialInput(Contract):
-    secret: SecretStr = Field(min_length=1, max_length=4096)
-
-
-class CredentialReference(Contract):
-    credential_ref: str
 
 
 @router.get("/subject-review-bindings", response_model=list[SubjectReviewView])
@@ -73,77 +56,6 @@ async def subject_review_options(context: Context, service: Services) -> list[Na
     if service.subject_review is None:
         raise unavailable("主体复核配置服务")
     return await service.subject_review.clients(context)
-
-
-@router.post(
-    "/integration-credentials", response_model=CredentialReference, status_code=201, deprecated=True
-)
-async def credential(
-    context: Context, service: Services, body: CredentialInput
-) -> CredentialReference:
-    value = body.secret.get_secret_value()
-    return CredentialReference(
-        credential_ref=await service.credentials.store(
-            context, "http_tool", SecretBytes(value.encode())
-        )
-    )
-
-
-@router.get("/integrations", response_model=IntegrationList, deprecated=True)
-async def integrations(context: Context, service: Services) -> IntegrationList:
-    return await service.management.list_integrations(context)
-
-
-@router.get("/integrations/options", response_model=IntegrationOptions, deprecated=True)
-async def options(context: Context, service: Services) -> IntegrationOptions:
-    return await service.management.options(context)
-
-
-@router.post("/integrations", response_model=IntegrationView, status_code=201, deprecated=True)
-async def create(context: Context, service: Services, body: IntegrationCreate) -> IntegrationView:
-    return await service.management.save(context, body)
-
-
-@router.get("/integrations/{integration_id}", response_model=IntegrationView, deprecated=True)
-async def detail(context: Context, service: Services, integration_id: str) -> IntegrationView:
-    return await service.management.detail(context, integration_id)
-
-
-@router.patch("/integrations/{integration_id}", response_model=IntegrationView, deprecated=True)
-async def edit(
-    context: Context, service: Services, integration_id: str, body: IntegrationEdit
-) -> IntegrationView:
-    return await service.management.save(context, body, integration_id)
-
-
-@router.get(
-    "/integrations/{integration_id}/capabilities",
-    response_model=list[BusinessCapabilityView],
-    deprecated=True,
-)
-async def capabilities(
-    context: Context, service: Services, integration_id: str
-) -> list[BusinessCapabilityView]:
-    return await service.management.capabilities(context, integration_id)
-
-
-@router.get(
-    "/integrations/{integration_id}/tests", response_model=list[ContractTestView], deprecated=True
-)
-async def tests(context: Context, service: Services, integration_id: str) -> list[ContractTestView]:
-    return await service.management.tests(context, integration_id)
-
-
-@router.post(
-    "/integrations/{integration_id}/tests",
-    response_model=ContractTestView,
-    status_code=201,
-    deprecated=True,
-)
-async def test(
-    context: Context, service: Services, integration_id: str, body: ContractTestInput
-) -> ContractTestView:
-    return await service.management.test(context, integration_id, body)
 
 
 @router.get("/delegation-keys", response_model=list[DelegationKeyView])

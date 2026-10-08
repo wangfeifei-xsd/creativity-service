@@ -202,6 +202,7 @@ class DelegationKeys:
                 credential_id,
                 {
                     "purpose": "delegation",
+                    "secret_value": None,
                     "ciphertext": encrypted,
                     "key_version": version,
                     "state": "ACTIVE",

@@ -30,6 +30,7 @@ from creativity_service.modules.models.policy import validate_endpoint
 from creativity_service.modules.models.schemas import ProviderInput
 from creativity_service.modules.usage.pricing import timezone
 from creativity_service.storage import metadata
+from scripts.render_init_mcp import validate_initial_mcp
 from scripts.render_init_models import MODEL_SEED_TABLES, validate_initial_models
 from scripts.render_weather_seed import OBJECT_MARKER, load_weather, typed_archive_values
 
@@ -50,17 +51,24 @@ SEED_TABLES = (
     "resource_versions",
     "budget_policies",
     *MODEL_SEED_TABLES,
+    "mcp_connections",
 )
 TENANT_SEED_TABLES = ("channel_memberships", "resource_grants")
-TENANT_CONFIGURATION_TABLES = ("resource_versions", "budget_policies", *MODEL_SEED_TABLES)
+TENANT_CONFIGURATION_TABLES = (
+    "resource_versions",
+    "budget_policies",
+    *MODEL_SEED_TABLES,
+    "mcp_connections",
+)
 IMPORT_TIME_FIELDS = {
     "platform_accounts": {"credential_updated_at"},
     "platform_limits": {"effective_at"},
+    "mcp_connections": {"next_check_at"},
 }
 
 
 def import_time_fields(name: str) -> set[str]:
-    """初始账号及限额随导入事务生效，不把采集时间误当部署生效时间。"""
+    """初始账号、限额及连接兼容时钟取导入事务时间，不继承采集时间。"""
     return {"created_at", "updated_at"} | IMPORT_TIME_FIELDS.get(name, set())
 
 
@@ -233,7 +241,9 @@ def validate_seed(seed: dict[str, Any]) -> None:
     """生成前验证渠道、身份、空范围授权和并发策略，不把校验写成数据库业务约束。"""
     tables = seed["tables"]
     if set(tables) != set(SEED_TABLES):
-        raise ValueError("初始化数据只能包含预置渠道、控制面配置、初始授权、并发策略及模型配置")
+        raise ValueError(
+            "初始化数据只能包含预置渠道、控制面配置、初始授权、并发策略及模型和 MCP 配置"
+        )
     # 仅用冻结采集时间校验字段类型；真实初始化时间仍由导入事务显式赋值。
     timestamp = datetime.fromisoformat(seed["source"]["captured_at"])
     for name in SEED_TABLES:
@@ -373,6 +383,7 @@ def validate_seed(seed: dict[str, Any]) -> None:
                 raise ValueError("初始渠道管理员或授权关联不一致，环境必须为空")
     validate_initial_limits(tables, tenants, admin_id)
     validate_initial_models(tables, tenants, admin_id)
+    validate_initial_mcp(tables, tenants, admin_id)
 
 
 def render_data() -> str:
@@ -383,13 +394,14 @@ def render_data() -> str:
     lines = [
         "-- Creativity 初始化数据归档，必须在配套 sql/init.sql 建表后执行。",
         f"-- 模型版本：{model_version}；完成后登记迁移基线：{revision}。",
-        "-- 数据源：sql/init_data.json，冻结控制面配置、预置渠道、模型连接及并发策略。",
+        "-- 数据源：sql/init_data.json，冻结控制面配置、预置渠道、模型和 MCP 连接及并发策略。",
         "-- 包含 admin 账号、两种管理员的菜单关联、账号角色关联及历史兼容角色。",
         "-- 天气链路数据源：sql/weather_data.json；仅保留成功运行及必要依赖。",
         "-- 预置渠道的首位管理员复用 admin，天气示例仅开放开发环境。",
         "-- 初始密码仅存安全摘要，首次登录须改密；不复制其他账号或接入凭据。",
         "-- 平台并发上限归系统渠道，各渠道并发策略及冻结版本归对应业务渠道。",
         "-- 包含开发环境 DeepSeek V4 Flash 及密文凭据；解密主密钥和出站策略另行配置。",
+        "-- 租号服务归档基本配置与 appSecret 原文，无需解密主密钥；导入后重新测试、发现与启用。",
         "-- 保留天气链路所需能力验证、真实输入输出和用量；历史身份不携带登录会话。",
         "-- 技能对象字节随本 SQL 注释封存，导入后运行 scripts.restore_init_objects 恢复对象存储。",
         "-- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。",
@@ -411,7 +423,8 @@ def render_data() -> str:
         "platform_limits": "初始化平台并发上限，导入时生效；不复制实际运行占用。",
         "resource_versions": "初始化各业务渠道并发策略、模型及连接的冻结版本及内容摘要。",
         "budget_policies": "初始化各业务渠道并发硬上限，不复制用量、预占或预算提醒。",
-        "credentials": "初始化渠道模型的 AES-GCM 密文凭据，主密钥不进入 SQL。",
+        "credentials": "初始化模型的 AES-GCM 密文凭据与 MCP 凭据原文；模型主密钥不进入 SQL。",
+        "mcp_connections": "初始化开发环境租号服务的基本配置和鉴权，健康状态在目标环境重新验证。",
         "model_connections": "初始化开发环境模型连接，健康状态在目标环境重新验证。",
         "models": "初始化 DeepSeek V4 Flash 模型映射，能力状态保持未验证。",
         "resource_references": "初始化模型版本对连接版本的同渠道依赖。",

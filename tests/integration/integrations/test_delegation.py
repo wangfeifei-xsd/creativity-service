@@ -175,10 +175,7 @@ async def test_http_delegation_and_anonymous_boundary(integration_env):
     )
     assert response.status_code == 401
     verified = await verify(env, claim)
-    result = await env.bundle.management.invoke(
-        verified, env.connection.integration_id, "dictionary", {}, "run-1"
-    )
-    assert result.items[0]["name"] == "授权游戏名称"
+    assert verified.scope.subject_type == "anonymous"
 
 
 async def test_worker_requires_current_subject_and_never_widens_permissions(

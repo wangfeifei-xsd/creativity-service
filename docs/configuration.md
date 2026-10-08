@@ -49,7 +49,7 @@ API 和 Worker 的连接凭据、加密密钥与出站许可应一致。完整�
 | 向量检索与三层记忆 | [向量环境](../deploy/vector.md)、[记忆策略](runtime.md#memory) |
 | 暂停恢复与业务写工具 | Agent 等待节点、工具写入策略和状态核查工具；审批需 `run:approve` 权限 |
 | Skills 脚本与 MCP stdio | `CREATIVITY_SANDBOX_PROFILES`；准备固定摘要镜像，参考 [构建文件](../deploy/Dockerfile.sandbox) |
-| MCP OAuth、外部身份与角色 | 连接或身份配置，同时核对加密密钥、回调和出站许可 |
+| MCP OAuth、外部身份与角色 | 连接或身份配置，同时核对回调和出站许可；MCP 凭据直接存储 |
 | 调度、批量、Webhook、告警、供应商账单 | 对应管理模块；Worker 与 Beat 配套运行 |
 | 多语言客户端 | [SDK](../sdks/README.md) |
 

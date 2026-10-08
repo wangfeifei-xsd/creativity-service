@@ -8,7 +8,7 @@ from sqlalchemy import Column, Index, MetaData, Table
 from creativity_service.core.database.tables import column_type
 
 BASELINE = json.loads(
-    Path(__file__).with_name("oauth_tables_v0041_0.json").read_text(encoding="utf-8")
+    Path(__file__).with_name("oauth_tables_v0046_0.json").read_text(encoding="utf-8")
 )
 
 

@@ -1,4 +1,4 @@
-"""密文与密钥版本分离；明文仅进入受控调用边界。"""
+"""MCP 凭据直接保存，其他用途使用版本化加密；读取均经过当前授权。"""
 
 import os
 from collections.abc import Awaitable, Callable
@@ -39,19 +39,25 @@ class CredentialService:
     async def store(
         self,
         context: AuthContext,
-        purpose: Literal["model", "mcp", "http_tool", "delegation", "webhook"],
+        purpose: Literal["model", "mcp", "delegation", "webhook"],
         plaintext: SecretBytes,
     ) -> str:
         assert_external_io_allowed()
         await self.authorization.require(context, "credential:write", purpose)
-        if self.keys is None:
-            raise unavailable("凭据密钥服务")
-        version, key = await self.keys.current()
         credential_id = new_id("credential")
-        nonce = os.urandom(12)
-        encrypted = AESGCM(key.get_secret_value()).encrypt(
-            nonce, plaintext.get_secret_value(), self.aad(context, credential_id, purpose)
-        )
+        value, ciphertext, version = None, None, None
+        if purpose == "mcp":
+            value = plaintext.get_secret_value().decode("utf-8")
+            if not value:
+                raise ServiceError("VALIDATION_ERROR", "MCP 凭据不能为空", 422)
+        else:
+            if self.keys is None:
+                raise unavailable("凭据密钥服务")
+            version, key = await self.keys.current()
+            nonce = os.urandom(12)
+            ciphertext = nonce + AESGCM(key.get_secret_value()).encrypt(
+                nonce, plaintext.get_secret_value(), self.aad(context, credential_id, purpose)
+            )
         repository = Repository(metadata.tables["credentials"], context.scope)
         async with transaction(
             self.engine,
@@ -63,7 +69,8 @@ class CredentialService:
                 credential_id,
                 {
                     "purpose": purpose,
-                    "ciphertext": nonce + encrypted,
+                    "secret_value": value,
+                    "ciphertext": ciphertext,
                     "key_version": version,
                     "state": "ACTIVE",
                 },
@@ -78,7 +85,7 @@ class CredentialService:
         operation: Callable[[SecretBytes], Awaitable[T]],
     ) -> T:
         assert_external_io_allowed()
-        if self.keys is None:
+        if purpose != "mcp" and self.keys is None:
             raise unavailable("凭据密钥服务")
         await self.authorization.require(context, "credential:use", credential_id)
         repository = Repository(metadata.tables["credentials"], context.scope)
@@ -86,16 +93,22 @@ class CredentialService:
             row = await repository.get(connection, credential_id)
         if row is None or row["purpose"] != purpose or row["state"] != "ACTIVE":
             raise ServiceError("CREDENTIAL_UNAVAILABLE", "凭据不可用", 403)
-        key = await self.keys.resolve(row["key_version"])
-        try:
-            data = bytes(row["ciphertext"])
-            plaintext = SecretBytes(
-                AESGCM(key.get_secret_value()).decrypt(
-                    data[:12], data[12:], self.aad(context, credential_id, purpose)
+        if purpose == "mcp":
+            if not row["secret_value"] or row["ciphertext"] is not None or row["key_version"]:
+                raise ServiceError("CREDENTIAL_UNAVAILABLE", "请重新配置 MCP 鉴权凭据", 403)
+            plaintext = SecretBytes(row["secret_value"].encode("utf-8"))
+        else:
+            assert self.keys is not None
+            key = await self.keys.resolve(row["key_version"])
+            try:
+                data = bytes(row["ciphertext"])
+                plaintext = SecretBytes(
+                    AESGCM(key.get_secret_value()).decrypt(
+                        data[:12], data[12:], self.aad(context, credential_id, purpose)
+                    )
                 )
-            )
-        except Exception as exc:
-            raise ServiceError("CREDENTIAL_DECRYPT_FAILED", "凭据无法解密", 503) from exc
+            except Exception as exc:
+                raise ServiceError("CREDENTIAL_DECRYPT_FAILED", "凭据无法解密", 503) from exc
         # 密钥读取可能等待远端；发送前再次核查当前授权与凭据启用状态。
         await self.authorization.require(context, "credential:use", credential_id)
         async with self.engine.connect() as connection:
@@ -109,5 +122,5 @@ class CredentialService:
         try:
             return await operation(plaintext)
         finally:
-            # Python 对象无法承诺内存擦除；只限制引用生命周期，不将明文返回存储层。
+            # Python 对象无法承诺内存擦除；这里只限制调用侧引用生命周期。
             del plaintext

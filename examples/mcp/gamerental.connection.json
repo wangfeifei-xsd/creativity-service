@@ -1,0 +1,13 @@
+{
+  "name": "租号服务",
+  "transport": "streamable_http",
+  "endpoint": "http://127.0.0.1:32701/mcp",
+  "timeouts": {
+    "connect_seconds": 10,
+    "operation_seconds": 30
+  },
+  "health_policy": {
+    "interval_seconds": 300,
+    "failure_threshold": 3
+  }
+}

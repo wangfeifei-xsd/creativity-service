@@ -5,17 +5,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from creativity_service.integrations.business.base import (
-    ERRORS,
-    BusinessEvidence,
-    BusinessResult,
-    Candidate,
-    EntityRef,
-    MetricDefinition,
-    MetricResult,
-    PolicyReference,
-    RiskFact,
-)
 from creativity_service.integrations.business.delegation import (
     DelegationClaims,
     RequestBinding,
@@ -81,9 +70,7 @@ def artifacts() -> dict[str, object]:
         for p, v in schema["paths"].items()
         if p.startswith(
             (
-                "/admin/v1/integrations",
                 "/admin/v1/delegation-keys",
-                "/admin/v1/integration-credentials",
                 "/admin/v1/subject-review-bindings",
                 "/api/v1/auth/token",
                 "/api/v1/runs",
@@ -132,20 +119,12 @@ def artifacts() -> dict[str, object]:
             for model in (
                 DelegationClaims,
                 RequestBinding,
-                EntityRef,
-                BusinessEvidence,
-                BusinessResult,
-                Candidate,
-                RiskFact,
-                PolicyReference,
-                MetricDefinition,
-                MetricResult,
             )
         },
         "delegation-vectors.json": vectors(),
         "errors.json": {
             code: {"message": name, "http_status": status}
-            for code, (name, status) in (ERRORS | delegation_errors).items()
+            for code, (name, status) in delegation_errors.items()
         },
         "openapi-v2.json": schema,
     }
