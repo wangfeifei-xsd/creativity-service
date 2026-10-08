@@ -175,9 +175,7 @@ async def runtime(env, folder):
 
     env.model_outbound = OutboundPolicy((), resolve)
     env.tools = build_tool_services(env.engine, env.iam.authorization)
-    env.mcp = build_mcp_service(
-        env.engine, env.iam.authorization, env.tools, outbound=env.outbound
-    )
+    env.mcp = build_mcp_service(env.engine, env.iam.authorization, env.tools, outbound=env.outbound)
     env.bundle = build_integration_services(
         env.engine, env.iam.authorization, provider=TestKeys(), mcp=env.mcp
     )

@@ -147,4 +147,4 @@ Agent 增加通用 `workflow.v1` 配置入口，历史 `matching.v1/risk.v1/anal
 
 ## 2026-10-08：移除固定业务 HTTP 接入
 
-`0046_remove_legacy_http` 删除 integrations 与 integration_tests，清除用途为 http_tool 的旧连接密文；当前模型不再包含这两张表。同步移除固定八类业务能力、字段映射、契约测试与凭据管理接口、前端旧连接入口及领域 schema。业务工具使用 MCP；独立委托、主体复核、自动化和通用 HTTP 传输继续保留。历史建库迁移保持冻结，空库初始化 SQL 与最新迁移结果一致。
+`0045_remove_legacy_http` 删除 integrations 与 integration_tests，清除用途为 http_tool 的旧连接密文；当前模型不再包含这两张表。同步移除固定八类业务能力、字段映射、契约测试与凭据管理接口、前端旧连接入口及领域 schema。业务工具使用 MCP；独立委托、主体复核、自动化和通用 HTTP 传输继续保留。历史建库迁移保持冻结，空库初始化 SQL 与最新迁移结果一致。

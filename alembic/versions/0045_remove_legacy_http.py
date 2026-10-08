@@ -2,8 +2,8 @@
 
 from alembic import op
 
-revision = "0046_remove_legacy_http"
-down_revision = "0045_mcp_plain_credentials"
+revision = "0045_remove_legacy_http"
+down_revision = "0044_mcp_client_credentials"
 branch_labels = None
 depends_on = None
 

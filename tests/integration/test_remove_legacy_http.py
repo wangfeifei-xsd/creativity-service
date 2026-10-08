@@ -22,23 +22,22 @@ def test_removal_cleans_legacy_records_and_preserves_other_credentials():
             connection.execute(text(f'CREATE SCHEMA "{schema}"'))
             connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
             config.attributes["connection"] = connection
-            command.upgrade(config, "0045_mcp_plain_credentials")
+            command.upgrade(config, "0044_mcp_client_credentials")
             for channel in ("channel_a", "channel_b"):
                 for purpose in ("http_tool", "model", "mcp", "delegation", "webhook"):
                     connection.execute(
                         text(
                             "INSERT INTO credentials "
-                            "(id, channel_id, environment, purpose, ciphertext, key_version, "
-                            "secret_value, state) VALUES "
-                            "(:id, :channel, 'test', :purpose, :ciphertext, :version, :secret, 'ACTIVE')"
+                            "(id, channel_id, environment, purpose, ciphertext, key_version, state) "
+                            "VALUES (:id, :channel, 'test', :purpose, "
+                            ":ciphertext, :version, 'ACTIVE')"
                         ),
                         {
                             "id": purpose,
                             "channel": channel,
                             "purpose": purpose,
-                            "ciphertext": None if purpose == "mcp" else b"preserved-ciphertext",
-                            "version": None if purpose == "mcp" else "same-master-version",
-                            "secret": "fixture-mcp-secret" if purpose == "mcp" else None,
+                            "ciphertext": b"preserved-ciphertext",
+                            "version": "same-master-version",
                         },
                     )
             # 第二渠道的旧密文没有连接引用，升级也应清理，不能留下孤立秘密。
@@ -63,8 +62,8 @@ def test_removal_cleans_legacy_records_and_preserves_other_credentials():
                     "SELECT * FROM credentials WHERE purpose <> 'http_tool' ORDER BY channel_id, id"
                 )
             ).all()
-            command.upgrade(config, "head")
-            command.upgrade(config, "head")
+            command.upgrade(config, "0045_remove_legacy_http")
+            command.upgrade(config, "0045_remove_legacy_http")
             tables = inspect(connection).get_table_names(schema=schema)
             assert not {"integrations", "integration_tests"}.intersection(tables)
             assert (

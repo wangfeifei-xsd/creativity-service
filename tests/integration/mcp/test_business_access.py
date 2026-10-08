@@ -99,9 +99,7 @@ async def business_env(runtime_env, request):
                 for s in env.sources
             )
         )
-        env.mcp = build_mcp_service(
-            env.engine, env.iam.authorization, env.tools, outbound=outbound
-        )
+        env.mcp = build_mcp_service(env.engine, env.iam.authorization, env.tools, outbound=outbound)
         env.bundle = build_integration_services(
             env.engine, env.iam.authorization, provider=TestKeys(), mcp=env.mcp
         )

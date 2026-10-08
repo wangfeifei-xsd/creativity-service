@@ -50,7 +50,7 @@
 
 ### 18 业务接入关系
 
-delegation_keys 按稳定 service_clients 与环境绑定独立 delegation 密文，rotated_from 保留轮换来源。delegation_nonces 按已验证的渠道、环境、主体上下文关联 kid，保存请求及身份摘要，运行只保存 delegation_id；同 nonce 重发不新增运行。固定业务 HTTP 的 integrations、integration_tests 及 http_tool 凭据由 0046_remove_legacy_http 移除。
+delegation_keys 按稳定 service_clients 与环境绑定独立 delegation 密文，rotated_from 保留轮换来源。delegation_nonces 按已验证的渠道、环境、主体上下文关联 kid，保存请求及身份摘要，运行只保存 delegation_id；同 nonce 重发不新增运行。固定业务 HTTP 的 integrations、integration_tests 及 http_tool 凭据由 0045_remove_legacy_http 移除。
 
 ## 技能包实现关系
 

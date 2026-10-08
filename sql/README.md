@@ -127,4 +127,4 @@ uv run --locked python -m scripts.restore_init_objects --check
 
 ## 移除固定业务 HTTP 接入
 
-`0046_remove_legacy_http` 删除旧 `integrations`、`integration_tests` 两张表，并清除用途为 `http_tool` 的旧连接密文（包含未绑定连接的遗留凭据）。升级时停止 API 与 Worker；已有旧配置的环境应先备份，并将仍需使用的业务能力配置为 MCP 工具。此迁移不支持自动回退，回退须恢复升级前备份。模型、MCP、主体委托与 Webhook 凭据保留；`CREATIVITY_BUSINESS_ENCRYPTION_KEYS` 继续用于主体委托，旧 `CREATIVITY_BUSINESS_DESTINATIONS` 配置不再使用。完整初始化 SQL 已不含这两张旧表。
+`0045_remove_legacy_http` 删除旧 `integrations`、`integration_tests` 两张表，并清除用途为 `http_tool` 的旧连接密文（包含未绑定连接的遗留凭据）。升级时停止 API 与 Worker；已有旧配置的环境应先备份，并将仍需使用的业务能力配置为 MCP 工具。此迁移不支持自动回退，回退须恢复升级前备份。模型、MCP、主体委托与 Webhook 凭据保留；`CREATIVITY_BUSINESS_ENCRYPTION_KEYS` 继续用于主体委托，旧 `CREATIVITY_BUSINESS_DESTINATIONS` 配置不再使用。完整初始化 SQL 已不含这两张旧表。

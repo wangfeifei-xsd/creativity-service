@@ -34,10 +34,11 @@ def test_mcp_conversion_and_rollback(monkeypatch, invalid_key):
         ("channel_a", "prod", "model", "model-secret"),
     ):
         nonce = bytes(range(12))
-        aad = canonical_json([channel, environment, "same-id", purpose])
+        identifier = "model-id" if purpose == "model" else "same-id"
+        aad = canonical_json([channel, environment, identifier, purpose])
         rows.append(
             {
-                "id": "same-id",
+                "id": identifier,
                 "channel_id": channel,
                 "environment": environment,
                 "purpose": purpose,
@@ -56,8 +57,9 @@ def test_mcp_conversion_and_rollback(monkeypatch, invalid_key):
             connection.execute(
                 sa.text(
                     "INSERT INTO credentials "
-                    "(id, channel_id, environment, purpose, ciphertext, key_version, state, revision) "
-                    "VALUES (:id, :channel_id, :environment, :purpose, :ciphertext, :key_version, :state, :revision)"
+                    "(id, channel_id, environment, purpose, ciphertext, key_version, "
+                    "state, revision) VALUES (:id, :channel_id, :environment, :purpose, "
+                    ":ciphertext, :key_version, :state, :revision)"
                 ),
                 rows,
             )

@@ -36,9 +36,7 @@ async def http_clients(env, tenants):
     app = env.client._transport.app
     with ExitStack() as sources, socket.socket() as sock:
         outbound = OutboundPolicy(())
-        mcp = build_mcp_service(
-            env.engine, env.iam.authorization, env.tools, outbound=outbound
-        )
+        mcp = build_mcp_service(env.engine, env.iam.authorization, env.tools, outbound=outbound)
         bundle = build_integration_services(
             env.engine, env.iam.authorization, provider=TestKeys(), mcp=mcp
         )
