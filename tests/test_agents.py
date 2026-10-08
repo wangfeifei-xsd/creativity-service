@@ -342,7 +342,7 @@ def test_legacy_definition_golden_files_and_importable_examples():
     from creativity_service.modules.agents.schemas import AgentCreate
 
     for item in legacy_templates():
-        stored = Path("contracts/agents/legacy-v1") / f"{item.key}.json"
+        stored = Path("tests/fixtures/agents/legacy-v1") / f"{item.key}.json"
         current = item.definition.model_dump(mode="json")
         assert current["bindings"].pop("skill_loading") == []
         assert current["bindings"].pop("embedding_route_version") is None

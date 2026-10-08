@@ -34,9 +34,9 @@ def render():
         "字段文档由 `scripts/render_data_model.py` 生成。"
         "共享基础的代码定义位于 `core/database/baseline_v0001.json`；"
         "各模块归档中的 `revision` 保留原始修订来源，供模型归属与一致性检查使用。"
-        "全部已实现 PostgreSQL 表统一由 "
-        "[初始基线](../../alembic/versions/0001_initial.py) 建库，"
-        "当前修订号为 `0046_mcp_plain_credentials`。"
+        "[初始基线](../../alembic/versions/0001_initial.py) 冻结至 "
+        "`0034_admission_indexes`；后续增量迁移依次升级至 "
+        "`0046_mcp_plain_credentials`。"
         "开发规范引用 [rule.md](../../../rule.md)。",
         "",
         "空库初始化按顺序执行表结构 [sql/init.sql](../../sql/init.sql) 和"
@@ -53,7 +53,7 @@ def render():
         "JSONB 中的类型化内容由所属模块 schema 校验；敏感级别按来源可向上提升。",
         "",
         "[关系与生命周期](relations.md) · [服务不变量](service-invariants.md) · "
-        "[存储职责](storage-map.md) · [变更记录](changes.md)",
+        "[存储职责](storage-map.md) · [迁移兼容](changes.md)",
         "",
         "| 表/对象 | 所属模块 | 需求 | 状态 | 负责方案 |",
         "| --- | --- | --- | --- | --- |",

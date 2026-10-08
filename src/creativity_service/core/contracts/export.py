@@ -263,19 +263,19 @@ def examples() -> dict[str, dict[str, Any]]:
 
 
 def outputs() -> dict[Path, str]:
-    files = {}
+    contracts = {}
     for contract in CONTRACTS:
         schema = contract.model_json_schema(mode="serialization")
         schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
         schema["$id"] = f"urn:creativity:core:{CONTRACT_VERSION}:{contract.__name__}"
-        files[Path(f"contracts/core/{contract.__name__}.schema.json")] = (
-            json.dumps(schema, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-        )
-    for name, sample in examples().items():
-        files[Path(f"contracts/examples/{name}.json")] = (
-            json.dumps(sample, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-        )
-    return files
+        contracts[contract.__name__] = schema
+    return {
+        path: json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+        for path, value in {
+            Path("contracts/internal/core.json"): contracts,
+            Path("contracts/examples.json"): examples(),
+        }.items()
+    }
 
 
 def main() -> None:

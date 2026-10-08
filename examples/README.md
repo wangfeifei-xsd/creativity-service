@@ -8,17 +8,18 @@
 | --- | --- |
 | [backend](backend/README.md) | 后端客户端与命令行调用 |
 | [agents](agents/README.md) | 两套 Agent、提示词、依赖清单和输入样本 |
-| [skills](skills/README.md) | 对应的技能源码与可导入 ZIP |
+| [skills](skills/README.md) | 对应的技能源码与 ZIP 生成入口 |
 | [mcp](mcp/README.md) | 本地受控 MCP 服务 |
+| [weather](weather/README.md) | 天气 MCP 服务与初始化数据配套示例 |
 | [onboarding](onboarding/README.md) | 多渠道隔离验收，日常接入无需执行 |
 | [evaluations](evaluations/README.md) | 评测门禁验收，日常接入无需执行 |
-| [development](development/) | 平台内部事务组合与兼容入口 |
 
 验收配置与样本按需生成，默认写入不提交 Git 的 `.local/examples/`。在服务工程目录执行：
 
 ```sh
+uv run python -m examples.skills.prepare
 uv run python -m examples.onboarding.prepare
 uv run python -m examples.evaluations.prepare
 ```
 
-两条命令均支持 `--output` 指定目录，只生成本地文件。
+以上命令均支持 `--output` 指定目录，只生成本地文件。

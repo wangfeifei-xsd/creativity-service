@@ -155,7 +155,7 @@ curl -fsS http://127.0.0.1:8000/health/ready
 
 `make check` 无需启动外部服务。执行 `make integration` 或 `make storage-audit` 前，需要准备 `.env` 并启动开发依赖；数据库结构检查还需先运行迁移。集成测试使用隔离测试环境，相关用例会启动独立 Worker。
 
-未上线阶段的历史迁移已合并为一个完整初始基线，保留最新修订号以直接识别现有开发库。空库初始化及后续升级见 [数据库初始化说明](sql/README.md#初始迁移基线)。
+未上线阶段的早期迁移已合并为 `0034_admission_indexes` 初始基线，后续 `0035`–`0046` 增量迁移继续保留，用于已有开发库升级。空库初始化及后续升级见 [数据库初始化说明](sql/README.md#初始迁移基线)。
 
 接口变更后执行 `make openapi`，再按 [前端接口类型生成说明](../creativity-web/README.md#接口类型生成) 更新前端类型。完整命令以 [Makefile](Makefile) 为准，真实模型和组合场景的验证方式见 [测试指南](docs/testing.md)。
 
@@ -172,7 +172,7 @@ creativity-service/
 │   ├── app.py           # FastAPI 应用工厂
 │   └── cli.py           # API 启动入口
 ├── alembic/             # 数据库迁移
-├── contracts/           # OpenAPI、JSON Schema 与示例
+├── contracts/           # 公开接口、按模块合并的内部契约与样例
 ├── deploy/              # 开发依赖及可选能力的容器配置
 ├── docs/                # 常用指南与数据模型
 ├── examples/            # 后端调用、两套配置与验收脚本

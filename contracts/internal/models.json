@@ -1,0 +1,941 @@
+{
+  "DebugExecution": {
+    "$defs": {
+      "CaseDefinition": {
+        "additionalProperties": false,
+        "properties": {
+          "cancel_after_chunks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cancel After Chunks"
+          },
+          "capability": {
+            "anyOf": [
+              {
+                "enum": [
+                  "text",
+                  "tools",
+                  "structured_output",
+                  "streaming",
+                  "vision",
+                  "embedding"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Capability"
+          },
+          "case": {
+            "enum": [
+              "text",
+              "schema",
+              "tools",
+              "stream_cancel",
+              "usage",
+              "embedding"
+            ],
+            "title": "Case",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "output_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Output Schema"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "case",
+          "name",
+          "prompt"
+        ],
+        "title": "CaseDefinition",
+        "type": "object"
+      },
+      "FrozenModel": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_networks": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Allowed Networks",
+            "type": "array"
+          },
+          "config_digest": {
+            "title": "Config Digest",
+            "type": "string"
+          },
+          "connection_id": {
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "connection_revision": {
+            "title": "Connection Revision",
+            "type": "integer"
+          },
+          "connection_version_id": {
+            "title": "Connection Version Id",
+            "type": "string"
+          },
+          "endpoint": {
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "model_name": {
+            "title": "Model Name",
+            "type": "string"
+          },
+          "model_revision": {
+            "title": "Model Revision",
+            "type": "integer"
+          },
+          "model_version_id": {
+            "title": "Model Version Id",
+            "type": "string"
+          },
+          "parameter_allowlist": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Parameter Allowlist",
+            "type": "array"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "title": "Parameters",
+            "type": "object"
+          },
+          "protocol": {
+            "enum": [
+              "chat_completions",
+              "responses",
+              "anthropic_messages",
+              "gemini_generate_content"
+            ],
+            "title": "Protocol",
+            "type": "string"
+          },
+          "provider_credential_id": {
+            "title": "Provider Credential Id",
+            "type": "string"
+          },
+          "provider_model_name": {
+            "title": "Provider Model Name",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/Scope"
+          },
+          "timeout_seconds": {
+            "title": "Timeout Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scope",
+          "model_id",
+          "model_version_id",
+          "model_revision",
+          "model_name",
+          "connection_id",
+          "connection_version_id",
+          "connection_revision",
+          "provider_credential_id",
+          "protocol",
+          "endpoint",
+          "provider_model_name",
+          "timeout_seconds",
+          "parameters",
+          "parameter_allowlist",
+          "config_digest"
+        ],
+        "title": "FrozenModel",
+        "type": "object"
+      },
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "cases": {
+        "items": {
+          "$ref": "#/$defs/CaseDefinition"
+        },
+        "title": "Cases",
+        "type": "array"
+      },
+      "configuration": {
+        "$ref": "#/$defs/FrozenModel"
+      },
+      "purpose": {
+        "const": "debug",
+        "default": "debug",
+        "title": "Purpose",
+        "type": "string"
+      },
+      "test_id": {
+        "title": "Test Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "test_id",
+      "configuration",
+      "cases"
+    ],
+    "title": "DebugExecution",
+    "type": "object"
+  },
+  "FrozenModel": {
+    "$defs": {
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "allowed_networks": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 32,
+        "title": "Allowed Networks",
+        "type": "array"
+      },
+      "config_digest": {
+        "title": "Config Digest",
+        "type": "string"
+      },
+      "connection_id": {
+        "title": "Connection Id",
+        "type": "string"
+      },
+      "connection_revision": {
+        "title": "Connection Revision",
+        "type": "integer"
+      },
+      "connection_version_id": {
+        "title": "Connection Version Id",
+        "type": "string"
+      },
+      "endpoint": {
+        "title": "Endpoint",
+        "type": "string"
+      },
+      "model_id": {
+        "title": "Model Id",
+        "type": "string"
+      },
+      "model_name": {
+        "title": "Model Name",
+        "type": "string"
+      },
+      "model_revision": {
+        "title": "Model Revision",
+        "type": "integer"
+      },
+      "model_version_id": {
+        "title": "Model Version Id",
+        "type": "string"
+      },
+      "parameter_allowlist": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Parameter Allowlist",
+        "type": "array"
+      },
+      "parameters": {
+        "additionalProperties": true,
+        "title": "Parameters",
+        "type": "object"
+      },
+      "protocol": {
+        "enum": [
+          "chat_completions",
+          "responses",
+          "anthropic_messages",
+          "gemini_generate_content"
+        ],
+        "title": "Protocol",
+        "type": "string"
+      },
+      "provider_credential_id": {
+        "title": "Provider Credential Id",
+        "type": "string"
+      },
+      "provider_model_name": {
+        "title": "Provider Model Name",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "timeout_seconds": {
+        "title": "Timeout Seconds",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "scope",
+      "model_id",
+      "model_version_id",
+      "model_revision",
+      "model_name",
+      "connection_id",
+      "connection_version_id",
+      "connection_revision",
+      "provider_credential_id",
+      "protocol",
+      "endpoint",
+      "provider_model_name",
+      "timeout_seconds",
+      "parameters",
+      "parameter_allowlist",
+      "config_digest"
+    ],
+    "title": "FrozenModel",
+    "type": "object"
+  },
+  "ModelEvent": {
+    "$defs": {
+      "JsonValue": {},
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      },
+      "UsageEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Attempt Id",
+            "type": "string"
+          },
+          "connection_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "cumulative": {
+            "title": "Cumulative",
+            "type": "boolean"
+          },
+          "event_version": {
+            "minimum": 1,
+            "title": "Event Version",
+            "type": "integer"
+          },
+          "final": {
+            "title": "Final",
+            "type": "boolean"
+          },
+          "normalized_tokens": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Normalized Tokens",
+            "type": "object"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "raw_usage": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/$defs/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Usage"
+          },
+          "scope": {
+            "$ref": "#/$defs/Scope"
+          },
+          "source_request_id": {
+            "title": "Source Request Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "REPORTED",
+              "ESTIMATED",
+              "MISSING"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "subset_relations": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Subset Relations",
+            "type": "object"
+          }
+        },
+        "required": [
+          "scope",
+          "attempt_id",
+          "connection_id",
+          "source_request_id",
+          "event_version",
+          "status",
+          "raw_usage",
+          "normalized_tokens",
+          "subset_relations",
+          "cumulative",
+          "final",
+          "observed_at"
+        ],
+        "title": "UsageEvent",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "arguments_delta": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Arguments Delta"
+      },
+      "attempt_id": {
+        "title": "Attempt Id",
+        "type": "string"
+      },
+      "error_code": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Error Code"
+      },
+      "kind": {
+        "enum": [
+          "text",
+          "tool",
+          "usage",
+          "structured",
+          "completed",
+          "failed",
+          "cancelled"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "message": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Message"
+      },
+      "request_sent": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Request Sent"
+      },
+      "retryable": {
+        "default": false,
+        "title": "Retryable",
+        "type": "boolean"
+      },
+      "source_request_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Source Request Id"
+      },
+      "structured": {
+        "default": null,
+        "title": "Structured"
+      },
+      "text": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Text"
+      },
+      "tool_call_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Tool Call Id"
+      },
+      "tool_index": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Tool Index"
+      },
+      "tool_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Tool Name"
+      },
+      "usage": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UsageEvent"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "kind",
+      "attempt_id"
+    ],
+    "title": "ModelEvent",
+    "type": "object"
+  },
+  "ModelRequest": {
+    "additionalProperties": false,
+    "properties": {
+      "messages": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "maxItems": 1000,
+        "minItems": 1,
+        "title": "Messages",
+        "type": "array"
+      },
+      "operation": {
+        "default": "generation",
+        "enum": [
+          "generation",
+          "embedding"
+        ],
+        "title": "Operation",
+        "type": "string"
+      },
+      "output_mode": {
+        "default": "native",
+        "enum": [
+          "native",
+          "prompt"
+        ],
+        "title": "Output Mode",
+        "type": "string"
+      },
+      "output_schema": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Output Schema"
+      },
+      "parameters": {
+        "additionalProperties": true,
+        "title": "Parameters",
+        "type": "object"
+      },
+      "stream": {
+        "default": false,
+        "title": "Stream",
+        "type": "boolean"
+      },
+      "tools": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "maxItems": 100,
+        "title": "Tools",
+        "type": "array"
+      }
+    },
+    "required": [
+      "messages"
+    ],
+    "title": "ModelRequest",
+    "type": "object"
+  },
+  "TestCompletion": {
+    "$defs": {
+      "CaseResult": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Attempt Ids",
+            "type": "array"
+          },
+          "case": {
+            "enum": [
+              "text",
+              "schema",
+              "tools",
+              "stream_cancel",
+              "usage",
+              "embedding"
+            ],
+            "title": "Case",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "case",
+          "passed",
+          "attempt_ids"
+        ],
+        "title": "CaseResult",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "config_digest": {
+        "title": "Config Digest",
+        "type": "string"
+      },
+      "evidence": {
+        "enum": [
+          "fixture",
+          "live"
+        ],
+        "title": "Evidence",
+        "type": "string"
+      },
+      "latency_ms": {
+        "minimum": 0,
+        "title": "Latency Ms",
+        "type": "integer"
+      },
+      "results": {
+        "items": {
+          "$ref": "#/$defs/CaseResult"
+        },
+        "minItems": 1,
+        "title": "Results",
+        "type": "array"
+      },
+      "run_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Run Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "run_id",
+      "config_digest",
+      "results",
+      "latency_ms",
+      "evidence"
+    ],
+    "title": "TestCompletion",
+    "type": "object"
+  }
+}

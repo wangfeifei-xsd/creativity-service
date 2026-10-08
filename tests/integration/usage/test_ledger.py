@@ -413,9 +413,9 @@ async def test_no_price_token_budget_and_fixture_usage_missing_is_not_zero(usage
     import json
     from pathlib import Path
 
-    fixture = json.loads(
-        await asyncio.to_thread(Path("contracts/examples/UsageEvent.json").read_text)
-    )["success"]
+    fixture = json.loads(await asyncio.to_thread(Path("contracts/examples.json").read_text))[
+        "UsageEvent"
+    ]["success"]
     fixture.update(
         scope=env.scope.model_dump(),
         attempt_id=p.attempt_id,

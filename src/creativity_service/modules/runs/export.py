@@ -1,12 +1,9 @@
-"""导出运行与流式路由、管理详情及内部交接契约。"""
+"""导出运行内部交接契约，HTTP 与流式接口以统一 OpenAPI 为准。"""
 
 import argparse
-import json
 from pathlib import Path
 
-from fastapi import FastAPI
-
-from creativity_service.modules.runs.api import admin_router, router
+from creativity_service.core.contracts.files import schema_bundle, write_contract
 from creativity_service.modules.runs.schemas import (
     AdmissionReceipt,
     ExecutionPolicy,
@@ -25,14 +22,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="导出运行交接契约")
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
-    app = FastAPI(title="运行受理接口交接", version="1.0.0")
-    app.include_router(router, prefix="/api/v1")
-    app.include_router(admin_router, prefix="/admin/v1")
-    outputs = {
-        "openapi.json": app.openapi(),
-        **{
-            f"{model.__name__}.schema.json": model.model_json_schema(mode="serialization")
-            for model in (
+    write_contract(
+        Path("contracts/internal/runs.json"),
+        schema_bundle(
+            (
                 RunRequest,
                 AdmissionReceipt,
                 ExecutionPolicy,
@@ -44,18 +37,9 @@ def main() -> None:
                 RunSummary,
                 TracePage,
             )
-        },
-    }
-    root = Path("contracts/runs")
-    for name, schema in outputs.items():
-        path = root / name
-        content = json.dumps(schema, ensure_ascii=False, indent=2) + "\n"
-        if args.check:
-            if not path.exists() or path.read_text() != content:
-                raise SystemExit(f"运行契约过期：{name}")
-        else:
-            root.mkdir(exist_ok=True)
-            path.write_text(content)
+        ),
+        check=args.check,
+    )
 
 
 if __name__ == "__main__":

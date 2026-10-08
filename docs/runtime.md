@@ -58,4 +58,4 @@ API、Worker 与 Beat 共同提供持久化受理、执行、恢复和交付。�
 
 关闭长期记忆暂停整理及跨会话读取，清空则删除长期内容并阻断旧消息再次生成。`/memory-consolidations` 查看后台任务，失败后可显式重试；限流等待与生成失败次数分别处理。来源删除后对应归档、画像候选、向量及恢复内容失效。
 
-属性及接口字段见 [记忆契约](../contracts/memory/)，可选向量环境见 [部署说明](../deploy/vector.md)。
+属性及接口字段见 [记忆契约](../contracts/internal/memory.json)，可选向量环境见 [部署说明](../deploy/vector.md)。

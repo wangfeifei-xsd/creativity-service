@@ -1,0 +1,1109 @@
+{
+  "AgentDefinition": {
+    "$defs": {
+      "AgentBindings": {
+        "additionalProperties": false,
+        "properties": {
+          "embedding_route_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Embedding Route Id"
+          },
+          "model_route_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Model Route Id"
+          },
+          "prompt_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Prompt Id"
+          },
+          "skill_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Skill Ids",
+            "type": "array"
+          },
+          "skill_loading": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AgentSkillLoading"
+            },
+            "maxItems": 32,
+            "title": "Skill Loading",
+            "type": "array"
+          },
+          "tool_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Tool Ids",
+            "type": "array"
+          }
+        },
+        "title": "AgentBindings",
+        "type": "object"
+      },
+      "AgentCondition": {
+        "additionalProperties": false,
+        "properties": {
+          "operator": {
+            "default": "eq",
+            "enum": [
+              "eq",
+              "ne",
+              "exists"
+            ],
+            "title": "Operator",
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Path",
+            "type": "string"
+          },
+          "value": {
+            "default": null,
+            "title": "Value"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "AgentCondition",
+        "type": "object"
+      },
+      "AgentContextPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "context_limit": {
+            "default": 8000,
+            "maximum": 1000000,
+            "minimum": 1,
+            "title": "Context Limit",
+            "type": "integer"
+          },
+          "conversation_enabled": {
+            "default": false,
+            "title": "Conversation Enabled",
+            "type": "boolean"
+          },
+          "memory_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/MemoryPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "summary_policy": {
+            "default": "none",
+            "enum": [
+              "none",
+              "recent"
+            ],
+            "title": "Summary Policy",
+            "type": "string"
+          }
+        },
+        "title": "AgentContextPolicy",
+        "type": "object"
+      },
+      "AgentEdge": {
+        "additionalProperties": false,
+        "properties": {
+          "condition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AgentCondition"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "otherwise": {
+            "default": false,
+            "title": "Otherwise",
+            "type": "boolean"
+          },
+          "source": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Source",
+            "type": "string"
+          },
+          "target": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "target"
+        ],
+        "title": "AgentEdge",
+        "type": "object"
+      },
+      "AgentLimits": {
+        "additionalProperties": false,
+        "properties": {
+          "cost_limit": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Money"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "deadline_seconds": {
+            "default": 60,
+            "maximum": 3600,
+            "minimum": 1,
+            "title": "Deadline Seconds",
+            "type": "integer"
+          },
+          "loop_timeout_seconds": {
+            "default": 60,
+            "maximum": 3600,
+            "minimum": 1,
+            "title": "Loop Timeout Seconds",
+            "type": "integer"
+          },
+          "max_iterations": {
+            "default": 10,
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Max Iterations",
+            "type": "integer"
+          },
+          "max_model_rounds": {
+            "default": 6,
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Max Model Rounds",
+            "type": "integer"
+          },
+          "max_tool_calls": {
+            "default": 10,
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Max Tool Calls",
+            "type": "integer"
+          },
+          "output_repair_attempts": {
+            "default": 1,
+            "maximum": 2,
+            "minimum": 0,
+            "title": "Output Repair Attempts",
+            "type": "integer"
+          },
+          "token_limit": {
+            "default": 16000,
+            "maximum": 1000000,
+            "minimum": 1,
+            "title": "Token Limit",
+            "type": "integer"
+          }
+        },
+        "title": "AgentLimits",
+        "type": "object"
+      },
+      "AgentSkillLoading": {
+        "additionalProperties": false,
+        "properties": {
+          "loading_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mandatory",
+                  "on_demand"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Loading Mode"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "maximum": 1000,
+                "minimum": -1000,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Priority"
+          },
+          "selected": {
+            "default": false,
+            "title": "Selected",
+            "type": "boolean"
+          },
+          "selected_files": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 128,
+            "title": "Selected Files",
+            "type": "array"
+          },
+          "skill_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Skill Id",
+            "type": "string"
+          },
+          "trigger_reason": {
+            "default": "配置选择",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Trigger Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "skill_id"
+        ],
+        "title": "AgentSkillLoading",
+        "type": "object"
+      },
+      "AgentStep": {
+        "additionalProperties": false,
+        "properties": {
+          "dependency": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Dependency"
+          },
+          "failure_policy": {
+            "default": "retry",
+            "enum": [
+              "fail",
+              "partial",
+              "retry"
+            ],
+            "title": "Failure Policy",
+            "type": "string"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "title": "Input Schema",
+            "type": "object"
+          },
+          "inputs": {
+            "additionalProperties": {
+              "$ref": "#/$defs/InputSource"
+            },
+            "maxProperties": 100,
+            "title": "Inputs",
+            "type": "object"
+          },
+          "key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "model",
+              "tool",
+              "compute"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "max_retries": {
+            "default": 2,
+            "maximum": 2,
+            "minimum": 0,
+            "title": "Max Retries",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "enum": [
+                  "object",
+                  "input",
+                  "approval"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Operator"
+          },
+          "output_schema": {
+            "additionalProperties": true,
+            "title": "Output Schema",
+            "type": "object"
+          },
+          "timeout_seconds": {
+            "default": 30,
+            "maximum": 3600,
+            "minimum": 1,
+            "title": "Timeout Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "kind",
+          "input_schema",
+          "output_schema"
+        ],
+        "title": "AgentStep",
+        "type": "object"
+      },
+      "InputSource": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "default": "",
+            "maxLength": 256,
+            "title": "Path",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "input",
+              "step",
+              "constant"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Step"
+          },
+          "value": {
+            "default": null,
+            "title": "Value"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "InputSource",
+        "type": "object"
+      },
+      "MemoryPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Types",
+            "type": "array"
+          },
+          "failure_mode": {
+            "default": "OMIT",
+            "enum": [
+              "OMIT",
+              "FAIL"
+            ],
+            "title": "Failure Mode",
+            "type": "string"
+          },
+          "max_items": {
+            "default": 100,
+            "maximum": 1000,
+            "minimum": 1,
+            "title": "Max Items",
+            "type": "integer"
+          },
+          "read_enabled": {
+            "default": true,
+            "title": "Read Enabled",
+            "type": "boolean"
+          },
+          "retrieval_limit": {
+            "default": 10,
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Retrieval Limit",
+            "type": "integer"
+          },
+          "suggest_enabled": {
+            "default": true,
+            "title": "Suggest Enabled",
+            "type": "boolean"
+          },
+          "ttl_seconds": {
+            "default": 15552000,
+            "maximum": 31536000,
+            "minimum": 60,
+            "title": "Ttl Seconds",
+            "type": "integer"
+          },
+          "write_mode": {
+            "default": "EXPLICIT",
+            "enum": [
+              "DISABLED",
+              "CANDIDATE",
+              "EXPLICIT"
+            ],
+            "title": "Write Mode",
+            "type": "string"
+          }
+        },
+        "title": "MemoryPolicy",
+        "type": "object"
+      },
+      "Money": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,16}|(?=[\\d.]{1,25}0*$)\\d{0,16}\\.\\d{0,8}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "currency": {
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "title": "Money",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "bindings": {
+        "$ref": "#/$defs/AgentBindings",
+        "default": {
+          "embedding_route_id": null,
+          "model_route_id": null,
+          "prompt_id": null,
+          "skill_ids": [],
+          "skill_loading": [],
+          "tool_ids": []
+        }
+      },
+      "context": {
+        "$ref": "#/$defs/AgentContextPolicy",
+        "default": {
+          "context_limit": 8000,
+          "conversation_enabled": false,
+          "memory_policy": null,
+          "summary_policy": "none"
+        }
+      },
+      "edges": {
+        "items": {
+          "$ref": "#/$defs/AgentEdge"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "title": "Edges",
+        "type": "array"
+      },
+      "entrypoint": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Entrypoint",
+        "type": "string"
+      },
+      "input_schema": {
+        "additionalProperties": true,
+        "title": "Input Schema",
+        "type": "object"
+      },
+      "limits": {
+        "$ref": "#/$defs/AgentLimits",
+        "default": {
+          "cost_limit": null,
+          "deadline_seconds": 60,
+          "loop_timeout_seconds": 60,
+          "max_iterations": 10,
+          "max_model_rounds": 6,
+          "max_tool_calls": 10,
+          "output_repair_attempts": 1,
+          "token_limit": 16000
+        }
+      },
+      "output_schema": {
+        "additionalProperties": true,
+        "title": "Output Schema",
+        "type": "object"
+      },
+      "start_step": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Start Step",
+        "type": "string"
+      },
+      "steps": {
+        "items": {
+          "$ref": "#/$defs/AgentStep"
+        },
+        "maxItems": 64,
+        "minItems": 1,
+        "title": "Steps",
+        "type": "array"
+      },
+      "workflow_type": {
+        "enum": [
+          "structured",
+          "template",
+          "tool_loop",
+          "stateful"
+        ],
+        "title": "Workflow Type",
+        "type": "string"
+      }
+    },
+    "required": [
+      "workflow_type",
+      "entrypoint",
+      "input_schema",
+      "output_schema",
+      "start_step",
+      "steps",
+      "edges"
+    ],
+    "title": "AgentDefinition",
+    "type": "object"
+  },
+  "AgentValidation": {
+    "$defs": {
+      "AgentCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "issues": {
+            "items": {
+              "$ref": "#/$defs/AgentIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "passed"
+        ],
+        "title": "AgentCheck",
+        "type": "object"
+      },
+      "AgentDependency": {
+        "additionalProperties": false,
+        "properties": {
+          "content_digest": {
+            "title": "Content Digest",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required_capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Capabilities",
+            "type": "array"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "resource_type": {
+            "title": "Resource Type",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/$defs/DisplayStatus"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_label": {
+            "title": "Version Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_type",
+          "resource_id",
+          "version_id",
+          "name",
+          "version_label",
+          "revision",
+          "state",
+          "content_digest"
+        ],
+        "title": "AgentDependency",
+        "type": "object"
+      },
+      "AgentIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Path"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "AgentIssue",
+        "type": "object"
+      },
+      "DisplayStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "tone": {
+            "enum": [
+              "default",
+              "success",
+              "processing",
+              "warning",
+              "error"
+            ],
+            "title": "Tone",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label",
+          "tone"
+        ],
+        "title": "DisplayStatus",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "candidate_digest": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Candidate Digest"
+      },
+      "checks": {
+        "items": {
+          "$ref": "#/$defs/AgentCheck"
+        },
+        "title": "Checks",
+        "type": "array"
+      },
+      "content_digest": {
+        "title": "Content Digest",
+        "type": "string"
+      },
+      "dependencies": {
+        "items": {
+          "$ref": "#/$defs/AgentDependency"
+        },
+        "title": "Dependencies",
+        "type": "array"
+      },
+      "dependencies_digest": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Dependencies Digest"
+      },
+      "revision": {
+        "title": "Revision",
+        "type": "integer"
+      },
+      "valid": {
+        "title": "Valid",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "valid",
+      "revision",
+      "content_digest",
+      "dependencies_digest",
+      "candidate_digest",
+      "checks",
+      "dependencies"
+    ],
+    "title": "AgentValidation",
+    "type": "object"
+  },
+  "EvaluationEvidence": {
+    "additionalProperties": false,
+    "properties": {
+      "agent_id": {
+        "title": "Agent Id",
+        "type": "string"
+      },
+      "channel_id": {
+        "title": "Channel Id",
+        "type": "string"
+      },
+      "content_digest": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Content Digest",
+        "type": "string"
+      },
+      "dependencies_digest": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Dependencies Digest",
+        "type": "string"
+      },
+      "environment": {
+        "title": "Environment",
+        "type": "string"
+      },
+      "expires_at": {
+        "format": "date-time",
+        "title": "Expires At",
+        "type": "string"
+      },
+      "passed": {
+        "title": "Passed",
+        "type": "boolean"
+      },
+      "report_digest": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Report Digest",
+        "type": "string"
+      },
+      "report_ids": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Report Ids",
+        "type": "array"
+      }
+    },
+    "required": [
+      "channel_id",
+      "agent_id",
+      "environment",
+      "content_digest",
+      "dependencies_digest",
+      "report_digest",
+      "passed",
+      "expires_at",
+      "report_ids"
+    ],
+    "title": "EvaluationEvidence",
+    "type": "object"
+  },
+  "FrozenExecutionSpec": {
+    "$defs": {
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "description": "规范 JSON 是唯一内容真值；属性每次返回副本，避免浅冻结被嵌套修改绕过。",
+    "properties": {
+      "agent_code": {
+        "title": "Agent Code",
+        "type": "string"
+      },
+      "agent_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Agent Id",
+        "type": "string"
+      },
+      "agent_name": {
+        "title": "Agent Name",
+        "type": "string"
+      },
+      "candidate_digest": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Candidate Digest",
+        "type": "string"
+      },
+      "captured_at": {
+        "format": "date-time",
+        "title": "Captured At",
+        "type": "string"
+      },
+      "content_digest": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Content Digest",
+        "type": "string"
+      },
+      "dependencies_digest": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Dependencies Digest",
+        "type": "string"
+      },
+      "payload_json": {
+        "title": "Payload Json",
+        "type": "string"
+      },
+      "purpose": {
+        "enum": [
+          "production",
+          "debug",
+          "evaluation"
+        ],
+        "title": "Purpose",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "snapshot_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Snapshot Id",
+        "type": "string"
+      },
+      "source_revision": {
+        "minimum": 1,
+        "title": "Source Revision",
+        "type": "integer"
+      },
+      "source_version_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Source Version Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "snapshot_id",
+      "scope",
+      "agent_id",
+      "agent_code",
+      "agent_name",
+      "source_version_id",
+      "source_revision",
+      "purpose",
+      "content_digest",
+      "dependencies_digest",
+      "candidate_digest",
+      "payload_json",
+      "captured_at"
+    ],
+    "title": "FrozenExecutionSpec",
+    "type": "object"
+  }
+}

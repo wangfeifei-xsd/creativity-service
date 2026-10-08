@@ -1,0 +1,965 @@
+{
+  "AttemptPlan": {
+    "additionalProperties": false,
+    "description": "候选路由与实际序列化输入估算；不能直接绑定 HTTP 请求正文。",
+    "properties": {
+      "additional_upper_tokens": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "title": "Additional Upper Tokens",
+        "type": "object"
+      },
+      "agent_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Agent Id",
+        "type": "string"
+      },
+      "attempt_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Attempt Id",
+        "type": "string"
+      },
+      "connection_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Connection Id",
+        "type": "string"
+      },
+      "input_tokens": {
+        "minimum": 0,
+        "title": "Input Tokens",
+        "type": "integer"
+      },
+      "max_output_tokens": {
+        "minimum": 0,
+        "title": "Max Output Tokens",
+        "type": "integer"
+      },
+      "model_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Model Id",
+        "type": "string"
+      },
+      "names": {
+        "additionalProperties": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": "Names",
+        "type": "object"
+      },
+      "purpose": {
+        "enum": [
+          "production",
+          "debug",
+          "evaluation"
+        ],
+        "title": "Purpose",
+        "type": "string"
+      },
+      "run_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Run Id",
+        "type": "string"
+      },
+      "source_type": {
+        "default": "run",
+        "maxLength": 32,
+        "minLength": 1,
+        "title": "Source Type",
+        "type": "string"
+      },
+      "subset_relations": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "title": "Subset Relations",
+        "type": "object"
+      }
+    },
+    "required": [
+      "run_id",
+      "attempt_id",
+      "agent_id",
+      "model_id",
+      "connection_id",
+      "purpose",
+      "input_tokens",
+      "max_output_tokens"
+    ],
+    "title": "AttemptPlan",
+    "type": "object"
+  },
+  "BudgetCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "currency": {
+        "anyOf": [
+          {
+            "pattern": "^[A-Z]{3}$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Currency"
+      },
+      "limit_value": {
+        "decimal_places": 8,
+        "ge": 0,
+        "max_digits": 24,
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+        "title": "Limit Value",
+        "type": "string"
+      },
+      "mode": {
+        "default": "HARD",
+        "enum": [
+          "HARD",
+          "ALERT_ONLY"
+        ],
+        "title": "Mode",
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Name",
+        "type": "string"
+      },
+      "period": {
+        "default": "month",
+        "enum": [
+          "minute",
+          "hour",
+          "day",
+          "month"
+        ],
+        "title": "Period",
+        "type": "string"
+      },
+      "scope_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Scope Id",
+        "type": "string"
+      },
+      "scope_type": {
+        "enum": [
+          "channel",
+          "key",
+          "model"
+        ],
+        "title": "Scope Type",
+        "type": "string"
+      },
+      "status": {
+        "default": "ACTIVE",
+        "enum": [
+          "ACTIVE",
+          "DISABLED"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "thresholds": {
+        "items": {
+          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+          "type": "string"
+        },
+        "title": "Thresholds",
+        "type": "array"
+      },
+      "timezone": {
+        "default": "Asia/Shanghai",
+        "title": "Timezone",
+        "type": "string"
+      },
+      "unit": {
+        "default": "amount",
+        "enum": [
+          "amount",
+          "tokens",
+          "attempts",
+          "requests",
+          "concurrency"
+        ],
+        "title": "Unit",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "scope_type",
+      "scope_id",
+      "limit_value"
+    ],
+    "title": "BudgetCreate",
+    "type": "object"
+  },
+  "BudgetView": {
+    "additionalProperties": false,
+    "properties": {
+      "blocked_reason": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Blocked Reason"
+      },
+      "currency": {
+        "anyOf": [
+          {
+            "pattern": "^[A-Z]{3}$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Currency"
+      },
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "limit_value": {
+        "decimal_places": 8,
+        "ge": 0,
+        "max_digits": 24,
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+        "title": "Limit Value",
+        "type": "string"
+      },
+      "mode": {
+        "default": "HARD",
+        "enum": [
+          "HARD",
+          "ALERT_ONLY"
+        ],
+        "title": "Mode",
+        "type": "string"
+      },
+      "mode_label": {
+        "title": "Mode Label",
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Name",
+        "type": "string"
+      },
+      "period": {
+        "default": "month",
+        "enum": [
+          "minute",
+          "hour",
+          "day",
+          "month"
+        ],
+        "title": "Period",
+        "type": "string"
+      },
+      "remaining": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Remaining"
+      },
+      "revision": {
+        "title": "Revision",
+        "type": "integer"
+      },
+      "scope_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Scope Id",
+        "type": "string"
+      },
+      "scope_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Scope Name"
+      },
+      "scope_type": {
+        "enum": [
+          "channel",
+          "key",
+          "model"
+        ],
+        "title": "Scope Type",
+        "type": "string"
+      },
+      "status": {
+        "default": "ACTIVE",
+        "enum": [
+          "ACTIVE",
+          "DISABLED"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "thresholds": {
+        "items": {
+          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+          "type": "string"
+        },
+        "title": "Thresholds",
+        "type": "array"
+      },
+      "timezone": {
+        "default": "Asia/Shanghai",
+        "title": "Timezone",
+        "type": "string"
+      },
+      "unit": {
+        "default": "amount",
+        "enum": [
+          "amount",
+          "tokens",
+          "attempts",
+          "requests",
+          "concurrency"
+        ],
+        "title": "Unit",
+        "type": "string"
+      },
+      "unit_label": {
+        "title": "Unit Label",
+        "type": "string"
+      },
+      "used": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Used"
+      },
+      "version_id": {
+        "title": "Version Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "scope_type",
+      "scope_id",
+      "limit_value",
+      "id",
+      "version_id",
+      "revision",
+      "mode_label",
+      "unit_label",
+      "scope_name",
+      "used",
+      "remaining"
+    ],
+    "title": "BudgetView",
+    "type": "object"
+  },
+  "PlatformLimitView": {
+    "additionalProperties": false,
+    "properties": {
+      "effective_at": {
+        "format": "date-time",
+        "title": "Effective At",
+        "type": "string"
+      },
+      "limit_code": {
+        "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+        "title": "Limit Code",
+        "type": "string"
+      },
+      "limit_value": {
+        "minimum": 1,
+        "title": "Limit Value",
+        "type": "integer"
+      },
+      "name": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Name",
+        "type": "string"
+      },
+      "period": {
+        "default": "minute",
+        "enum": [
+          "minute",
+          "hour",
+          "day",
+          "month"
+        ],
+        "title": "Period",
+        "type": "string"
+      },
+      "remaining": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Remaining"
+      },
+      "revision": {
+        "minimum": 1,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "status": {
+        "default": "ACTIVE",
+        "enum": [
+          "ACTIVE",
+          "DISABLED"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "timezone": {
+        "default": "Asia/Shanghai",
+        "title": "Timezone",
+        "type": "string"
+      },
+      "unit": {
+        "enum": [
+          "requests",
+          "concurrency"
+        ],
+        "title": "Unit",
+        "type": "string"
+      },
+      "unit_label": {
+        "title": "Unit Label",
+        "type": "string"
+      },
+      "used": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Used"
+      }
+    },
+    "required": [
+      "limit_code",
+      "name",
+      "unit",
+      "limit_value",
+      "revision",
+      "unit_label",
+      "used",
+      "remaining",
+      "effective_at"
+    ],
+    "title": "PlatformLimitView",
+    "type": "object"
+  },
+  "ReservationReceipt": {
+    "$defs": {
+      "Money": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "title": "Money",
+        "type": "object"
+      },
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "attempt_id": {
+        "title": "Attempt Id",
+        "type": "string"
+      },
+      "reservation_ids": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Reservation Ids",
+        "type": "array"
+      },
+      "run_id": {
+        "title": "Run Id",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "state": {
+        "enum": [
+          "HELD",
+          "PENDING",
+          "SETTLED",
+          "RELEASED"
+        ],
+        "title": "State",
+        "type": "string"
+      },
+      "upper_cost": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Money"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "scope",
+      "run_id",
+      "attempt_id",
+      "reservation_ids",
+      "upper_cost",
+      "state"
+    ],
+    "title": "ReservationReceipt",
+    "type": "object"
+  },
+  "UsageFilter": {
+    "additionalProperties": false,
+    "properties": {
+      "actor_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Actor Id"
+      },
+      "agent_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Agent Id"
+      },
+      "end_at": {
+        "format": "date-time",
+        "title": "End At",
+        "type": "string"
+      },
+      "environment": {
+        "anyOf": [
+          {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Environment"
+      },
+      "key_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Key Id"
+      },
+      "model_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Model Id"
+      },
+      "purpose": {
+        "anyOf": [
+          {
+            "enum": [
+              "production",
+              "debug",
+              "evaluation"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Purpose"
+      },
+      "run_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Run Id"
+      },
+      "start_at": {
+        "format": "date-time",
+        "title": "Start At",
+        "type": "string"
+      },
+      "subject_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Subject Id"
+      },
+      "subject_type": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Subject Type"
+      },
+      "target_currency": {
+        "anyOf": [
+          {
+            "pattern": "^[A-Z]{3}$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Target Currency"
+      },
+      "timezone": {
+        "default": "Asia/Shanghai",
+        "title": "Timezone",
+        "type": "string"
+      }
+    },
+    "required": [
+      "start_at",
+      "end_at"
+    ],
+    "title": "UsageFilter",
+    "type": "object"
+  },
+  "UsageSummary": {
+    "$defs": {
+      "CurrencyTotal": {
+        "additionalProperties": false,
+        "properties": {
+          "conversion": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Conversion"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "priced": {
+            "title": "Priced",
+            "type": "string"
+          },
+          "provisional": {
+            "title": "Provisional",
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "priced",
+          "provisional"
+        ],
+        "title": "CurrencyTotal",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "aggregate_updated_at": {
+        "format": "date-time",
+        "title": "Aggregate Updated At",
+        "type": "string"
+      },
+      "attempts": {
+        "title": "Attempts",
+        "type": "integer"
+      },
+      "costs": {
+        "items": {
+          "$ref": "#/$defs/CurrencyTotal"
+        },
+        "title": "Costs",
+        "type": "array"
+      },
+      "input_tokens": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Input Tokens"
+      },
+      "ledger_watermark": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Ledger Watermark"
+      },
+      "missing_usage": {
+        "title": "Missing Usage",
+        "type": "integer"
+      },
+      "output_tokens": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Output Tokens"
+      },
+      "price_complete": {
+        "title": "Price Complete",
+        "type": "boolean"
+      },
+      "requests": {
+        "title": "Requests",
+        "type": "integer"
+      },
+      "success_rate": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Success Rate"
+      },
+      "timezone": {
+        "title": "Timezone",
+        "type": "string"
+      },
+      "trend": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "title": "Trend",
+        "type": "array"
+      },
+      "unpriced": {
+        "title": "Unpriced",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "requests",
+      "attempts",
+      "success_rate",
+      "input_tokens",
+      "output_tokens",
+      "missing_usage",
+      "unpriced",
+      "costs",
+      "trend",
+      "aggregate_updated_at",
+      "ledger_watermark",
+      "price_complete",
+      "timezone"
+    ],
+    "title": "UsageSummary",
+    "type": "object"
+  }
+}

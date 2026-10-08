@@ -31,8 +31,9 @@ from creativity_service.core.security.keys import CursorCodec, scoped_key
 
 def test_all_schema_examples_and_missing_fields():
     fixtures = examples()
+    schemas = json.loads(Path("contracts/internal/core.json").read_text())
     for contract in CONTRACTS:
-        schema = json.loads(Path(f"contracts/core/{contract.__name__}.schema.json").read_text())
+        schema = schemas[contract.__name__]
         Draft202012Validator.check_schema(schema)
         sample = fixtures[contract.__name__]["success"]
         Draft202012Validator(schema).validate(sample)

@@ -1,0 +1,859 @@
+{
+  "Admission": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "admission_id": "admission_demo",
+      "expires_at": "2026-10-02T00:00:00Z",
+      "policy_ids": [
+        "policy_demo"
+      ],
+      "run_id": "run_demo",
+      "scope": {
+        "channel_id": "channel_demo",
+        "environment": "test",
+        "subject_id": "subject_demo",
+        "subject_type": "member"
+      },
+      "state": "HELD"
+    }
+  },
+  "Artifact": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "artifact_id": "artifact_demo",
+      "content_type": "text/csv",
+      "download_path": "/api/v1/artifacts/artifact_demo/content",
+      "expires_at": "2026-10-02T00:00:00Z",
+      "name": "分析报告.csv",
+      "scope": {
+        "channel_id": "channel_demo",
+        "environment": "test",
+        "subject_id": "subject_demo",
+        "subject_type": "member"
+      },
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "size_bytes": 128,
+      "state": "AVAILABLE"
+    }
+  },
+  "Attempt": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "attempt_id": "attempt_demo",
+      "error": null,
+      "finished_at": "2026-10-01T00:00:00Z",
+      "kind": "model",
+      "run_id": "run_demo",
+      "scope": {
+        "channel_id": "channel_demo",
+        "environment": "test",
+        "subject_id": "subject_demo",
+        "subject_type": "member"
+      },
+      "source_request_id": "provider_request",
+      "started_at": "2026-10-01T00:00:00Z",
+      "state": "SUCCEEDED",
+      "step_id": "step_demo",
+      "target_version_id": "version_demo"
+    }
+  },
+  "AuthContext": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "actor_id": null,
+      "client_id": "client_demo",
+      "delegation_id": null,
+      "granted_actions": [],
+      "key_id": "key_demo",
+      "principal_id": "client_demo",
+      "principal_type": "service",
+      "request_id": "request_demo",
+      "scope": {
+        "channel_id": "channel_demo",
+        "environment": "test",
+        "subject_id": "subject_demo",
+        "subject_type": "member"
+      },
+      "session_id": "session_demo",
+      "token_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "BudgetReservation": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "attempt_id": "attempt_demo",
+      "expires_at": "2026-10-02T00:00:00Z",
+      "policy_id": "policy_demo",
+      "reservation_id": "reservation_demo",
+      "reserved": {
+        "amount": "0.50000000",
+        "currency": "CNY"
+      },
+      "run_id": "run_demo",
+      "scope": {
+        "channel_id": "channel_demo",
+        "environment": "test",
+        "subject_id": "subject_demo",
+        "subject_type": "member"
+      },
+      "state": "HELD",
+      "token_limit": 1000
+    }
+  },
+  "ChannelState": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "channel_active": true,
+      "channel_id": "channel_demo",
+      "channel_status": null,
+      "client_active": true,
+      "environment": "test",
+      "environment_active": true,
+      "key_active": true,
+      "membership_active": null
+    }
+  },
+  "ControlAuthContext": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "granted_actions": [],
+      "principal_id": "admin_demo",
+      "principal_type": "management",
+      "request_id": "request_demo",
+      "scope": {
+        "actor_id": "admin_demo",
+        "channel_id": "system",
+        "purpose": "channel_directory"
+      },
+      "session_id": "session_demo",
+      "token_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "ControlScope": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "actor_id": "auth_service",
+      "channel_id": "system",
+      "purpose": "identity_lookup"
+    }
+  },
+  "DeletionGuardResult": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "allowed": true,
+      "checked_at": "2026-10-01T00:00:00Z",
+      "operation": "read",
+      "recovery_id": "recovery_demo",
+      "scope": {
+        "channel_id": "channel_demo",
+        "environment": "test",
+        "subject_id": "subject_demo",
+        "subject_type": "member"
+      },
+      "target_id": "artifact_demo",
+      "target_type": "artifact"
+    }
+  },
+  "DisplayStatus": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "label": "已发布",
+      "tone": "success",
+      "value": "PUBLISHED"
+    }
+  },
+  "EventCursorExpired": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "code": "EVENTS_EXPIRED",
+      "message": "事件已过期，请查询运行结果",
+      "run_id": "run_demo",
+      "snapshot_path": "/api/v1/runs/run_demo"
+    }
+  },
+  "EvidenceRef": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "authorized_actions": [
+        "evidence:read"
+      ],
+      "evidence_id": "evidence_demo",
+      "location": {
+        "field_path": [
+          "price"
+        ],
+        "text_end": null,
+        "text_start": null
+      },
+      "observed_at": "2026-10-01T00:00:00Z",
+      "scope": {
+        "channel_id": "channel_demo",
+        "environment": "test",
+        "subject_id": "subject_demo",
+        "subject_type": "member"
+      },
+      "source_id": "source_demo",
+      "source_type": "tool",
+      "source_version": "1",
+      "title": "业务报价"
+    }
+  },
+  "IdentitySource": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "actor_id": null,
+      "client_id": "client_demo",
+      "delegation_id": null,
+      "key_id": "key_demo",
+      "principal_id": "client_demo",
+      "scope": {
+        "channel_id": "channel_demo",
+        "environment": "test",
+        "subject_id": "subject_demo",
+        "subject_type": "member"
+      },
+      "source_type": "service"
+    }
+  },
+  "NavigationItem": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "ancestors": [],
+      "label": "智能体",
+      "navigation_key": "agents"
+    }
+  },
+  "ReleaseSnapshot": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "captured_at": "2026-10-01T00:00:00Z",
+      "dependencies_digest": "0cb80de29718895ad3b7912d67aac5594b5bf4e932cc682167d0528986073eae",
+      "output_schema": {
+        "type": "object"
+      },
+      "purpose": "production",
+      "run_id": "run_demo",
+      "scope": {
+        "channel_id": "channel_demo",
+        "environment": "test",
+        "subject_id": "subject_demo",
+        "subject_type": "member"
+      },
+      "snapshot_id": "snapshot_demo",
+      "versions": [
+        {
+          "channel_id": "channel_demo",
+          "configuration_revision": null,
+          "content": {
+            "entrypoint": "structured"
+          },
+          "content_digest": "21ffb90885ca77b7e1a3e48f083cab2c37cb3427fec3b8619c3c9c02b2fa3803",
+          "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "dependency_version_ids": [],
+          "draft_revision": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "resource_id": "agent_demo",
+          "resource_name": null,
+          "resource_type": "agent",
+          "state": "PUBLISHED",
+          "version_id": "version_demo",
+          "version_label": "第一版"
+        }
+      ]
+    }
+  },
+  "ResourceVersion": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "channel_id": "channel_demo",
+      "configuration_revision": null,
+      "content": {
+        "entrypoint": "structured"
+      },
+      "content_digest": "21ffb90885ca77b7e1a3e48f083cab2c37cb3427fec3b8619c3c9c02b2fa3803",
+      "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "dependency_version_ids": [],
+      "draft_revision": null,
+      "output_schema": {
+        "type": "object"
+      },
+      "resource_id": "agent_demo",
+      "resource_name": null,
+      "resource_type": "agent",
+      "state": "PUBLISHED",
+      "version_id": "version_demo",
+      "version_label": "第一版"
+    }
+  },
+  "ResultEnvelope": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "artifacts": [
+        {
+          "artifact_id": "artifact_demo",
+          "content_type": "text/csv",
+          "download_path": "/api/v1/artifacts/artifact_demo/content",
+          "expires_at": "2026-10-02T00:00:00Z",
+          "name": "分析报告.csv",
+          "scope": {
+            "channel_id": "channel_demo",
+            "environment": "test",
+            "subject_id": "subject_demo",
+            "subject_type": "member"
+          },
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 128,
+          "state": "AVAILABLE"
+        }
+      ],
+      "channel_id": "channel_demo",
+      "error": null,
+      "partial_output": null,
+      "release_snapshot_id": "snapshot_demo",
+      "result": {
+        "business_status": "COMPLETED",
+        "data": {
+          "summary": "分析完成"
+        },
+        "evidence_refs": [
+          {
+            "authorized_actions": [
+              "evidence:read"
+            ],
+            "evidence_id": "evidence_demo",
+            "location": {
+              "field_path": [
+                "price"
+              ],
+              "text_end": null,
+              "text_start": null
+            },
+            "observed_at": "2026-10-01T00:00:00Z",
+            "scope": {
+              "channel_id": "channel_demo",
+              "environment": "test",
+              "subject_id": "subject_demo",
+              "subject_type": "member"
+            },
+            "source_id": "source_demo",
+            "source_type": "tool",
+            "source_version": "1",
+            "title": "业务报价"
+          }
+        ],
+        "schema_version": "1.0",
+        "warnings": []
+      },
+      "run_id": "run_demo",
+      "state": "SUCCEEDED",
+      "state_label": "已完成",
+      "usage_summary": {
+        "status": "REPORTED"
+      }
+    }
+  },
+  "RunEvent": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "event_id": "event_demo",
+      "event_type": "accepted",
+      "expires_at": "2026-10-02T00:00:00Z",
+      "occurred_at": "2026-10-01T00:00:00Z",
+      "payload": {
+        "state": "QUEUED"
+      },
+      "run_id": "run_demo",
+      "scope": {
+        "channel_id": "channel_demo",
+        "environment": "test",
+        "subject_id": "subject_demo",
+        "subject_type": "member"
+      },
+      "sequence": 1
+    }
+  },
+  "Scope": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "channel_id": "channel_demo",
+      "environment": "test",
+      "subject_id": "subject_demo",
+      "subject_type": "member"
+    }
+  },
+  "ToolResult": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "coverage": {
+        "exhaustive": true,
+        "items": 1
+      },
+      "cursor": null,
+      "data": {
+        "currency": "CNY",
+        "price": "25.00"
+      },
+      "evidence_refs": [
+        {
+          "authorized_actions": [
+            "evidence:read"
+          ],
+          "evidence_id": "evidence_demo",
+          "location": {
+            "field_path": [
+              "price"
+            ],
+            "text_end": null,
+            "text_start": null
+          },
+          "observed_at": "2026-10-01T00:00:00Z",
+          "scope": {
+            "channel_id": "channel_demo",
+            "environment": "test",
+            "subject_id": "subject_demo",
+            "subject_type": "member"
+          },
+          "source_id": "source_demo",
+          "source_type": "tool",
+          "source_version": "1",
+          "title": "业务报价"
+        }
+      ],
+      "has_more": false,
+      "observed_at": "2026-10-01T00:00:00Z",
+      "scope": {
+        "channel_id": "channel_demo",
+        "environment": "test",
+        "subject_id": "subject_demo",
+        "subject_type": "member"
+      },
+      "source_request_id": "source_request",
+      "source_version": "1",
+      "tool_version_id": "tool_version_demo",
+      "truncated": false,
+      "warnings": []
+    }
+  },
+  "UsageEvent": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "attempt_id": "attempt_demo",
+      "connection_id": "connection_demo",
+      "cumulative": true,
+      "event_version": 2,
+      "final": true,
+      "normalized_tokens": {
+        "cached": 20,
+        "input": 120
+      },
+      "observed_at": "2026-10-01T00:00:00Z",
+      "raw_usage": {
+        "cached_tokens": 20,
+        "input_tokens": 120
+      },
+      "scope": {
+        "channel_id": "channel_demo",
+        "environment": "test",
+        "subject_id": "subject_demo",
+        "subject_type": "member"
+      },
+      "source_request_id": "provider_request",
+      "status": "REPORTED",
+      "subset_relations": {
+        "cached": "input"
+      }
+    }
+  },
+  "VersionOption": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "resource_name": "经营分析",
+      "selectable": true,
+      "status": {
+        "label": "已发布",
+        "tone": "success",
+        "value": "PUBLISHED"
+      },
+      "unavailable_reason": null,
+      "version_id": "version_demo",
+      "version_label": "第一版"
+    }
+  },
+  "VisibleAction": {
+    "contract_version": "1.2.0",
+    "failure": {
+      "error": {
+        "code": "FORBIDDEN",
+        "fields": [],
+        "message": "无权执行此操作"
+      },
+      "request_id": "request_demo"
+    },
+    "missing": {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "fields": [],
+        "message": "必要对象或服务不可用"
+      },
+      "request_id": "request_demo"
+    },
+    "success": {
+      "action_key": "release",
+      "label": "发布"
+    }
+  }
+}

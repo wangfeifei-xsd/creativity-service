@@ -1,0 +1,1792 @@
+{
+  "ConversationCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "agent_code": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Agent Code",
+        "type": "string"
+      },
+      "title": {
+        "default": "未命名会话",
+        "maxLength": 255,
+        "minLength": 1,
+        "title": "Title",
+        "type": "string"
+      }
+    },
+    "required": [
+      "agent_code"
+    ],
+    "title": "ConversationCreate",
+    "type": "object"
+  },
+  "ConversationDetail": {
+    "$defs": {
+      "ContextView": {
+        "additionalProperties": false,
+        "properties": {
+          "included_message_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Included Message Ids",
+            "type": "array"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "summary_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary Version"
+          },
+          "truncation": {
+            "additionalProperties": true,
+            "title": "Truncation",
+            "type": "object"
+          }
+        },
+        "required": [
+          "run_id",
+          "included_message_ids",
+          "summary_version",
+          "truncation"
+        ],
+        "title": "ContextView",
+        "type": "object"
+      },
+      "ConversationView": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/$defs/VisibleAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "active_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Run Id"
+          },
+          "agent_id": {
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "agent_name": {
+            "title": "Agent Name",
+            "type": "string"
+          },
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "environment_label": {
+            "title": "Environment Label",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "status_label": {
+            "title": "Status Label",
+            "type": "string"
+          },
+          "subject_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Name"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "title",
+          "agent_name",
+          "agent_id",
+          "subject_name",
+          "environment",
+          "environment_label",
+          "status",
+          "status_label",
+          "revision",
+          "active_run_id",
+          "created_at",
+          "updated_at",
+          "expires_at",
+          "actions"
+        ],
+        "title": "ConversationView",
+        "type": "object"
+      },
+      "SummaryView": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "source_message_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Message Ids",
+            "type": "array"
+          },
+          "source_sequences": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Source Sequences",
+            "type": "array"
+          },
+          "summary_id": {
+            "title": "Summary Id",
+            "type": "string"
+          },
+          "truncation": {
+            "additionalProperties": true,
+            "title": "Truncation",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "summary_id",
+          "version",
+          "content",
+          "source_message_ids",
+          "source_sequences",
+          "truncation",
+          "created_at"
+        ],
+        "title": "SummaryView",
+        "type": "object"
+      },
+      "VisibleAction": {
+        "additionalProperties": false,
+        "properties": {
+          "action_key": {
+            "title": "Action Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_key",
+          "label"
+        ],
+        "title": "VisibleAction",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "contexts": {
+        "items": {
+          "$ref": "#/$defs/ContextView"
+        },
+        "title": "Contexts",
+        "type": "array"
+      },
+      "conversation": {
+        "$ref": "#/$defs/ConversationView"
+      },
+      "executable": {
+        "title": "Executable",
+        "type": "boolean"
+      },
+      "input_schema": {
+        "additionalProperties": true,
+        "title": "Input Schema",
+        "type": "object"
+      },
+      "summaries": {
+        "items": {
+          "$ref": "#/$defs/SummaryView"
+        },
+        "title": "Summaries",
+        "type": "array"
+      },
+      "unavailable_reason": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Unavailable Reason"
+      }
+    },
+    "required": [
+      "conversation",
+      "summaries",
+      "contexts",
+      "input_schema",
+      "executable",
+      "unavailable_reason"
+    ],
+    "title": "ConversationDetail",
+    "type": "object"
+  },
+  "ConversationList": {
+    "$defs": {
+      "AgentChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_code": {
+            "title": "Agent Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_code",
+          "name"
+        ],
+        "title": "AgentChoice",
+        "type": "object"
+      },
+      "ConversationView": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/$defs/VisibleAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "active_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Run Id"
+          },
+          "agent_id": {
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "agent_name": {
+            "title": "Agent Name",
+            "type": "string"
+          },
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "environment_label": {
+            "title": "Environment Label",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "status_label": {
+            "title": "Status Label",
+            "type": "string"
+          },
+          "subject_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Name"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "title",
+          "agent_name",
+          "agent_id",
+          "subject_name",
+          "environment",
+          "environment_label",
+          "status",
+          "status_label",
+          "revision",
+          "active_run_id",
+          "created_at",
+          "updated_at",
+          "expires_at",
+          "actions"
+        ],
+        "title": "ConversationView",
+        "type": "object"
+      },
+      "VisibleAction": {
+        "additionalProperties": false,
+        "properties": {
+          "action_key": {
+            "title": "Action Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_key",
+          "label"
+        ],
+        "title": "VisibleAction",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "actions": {
+        "items": {
+          "$ref": "#/$defs/VisibleAction"
+        },
+        "title": "Actions",
+        "type": "array"
+      },
+      "agents": {
+        "items": {
+          "$ref": "#/$defs/AgentChoice"
+        },
+        "title": "Agents",
+        "type": "array"
+      },
+      "has_more": {
+        "title": "Has More",
+        "type": "boolean"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/$defs/ConversationView"
+        },
+        "title": "Items",
+        "type": "array"
+      },
+      "next_cursor": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Next Cursor"
+      },
+      "unavailable_reason": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Unavailable Reason"
+      }
+    },
+    "required": [
+      "items",
+      "next_cursor",
+      "has_more",
+      "actions",
+      "agents",
+      "unavailable_reason"
+    ],
+    "title": "ConversationList",
+    "type": "object"
+  },
+  "ConversationRunRequest": {
+    "$defs": {
+      "AttachmentPart": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "type": {
+            "const": "attachment",
+            "default": "attachment",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact_id"
+        ],
+        "title": "AttachmentPart",
+        "type": "object"
+      },
+      "JsonValue": {},
+      "TextPart": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "const": "text",
+            "default": "text",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "TextPart",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "description": "由会话服务组装的受理参数，运行 HTTP 接口不能直接提交此类型。",
+    "properties": {
+      "agent_code": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Agent Code",
+        "type": "string"
+      },
+      "client_message_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Client Message Id"
+      },
+      "content_parts": {
+        "default": [],
+        "items": {
+          "discriminator": {
+            "mapping": {
+              "attachment": "#/$defs/AttachmentPart",
+              "text": "#/$defs/TextPart"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/TextPart"
+            },
+            {
+              "$ref": "#/$defs/AttachmentPart"
+            }
+          ]
+        },
+        "title": "Content Parts",
+        "type": "array"
+      },
+      "conversation_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Conversation Id"
+      },
+      "delivery": {
+        "default": "async",
+        "pattern": "^(async|sync|stream)$",
+        "title": "Delivery",
+        "type": "string"
+      },
+      "input": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Input",
+        "type": "object"
+      }
+    },
+    "required": [
+      "agent_code",
+      "input"
+    ],
+    "title": "ConversationRunRequest",
+    "type": "object"
+  },
+  "DeletionImpact": {
+    "additionalProperties": false,
+    "properties": {
+      "exclusive_memories": {
+        "title": "Exclusive Memories",
+        "type": "integer"
+      },
+      "explanation": {
+        "title": "Explanation",
+        "type": "string"
+      },
+      "messages": {
+        "title": "Messages",
+        "type": "integer"
+      },
+      "runs": {
+        "title": "Runs",
+        "type": "integer"
+      },
+      "shared_memories": {
+        "title": "Shared Memories",
+        "type": "integer"
+      },
+      "summaries": {
+        "title": "Summaries",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "messages",
+      "summaries",
+      "runs",
+      "exclusive_memories",
+      "shared_memories",
+      "explanation"
+    ],
+    "title": "DeletionImpact",
+    "type": "object"
+  },
+  "DeletionView": {
+    "additionalProperties": false,
+    "properties": {
+      "completed_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Completed At"
+      },
+      "conversation_id": {
+        "title": "Conversation Id",
+        "type": "string"
+      },
+      "deletion_id": {
+        "title": "Deletion Id",
+        "type": "string"
+      },
+      "requested_at": {
+        "format": "date-time",
+        "title": "Requested At",
+        "type": "string"
+      },
+      "status": {
+        "title": "Status",
+        "type": "string"
+      },
+      "status_label": {
+        "title": "Status Label",
+        "type": "string"
+      }
+    },
+    "required": [
+      "deletion_id",
+      "conversation_id",
+      "status",
+      "status_label",
+      "requested_at",
+      "completed_at"
+    ],
+    "title": "DeletionView",
+    "type": "object"
+  },
+  "MessageInput": {
+    "$defs": {
+      "AttachmentPart": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "type": {
+            "const": "attachment",
+            "default": "attachment",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact_id"
+        ],
+        "title": "AttachmentPart",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "agent_code": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Agent Code"
+      },
+      "attachments": {
+        "items": {
+          "$ref": "#/$defs/AttachmentPart"
+        },
+        "maxItems": 10,
+        "title": "Attachments",
+        "type": "array"
+      },
+      "client_message_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Client Message Id",
+        "type": "string"
+      },
+      "content": {
+        "maxLength": 100000,
+        "minLength": 1,
+        "title": "Content",
+        "type": "string"
+      },
+      "input": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Input"
+      }
+    },
+    "required": [
+      "client_message_id",
+      "content"
+    ],
+    "title": "MessageInput",
+    "type": "object"
+  },
+  "MessagePage": {
+    "$defs": {
+      "AttachmentView": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "download_path": {
+            "title": "Download Path",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "name",
+          "size_bytes",
+          "download_path"
+        ],
+        "title": "AttachmentView",
+        "type": "object"
+      },
+      "BusinessResult": {
+        "additionalProperties": false,
+        "properties": {
+          "business_status": {
+            "enum": [
+              "COMPLETED",
+              "NEEDS_INPUT",
+              "NO_MATCH",
+              "INSUFFICIENT_DATA",
+              "PARTIAL"
+            ],
+            "title": "Business Status",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Data",
+            "type": "object"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/$defs/EvidenceRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "business_status",
+          "data",
+          "warnings",
+          "evidence_refs"
+        ],
+        "title": "BusinessResult",
+        "type": "object"
+      },
+      "EvidenceLocation": {
+        "additionalProperties": false,
+        "properties": {
+          "field_path": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Path"
+          },
+          "text_end": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text End"
+          },
+          "text_start": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Start"
+          }
+        },
+        "required": [
+          "field_path",
+          "text_start",
+          "text_end"
+        ],
+        "title": "EvidenceLocation",
+        "type": "object"
+      },
+      "EvidenceRef": {
+        "additionalProperties": false,
+        "properties": {
+          "authorized_actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Authorized Actions",
+            "type": "array"
+          },
+          "evidence_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Evidence Id",
+            "type": "string"
+          },
+          "location": {
+            "$ref": "#/$defs/EvidenceLocation"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/Scope"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_version": {
+            "title": "Source Version",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "scope",
+          "source_type",
+          "source_id",
+          "source_version",
+          "observed_at",
+          "location",
+          "title",
+          "authorized_actions"
+        ],
+        "title": "EvidenceRef",
+        "type": "object"
+      },
+      "JsonValue": {},
+      "MessageView": {
+        "additionalProperties": false,
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/$defs/AttachmentView"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "role_label": {
+            "title": "Role Label",
+            "type": "string"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "status_label": {
+            "title": "Status Label",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "turn_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Id"
+          }
+        },
+        "required": [
+          "message_id",
+          "turn_id",
+          "run_id",
+          "sequence",
+          "role",
+          "role_label",
+          "status",
+          "status_label",
+          "text",
+          "attachments",
+          "created_at"
+        ],
+        "title": "MessageView",
+        "type": "object"
+      },
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      },
+      "TurnView": {
+        "additionalProperties": false,
+        "properties": {
+          "can_cancel": {
+            "title": "Can Cancel",
+            "type": "boolean"
+          },
+          "can_view_run": {
+            "title": "Can View Run",
+            "type": "boolean"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "output_schema": {
+            "additionalProperties": true,
+            "title": "Output Schema",
+            "type": "object"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BusinessResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Label"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "source_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Run Id"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "state_label": {
+            "title": "State Label",
+            "type": "string"
+          },
+          "turn_id": {
+            "title": "Turn Id",
+            "type": "string"
+          },
+          "version_label": {
+            "title": "Version Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "turn_id",
+          "sequence",
+          "run_id",
+          "version_label",
+          "state",
+          "state_label",
+          "result",
+          "result_label",
+          "output_schema",
+          "source_run_id",
+          "duration_seconds",
+          "can_cancel",
+          "can_view_run"
+        ],
+        "title": "TurnView",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "has_more": {
+        "title": "Has More",
+        "type": "boolean"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/$defs/MessageView"
+        },
+        "title": "Items",
+        "type": "array"
+      },
+      "next_cursor": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Next Cursor"
+      },
+      "turns": {
+        "items": {
+          "$ref": "#/$defs/TurnView"
+        },
+        "title": "Turns",
+        "type": "array"
+      }
+    },
+    "required": [
+      "items",
+      "next_cursor",
+      "has_more",
+      "turns"
+    ],
+    "title": "MessagePage",
+    "type": "object"
+  },
+  "MessageReceipt": {
+    "$defs": {
+      "AdmissionReceipt": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deadline": {
+            "format": "date-time",
+            "title": "Deadline",
+            "type": "string"
+          },
+          "events_url": {
+            "title": "Events Url",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "WAITING_INPUT",
+              "WAITING_APPROVAL",
+              "CANCEL_REQUESTED",
+              "SUCCEEDED",
+              "FAILED",
+              "CANCELLED",
+              "TIMED_OUT"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "state_label": {
+            "title": "State Label",
+            "type": "string"
+          },
+          "status_url": {
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "state",
+          "state_label",
+          "created_at",
+          "deadline",
+          "status_url",
+          "events_url"
+        ],
+        "title": "AdmissionReceipt",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "assistant_message_id": {
+        "title": "Assistant Message Id",
+        "type": "string"
+      },
+      "run": {
+        "$ref": "#/$defs/AdmissionReceipt"
+      },
+      "sequence": {
+        "title": "Sequence",
+        "type": "integer"
+      },
+      "turn_id": {
+        "title": "Turn Id",
+        "type": "string"
+      },
+      "user_message_id": {
+        "title": "User Message Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "turn_id",
+      "user_message_id",
+      "assistant_message_id",
+      "sequence",
+      "run"
+    ],
+    "title": "MessageReceipt",
+    "type": "object"
+  },
+  "SelectedContext": {
+    "$defs": {
+      "BusinessResult": {
+        "additionalProperties": false,
+        "properties": {
+          "business_status": {
+            "enum": [
+              "COMPLETED",
+              "NEEDS_INPUT",
+              "NO_MATCH",
+              "INSUFFICIENT_DATA",
+              "PARTIAL"
+            ],
+            "title": "Business Status",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Data",
+            "type": "object"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/$defs/EvidenceRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "business_status",
+          "data",
+          "warnings",
+          "evidence_refs"
+        ],
+        "title": "BusinessResult",
+        "type": "object"
+      },
+      "EvidenceLocation": {
+        "additionalProperties": false,
+        "properties": {
+          "field_path": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Path"
+          },
+          "text_end": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text End"
+          },
+          "text_start": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Start"
+          }
+        },
+        "required": [
+          "field_path",
+          "text_start",
+          "text_end"
+        ],
+        "title": "EvidenceLocation",
+        "type": "object"
+      },
+      "EvidenceRef": {
+        "additionalProperties": false,
+        "properties": {
+          "authorized_actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Authorized Actions",
+            "type": "array"
+          },
+          "evidence_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Evidence Id",
+            "type": "string"
+          },
+          "location": {
+            "$ref": "#/$defs/EvidenceLocation"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/Scope"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_version": {
+            "title": "Source Version",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "scope",
+          "source_type",
+          "source_id",
+          "source_version",
+          "observed_at",
+          "location",
+          "title",
+          "authorized_actions"
+        ],
+        "title": "EvidenceRef",
+        "type": "object"
+      },
+      "JsonValue": {},
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "confirmed_conditions": {
+        "additionalProperties": true,
+        "title": "Confirmed Conditions",
+        "type": "object"
+      },
+      "current_content_parts": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "title": "Current Content Parts",
+        "type": "array"
+      },
+      "current_input": {
+        "additionalProperties": true,
+        "title": "Current Input",
+        "type": "object"
+      },
+      "followup_result": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/BusinessResult"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "included_message_ids": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Included Message Ids",
+        "type": "array"
+      },
+      "instructions": {
+        "title": "Instructions",
+        "type": "string"
+      },
+      "messages": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "title": "Messages",
+        "type": "array"
+      },
+      "run_id": {
+        "title": "Run Id",
+        "type": "string"
+      },
+      "source_run_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Source Run Id"
+      },
+      "summary": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Summary"
+      },
+      "truncation": {
+        "additionalProperties": true,
+        "title": "Truncation",
+        "type": "object"
+      }
+    },
+    "required": [
+      "run_id",
+      "instructions",
+      "current_input",
+      "current_content_parts",
+      "source_run_id",
+      "confirmed_conditions",
+      "followup_result",
+      "messages",
+      "summary",
+      "included_message_ids",
+      "truncation"
+    ],
+    "title": "SelectedContext",
+    "type": "object"
+  },
+  "SummaryView": {
+    "additionalProperties": false,
+    "properties": {
+      "content": {
+        "title": "Content",
+        "type": "string"
+      },
+      "created_at": {
+        "format": "date-time",
+        "title": "Created At",
+        "type": "string"
+      },
+      "source_message_ids": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Source Message Ids",
+        "type": "array"
+      },
+      "source_sequences": {
+        "items": {
+          "type": "integer"
+        },
+        "title": "Source Sequences",
+        "type": "array"
+      },
+      "summary_id": {
+        "title": "Summary Id",
+        "type": "string"
+      },
+      "truncation": {
+        "additionalProperties": true,
+        "title": "Truncation",
+        "type": "object"
+      },
+      "version": {
+        "title": "Version",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "summary_id",
+      "version",
+      "content",
+      "source_message_ids",
+      "source_sequences",
+      "truncation",
+      "created_at"
+    ],
+    "title": "SummaryView",
+    "type": "object"
+  },
+  "TitleInput": {
+    "additionalProperties": false,
+    "properties": {
+      "revision": {
+        "minimum": 1,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "title": {
+        "maxLength": 255,
+        "minLength": 1,
+        "title": "Title",
+        "type": "string"
+      }
+    },
+    "required": [
+      "title",
+      "revision"
+    ],
+    "title": "TitleInput",
+    "type": "object"
+  }
+}

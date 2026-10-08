@@ -1,0 +1,812 @@
+{
+  "PromptDebugDescriptor": {
+    "$defs": {
+      "JsonValue": {},
+      "PromptRenderView": {
+        "additionalProperties": false,
+        "properties": {
+          "context_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Context Limit"
+          },
+          "estimate_method": {
+            "default": "按 UTF-8 字节数估算，实际用量以模型记录为准",
+            "title": "Estimate Method",
+            "type": "string"
+          },
+          "estimated_remaining_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Estimated Remaining Tokens"
+          },
+          "estimated_tokens": {
+            "title": "Estimated Tokens",
+            "type": "integer"
+          },
+          "masked": {
+            "title": "Masked",
+            "type": "boolean"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/$defs/RenderedSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sections",
+          "estimated_tokens",
+          "masked"
+        ],
+        "title": "PromptRenderView",
+        "type": "object"
+      },
+      "RenderedSection": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "original_characters": {
+            "title": "Original Characters",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "system",
+              "output",
+              "input",
+              "tool",
+              "memory",
+              "platform"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "truncated_characters": {
+            "title": "Truncated Characters",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source",
+          "label",
+          "text",
+          "original_characters",
+          "truncated_characters"
+        ],
+        "title": "RenderedSection",
+        "type": "object"
+      },
+      "ResourceVersion": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "configuration_revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Configuration Revision"
+          },
+          "content": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Content",
+            "type": "object"
+          },
+          "content_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Content Digest",
+            "type": "string"
+          },
+          "dependencies_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Dependencies Digest",
+            "type": "string"
+          },
+          "dependency_version_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            "title": "Dependency Version Ids",
+            "type": "array"
+          },
+          "draft_revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Revision"
+          },
+          "output_schema": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Output Schema",
+            "type": "object"
+          },
+          "resource_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "resource_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Resource Name"
+          },
+          "resource_type": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Resource Type",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "RETIRED"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_label": {
+            "title": "Version Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel_id",
+          "resource_type",
+          "resource_id",
+          "version_id",
+          "version_label",
+          "state",
+          "draft_revision",
+          "content",
+          "content_digest",
+          "dependency_version_ids",
+          "dependencies_digest",
+          "output_schema"
+        ],
+        "title": "ResourceVersion",
+        "type": "object"
+      },
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "descriptor_digest": {
+        "title": "Descriptor Digest",
+        "type": "string"
+      },
+      "expected_constraints": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Expected Constraints",
+        "type": "array"
+      },
+      "model_route_version": {
+        "title": "Model Route Version",
+        "type": "string"
+      },
+      "prompt": {
+        "$ref": "#/$defs/ResourceVersion"
+      },
+      "purpose": {
+        "const": "debug",
+        "default": "debug",
+        "title": "Purpose",
+        "type": "string"
+      },
+      "rendered": {
+        "$ref": "#/$defs/PromptRenderView"
+      },
+      "sample_digest": {
+        "title": "Sample Digest",
+        "type": "string"
+      },
+      "sample_id": {
+        "title": "Sample Id",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "test_id": {
+        "title": "Test Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "test_id",
+      "scope",
+      "prompt",
+      "model_route_version",
+      "sample_id",
+      "sample_digest",
+      "rendered",
+      "expected_constraints",
+      "descriptor_digest"
+    ],
+    "title": "PromptDebugDescriptor",
+    "type": "object"
+  },
+  "PromptDebugEvidence": {
+    "$defs": {
+      "JsonValue": {},
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "constraints_passed": {
+        "title": "Constraints Passed",
+        "type": "boolean"
+      },
+      "descriptor_digest": {
+        "title": "Descriptor Digest",
+        "type": "string"
+      },
+      "model_route_version": {
+        "title": "Model Route Version",
+        "type": "string"
+      },
+      "output": {
+        "$ref": "#/$defs/JsonValue",
+        "default": null
+      },
+      "run_id": {
+        "title": "Run Id",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "status": {
+        "enum": [
+          "QUEUED",
+          "RUNNING",
+          "SUCCEEDED",
+          "FAILED",
+          "CANCELLED",
+          "TIMED_OUT"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "usage_recorded": {
+        "title": "Usage Recorded",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "scope",
+      "run_id",
+      "descriptor_digest",
+      "model_route_version",
+      "status",
+      "constraints_passed",
+      "usage_recorded"
+    ],
+    "title": "PromptDebugEvidence",
+    "type": "object"
+  },
+  "PromptDebugRun": {
+    "additionalProperties": false,
+    "properties": {
+      "release_snapshot_id": {
+        "title": "Release Snapshot Id",
+        "type": "string"
+      },
+      "rendered_input_ref": {
+        "title": "Rendered Input Ref",
+        "type": "string"
+      },
+      "run_id": {
+        "title": "Run Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "run_id",
+      "release_snapshot_id",
+      "rendered_input_ref"
+    ],
+    "title": "PromptDebugRun",
+    "type": "object"
+  },
+  "PromptDependencySummary": {
+    "$defs": {
+      "JsonValue": {},
+      "PromptVariable": {
+        "additionalProperties": false,
+        "properties": {
+          "default": {
+            "$ref": "#/$defs/JsonValue",
+            "default": null
+          },
+          "display_name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "max_length": {
+            "default": 4096,
+            "maximum": 100000,
+            "minimum": 1,
+            "title": "Max Length",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "default": true,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "sensitivity": {
+            "default": "internal",
+            "enum": [
+              "public",
+              "internal",
+              "sensitive",
+              "secret"
+            ],
+            "title": "Sensitivity",
+            "type": "string"
+          },
+          "source": {
+            "default": "input",
+            "enum": [
+              "input",
+              "tool",
+              "memory",
+              "platform"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "integer",
+              "number",
+              "boolean",
+              "object",
+              "array"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "display_name",
+          "type"
+        ],
+        "title": "PromptVariable",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "content_digest": {
+        "title": "Content Digest",
+        "type": "string"
+      },
+      "dependencies_digest": {
+        "title": "Dependencies Digest",
+        "type": "string"
+      },
+      "output_requirements": {
+        "title": "Output Requirements",
+        "type": "string"
+      },
+      "variables": {
+        "items": {
+          "$ref": "#/$defs/PromptVariable"
+        },
+        "title": "Variables",
+        "type": "array"
+      },
+      "version_id": {
+        "title": "Version Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "version_id",
+      "content_digest",
+      "dependencies_digest",
+      "variables",
+      "output_requirements"
+    ],
+    "title": "PromptDependencySummary",
+    "type": "object"
+  },
+  "PromptPortable": {
+    "$defs": {
+      "InstructionBlocks": {
+        "additionalProperties": false,
+        "properties": {
+          "output_requirements": {
+            "default": "",
+            "maxLength": 100000,
+            "title": "Output Requirements",
+            "type": "string"
+          },
+          "system": {
+            "default": "",
+            "maxLength": 100000,
+            "title": "System",
+            "type": "string"
+          }
+        },
+        "title": "InstructionBlocks",
+        "type": "object"
+      },
+      "JsonValue": {},
+      "MessageTemplate": {
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "enum": [
+              "input",
+              "tool",
+              "memory",
+              "platform"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "template": {
+            "maxLength": 100000,
+            "title": "Template",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "template"
+        ],
+        "title": "MessageTemplate",
+        "type": "object"
+      },
+      "PromptContent": {
+        "additionalProperties": false,
+        "properties": {
+          "change_note": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Change Note",
+            "type": "string"
+          },
+          "instruction_blocks": {
+            "$ref": "#/$defs/InstructionBlocks"
+          },
+          "message_templates": {
+            "items": {
+              "$ref": "#/$defs/MessageTemplate"
+            },
+            "maxItems": 100,
+            "title": "Message Templates",
+            "type": "array"
+          },
+          "variables": {
+            "items": {
+              "$ref": "#/$defs/PromptVariable"
+            },
+            "maxItems": 100,
+            "title": "Variables",
+            "type": "array"
+          }
+        },
+        "title": "PromptContent",
+        "type": "object"
+      },
+      "PromptVariable": {
+        "additionalProperties": false,
+        "properties": {
+          "default": {
+            "$ref": "#/$defs/JsonValue",
+            "default": null
+          },
+          "display_name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "max_length": {
+            "default": 4096,
+            "maximum": 100000,
+            "minimum": 1,
+            "title": "Max Length",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "default": true,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "sensitivity": {
+            "default": "internal",
+            "enum": [
+              "public",
+              "internal",
+              "sensitive",
+              "secret"
+            ],
+            "title": "Sensitivity",
+            "type": "string"
+          },
+          "source": {
+            "default": "input",
+            "enum": [
+              "input",
+              "tool",
+              "memory",
+              "platform"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "integer",
+              "number",
+              "boolean",
+              "object",
+              "array"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "display_name",
+          "type"
+        ],
+        "title": "PromptVariable",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "content": {
+        "$ref": "#/$defs/PromptContent"
+      },
+      "format_version": {
+        "const": 1,
+        "default": 1,
+        "title": "Format Version",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "content"
+    ],
+    "title": "PromptPortable",
+    "type": "object"
+  },
+  "PromptRuntimeInput": {
+    "$defs": {
+      "JsonValue": {}
+    },
+    "additionalProperties": false,
+    "properties": {
+      "input": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Input",
+        "type": "object"
+      },
+      "memory": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Memory",
+        "type": "object"
+      },
+      "tool": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Tool",
+        "type": "object"
+      }
+    },
+    "title": "PromptRuntimeInput",
+    "type": "object"
+  }
+}

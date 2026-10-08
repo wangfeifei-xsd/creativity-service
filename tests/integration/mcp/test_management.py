@@ -283,7 +283,7 @@ async def test_import_failure_rolls_back_mapping_and_tool(mcp_env, monkeypatch):
     assert len(await env.tools.management.repository.rows(env.context, "tools")) == 1
 
 
-async def test_remote_drift_blocks_old_binding_and_imports_new_target_version(mcp_env):
+async def test_remote_drift_blocks_old_binding_and_imports_independent_tool(mcp_env):
     env = mcp_env
     conn, snapshot = await ready(env)
     first = await env.mcp.import_tool(env.context, conn.connection_id, import_body(snapshot))
@@ -299,18 +299,20 @@ async def test_remote_drift_blocks_old_binding_and_imports_new_target_version(mc
         await env.tools.management.version_detail(env.context, first.imported_version)
     ).execution_enabled
     second = await env.mcp.probe(env.context, conn.connection_id, True)
-    new = await env.mcp.import_tool(
-        env.context,
-        conn.connection_id,
-        import_body(second).model_copy(
-            update={"target_tool_id": first.local_tool_id, "version_label": "修订版本"}
-        ),
-    )
+    # 当前资源不再创建业务版本；重新导入不能覆盖已有配置，须创建独立工具。
+    with pytest.raises(ServiceError) as existing:
+        await env.mcp.import_tool(
+            env.context,
+            conn.connection_id,
+            import_body(second).model_copy(update={"target_tool_id": first.local_tool_id}),
+        )
+    assert existing.value.code == "CONFIGURATION_EXISTS"
+    new = await env.mcp.import_tool(env.context, conn.connection_id, import_body(second))
     assert (
-        first.local_tool_id == new.local_tool_id and first.imported_version != new.imported_version
+        first.local_tool_id != new.local_tool_id and first.imported_version != new.imported_version
     )
     detail = await env.tools.management.detail(env.context, new.local_tool_id)
-    assert len(detail.versions) == 2 and detail.release_version_id is None
+    assert len(detail.versions) == 1 and detail.release_version_id is None
     options = await env.tools.management.bindings(env.context, new.local_tool_id)
     assert any(o.name == "目录查询" and o.execution_enabled for o in options)
 

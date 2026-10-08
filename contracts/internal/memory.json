@@ -1,0 +1,1063 @@
+{
+  "CandidateInput": {
+    "$defs": {
+      "JsonValue": {},
+      "SourceInput": {
+        "additionalProperties": false,
+        "description": "仅供受控运行端口使用，HTTP 明确保存不接收来源标识。",
+        "properties": {
+          "source_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "enum": [
+              "message",
+              "evidence",
+              "memory"
+            ],
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_version": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_type",
+          "source_id",
+          "source_version"
+        ],
+        "title": "SourceInput",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "expires_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Expires At"
+      },
+      "intent": {
+        "enum": [
+          "TASK_ONLY",
+          "INFERRED",
+          "EXPLICIT"
+        ],
+        "title": "Intent",
+        "type": "string"
+      },
+      "key": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Key",
+        "type": "string"
+      },
+      "memory_type": {
+        "default": "PREFERENCE",
+        "title": "Memory Type",
+        "type": "string"
+      },
+      "source": {
+        "$ref": "#/$defs/SourceInput"
+      },
+      "value": {
+        "$ref": "#/$defs/JsonValue"
+      }
+    },
+    "required": [
+      "key",
+      "value",
+      "intent",
+      "source"
+    ],
+    "title": "CandidateInput",
+    "type": "object"
+  },
+  "MemoryCreate": {
+    "$defs": {
+      "JsonValue": {}
+    },
+    "additionalProperties": false,
+    "properties": {
+      "expires_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Expires At"
+      },
+      "key": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Key",
+        "type": "string"
+      },
+      "memory_type": {
+        "default": "PREFERENCE",
+        "title": "Memory Type",
+        "type": "string"
+      },
+      "value": {
+        "$ref": "#/$defs/JsonValue"
+      }
+    },
+    "required": [
+      "key",
+      "value"
+    ],
+    "title": "MemoryCreate",
+    "type": "object"
+  },
+  "MemoryDeletion": {
+    "additionalProperties": false,
+    "properties": {
+      "completed_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Completed At"
+      },
+      "count": {
+        "title": "Count",
+        "type": "integer"
+      },
+      "deletion_id": {
+        "title": "Deletion Id",
+        "type": "string"
+      },
+      "requested_at": {
+        "format": "date-time",
+        "title": "Requested At",
+        "type": "string"
+      },
+      "status": {
+        "title": "Status",
+        "type": "string"
+      },
+      "status_label": {
+        "title": "Status Label",
+        "type": "string"
+      }
+    },
+    "required": [
+      "deletion_id",
+      "status",
+      "status_label",
+      "count",
+      "requested_at",
+      "completed_at"
+    ],
+    "title": "MemoryDeletion",
+    "type": "object"
+  },
+  "MemoryDetail": {
+    "$defs": {
+      "JsonValue": {},
+      "MemorySourceView": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "source_type_label": {
+            "title": "Source Type Label",
+            "type": "string"
+          },
+          "source_version": {
+            "title": "Source Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "source_type_label",
+          "source_version",
+          "observed_at"
+        ],
+        "title": "MemorySourceView",
+        "type": "object"
+      },
+      "MemoryVersionView": {
+        "additionalProperties": false,
+        "properties": {
+          "changed_at": {
+            "format": "date-time",
+            "title": "Changed At",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "status_label": {
+            "title": "Status Label",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "status_label",
+          "reason",
+          "changed_at"
+        ],
+        "title": "MemoryVersionView",
+        "type": "object"
+      },
+      "MemoryView": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/$defs/VisibleAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "layer": {
+            "enum": [
+              "archive",
+              "profile"
+            ],
+            "title": "Layer",
+            "type": "string"
+          },
+          "layer_label": {
+            "title": "Layer Label",
+            "type": "string"
+          },
+          "memory_id": {
+            "title": "Memory Id",
+            "type": "string"
+          },
+          "memory_type": {
+            "title": "Memory Type",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/MemorySourceView"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "status_label": {
+            "title": "Status Label",
+            "type": "string"
+          },
+          "subject_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Name"
+          },
+          "type_label": {
+            "title": "Type Label",
+            "type": "string"
+          },
+          "usage_count": {
+            "title": "Usage Count",
+            "type": "integer"
+          },
+          "value": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "value_label": {
+            "title": "Value Label",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "memory_id",
+          "layer",
+          "layer_label",
+          "key",
+          "display_name",
+          "memory_type",
+          "type_label",
+          "value",
+          "value_label",
+          "status",
+          "status_label",
+          "confirmed",
+          "expires_at",
+          "revision",
+          "version_id",
+          "version",
+          "subject_name",
+          "usage_count",
+          "created_at",
+          "sources",
+          "actions"
+        ],
+        "title": "MemoryView",
+        "type": "object"
+      },
+      "PreferenceView": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/$defs/VisibleAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "enabled",
+          "revision",
+          "actions"
+        ],
+        "title": "PreferenceView",
+        "type": "object"
+      },
+      "VisibleAction": {
+        "additionalProperties": false,
+        "properties": {
+          "action_key": {
+            "title": "Action Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_key",
+          "label"
+        ],
+        "title": "VisibleAction",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "memory": {
+        "$ref": "#/$defs/MemoryView"
+      },
+      "preferences": {
+        "$ref": "#/$defs/PreferenceView"
+      },
+      "versions": {
+        "items": {
+          "$ref": "#/$defs/MemoryVersionView"
+        },
+        "title": "Versions",
+        "type": "array"
+      }
+    },
+    "required": [
+      "memory",
+      "versions",
+      "preferences"
+    ],
+    "title": "MemoryDetail",
+    "type": "object"
+  },
+  "MemoryList": {
+    "$defs": {
+      "JsonValue": {},
+      "MemoryAttribute": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "memory_type": {
+            "default": "PREFERENCE",
+            "enum": [
+              "PREFERENCE",
+              "FACT"
+            ],
+            "title": "Memory Type",
+            "type": "string"
+          },
+          "value_schema": {
+            "additionalProperties": true,
+            "title": "Value Schema",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "value_schema"
+        ],
+        "title": "MemoryAttribute",
+        "type": "object"
+      },
+      "MemorySourceView": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "source_type_label": {
+            "title": "Source Type Label",
+            "type": "string"
+          },
+          "source_version": {
+            "title": "Source Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "source_type_label",
+          "source_version",
+          "observed_at"
+        ],
+        "title": "MemorySourceView",
+        "type": "object"
+      },
+      "MemoryView": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/$defs/VisibleAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "layer": {
+            "enum": [
+              "archive",
+              "profile"
+            ],
+            "title": "Layer",
+            "type": "string"
+          },
+          "layer_label": {
+            "title": "Layer Label",
+            "type": "string"
+          },
+          "memory_id": {
+            "title": "Memory Id",
+            "type": "string"
+          },
+          "memory_type": {
+            "title": "Memory Type",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/MemorySourceView"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "status_label": {
+            "title": "Status Label",
+            "type": "string"
+          },
+          "subject_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Name"
+          },
+          "type_label": {
+            "title": "Type Label",
+            "type": "string"
+          },
+          "usage_count": {
+            "title": "Usage Count",
+            "type": "integer"
+          },
+          "value": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "value_label": {
+            "title": "Value Label",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "memory_id",
+          "layer",
+          "layer_label",
+          "key",
+          "display_name",
+          "memory_type",
+          "type_label",
+          "value",
+          "value_label",
+          "status",
+          "status_label",
+          "confirmed",
+          "expires_at",
+          "revision",
+          "version_id",
+          "version",
+          "subject_name",
+          "usage_count",
+          "created_at",
+          "sources",
+          "actions"
+        ],
+        "title": "MemoryView",
+        "type": "object"
+      },
+      "VisibleAction": {
+        "additionalProperties": false,
+        "properties": {
+          "action_key": {
+            "title": "Action Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_key",
+          "label"
+        ],
+        "title": "VisibleAction",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "actions": {
+        "items": {
+          "$ref": "#/$defs/VisibleAction"
+        },
+        "title": "Actions",
+        "type": "array"
+      },
+      "attributes": {
+        "items": {
+          "$ref": "#/$defs/MemoryAttribute"
+        },
+        "title": "Attributes",
+        "type": "array"
+      },
+      "has_more": {
+        "title": "Has More",
+        "type": "boolean"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/$defs/MemoryView"
+        },
+        "title": "Items",
+        "type": "array"
+      },
+      "next_cursor": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Next Cursor"
+      }
+    },
+    "required": [
+      "items",
+      "next_cursor",
+      "has_more",
+      "attributes",
+      "actions"
+    ],
+    "title": "MemoryList",
+    "type": "object"
+  },
+  "MemoryLoad": {
+    "$defs": {
+      "JsonValue": {},
+      "LoadedMemory": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "memory_id": {
+            "title": "Memory Id",
+            "type": "string"
+          },
+          "memory_type": {
+            "title": "Memory Type",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/MemorySourceView"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "value": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "memory_id",
+          "version_id",
+          "key",
+          "display_name",
+          "memory_type",
+          "value",
+          "sources"
+        ],
+        "title": "LoadedMemory",
+        "type": "object"
+      },
+      "MemorySourceView": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "source_type_label": {
+            "title": "Source Type Label",
+            "type": "string"
+          },
+          "source_version": {
+            "title": "Source Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "source_type_label",
+          "source_version",
+          "observed_at"
+        ],
+        "title": "MemorySourceView",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "items": {
+        "items": {
+          "$ref": "#/$defs/LoadedMemory"
+        },
+        "title": "Items",
+        "type": "array"
+      },
+      "required_tool_keys": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Required Tool Keys",
+        "type": "array"
+      },
+      "warnings": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Warnings",
+        "type": "array"
+      }
+    },
+    "required": [
+      "items",
+      "warnings",
+      "required_tool_keys"
+    ],
+    "title": "MemoryLoad",
+    "type": "object"
+  },
+  "MemoryPolicy": {
+    "additionalProperties": false,
+    "properties": {
+      "allowed_types": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Allowed Types",
+        "type": "array"
+      },
+      "failure_mode": {
+        "default": "OMIT",
+        "enum": [
+          "OMIT",
+          "FAIL"
+        ],
+        "title": "Failure Mode",
+        "type": "string"
+      },
+      "max_items": {
+        "default": 100,
+        "maximum": 1000,
+        "minimum": 1,
+        "title": "Max Items",
+        "type": "integer"
+      },
+      "read_enabled": {
+        "default": true,
+        "title": "Read Enabled",
+        "type": "boolean"
+      },
+      "retrieval_limit": {
+        "default": 10,
+        "maximum": 100,
+        "minimum": 1,
+        "title": "Retrieval Limit",
+        "type": "integer"
+      },
+      "suggest_enabled": {
+        "default": true,
+        "title": "Suggest Enabled",
+        "type": "boolean"
+      },
+      "ttl_seconds": {
+        "default": 15552000,
+        "maximum": 31536000,
+        "minimum": 60,
+        "title": "Ttl Seconds",
+        "type": "integer"
+      },
+      "write_mode": {
+        "default": "EXPLICIT",
+        "enum": [
+          "DISABLED",
+          "CANDIDATE",
+          "EXPLICIT"
+        ],
+        "title": "Write Mode",
+        "type": "string"
+      }
+    },
+    "title": "MemoryPolicy",
+    "type": "object"
+  },
+  "MemorySelection": {
+    "$defs": {
+      "MemoryRef": {
+        "additionalProperties": false,
+        "properties": {
+          "memory_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Memory Id",
+            "type": "string"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "memory_id",
+          "version_id"
+        ],
+        "title": "MemoryRef",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "description": "队列与缓存只携带引用；加载时仍须核对运行归属和当前状态。",
+    "properties": {
+      "refs": {
+        "items": {
+          "$ref": "#/$defs/MemoryRef"
+        },
+        "title": "Refs",
+        "type": "array"
+      },
+      "retrieval_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Retrieval Id",
+        "type": "string"
+      },
+      "warnings": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Warnings",
+        "type": "array"
+      }
+    },
+    "required": [
+      "retrieval_id",
+      "refs",
+      "warnings"
+    ],
+    "title": "MemorySelection",
+    "type": "object"
+  },
+  "MemoryUpdate": {
+    "$defs": {
+      "JsonValue": {}
+    },
+    "additionalProperties": false,
+    "properties": {
+      "expires_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Expires At"
+      },
+      "revision": {
+        "minimum": 1,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "value": {
+        "$ref": "#/$defs/JsonValue"
+      }
+    },
+    "required": [
+      "revision",
+      "value"
+    ],
+    "title": "MemoryUpdate",
+    "type": "object"
+  },
+  "PreferenceInput": {
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "title": "Enabled",
+        "type": "boolean"
+      },
+      "revision": {
+        "minimum": 0,
+        "title": "Revision",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "enabled",
+      "revision"
+    ],
+    "title": "PreferenceInput",
+    "type": "object"
+  },
+  "SourceInput": {
+    "additionalProperties": false,
+    "description": "仅供受控运行端口使用，HTTP 明确保存不接收来源标识。",
+    "properties": {
+      "source_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Source Id",
+        "type": "string"
+      },
+      "source_type": {
+        "enum": [
+          "message",
+          "evidence",
+          "memory"
+        ],
+        "title": "Source Type",
+        "type": "string"
+      },
+      "source_version": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Source Version",
+        "type": "string"
+      }
+    },
+    "required": [
+      "source_type",
+      "source_id",
+      "source_version"
+    ],
+    "title": "SourceInput",
+    "type": "object"
+  }
+}

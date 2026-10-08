@@ -1,6 +1,6 @@
 {
   "example": "archive-answer",
-  "skill_archive": "examples/skills/packages/archive-answer.zip",
+  "skill_archive": ".local/examples/skills/archive-answer.zip",
   "agent_config": "examples/agents/archive-answer.json",
   "prompt_content": "examples/agents/prompts/archive-answer.json",
   "resources": {

@@ -1,0 +1,3201 @@
+{
+  "Admission": {
+    "$defs": {
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:Admission",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "admission_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Admission Id",
+        "type": "string"
+      },
+      "expires_at": {
+        "format": "date-time",
+        "title": "Expires At",
+        "type": "string"
+      },
+      "policy_ids": {
+        "items": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        "title": "Policy Ids",
+        "type": "array"
+      },
+      "run_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Run Id",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "state": {
+        "enum": [
+          "HELD",
+          "RELEASED"
+        ],
+        "title": "State",
+        "type": "string"
+      }
+    },
+    "required": [
+      "admission_id",
+      "scope",
+      "run_id",
+      "policy_ids",
+      "state",
+      "expires_at"
+    ],
+    "title": "Admission",
+    "type": "object"
+  },
+  "Artifact": {
+    "$defs": {
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:Artifact",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "artifact_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Artifact Id",
+        "type": "string"
+      },
+      "content_type": {
+        "title": "Content Type",
+        "type": "string"
+      },
+      "download_path": {
+        "title": "Download Path",
+        "type": "string"
+      },
+      "expires_at": {
+        "format": "date-time",
+        "title": "Expires At",
+        "type": "string"
+      },
+      "name": {
+        "title": "Name",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "sha256": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Sha256",
+        "type": "string"
+      },
+      "size_bytes": {
+        "minimum": 0,
+        "title": "Size Bytes",
+        "type": "integer"
+      },
+      "state": {
+        "enum": [
+          "STAGED",
+          "AVAILABLE",
+          "DELETING",
+          "DELETED"
+        ],
+        "title": "State",
+        "type": "string"
+      }
+    },
+    "required": [
+      "artifact_id",
+      "scope",
+      "name",
+      "content_type",
+      "size_bytes",
+      "sha256",
+      "state",
+      "expires_at",
+      "download_path"
+    ],
+    "title": "Artifact",
+    "type": "object"
+  },
+  "Attempt": {
+    "$defs": {
+      "RunError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "retryable": {
+            "title": "Retryable",
+            "type": "boolean"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "stage",
+          "retryable",
+          "request_id"
+        ],
+        "title": "RunError",
+        "type": "object"
+      },
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:Attempt",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "attempt_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Attempt Id",
+        "type": "string"
+      },
+      "error": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/RunError"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "finished_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Finished At"
+      },
+      "kind": {
+        "enum": [
+          "model",
+          "tool"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "run_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Run Id",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "source_request_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Source Request Id"
+      },
+      "started_at": {
+        "format": "date-time",
+        "title": "Started At",
+        "type": "string"
+      },
+      "state": {
+        "enum": [
+          "STARTED",
+          "SUCCEEDED",
+          "FAILED",
+          "UNKNOWN"
+        ],
+        "title": "State",
+        "type": "string"
+      },
+      "step_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Step Id",
+        "type": "string"
+      },
+      "target_version_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Target Version Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "scope",
+      "attempt_id",
+      "run_id",
+      "step_id",
+      "kind",
+      "target_version_id",
+      "source_request_id",
+      "state",
+      "started_at",
+      "finished_at",
+      "error"
+    ],
+    "title": "Attempt",
+    "type": "object"
+  },
+  "AuthContext": {
+    "$defs": {
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:AuthContext",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "actor_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Actor Id"
+      },
+      "client_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Client Id"
+      },
+      "delegation_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Delegation Id"
+      },
+      "granted_actions": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Granted Actions",
+        "type": "array",
+        "uniqueItems": true
+      },
+      "key_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Key Id"
+      },
+      "principal_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Principal Id",
+        "type": "string"
+      },
+      "principal_type": {
+        "enum": [
+          "management",
+          "service",
+          "worker"
+        ],
+        "title": "Principal Type",
+        "type": "string"
+      },
+      "request_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Request Id",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "session_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Session Id"
+      },
+      "token_digest": {
+        "anyOf": [
+          {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Token Digest"
+      }
+    },
+    "required": [
+      "scope",
+      "principal_type",
+      "principal_id",
+      "request_id"
+    ],
+    "title": "AuthContext",
+    "type": "object"
+  },
+  "BudgetReservation": {
+    "$defs": {
+      "Money": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "title": "Money",
+        "type": "object"
+      },
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:BudgetReservation",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "attempt_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Attempt Id",
+        "type": "string"
+      },
+      "expires_at": {
+        "format": "date-time",
+        "title": "Expires At",
+        "type": "string"
+      },
+      "policy_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Policy Id",
+        "type": "string"
+      },
+      "reservation_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Reservation Id",
+        "type": "string"
+      },
+      "reserved": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Money"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "run_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Run Id",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "state": {
+        "enum": [
+          "HELD",
+          "PENDING",
+          "SETTLED",
+          "RELEASED"
+        ],
+        "title": "State",
+        "type": "string"
+      },
+      "token_limit": {
+        "anyOf": [
+          {
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Token Limit"
+      }
+    },
+    "required": [
+      "reservation_id",
+      "scope",
+      "run_id",
+      "attempt_id",
+      "policy_id",
+      "reserved",
+      "token_limit",
+      "state",
+      "expires_at"
+    ],
+    "title": "BudgetReservation",
+    "type": "object"
+  },
+  "ChannelState": {
+    "$id": "urn:creativity:core:1.2.0:ChannelState",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "channel_active": {
+        "title": "Channel Active",
+        "type": "boolean"
+      },
+      "channel_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Channel Id",
+        "type": "string"
+      },
+      "channel_status": {
+        "anyOf": [
+          {
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "ARCHIVED"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Channel Status"
+      },
+      "client_active": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Client Active"
+      },
+      "environment": {
+        "enum": [
+          "dev",
+          "test",
+          "fat",
+          "prod"
+        ],
+        "title": "Environment",
+        "type": "string"
+      },
+      "environment_active": {
+        "title": "Environment Active",
+        "type": "boolean"
+      },
+      "key_active": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Key Active"
+      },
+      "membership_active": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Membership Active"
+      }
+    },
+    "required": [
+      "channel_id",
+      "environment",
+      "channel_active",
+      "environment_active",
+      "membership_active",
+      "client_active",
+      "key_active"
+    ],
+    "title": "ChannelState",
+    "type": "object"
+  },
+  "ControlAuthContext": {
+    "$defs": {
+      "ControlScope": {
+        "additionalProperties": false,
+        "properties": {
+          "actor_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "channel_id": {
+            "const": "system",
+            "default": "system",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "identity_lookup",
+              "channel_directory",
+              "platform_limits",
+              "accounts",
+              "roles",
+              "catalog",
+              "templates",
+              "audit"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          }
+        },
+        "required": [
+          "purpose",
+          "actor_id"
+        ],
+        "title": "ControlScope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:ControlAuthContext",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "granted_actions": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Granted Actions",
+        "type": "array",
+        "uniqueItems": true
+      },
+      "principal_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Principal Id",
+        "type": "string"
+      },
+      "principal_type": {
+        "const": "management",
+        "default": "management",
+        "title": "Principal Type",
+        "type": "string"
+      },
+      "request_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Request Id",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/ControlScope"
+      },
+      "session_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Session Id",
+        "type": "string"
+      },
+      "token_digest": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Token Digest",
+        "type": "string"
+      }
+    },
+    "required": [
+      "scope",
+      "principal_id",
+      "request_id",
+      "session_id",
+      "token_digest"
+    ],
+    "title": "ControlAuthContext",
+    "type": "object"
+  },
+  "ControlScope": {
+    "$id": "urn:creativity:core:1.2.0:ControlScope",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "actor_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Actor Id",
+        "type": "string"
+      },
+      "channel_id": {
+        "const": "system",
+        "default": "system",
+        "title": "Channel Id",
+        "type": "string"
+      },
+      "purpose": {
+        "enum": [
+          "identity_lookup",
+          "channel_directory",
+          "platform_limits",
+          "accounts",
+          "roles",
+          "catalog",
+          "templates",
+          "audit"
+        ],
+        "title": "Purpose",
+        "type": "string"
+      }
+    },
+    "required": [
+      "purpose",
+      "actor_id"
+    ],
+    "title": "ControlScope",
+    "type": "object"
+  },
+  "DeletionGuardResult": {
+    "$defs": {
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:DeletionGuardResult",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "allowed": {
+        "const": true,
+        "default": true,
+        "title": "Allowed",
+        "type": "boolean"
+      },
+      "checked_at": {
+        "format": "date-time",
+        "title": "Checked At",
+        "type": "string"
+      },
+      "operation": {
+        "enum": [
+          "read",
+          "write",
+          "restore"
+        ],
+        "title": "Operation",
+        "type": "string"
+      },
+      "recovery_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Recovery Id",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "target_id": {
+        "title": "Target Id",
+        "type": "string"
+      },
+      "target_type": {
+        "title": "Target Type",
+        "type": "string"
+      }
+    },
+    "required": [
+      "scope",
+      "target_type",
+      "target_id",
+      "operation",
+      "checked_at",
+      "recovery_id"
+    ],
+    "title": "DeletionGuardResult",
+    "type": "object"
+  },
+  "DisplayStatus": {
+    "$id": "urn:creativity:core:1.2.0:DisplayStatus",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "label": {
+        "title": "Label",
+        "type": "string"
+      },
+      "tone": {
+        "enum": [
+          "default",
+          "success",
+          "processing",
+          "warning",
+          "error"
+        ],
+        "title": "Tone",
+        "type": "string"
+      },
+      "value": {
+        "title": "Value",
+        "type": "string"
+      }
+    },
+    "required": [
+      "value",
+      "label",
+      "tone"
+    ],
+    "title": "DisplayStatus",
+    "type": "object"
+  },
+  "EventCursorExpired": {
+    "$id": "urn:creativity:core:1.2.0:EventCursorExpired",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "code": {
+        "const": "EVENTS_EXPIRED",
+        "default": "EVENTS_EXPIRED",
+        "title": "Code",
+        "type": "string"
+      },
+      "message": {
+        "default": "事件已过期，请查询运行结果",
+        "title": "Message",
+        "type": "string"
+      },
+      "run_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Run Id",
+        "type": "string"
+      },
+      "snapshot_path": {
+        "title": "Snapshot Path",
+        "type": "string"
+      }
+    },
+    "required": [
+      "run_id",
+      "snapshot_path"
+    ],
+    "title": "EventCursorExpired",
+    "type": "object"
+  },
+  "EvidenceRef": {
+    "$defs": {
+      "EvidenceLocation": {
+        "additionalProperties": false,
+        "properties": {
+          "field_path": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Path"
+          },
+          "text_end": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text End"
+          },
+          "text_start": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Start"
+          }
+        },
+        "required": [
+          "field_path",
+          "text_start",
+          "text_end"
+        ],
+        "title": "EvidenceLocation",
+        "type": "object"
+      },
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:EvidenceRef",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "authorized_actions": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Authorized Actions",
+        "type": "array"
+      },
+      "evidence_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Evidence Id",
+        "type": "string"
+      },
+      "location": {
+        "$ref": "#/$defs/EvidenceLocation"
+      },
+      "observed_at": {
+        "format": "date-time",
+        "title": "Observed At",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "source_id": {
+        "title": "Source Id",
+        "type": "string"
+      },
+      "source_type": {
+        "title": "Source Type",
+        "type": "string"
+      },
+      "source_version": {
+        "title": "Source Version",
+        "type": "string"
+      },
+      "title": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Title"
+      }
+    },
+    "required": [
+      "evidence_id",
+      "scope",
+      "source_type",
+      "source_id",
+      "source_version",
+      "observed_at",
+      "location",
+      "title",
+      "authorized_actions"
+    ],
+    "title": "EvidenceRef",
+    "type": "object"
+  },
+  "IdentitySource": {
+    "$defs": {
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:IdentitySource",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "运行保存原始身份来源，不保存浏览器 Token 或历史权限快照。",
+    "properties": {
+      "actor_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Actor Id"
+      },
+      "client_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Client Id"
+      },
+      "delegation_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Delegation Id"
+      },
+      "key_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Key Id"
+      },
+      "principal_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Principal Id",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "source_type": {
+        "enum": [
+          "management",
+          "service"
+        ],
+        "title": "Source Type",
+        "type": "string"
+      }
+    },
+    "required": [
+      "scope",
+      "source_type",
+      "principal_id"
+    ],
+    "title": "IdentitySource",
+    "type": "object"
+  },
+  "NavigationItem": {
+    "$defs": {
+      "NavigationGroup": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "NavigationGroup",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:NavigationItem",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "ancestors": {
+        "items": {
+          "$ref": "#/$defs/NavigationGroup"
+        },
+        "title": "Ancestors",
+        "type": "array"
+      },
+      "label": {
+        "title": "Label",
+        "type": "string"
+      },
+      "navigation_key": {
+        "title": "Navigation Key",
+        "type": "string"
+      }
+    },
+    "required": [
+      "navigation_key",
+      "label"
+    ],
+    "title": "NavigationItem",
+    "type": "object"
+  },
+  "ReleaseSnapshot": {
+    "$defs": {
+      "JsonValue": {},
+      "ResourceVersion": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "configuration_revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Configuration Revision"
+          },
+          "content": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Content",
+            "type": "object"
+          },
+          "content_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Content Digest",
+            "type": "string"
+          },
+          "dependencies_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Dependencies Digest",
+            "type": "string"
+          },
+          "dependency_version_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            "title": "Dependency Version Ids",
+            "type": "array"
+          },
+          "draft_revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Revision"
+          },
+          "output_schema": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Output Schema",
+            "type": "object"
+          },
+          "resource_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "resource_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Resource Name"
+          },
+          "resource_type": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Resource Type",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "RETIRED"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_label": {
+            "title": "Version Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel_id",
+          "resource_type",
+          "resource_id",
+          "version_id",
+          "version_label",
+          "state",
+          "draft_revision",
+          "content",
+          "content_digest",
+          "dependency_version_ids",
+          "dependencies_digest",
+          "output_schema"
+        ],
+        "title": "ResourceVersion",
+        "type": "object"
+      },
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:ReleaseSnapshot",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "captured_at": {
+        "format": "date-time",
+        "title": "Captured At",
+        "type": "string"
+      },
+      "dependencies_digest": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Dependencies Digest",
+        "type": "string"
+      },
+      "output_schema": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Output Schema",
+        "type": "object"
+      },
+      "purpose": {
+        "enum": [
+          "production",
+          "debug",
+          "evaluation"
+        ],
+        "title": "Purpose",
+        "type": "string"
+      },
+      "run_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Run Id",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "snapshot_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Snapshot Id",
+        "type": "string"
+      },
+      "versions": {
+        "items": {
+          "$ref": "#/$defs/ResourceVersion"
+        },
+        "title": "Versions",
+        "type": "array"
+      }
+    },
+    "required": [
+      "snapshot_id",
+      "scope",
+      "run_id",
+      "purpose",
+      "versions",
+      "dependencies_digest",
+      "output_schema",
+      "captured_at"
+    ],
+    "title": "ReleaseSnapshot",
+    "type": "object"
+  },
+  "ResourceVersion": {
+    "$defs": {
+      "JsonValue": {}
+    },
+    "$id": "urn:creativity:core:1.2.0:ResourceVersion",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "channel_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Channel Id",
+        "type": "string"
+      },
+      "configuration_revision": {
+        "anyOf": [
+          {
+            "minimum": 1,
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Configuration Revision"
+      },
+      "content": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Content",
+        "type": "object"
+      },
+      "content_digest": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Content Digest",
+        "type": "string"
+      },
+      "dependencies_digest": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Dependencies Digest",
+        "type": "string"
+      },
+      "dependency_version_ids": {
+        "items": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        "title": "Dependency Version Ids",
+        "type": "array"
+      },
+      "draft_revision": {
+        "anyOf": [
+          {
+            "minimum": 1,
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Draft Revision"
+      },
+      "output_schema": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Output Schema",
+        "type": "object"
+      },
+      "resource_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Resource Id",
+        "type": "string"
+      },
+      "resource_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Resource Name"
+      },
+      "resource_type": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Resource Type",
+        "type": "string"
+      },
+      "state": {
+        "enum": [
+          "DRAFT",
+          "PUBLISHED",
+          "RETIRED"
+        ],
+        "title": "State",
+        "type": "string"
+      },
+      "version_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Version Id",
+        "type": "string"
+      },
+      "version_label": {
+        "title": "Version Label",
+        "type": "string"
+      }
+    },
+    "required": [
+      "channel_id",
+      "resource_type",
+      "resource_id",
+      "version_id",
+      "version_label",
+      "state",
+      "draft_revision",
+      "content",
+      "content_digest",
+      "dependency_version_ids",
+      "dependencies_digest",
+      "output_schema"
+    ],
+    "title": "ResourceVersion",
+    "type": "object"
+  },
+  "ResultEnvelope": {
+    "$defs": {
+      "Artifact": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "download_path": {
+            "title": "Download Path",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/Scope"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size_bytes": {
+            "minimum": 0,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "STAGED",
+              "AVAILABLE",
+              "DELETING",
+              "DELETED"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "scope",
+          "name",
+          "content_type",
+          "size_bytes",
+          "sha256",
+          "state",
+          "expires_at",
+          "download_path"
+        ],
+        "title": "Artifact",
+        "type": "object"
+      },
+      "BusinessResult": {
+        "additionalProperties": false,
+        "properties": {
+          "business_status": {
+            "enum": [
+              "COMPLETED",
+              "NEEDS_INPUT",
+              "NO_MATCH",
+              "INSUFFICIENT_DATA",
+              "PARTIAL"
+            ],
+            "title": "Business Status",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Data",
+            "type": "object"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/$defs/EvidenceRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "business_status",
+          "data",
+          "warnings",
+          "evidence_refs"
+        ],
+        "title": "BusinessResult",
+        "type": "object"
+      },
+      "EvidenceLocation": {
+        "additionalProperties": false,
+        "properties": {
+          "field_path": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Path"
+          },
+          "text_end": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text End"
+          },
+          "text_start": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Start"
+          }
+        },
+        "required": [
+          "field_path",
+          "text_start",
+          "text_end"
+        ],
+        "title": "EvidenceLocation",
+        "type": "object"
+      },
+      "EvidenceRef": {
+        "additionalProperties": false,
+        "properties": {
+          "authorized_actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Authorized Actions",
+            "type": "array"
+          },
+          "evidence_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Evidence Id",
+            "type": "string"
+          },
+          "location": {
+            "$ref": "#/$defs/EvidenceLocation"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/Scope"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_version": {
+            "title": "Source Version",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "scope",
+          "source_type",
+          "source_id",
+          "source_version",
+          "observed_at",
+          "location",
+          "title",
+          "authorized_actions"
+        ],
+        "title": "EvidenceRef",
+        "type": "object"
+      },
+      "JsonValue": {},
+      "RunError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "retryable": {
+            "title": "Retryable",
+            "type": "boolean"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "stage",
+          "retryable",
+          "request_id"
+        ],
+        "title": "RunError",
+        "type": "object"
+      },
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:ResultEnvelope",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "artifacts": {
+        "items": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "title": "Artifacts",
+        "type": "array"
+      },
+      "channel_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Channel Id",
+        "type": "string"
+      },
+      "error": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/RunError"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "partial_output": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/JsonValue"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "release_snapshot_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Release Snapshot Id",
+        "type": "string"
+      },
+      "result": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/BusinessResult"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "run_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Run Id",
+        "type": "string"
+      },
+      "state": {
+        "enum": [
+          "QUEUED",
+          "RUNNING",
+          "WAITING_INPUT",
+          "WAITING_APPROVAL",
+          "CANCEL_REQUESTED",
+          "SUCCEEDED",
+          "FAILED",
+          "CANCELLED",
+          "TIMED_OUT"
+        ],
+        "title": "State",
+        "type": "string"
+      },
+      "state_label": {
+        "title": "State Label",
+        "type": "string"
+      },
+      "usage_summary": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Usage Summary",
+        "type": "object"
+      }
+    },
+    "required": [
+      "channel_id",
+      "run_id",
+      "state",
+      "state_label",
+      "release_snapshot_id",
+      "result",
+      "partial_output",
+      "error",
+      "usage_summary",
+      "artifacts"
+    ],
+    "title": "ResultEnvelope",
+    "type": "object"
+  },
+  "RunEvent": {
+    "$defs": {
+      "JsonValue": {},
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:RunEvent",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "event_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Event Id",
+        "type": "string"
+      },
+      "event_type": {
+        "enum": [
+          "accepted",
+          "step_started",
+          "text_delta",
+          "tool_status",
+          "result",
+          "error",
+          "completed"
+        ],
+        "title": "Event Type",
+        "type": "string"
+      },
+      "expires_at": {
+        "format": "date-time",
+        "title": "Expires At",
+        "type": "string"
+      },
+      "occurred_at": {
+        "format": "date-time",
+        "title": "Occurred At",
+        "type": "string"
+      },
+      "payload": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "run_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Run Id",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "sequence": {
+        "minimum": 1,
+        "title": "Sequence",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "scope",
+      "event_id",
+      "run_id",
+      "sequence",
+      "event_type",
+      "payload",
+      "occurred_at",
+      "expires_at"
+    ],
+    "title": "RunEvent",
+    "type": "object"
+  },
+  "Scope": {
+    "$id": "urn:creativity:core:1.2.0:Scope",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "channel_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Channel Id",
+        "type": "string"
+      },
+      "environment": {
+        "enum": [
+          "dev",
+          "test",
+          "fat",
+          "prod"
+        ],
+        "title": "Environment",
+        "type": "string"
+      },
+      "subject_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Subject Id"
+      },
+      "subject_type": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Subject Type"
+      }
+    },
+    "required": [
+      "channel_id",
+      "environment"
+    ],
+    "title": "Scope",
+    "type": "object"
+  },
+  "ToolResult": {
+    "$defs": {
+      "EvidenceLocation": {
+        "additionalProperties": false,
+        "properties": {
+          "field_path": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Path"
+          },
+          "text_end": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text End"
+          },
+          "text_start": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Start"
+          }
+        },
+        "required": [
+          "field_path",
+          "text_start",
+          "text_end"
+        ],
+        "title": "EvidenceLocation",
+        "type": "object"
+      },
+      "EvidenceRef": {
+        "additionalProperties": false,
+        "properties": {
+          "authorized_actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Authorized Actions",
+            "type": "array"
+          },
+          "evidence_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Evidence Id",
+            "type": "string"
+          },
+          "location": {
+            "$ref": "#/$defs/EvidenceLocation"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/Scope"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_version": {
+            "title": "Source Version",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "scope",
+          "source_type",
+          "source_id",
+          "source_version",
+          "observed_at",
+          "location",
+          "title",
+          "authorized_actions"
+        ],
+        "title": "EvidenceRef",
+        "type": "object"
+      },
+      "JsonValue": {},
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:ToolResult",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "coverage": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Coverage",
+        "type": "object"
+      },
+      "cursor": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Cursor"
+      },
+      "data": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "evidence_refs": {
+        "items": {
+          "$ref": "#/$defs/EvidenceRef"
+        },
+        "title": "Evidence Refs",
+        "type": "array"
+      },
+      "has_more": {
+        "title": "Has More",
+        "type": "boolean"
+      },
+      "observed_at": {
+        "format": "date-time",
+        "title": "Observed At",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "source_request_id": {
+        "title": "Source Request Id",
+        "type": "string"
+      },
+      "source_version": {
+        "title": "Source Version",
+        "type": "string"
+      },
+      "tool_version_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Tool Version Id",
+        "type": "string"
+      },
+      "truncated": {
+        "title": "Truncated",
+        "type": "boolean"
+      },
+      "warnings": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Warnings",
+        "type": "array"
+      }
+    },
+    "required": [
+      "scope",
+      "tool_version_id",
+      "source_request_id",
+      "source_version",
+      "observed_at",
+      "data",
+      "evidence_refs",
+      "warnings",
+      "cursor",
+      "has_more",
+      "truncated",
+      "coverage"
+    ],
+    "title": "ToolResult",
+    "type": "object"
+  },
+  "UsageEvent": {
+    "$defs": {
+      "JsonValue": {},
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:UsageEvent",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "attempt_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Attempt Id",
+        "type": "string"
+      },
+      "connection_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Connection Id",
+        "type": "string"
+      },
+      "cumulative": {
+        "title": "Cumulative",
+        "type": "boolean"
+      },
+      "event_version": {
+        "minimum": 1,
+        "title": "Event Version",
+        "type": "integer"
+      },
+      "final": {
+        "title": "Final",
+        "type": "boolean"
+      },
+      "normalized_tokens": {
+        "additionalProperties": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": "Normalized Tokens",
+        "type": "object"
+      },
+      "observed_at": {
+        "format": "date-time",
+        "title": "Observed At",
+        "type": "string"
+      },
+      "raw_usage": {
+        "anyOf": [
+          {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Raw Usage"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "source_request_id": {
+        "title": "Source Request Id",
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "REPORTED",
+          "ESTIMATED",
+          "MISSING"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "subset_relations": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "title": "Subset Relations",
+        "type": "object"
+      }
+    },
+    "required": [
+      "scope",
+      "attempt_id",
+      "connection_id",
+      "source_request_id",
+      "event_version",
+      "status",
+      "raw_usage",
+      "normalized_tokens",
+      "subset_relations",
+      "cumulative",
+      "final",
+      "observed_at"
+    ],
+    "title": "UsageEvent",
+    "type": "object"
+  },
+  "VersionOption": {
+    "$defs": {
+      "DisplayStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "tone": {
+            "enum": [
+              "default",
+              "success",
+              "processing",
+              "warning",
+              "error"
+            ],
+            "title": "Tone",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label",
+          "tone"
+        ],
+        "title": "DisplayStatus",
+        "type": "object"
+      }
+    },
+    "$id": "urn:creativity:core:1.2.0:VersionOption",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "resource_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Resource Name"
+      },
+      "selectable": {
+        "title": "Selectable",
+        "type": "boolean"
+      },
+      "status": {
+        "$ref": "#/$defs/DisplayStatus"
+      },
+      "unavailable_reason": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Unavailable Reason"
+      },
+      "version_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Version Id",
+        "type": "string"
+      },
+      "version_label": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Version Label"
+      }
+    },
+    "required": [
+      "version_id",
+      "resource_name",
+      "version_label",
+      "status",
+      "selectable",
+      "unavailable_reason"
+    ],
+    "title": "VersionOption",
+    "type": "object"
+  },
+  "VisibleAction": {
+    "$id": "urn:creativity:core:1.2.0:VisibleAction",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "action_key": {
+        "title": "Action Key",
+        "type": "string"
+      },
+      "label": {
+        "title": "Label",
+        "type": "string"
+      }
+    },
+    "required": [
+      "action_key",
+      "label"
+    ],
+    "title": "VisibleAction",
+    "type": "object"
+  }
+}

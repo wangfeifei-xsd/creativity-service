@@ -24,7 +24,7 @@ Python 3.12、uv 0.10.12；基础设施为 PostgreSQL、Redis 和 S3 兼容对�
 
 从服务端认证得到 `AuthContext/Scope`，在模块服务中组织业务，再使用公共事务、锁、版本与文件能力。模块通过装配函数登记路由、资源读取器和清理处理器；公共层契约见 [contracts](../contracts/README.md)。
 
-受理事务示例见 [admission.py](../examples/development/admission.py)。受理时固定版本和依赖；调用外部模型或工具的步骤交给统一运行服务，具体端口见 [运行指南](runtime.md#runs)。
+受理事务实现见 [AdmissionService](../src/creativity_service/modules/runs/admission.py)。受理时固定版本和依赖；调用外部模型或工具的步骤交给统一运行服务，具体端口见 [运行指南](runtime.md#runs)。
 
 模型变更同步维护 [catalog.json](data-model/catalog.json)、Alembic 修订与 [初始化 SQL](../sql/README.md)。字段文档通过 `uv run python scripts/render_data_model.py` 生成。接口变更执行 `make contracts`，然后按 [前端说明](../../creativity-web/README.md#接口类型生成) 更新生成类型。
 

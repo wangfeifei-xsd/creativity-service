@@ -1,0 +1,1000 @@
+{
+  "AdapterResult": {
+    "$defs": {
+      "EvidenceLocation": {
+        "additionalProperties": false,
+        "properties": {
+          "field_path": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Path"
+          },
+          "text_end": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text End"
+          },
+          "text_start": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Start"
+          }
+        },
+        "required": [
+          "field_path",
+          "text_start",
+          "text_end"
+        ],
+        "title": "EvidenceLocation",
+        "type": "object"
+      },
+      "EvidenceRef": {
+        "additionalProperties": false,
+        "properties": {
+          "authorized_actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Authorized Actions",
+            "type": "array"
+          },
+          "evidence_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Evidence Id",
+            "type": "string"
+          },
+          "location": {
+            "$ref": "#/$defs/EvidenceLocation"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/Scope"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_version": {
+            "title": "Source Version",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "scope",
+          "source_type",
+          "source_id",
+          "source_version",
+          "observed_at",
+          "location",
+          "title",
+          "authorized_actions"
+        ],
+        "title": "EvidenceRef",
+        "type": "object"
+      },
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      },
+      "SourceEvidence": {
+        "additionalProperties": false,
+        "description": "源端引用先校验范围，再由执行器生成本平台调用证据；不能伪造平台证据标识。",
+        "properties": {
+          "location": {
+            "$ref": "#/$defs/EvidenceLocation"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/Scope"
+          },
+          "source_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_version": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Version",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "source_id",
+          "source_version",
+          "observed_at",
+          "title",
+          "location"
+        ],
+        "title": "SourceEvidence",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "artifact_ids": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "title": "Artifact Ids",
+        "type": "array"
+      },
+      "coverage": {
+        "additionalProperties": true,
+        "title": "Coverage",
+        "type": "object"
+      },
+      "cursor": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Cursor"
+      },
+      "data": {
+        "title": "Data"
+      },
+      "evidence_refs": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/EvidenceRef"
+        },
+        "title": "Evidence Refs",
+        "type": "array"
+      },
+      "has_more": {
+        "default": false,
+        "title": "Has More",
+        "type": "boolean"
+      },
+      "observed_at": {
+        "format": "date-time",
+        "title": "Observed At",
+        "type": "string"
+      },
+      "source_evidence": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/SourceEvidence"
+        },
+        "title": "Source Evidence",
+        "type": "array"
+      },
+      "source_request_id": {
+        "maxLength": 256,
+        "minLength": 1,
+        "title": "Source Request Id",
+        "type": "string"
+      },
+      "source_version": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Source Version",
+        "type": "string"
+      },
+      "truncated": {
+        "default": false,
+        "title": "Truncated",
+        "type": "boolean"
+      },
+      "warnings": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "title": "Warnings",
+        "type": "array"
+      }
+    },
+    "required": [
+      "data",
+      "source_request_id",
+      "source_version",
+      "observed_at"
+    ],
+    "title": "AdapterResult",
+    "type": "object"
+  },
+  "RunToolGrant": {
+    "$defs": {
+      "JsonValue": {},
+      "ResourceVersion": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "configuration_revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Configuration Revision"
+          },
+          "content": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Content",
+            "type": "object"
+          },
+          "content_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Content Digest",
+            "type": "string"
+          },
+          "dependencies_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Dependencies Digest",
+            "type": "string"
+          },
+          "dependency_version_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            "title": "Dependency Version Ids",
+            "type": "array"
+          },
+          "draft_revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Revision"
+          },
+          "output_schema": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Output Schema",
+            "type": "object"
+          },
+          "resource_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "resource_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Resource Name"
+          },
+          "resource_type": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Resource Type",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "RETIRED"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_label": {
+            "title": "Version Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel_id",
+          "resource_type",
+          "resource_id",
+          "version_id",
+          "version_label",
+          "state",
+          "draft_revision",
+          "content",
+          "content_digest",
+          "dependency_version_ids",
+          "dependencies_digest",
+          "output_schema"
+        ],
+        "title": "ResourceVersion",
+        "type": "object"
+      },
+      "Scope": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Channel Id",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "dev",
+              "test",
+              "fat",
+              "prod"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "channel_id",
+          "environment"
+        ],
+        "title": "Scope",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "description": "由 17 读取持久化运行、Agent 白名单和当前授权后提供。",
+    "properties": {
+      "agent_version_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Agent Version Id",
+        "type": "string"
+      },
+      "allowed_actions": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Allowed Actions",
+        "type": "array",
+        "uniqueItems": true
+      },
+      "authorization_revision": {
+        "title": "Authorization Revision",
+        "type": "string"
+      },
+      "draft_revisions": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "title": "Draft Revisions",
+        "type": "object"
+      },
+      "frozen_skills": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/ResourceVersion"
+        },
+        "title": "Frozen Skills",
+        "type": "array"
+      },
+      "frozen_tool": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ResourceVersion"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "purpose": {
+        "enum": [
+          "production",
+          "debug",
+          "evaluation"
+        ],
+        "title": "Purpose",
+        "type": "string"
+      },
+      "run_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Run Id",
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/$defs/Scope"
+      },
+      "step_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Step Id",
+        "type": "string"
+      },
+      "tool_version_ids": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Tool Version Ids",
+        "type": "array",
+        "uniqueItems": true
+      }
+    },
+    "required": [
+      "scope",
+      "run_id",
+      "step_id",
+      "agent_version_id",
+      "tool_version_ids",
+      "allowed_actions",
+      "authorization_revision",
+      "purpose"
+    ],
+    "title": "RunToolGrant",
+    "type": "object"
+  },
+  "ToolDefinition": {
+    "$defs": {
+      "AnalysisPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "max_rows": {
+            "default": 1000,
+            "maximum": 10000,
+            "minimum": 1,
+            "title": "Max Rows",
+            "type": "integer"
+          },
+          "rows_path": {
+            "default": [
+              "rows"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "title": "Rows Path",
+            "type": "array"
+          }
+        },
+        "title": "AnalysisPolicy",
+        "type": "object"
+      },
+      "CachePolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "freshness_seconds": {
+            "default": 60,
+            "maximum": 86400,
+            "minimum": 1,
+            "title": "Freshness Seconds",
+            "type": "integer"
+          },
+          "ttl_seconds": {
+            "default": 0,
+            "maximum": 3600,
+            "minimum": 0,
+            "title": "Ttl Seconds",
+            "type": "integer"
+          },
+          "volatile": {
+            "default": false,
+            "title": "Volatile",
+            "type": "boolean"
+          }
+        },
+        "title": "CachePolicy",
+        "type": "object"
+      },
+      "RetryPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "delay_ms": {
+            "default": 100,
+            "maximum": 2000,
+            "minimum": 0,
+            "title": "Delay Ms",
+            "type": "integer"
+          },
+          "max_attempts": {
+            "default": 1,
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Max Attempts",
+            "type": "integer"
+          }
+        },
+        "title": "RetryPolicy",
+        "type": "object"
+      },
+      "ScriptBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9_/-]+\\.py$",
+            "title": "Path",
+            "type": "string"
+          },
+          "profile_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Profile Digest",
+            "type": "string"
+          },
+          "profile_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "skill_version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Skill Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "profile_digest",
+          "skill_version_id",
+          "path"
+        ],
+        "title": "ScriptBinding",
+        "type": "object"
+      },
+      "SubjectRequirements": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_types": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Types",
+            "type": "array"
+          },
+          "required": {
+            "default": true,
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "title": "SubjectRequirements",
+        "type": "object"
+      },
+      "ToolBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "adapter_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Adapter Key",
+            "type": "string"
+          },
+          "connection_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Connection Id"
+          },
+          "implementation_version": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Implementation Version",
+            "type": "string"
+          },
+          "script": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ScriptBinding"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "adapter_key",
+          "implementation_version"
+        ],
+        "title": "ToolBinding",
+        "type": "object"
+      },
+      "WritePolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "max_checks": {
+            "default": 3,
+            "maximum": 10,
+            "minimum": 1,
+            "title": "Max Checks",
+            "type": "integer"
+          },
+          "max_submissions": {
+            "default": 1,
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Max Submissions",
+            "type": "integer"
+          },
+          "status_tool_version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Status Tool Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status_tool_version_id"
+        ],
+        "title": "WritePolicy",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "analysis_policy": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/AnalysisPolicy"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "binding": {
+        "$ref": "#/$defs/ToolBinding"
+      },
+      "cache_policy": {
+        "$ref": "#/$defs/CachePolicy",
+        "default": {
+          "freshness_seconds": 60,
+          "ttl_seconds": 0,
+          "volatile": false
+        }
+      },
+      "effect_type": {
+        "enum": [
+          "READ_ONLY",
+          "IDEMPOTENT_WRITE",
+          "EXTERNAL_WRITE"
+        ],
+        "title": "Effect Type",
+        "type": "string"
+      },
+      "environments": {
+        "items": {
+          "enum": [
+            "dev",
+            "test",
+            "fat",
+            "prod"
+          ],
+          "type": "string"
+        },
+        "title": "Environments",
+        "type": "array"
+      },
+      "idempotency_policy": {
+        "default": "none",
+        "enum": [
+          "none",
+          "source_key"
+        ],
+        "title": "Idempotency Policy",
+        "type": "string"
+      },
+      "input_schema": {
+        "additionalProperties": true,
+        "title": "Input Schema",
+        "type": "object"
+      },
+      "max_result_size": {
+        "default": 262144,
+        "maximum": 2097152,
+        "minimum": 256,
+        "title": "Max Result Size",
+        "type": "integer"
+      },
+      "model_fields_allowed": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Model Fields Allowed",
+        "type": "array"
+      },
+      "output_schema": {
+        "additionalProperties": true,
+        "title": "Output Schema",
+        "type": "object"
+      },
+      "required_scopes": {
+        "default": [
+          "run:create"
+        ],
+        "items": {
+          "type": "string"
+        },
+        "title": "Required Scopes",
+        "type": "array"
+      },
+      "retry_policy": {
+        "$ref": "#/$defs/RetryPolicy",
+        "default": {
+          "delay_ms": 100,
+          "max_attempts": 1
+        }
+      },
+      "subject_requirements": {
+        "$ref": "#/$defs/SubjectRequirements",
+        "default": {
+          "allowed_types": [],
+          "required": true
+        }
+      },
+      "timeout_seconds": {
+        "default": 10,
+        "maximum": 120,
+        "minimum": 1,
+        "title": "Timeout Seconds",
+        "type": "integer"
+      },
+      "write_policy": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/WritePolicy"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "input_schema",
+      "output_schema",
+      "model_fields_allowed",
+      "binding",
+      "effect_type",
+      "environments"
+    ],
+    "title": "ToolDefinition",
+    "type": "object"
+  },
+  "ToolExecution": {
+    "additionalProperties": false,
+    "description": "只供运行服务调用；不会登记为业务 HTTP 入参。",
+    "properties": {
+      "arguments": {
+        "additionalProperties": true,
+        "title": "Arguments",
+        "type": "object"
+      },
+      "run_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Run Id",
+        "type": "string"
+      },
+      "step_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Step Id",
+        "type": "string"
+      },
+      "tool_version_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Tool Version Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "run_id",
+      "step_id",
+      "tool_version_id",
+      "arguments"
+    ],
+    "title": "ToolExecution",
+    "type": "object"
+  }
+}

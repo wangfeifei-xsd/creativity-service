@@ -12,6 +12,7 @@ from creativity_service.modules.agents.validation import static_issues
 from creativity_service.modules.skills.packages import unpack, validate_files
 from creativity_service.modules.skills.schemas import SkillSettings, SkillToolRequirement
 from examples.agents.prepare import prepare
+from examples.skills.prepare import build_package
 
 
 @pytest.mark.parametrize("name", ["text-brief", "archive-answer"])
@@ -23,7 +24,7 @@ def test_portable_packages_match_source_and_agent_manifests(name):
         if path.is_file()
     }
     package = validate_files(files)
-    stored = (root / "packages" / f"{name}.zip").read_bytes()
+    stored = build_package(name)
     assert stored == package.archive(portable=True)
     assert not unpack(stored).settings.tool_bindings
     manifest = json.loads(Path(f"examples/agents/manifests/{name}.json").read_text())
@@ -49,7 +50,7 @@ def test_new_configuration_rejects_arbitrary_operators_unbound_files_and_bad_sch
         i.path == "bindings.skill_loading"
         for i in static_issues(AgentCreate.model_validate(body).definition)
     )
-    package = unpack(Path("examples/skills/packages/text-brief.zip").read_bytes())
+    package = unpack(build_package("text-brief"))
     settings = SkillSettings(
         tool_requirements=(
             SkillToolRequirement(

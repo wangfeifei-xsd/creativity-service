@@ -1,0 +1,873 @@
+{
+  "SkillDependencySummary": {
+    "additionalProperties": false,
+    "properties": {
+      "channel_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Channel Id",
+        "type": "string"
+      },
+      "content_digest": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Content Digest",
+        "type": "string"
+      },
+      "dependencies_digest": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Dependencies Digest",
+        "type": "string"
+      },
+      "package_hash": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Package Hash",
+        "type": "string"
+      },
+      "required_model_capabilities": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Required Model Capabilities",
+        "type": "array"
+      },
+      "required_tool_versions": {
+        "items": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        "title": "Required Tool Versions",
+        "type": "array"
+      },
+      "skill_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Skill Id",
+        "type": "string"
+      },
+      "version_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Version Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "channel_id",
+      "skill_id",
+      "version_id",
+      "content_digest",
+      "package_hash",
+      "dependencies_digest",
+      "required_tool_versions",
+      "required_model_capabilities"
+    ],
+    "title": "SkillDependencySummary",
+    "type": "object"
+  },
+  "SkillLoadRequest": {
+    "$defs": {
+      "SkillBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "loading_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mandatory",
+                  "on_demand"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Loading Mode"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "maximum": 1000,
+                "minimum": -1000,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Priority"
+          },
+          "selected": {
+            "default": false,
+            "title": "Selected",
+            "type": "boolean"
+          },
+          "selected_files": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 128,
+            "title": "Selected Files",
+            "type": "array"
+          },
+          "trigger_reason": {
+            "default": "按需选择",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Trigger Reason",
+            "type": "string"
+          },
+          "variables": {
+            "additionalProperties": true,
+            "title": "Variables",
+            "type": "object"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id"
+        ],
+        "title": "SkillBinding",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "description": "由 16/17 验证 Agent、模型与工具授权后构造，不能直接作为业务 API 正文。",
+    "properties": {
+      "agent_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Agent Id"
+      },
+      "authorized_tool_versions": {
+        "default": [],
+        "items": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        "title": "Authorized Tool Versions",
+        "type": "array"
+      },
+      "bindings": {
+        "items": {
+          "$ref": "#/$defs/SkillBinding"
+        },
+        "maxItems": 32,
+        "title": "Bindings",
+        "type": "array"
+      },
+      "context_budget": {
+        "default": 32000,
+        "maximum": 200000,
+        "minimum": 1,
+        "title": "Context Budget",
+        "type": "integer"
+      },
+      "model_capabilities": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "title": "Model Capabilities",
+        "type": "array"
+      },
+      "purpose": {
+        "default": "runtime",
+        "enum": [
+          "runtime",
+          "test"
+        ],
+        "title": "Purpose",
+        "type": "string"
+      }
+    },
+    "required": [
+      "bindings"
+    ],
+    "title": "SkillLoadRequest",
+    "type": "object"
+  },
+  "SkillLoadResult": {
+    "$defs": {
+      "SkillDiscovery": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "name",
+          "description",
+          "text"
+        ],
+        "title": "SkillDiscovery",
+        "type": "object"
+      },
+      "SkillIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Path"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "SkillIssue",
+        "type": "object"
+      },
+      "SkillLoadedFile": {
+        "additionalProperties": false,
+        "properties": {
+          "budget_units": {
+            "title": "Budget Units",
+            "type": "integer"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "trigger_reason": {
+            "title": "Trigger Reason",
+            "type": "string"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "path",
+          "sha256",
+          "text",
+          "budget_units",
+          "trigger_reason"
+        ],
+        "title": "SkillLoadedFile",
+        "type": "object"
+      },
+      "SkillOmission": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "path",
+          "reason"
+        ],
+        "title": "SkillOmission",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "budget_unit": {
+        "const": "utf8_bytes",
+        "default": "utf8_bytes",
+        "title": "Budget Unit",
+        "type": "string"
+      },
+      "callable_tool_versions": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Callable Tool Versions",
+        "type": "array"
+      },
+      "complete": {
+        "title": "Complete",
+        "type": "boolean"
+      },
+      "discoveries": {
+        "items": {
+          "$ref": "#/$defs/SkillDiscovery"
+        },
+        "title": "Discoveries",
+        "type": "array"
+      },
+      "issues": {
+        "items": {
+          "$ref": "#/$defs/SkillIssue"
+        },
+        "title": "Issues",
+        "type": "array"
+      },
+      "loaded": {
+        "items": {
+          "$ref": "#/$defs/SkillLoadedFile"
+        },
+        "title": "Loaded",
+        "type": "array"
+      },
+      "omitted": {
+        "items": {
+          "$ref": "#/$defs/SkillOmission"
+        },
+        "title": "Omitted",
+        "type": "array"
+      },
+      "used_budget": {
+        "title": "Used Budget",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "loaded",
+      "discoveries",
+      "omitted",
+      "issues",
+      "used_budget",
+      "callable_tool_versions",
+      "complete"
+    ],
+    "title": "SkillLoadResult",
+    "type": "object"
+  },
+  "SkillSettings": {
+    "$defs": {
+      "SkillToolRequirement": {
+        "additionalProperties": false,
+        "properties": {
+          "input_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Input Schema"
+          },
+          "output_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Output Schema"
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mcp",
+                  "http",
+                  "builtin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source Type"
+          },
+          "tool_code": {
+            "pattern": "^[a-z][a-z0-9_.-]{0,63}$",
+            "title": "Tool Code",
+            "type": "string"
+          },
+          "version_label": {
+            "default": "当前配置",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Version Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool_code"
+        ],
+        "title": "SkillToolRequirement",
+        "type": "object"
+      },
+      "SkillVariable": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_]{0,63}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "default": true,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "value_type": {
+            "default": "string",
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "object",
+              "array"
+            ],
+            "title": "Value Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "label"
+        ],
+        "title": "SkillVariable",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "allowed_agents": {
+        "default": [],
+        "items": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        "maxItems": 64,
+        "title": "Allowed Agents",
+        "type": "array"
+      },
+      "change_note": {
+        "default": "",
+        "maxLength": 4000,
+        "title": "Change Note",
+        "type": "string"
+      },
+      "conflict_groups": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 32,
+        "title": "Conflict Groups",
+        "type": "array"
+      },
+      "context_budget": {
+        "default": 16000,
+        "maximum": 200000,
+        "minimum": 1,
+        "title": "Context Budget",
+        "type": "integer"
+      },
+      "input_variables": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/SkillVariable"
+        },
+        "maxItems": 64,
+        "title": "Input Variables",
+        "type": "array"
+      },
+      "loading_mode": {
+        "default": "on_demand",
+        "enum": [
+          "mandatory",
+          "on_demand"
+        ],
+        "title": "Loading Mode",
+        "type": "string"
+      },
+      "priority": {
+        "default": 0,
+        "maximum": 1000,
+        "minimum": -1000,
+        "title": "Priority",
+        "type": "integer"
+      },
+      "required_model_capabilities": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 16,
+        "title": "Required Model Capabilities",
+        "type": "array"
+      },
+      "tool_bindings": {
+        "additionalProperties": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        "maxProperties": 32,
+        "title": "Tool Bindings",
+        "type": "object"
+      },
+      "tool_requirements": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/SkillToolRequirement"
+        },
+        "maxItems": 32,
+        "title": "Tool Requirements",
+        "type": "array"
+      }
+    },
+    "title": "SkillSettings",
+    "type": "object"
+  },
+  "SkillTestView": {
+    "$defs": {
+      "SkillDiscovery": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "name",
+          "description",
+          "text"
+        ],
+        "title": "SkillDiscovery",
+        "type": "object"
+      },
+      "SkillIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Path"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "SkillIssue",
+        "type": "object"
+      },
+      "SkillLoadResult": {
+        "additionalProperties": false,
+        "properties": {
+          "budget_unit": {
+            "const": "utf8_bytes",
+            "default": "utf8_bytes",
+            "title": "Budget Unit",
+            "type": "string"
+          },
+          "callable_tool_versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Callable Tool Versions",
+            "type": "array"
+          },
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "discoveries": {
+            "items": {
+              "$ref": "#/$defs/SkillDiscovery"
+            },
+            "title": "Discoveries",
+            "type": "array"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/$defs/SkillIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "loaded": {
+            "items": {
+              "$ref": "#/$defs/SkillLoadedFile"
+            },
+            "title": "Loaded",
+            "type": "array"
+          },
+          "omitted": {
+            "items": {
+              "$ref": "#/$defs/SkillOmission"
+            },
+            "title": "Omitted",
+            "type": "array"
+          },
+          "used_budget": {
+            "title": "Used Budget",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "loaded",
+          "discoveries",
+          "omitted",
+          "issues",
+          "used_budget",
+          "callable_tool_versions",
+          "complete"
+        ],
+        "title": "SkillLoadResult",
+        "type": "object"
+      },
+      "SkillLoadedFile": {
+        "additionalProperties": false,
+        "properties": {
+          "budget_units": {
+            "title": "Budget Units",
+            "type": "integer"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "trigger_reason": {
+            "title": "Trigger Reason",
+            "type": "string"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "path",
+          "sha256",
+          "text",
+          "budget_units",
+          "trigger_reason"
+        ],
+        "title": "SkillLoadedFile",
+        "type": "object"
+      },
+      "SkillOmission": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "path",
+          "reason"
+        ],
+        "title": "SkillOmission",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "created_at": {
+        "title": "Created At",
+        "type": "string"
+      },
+      "evidence_label": {
+        "default": "加载验证",
+        "title": "Evidence Label",
+        "type": "string"
+      },
+      "result": {
+        "$ref": "#/$defs/SkillLoadResult"
+      },
+      "run_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Run Id"
+      },
+      "test_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Test Id",
+        "type": "string"
+      },
+      "version_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Version Id",
+        "type": "string"
+      },
+      "version_label": {
+        "title": "Version Label",
+        "type": "string"
+      }
+    },
+    "required": [
+      "test_id",
+      "version_id",
+      "version_label",
+      "created_at",
+      "result"
+    ],
+    "title": "SkillTestView",
+    "type": "object"
+  }
+}

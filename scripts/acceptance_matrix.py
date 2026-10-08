@@ -114,7 +114,7 @@ MCP-F01 MCP-F04 MCP-A01 = test_discovery_does_not_grant_and_atomic_repeat_import
 MCP-F02 MCP-F08 MCP-A03 MCP-A04 = test_cross_scope_same_name_credential_rotation_and_revocation test_paginated_handshake_and_isolated_authentication
 MCP-F03 = test_safe_protocol_failures test_outbound_requires_scope_purpose_dns_and_safe_headers
 MCP-F05 = test_execution_uses_only_bound_credential_and_injects_server_identity test_discovery_does_not_grant_and_atomic_repeat_import
-MCP-F06 MCP-F07 MCP-A02 INT-F08 = test_remote_drift_blocks_old_binding_and_imports_new_target_version test_connection_revision_never_upgrades_published_binding
+MCP-F06 MCP-F07 MCP-A02 INT-F08 = test_remote_drift_blocks_old_binding_and_imports_independent_tool test_connection_revision_never_upgrades_published_binding
 MCP-F09 = test_changed_contract_prevents_call_and_disconnect_never_replays
 MCP-F10 = test_unified_executor_records_attempt_and_preserves_inflight_result test_platform_revocation_blocks_later_mcp_calls
 MCP-F11 MCP-A06 = test_mcp_structured_file_reference_is_rejected_by_tool_layer test_adapter_and_tool_result_validation test_result_freshness_pagination_size_and_file_reference
@@ -173,7 +173,7 @@ INT-F10 = test_same_client_two_configurations_sync_async_stream_and_cancel test_
 INT-F11 INT-A07 GLO-A09 = test_current_build_three_channels_complete_management_flow
 INT-F12 INT-A08 = test_no_context_override_or_direct_key_bearer test_reauthentication_key_rotation_and_current_revocation
 INT-F13 = test_subject_binding_updates_are_serialized_and_scope_is_server_owned test_environment_concurrency_ownership_and_new_context
-INT-F14 INT-A06 = test_result_status_scope_effect_and_entity_authorization test_remote_drift_blocks_old_binding_and_imports_new_target_version
+INT-F14 INT-A06 = test_result_status_scope_effect_and_entity_authorization test_remote_drift_blocks_old_binding_and_imports_independent_tool
 INT-A01 = test_same_client_two_configurations_sync_async_stream_and_cancel test_sync_window_input_contract_and_live_stream_revocation
 INT-A04 = test_adapter_and_tool_result_validation test_followup_creates_new_run_and_records_confirmed_conditions
 """
@@ -202,6 +202,8 @@ DEFERRED = {
     "TOL-A06": "源业务写工具及写入状态查询为 P1。",
 }
 PARTIAL = {
+    "INT-F14": "覆盖 MCP 缺失与部分结果、契约失配及工具名称展示；各业务字段的名称和单位须由业务 MCP schema 及对应业务验收确认。",
+    "INT-A06": "覆盖远端工具契约变更后拒绝旧绑定及重新导入；不再验收已移除的固定 HTTP 能力列表。",
     "CHN-A17": "集成用例覆盖状态、关联有效性、分页和授权隔离；红绿呈现、窄屏及快捷跳转另执行前端 tests/channels.spec.ts，不从后端通过推断页面验收。",
     "CHN-A03": "仅验收属性、会话和缓存；向量检索后续阶段。",
     "MEM-A08": "仅验收属性、清空和工作区隔离；向量召回后续阶段。",

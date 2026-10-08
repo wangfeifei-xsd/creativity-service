@@ -1,6 +1,6 @@
 {
   "example": "text-brief",
-  "skill_archive": "examples/skills/packages/text-brief.zip",
+  "skill_archive": ".local/examples/skills/text-brief.zip",
   "agent_config": "examples/agents/text-brief.json",
   "prompt_content": "examples/agents/prompts/text-brief.json",
   "resources": {
