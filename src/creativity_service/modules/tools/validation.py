@@ -120,6 +120,24 @@ def validate_schema(schema: dict[str, Any]) -> None:
 
 
 def validate_definition(definition: ToolDefinition) -> None:
+    policy = definition.write_policy
+    if policy and policy.authorization_mode == "preauthorized":
+        if (
+            definition.effect_type != "IDEMPOTENT_WRITE"
+            or not policy.allowed_agent_codes
+            or not policy.allowed_principal_ids
+            or not policy.argument_constraints
+            or policy.argument_constraints.get("type") != "object"
+            or policy.argument_constraints.get("additionalProperties") is not False
+            or any(
+                not re.fullmatch(r"[a-z][a-z0-9_.-]{0,63}", code)
+                for code in policy.allowed_agent_codes
+            )
+        ):
+            raise ServiceError(
+                "TOOL_WRITE_INVALID", "预授权仅支持指定 Agent、执行身份和参数边界的幂等写入", 422
+            )
+        validate_schema(policy.argument_constraints)
     if definition.write_policy and (
         definition.effect_type == "READ_ONLY" or definition.idempotency_policy != "source_key"
     ):

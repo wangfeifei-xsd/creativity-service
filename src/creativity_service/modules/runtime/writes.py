@@ -1,5 +1,6 @@
 """已确认写意图、稳定源幂等键与只读核查；结果未知绝不直接再次提交。"""
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 from pydantic import ValidationError
@@ -15,6 +16,7 @@ from creativity_service.modules.runs.schemas import Lease
 from creativity_service.modules.runtime.tools import BoundToolPort
 from creativity_service.modules.tools.execution import ToolExecutor
 from creativity_service.modules.tools.schemas import ToolDefinition, ToolExecution
+from creativity_service.modules.tools.validation import validate_json
 
 if TYPE_CHECKING:
     from creativity_service.modules.runtime.engine import RuntimeExecutor
@@ -102,7 +104,7 @@ class WriteExecution:
             verification=True,
         )
 
-    async def execute(self, definition: ToolDefinition) -> ToolResult:
+    async def attempt(self, definition: ToolDefinition, automatic: bool) -> ToolResult:
         policy = definition.write_policy
         if policy is None or self.spec.purpose == "evaluation":
             raise ServiceError("TOOL_WRITE_DISABLED", "此运行不允许真实写入", 403)
@@ -110,7 +112,7 @@ class WriteExecution:
         state = await self.store()
         if state["state"] == "SUCCEEDED":
             return ToolResult.model_validate(state["result"])
-        if state["state"] == "UNKNOWN":
+        if state["state"] == "UNKNOWN" and not automatic:
             await self.wait_check(state)
         if state["state"] in {"SENT", "UNKNOWN"}:
             if state["checks"] >= policy.max_checks:
@@ -188,18 +190,23 @@ class WriteExecution:
                 # 来源声称成功但缺少有效回执，不等于未执行，禁止因此再次提交。
                 state = await self.store({"state": "UNKNOWN", "checks": check + 1})
             if state["state"] == "UNKNOWN":
+                if automatic and state["checks"] < policy.max_checks:
+                    return await self.check_again(definition, policy.check_delay_ms)
                 await self.wait_check(state)
         if state["submissions"] >= policy.max_submissions:
             raise ServiceError("WRITE_SUBMISSION_LIMIT", "写入提交次数已达上限", 409)
-        await self.runs.suspend(
-            self.lease,
-            f"{self.node}.approve.{state['submissions']}",
-            f"批准执行：{tool['name']}",
-            definition.input_schema,
-            self.call.arguments,
-            approval=True,
-        )
+        if not automatic:
+            await self.runs.suspend(
+                self.lease,
+                f"{self.node}.approve.{state['submissions']}",
+                f"批准执行：{tool['name']}",
+                definition.input_schema,
+                self.call.arguments,
+                approval=True,
+            )
         await self.executor.authorize(self.context, self.call)
+        if automatic:
+            await self.check_preauthorization(definition)
         state = await self.store({"state": "SENT", "submissions": state["submissions"] + 1})
         self.port.operation = {
             "idempotency_key": self.identifier,
@@ -209,7 +216,50 @@ class WriteExecution:
             result = await self.executor.execute(self.context, self.call)
         except ServiceError:
             state = await self.store({"state": "UNKNOWN"})
+            if automatic:
+                return await self.check_again(definition, policy.check_delay_ms)
             await self.wait_check(state)
             raise
         await self.store({"state": "SUCCEEDED", "result": result.model_dump(mode="json")})
         return result
+
+    async def check_preauthorization(self, definition: ToolDefinition) -> None:
+        # 冻结配置与当前配置必须同时授权；撤销无需等待旧运行结束。
+        tool, current = await self.executor.service.repository.resolve(
+            self.context, self.call.tool_version_id
+        )
+        if tool["status"] != "ACTIVE" or current["state"] != "PUBLISHED":
+            raise ServiceError("TOOL_PREAUTHORIZATION_DENIED", "预授权工具当前未发布或已停用", 403)
+        for checked in (definition, ToolDefinition.model_validate(current["content"])):
+            policy = checked.write_policy
+            if (
+                self.spec.purpose != "production"
+                or checked.effect_type != "IDEMPOTENT_WRITE"
+                or checked.idempotency_policy != "source_key"
+                or self.context.scope.environment not in checked.environments
+                or policy is None
+                or policy.authorization_mode != "preauthorized"
+                or self.spec.agent_code not in policy.allowed_agent_codes
+                or self.context.principal_id not in policy.allowed_principal_ids
+                or not policy.argument_constraints
+            ):
+                raise ServiceError(
+                    "TOOL_PREAUTHORIZATION_DENIED", "当前运行不在有效的工具预授权范围内", 403
+                )
+            validate_json(self.call.arguments, policy.argument_constraints, "TOOL_INPUT_INVALID")
+
+    async def check_again(self, definition: ToolDefinition, delay_ms: int) -> ToolResult:
+        # 核查使用原写意图与独立只读步骤；限额持久化，Worker 恢复不会重置次数。
+        await asyncio.sleep(delay_ms / 1000)
+        return await self.execute(definition)
+
+    async def execute(self, definition: ToolDefinition) -> ToolResult:
+        policy = definition.write_policy
+        automatic = bool(
+            policy
+            and policy.authorization_mode == "preauthorized"
+            and self.spec.purpose == "production"
+        )
+        if automatic:
+            await self.check_preauthorization(definition)
+        return await self.attempt(definition, automatic)

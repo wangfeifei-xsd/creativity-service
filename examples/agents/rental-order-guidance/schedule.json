@@ -1,0 +1,10 @@
+{
+  "name": "订单协助巡检",
+  "request": {
+    "agent_code": "rental_order_guidance",
+    "input": {},
+    "delivery": "async"
+  },
+  "timezone": "Asia/Shanghai",
+  "interval_seconds": 60
+}

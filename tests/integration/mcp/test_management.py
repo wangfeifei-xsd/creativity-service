@@ -299,14 +299,14 @@ async def test_remote_drift_blocks_old_binding_and_imports_independent_tool(mcp_
         await env.tools.management.version_detail(env.context, first.imported_version)
     ).execution_enabled
     second = await env.mcp.probe(env.context, conn.connection_id, True)
-    # 当前资源不再创建业务版本；重新导入不能覆盖已有配置，须创建独立工具。
+    # 破坏性契约变化仍须创建独立工具，不借重新绑定覆盖原配置。
     with pytest.raises(ServiceError) as existing:
         await env.mcp.import_tool(
             env.context,
             conn.connection_id,
             import_body(second).model_copy(update={"target_tool_id": first.local_tool_id}),
         )
-    assert existing.value.code == "CONFIGURATION_EXISTS"
+    assert existing.value.code == "MCP_TOOL_CHANGED"
     new = await env.mcp.import_tool(env.context, conn.connection_id, import_body(second))
     assert (
         first.local_tool_id != new.local_tool_id and first.imported_version != new.imported_version
@@ -315,6 +315,53 @@ async def test_remote_drift_blocks_old_binding_and_imports_independent_tool(mcp_
     assert len(detail.versions) == 1 and detail.release_version_id is None
     options = await env.tools.management.bindings(env.context, new.local_tool_id)
     assert any(o.name == "目录查询" and o.execution_enabled for o in options)
+
+
+async def test_same_contract_rebind_after_credentials_preserves_policy_and_requires_publish(
+    mcp_env,
+):
+    env = mcp_env
+    conn, snapshot = await ready(env)
+    first = await env.mcp.import_tool(env.context, conn.connection_id, import_body(snapshot))
+    service = env.tools.management
+    original = await service.version_detail(env.context, first.imported_version)
+    await service.freeze(env.context, first.imported_version, original.revision)
+    detail = await env.mcp.detail(env.context, conn.connection_id)
+    await env.mcp.rotate(
+        env.context,
+        conn.connection_id,
+        McpCredential(revision=detail.connection.revision, token="changed-credential"),
+    )
+    env.source.token = "changed-credential"
+    snapshot = await env.mcp.probe(env.context, conn.connection_id, True)
+    detail = await env.mcp.detail(env.context, conn.connection_id)
+    await env.mcp.set_enabled(env.context, conn.connection_id, detail.connection.revision, True)
+    body = import_body(snapshot).model_copy(
+        update={
+            "target_tool_id": first.local_tool_id,
+            "required_scopes": ("integration:manage",),
+            "subject_required": True,
+            "timeout_seconds": 30,
+            "output_schema": {"type": "object"},
+        }
+    )
+    results = await asyncio.gather(
+        *(env.mcp.import_tool(env.context, conn.connection_id, body) for _ in range(3))
+    )
+    assert len({result.import_id for result in results}) == 1
+    current = await service.version_detail(env.context, first.imported_version)
+    assert current.version.state == "DRAFT"
+    assert current.definition.model_dump(exclude={"binding"}) == original.definition.model_dump(
+        exclude={"binding"}
+    )
+    assert current.definition.binding.adapter_key == results[0].import_id
+    assert current.definition.binding != original.definition.binding
+    await env.mcp.check_binding(env.context, current.definition)
+    with pytest.raises(ServiceError) as pending:
+        await service.check_dependency(env.context, first.imported_version)
+    assert pending.value.code == "TOOL_UNAVAILABLE"
+    published = await service.freeze(env.context, first.imported_version, current.revision)
+    assert published.version.state == "PUBLISHED"
 
 
 async def test_mcp_structured_file_reference_is_rejected_by_tool_layer(mcp_env):

@@ -19599,6 +19599,55 @@
       "WritePolicy": {
         "additionalProperties": false,
         "properties": {
+          "allowed_agent_codes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Allowed Agent Codes",
+            "type": "array"
+          },
+          "allowed_principal_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Allowed Principal Ids",
+            "type": "array"
+          },
+          "argument_constraints": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Argument Constraints"
+          },
+          "authorization_mode": {
+            "default": "per_call",
+            "enum": [
+              "per_call",
+              "preauthorized"
+            ],
+            "title": "Authorization Mode",
+            "type": "string"
+          },
+          "check_delay_ms": {
+            "default": 1000,
+            "maximum": 5000.0,
+            "minimum": 0.0,
+            "title": "Check Delay Ms",
+            "type": "integer"
+          },
           "max_checks": {
             "default": 3,
             "maximum": 10.0,

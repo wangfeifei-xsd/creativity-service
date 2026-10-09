@@ -64,6 +64,11 @@ class SubjectRequirements(Contract):
 
 class WritePolicy(Contract):
     status_tool_version_id: Identifier
+    authorization_mode: Literal["per_call", "preauthorized"] = "per_call"
+    allowed_agent_codes: tuple[str, ...] = Field(default=(), max_length=64)
+    allowed_principal_ids: tuple[Identifier, ...] = Field(default=(), max_length=64)
+    argument_constraints: dict[str, Any] | None = None
+    check_delay_ms: int = Field(default=1000, ge=0, le=5000, strict=True)
     max_submissions: int = Field(default=1, ge=1, le=3, strict=True)
     max_checks: int = Field(default=3, ge=1, le=10, strict=True)
 

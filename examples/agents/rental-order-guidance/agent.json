@@ -1,0 +1,712 @@
+{
+  "agent_code": "rental_order_guidance",
+  "name": "订单协助助手",
+  "description": "基于本单事实解释处境、阻塞、下一步和问题处理路径；不承担催办。",
+  "owner": "租号运营",
+  "definition": {
+    "workflow_type": "stateful",
+    "entrypoint": "stateful.v1",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "business_status": {
+          "type": "string",
+          "enum": [
+            "COMPLETED"
+          ]
+        },
+        "schema_version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "data": {
+          "type": "object"
+        },
+        "warnings": {
+          "type": "array"
+        },
+        "evidence_refs": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "business_status",
+        "schema_version",
+        "data",
+        "warnings",
+        "evidence_refs"
+      ],
+      "additionalProperties": false
+    },
+    "start_step": "find",
+    "steps": [
+      {
+        "key": "find",
+        "name": "查找尚未协助的事项",
+        "kind": "tool",
+        "dependency": "bind_list_pending_guidances",
+        "inputs": {
+          "limit": {
+            "source": "constant",
+            "value": 1
+          }
+        },
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "has_work": {
+              "type": "boolean"
+            },
+            "guidance_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "maxItems": 20,
+              "minItems": 1
+            },
+            "items": {
+              "type": "array"
+            }
+          },
+          "required": [
+            "has_work",
+            "items"
+          ]
+        },
+        "timeout_seconds": 30,
+        "max_retries": 0,
+        "failure_policy": "fail"
+      },
+      {
+        "key": "claim",
+        "name": "领取分析资格",
+        "kind": "tool",
+        "dependency": "bind_claim_guidances",
+        "inputs": {
+          "guidance_ids": {
+            "source": "step",
+            "step": "find",
+            "path": "guidance_ids"
+          }
+        },
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "guidance_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "minItems": 1,
+              "maxItems": 20
+            }
+          },
+          "required": [
+            "guidance_ids"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "has_work": {
+              "type": "boolean"
+            },
+            "guidance_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "maxItems": 20,
+              "minItems": 1
+            },
+            "items": {
+              "type": "array"
+            },
+            "needs_analysis": {
+              "type": "boolean"
+            },
+            "item": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "has_work",
+            "items",
+            "needs_analysis",
+            "item"
+          ]
+        },
+        "timeout_seconds": 30,
+        "max_retries": 0,
+        "failure_policy": "fail"
+      },
+      {
+        "key": "analyze",
+        "name": "分析本单问题与下一步",
+        "kind": "model",
+        "inputs": {
+          "context": {
+            "source": "step",
+            "step": "claim",
+            "path": "item"
+          }
+        },
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "context": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "context"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "guidance_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "lease_generation": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "fact_revision": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "assistance_decision": {
+                    "type": "string",
+                    "enum": [
+                      "GUIDE",
+                      "NO_ADDITIONAL_HELP"
+                    ]
+                  },
+                  "assessment": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "views": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "TENANT",
+                            "LANDLORD"
+                          ]
+                        },
+                        "user_problem": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1500
+                        },
+                        "situation": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1500
+                        },
+                        "next_step": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1500
+                        },
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1500
+                        },
+                        "steps": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "minItems": 0,
+                          "maxItems": 8
+                        },
+                        "problem_path": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1500
+                        },
+                        "action_codes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "VIEW_ORDER"
+                            ]
+                          },
+                          "minItems": 0,
+                          "maxItems": 4
+                        },
+                        "evidence_refs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 160
+                          },
+                          "minItems": 1,
+                          "maxItems": 30
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "user_problem",
+                        "situation",
+                        "next_step",
+                        "reason",
+                        "steps",
+                        "problem_path",
+                        "action_codes",
+                        "evidence_refs"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 0,
+                    "maxItems": 2
+                  }
+                },
+                "required": [
+                  "guidance_id",
+                  "lease_generation",
+                  "fact_revision",
+                  "assistance_decision",
+                  "assessment",
+                  "views"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 20
+            }
+          },
+          "required": [
+            "results"
+          ],
+          "additionalProperties": false
+        },
+        "timeout_seconds": 120,
+        "max_retries": 0,
+        "failure_policy": "fail"
+      },
+      {
+        "key": "save",
+        "name": "保存模型分析",
+        "kind": "tool",
+        "dependency": "bind_save_guidance_results",
+        "inputs": {
+          "results": {
+            "source": "step",
+            "step": "analyze",
+            "path": "results"
+          }
+        },
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "guidance_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "lease_generation": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "fact_revision": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "assistance_decision": {
+                    "type": "string",
+                    "enum": [
+                      "GUIDE",
+                      "NO_ADDITIONAL_HELP"
+                    ]
+                  },
+                  "assessment": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "views": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "TENANT",
+                            "LANDLORD"
+                          ]
+                        },
+                        "user_problem": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1500
+                        },
+                        "situation": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1500
+                        },
+                        "next_step": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1500
+                        },
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1500
+                        },
+                        "steps": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "minItems": 0,
+                          "maxItems": 8
+                        },
+                        "problem_path": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1500
+                        },
+                        "action_codes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "VIEW_ORDER"
+                            ]
+                          },
+                          "minItems": 0,
+                          "maxItems": 4
+                        },
+                        "evidence_refs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 160
+                          },
+                          "minItems": 1,
+                          "maxItems": 30
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "user_problem",
+                        "situation",
+                        "next_step",
+                        "reason",
+                        "steps",
+                        "problem_path",
+                        "action_codes",
+                        "evidence_refs"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 0,
+                    "maxItems": 2
+                  }
+                },
+                "required": [
+                  "guidance_id",
+                  "lease_generation",
+                  "fact_revision",
+                  "assistance_decision",
+                  "assessment",
+                  "views"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 20
+            }
+          },
+          "required": [
+            "results"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object"
+        },
+        "timeout_seconds": 30,
+        "max_retries": 0,
+        "failure_policy": "fail"
+      },
+      {
+        "key": "publish",
+        "name": "复核并发布协助",
+        "kind": "tool",
+        "dependency": "bind_publish_guidances",
+        "inputs": {
+          "guidance_ids": {
+            "source": "step",
+            "step": "claim",
+            "path": "guidance_ids"
+          }
+        },
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "guidance_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "minItems": 1,
+              "maxItems": 20
+            }
+          },
+          "required": [
+            "guidance_ids"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object"
+        },
+        "timeout_seconds": 30,
+        "max_retries": 0,
+        "failure_policy": "fail"
+      },
+      {
+        "key": "finish",
+        "name": "结束本轮巡检",
+        "kind": "compute",
+        "operator": "object",
+        "inputs": {
+          "business_status": {
+            "source": "constant",
+            "value": "COMPLETED"
+          },
+          "schema_version": {
+            "source": "constant",
+            "value": "1.0"
+          },
+          "data": {
+            "source": "constant",
+            "value": {
+              "inspected": true
+            }
+          },
+          "warnings": {
+            "source": "constant",
+            "value": []
+          },
+          "evidence_refs": {
+            "source": "constant",
+            "value": []
+          }
+        },
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "business_status": {
+              "type": "string",
+              "enum": [
+                "COMPLETED"
+              ]
+            },
+            "schema_version": {
+              "type": "string",
+              "const": "1.0"
+            },
+            "data": {
+              "type": "object"
+            },
+            "warnings": {
+              "type": "array"
+            },
+            "evidence_refs": {
+              "type": "array"
+            }
+          },
+          "required": [
+            "business_status",
+            "schema_version",
+            "data",
+            "warnings",
+            "evidence_refs"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "business_status": {
+              "type": "string",
+              "enum": [
+                "COMPLETED"
+              ]
+            },
+            "schema_version": {
+              "type": "string",
+              "const": "1.0"
+            },
+            "data": {
+              "type": "object"
+            },
+            "warnings": {
+              "type": "array"
+            },
+            "evidence_refs": {
+              "type": "array"
+            }
+          },
+          "required": [
+            "business_status",
+            "schema_version",
+            "data",
+            "warnings",
+            "evidence_refs"
+          ],
+          "additionalProperties": false
+        },
+        "max_retries": 0,
+        "failure_policy": "fail"
+      }
+    ],
+    "edges": [
+      {
+        "source": "find",
+        "target": "claim",
+        "condition": {
+          "path": "has_work",
+          "operator": "eq",
+          "value": true
+        }
+      },
+      {
+        "source": "find",
+        "target": "finish",
+        "otherwise": true
+      },
+      {
+        "source": "claim",
+        "target": "analyze",
+        "condition": {
+          "path": "needs_analysis",
+          "operator": "eq",
+          "value": true
+        }
+      },
+      {
+        "source": "claim",
+        "target": "publish",
+        "condition": {
+          "path": "has_work",
+          "operator": "eq",
+          "value": true
+        }
+      },
+      {
+        "source": "claim",
+        "target": "finish",
+        "otherwise": true
+      },
+      {
+        "source": "analyze",
+        "target": "save"
+      },
+      {
+        "source": "save",
+        "target": "publish"
+      },
+      {
+        "source": "publish",
+        "target": "finish"
+      },
+      {
+        "source": "finish",
+        "target": "END"
+      }
+    ],
+    "bindings": {
+      "prompt_version": "bind_prompt",
+      "model_route_version": "bind_model_route",
+      "tool_versions": [
+        "bind_claim_guidances",
+        "bind_get_guidance_contexts",
+        "bind_get_operation_status",
+        "bind_list_pending_guidances",
+        "bind_publish_guidances",
+        "bind_save_guidance_results"
+      ],
+      "skill_versions": [
+        "bind_skill"
+      ]
+    },
+    "limits": {
+      "deadline_seconds": 300,
+      "loop_timeout_seconds": 300,
+      "token_limit": 96000,
+      "max_model_rounds": 1,
+      "max_tool_calls": 40,
+      "max_iterations": 1,
+      "output_repair_attempts": 0
+    },
+    "context": {
+      "context_limit": 64000
+    }
+  },
+  "version_label": "初始配置"
+}

@@ -26,4 +26,4 @@ uv run python examples/mcp/server.py --profile matrix --port 18082 --identity-fi
 
 API/Worker 的 `CREATIVITY_MCP_DESTINATIONS` 须允许同一渠道、环境的 `purpose=mcp` `/mcp` 路径，以及 `purpose=oauth` `/mcp/token` 路径。升级前执行 Creativity 0044 迁移与租号 `sql/upgrade_mcp_application.sql`、`sql/upgrade_mcp_application_menu.sql`；源端配置见租号 `skill-project/mcp-config.md`。此模式不需要用户 OAuth 授权码流程。
 
-当前源端只提供基础 MCP 能力，发现结果预期为零个工具，尚不能绑定业务 Agent。业务工具、主体复核及权限在后续业务实现时提供，再按 [配置指南](../../docs/integration.md#mcp-business) 导入发布。本样例不预置渠道、令牌或数据库记录。
+当前源端提供六个 `rental_assistant.*` 订单协助工具，按[订单协助配置](../agents/rental-order-guidance/README.md)导入发布并装配 Agent。租号应用的调用方渠道必须填写 Creativity 实际 `channel_id`，不能填写应用名称或渠道显示名称。连接测试和工具发现通过只代表服务间鉴权可用；业务调用还会核对订单协助开关、应用与执行身份允许列表、接入订单时间及受信范围。本样例不预置渠道、令牌或数据库记录。

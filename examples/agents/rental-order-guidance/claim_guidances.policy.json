@@ -1,0 +1,46 @@
+{
+  "effect_type": "IDEMPOTENT_WRITE",
+  "subject_requirements": {
+    "required": false
+  },
+  "cache_policy": {
+    "ttl_seconds": 0,
+    "freshness_seconds": 120
+  },
+  "retry_policy": {
+    "max_attempts": 1
+  },
+  "idempotency_policy": "source_key",
+  "write_policy": {
+    "status_tool_version_id": "bind_get_operation_status",
+    "authorization_mode": "preauthorized",
+    "allowed_agent_codes": [
+      "rental_order_guidance"
+    ],
+    "allowed_principal_ids": [
+      "bind_principal"
+    ],
+    "argument_constraints": {
+      "type": "object",
+      "properties": {
+        "guidance_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "minItems": 1,
+          "maxItems": 20
+        }
+      },
+      "required": [
+        "guidance_ids"
+      ],
+      "additionalProperties": false
+    },
+    "max_submissions": 2,
+    "max_checks": 3,
+    "check_delay_ms": 1000
+  }
+}

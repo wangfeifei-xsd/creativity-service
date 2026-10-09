@@ -399,29 +399,57 @@ class ToolService:
             await DeletionGuard(context.scope).check(uow, [ContentRef("tool", tool_id)])
             if not target_tool_id:
                 await repo.add(uow, tool_id, {**tool.model_dump(), "status": "ACTIVE"})
-            content = version.definition.model_dump(mode="json")
-            output = version.definition.output_schema
             versions = Repository(core_metadata.tables["resource_versions"], context.scope)
-            if await versions.get(uow.connection, tool_id):
-                raise ServiceError(
-                    "CONFIGURATION_EXISTS", "工具已有配置，请直接修改或创建独立工具", 409
+            current = await versions.get(uow.connection, tool_id)
+            definition = version.definition
+            if current:
+                if not target_tool_id or current["state"] not in {"DRAFT", "PUBLISHED"}:
+                    raise ServiceError("CONFIGURATION_EXISTS", "目标工具配置不可重新绑定", 409)
+                from creativity_service.modules.resources.configuration import require_edit
+
+                await require_edit(uow, context, "tool", tool_id)
+                await locked_require(uow, context, "tool:manage", "tool", tool_id)
+                await locked_require(uow, context, "version:edit", "tool", tool_id)
+                if current["state"] == "PUBLISHED":
+                    await locked_require(uow, context, "release:publish", "tool", tool_id)
+                previous = ToolDefinition.model_validate(current["content"])
+                if (
+                    previous.input_schema != definition.input_schema
+                    or previous.effect_type != definition.effect_type
+                    or previous.binding.implementation_version
+                    != definition.binding.implementation_version
+                ):
+                    raise ServiceError(
+                        "MCP_TOOL_CHANGED",
+                        "工具契约或影响类型已变化，请创建独立工具并重新配置 Agent",
+                        409,
+                    )
+                # 同契约重新发现只替换来源绑定，不用导入表单默认值覆盖原授权和执行策略。
+                definition = previous.model_copy(update={"binding": definition.binding})
+                validate_definition(definition)
+                self.registry.validate(
+                    context.scope, definition, tool.source_type, executable=False
                 )
-            row = await Repository(core_metadata.tables["resource_versions"], context.scope).add(
-                uow,
-                version_id,
-                {
-                    "resource_type": "tool",
-                    "resource_id": tool_id,
-                    "version_label": "当前配置",
-                    "state": "DRAFT",
-                    "content": content,
-                    "content_digest": digest({"content": content, "output_schema": output}),
-                    "dependencies": [],
-                    "dependencies_digest": digest([]),
-                    "output_schema": output,
-                    "created_by": context.principal_id,
-                },
-            )
+            content = definition.model_dump(mode="json")
+            output = definition.output_schema
+            dependencies = sorted(set(self.dependencies(definition)))
+            values = {
+                "resource_type": "tool",
+                "resource_id": tool_id,
+                "version_label": "当前配置",
+                "state": "DRAFT",
+                "content": content,
+                "content_digest": digest({"content": content, "output_schema": output}),
+                "dependencies": dependencies,
+                "dependencies_digest": digest(dependencies),
+                "output_schema": output,
+            }
+            if current:
+                row = await versions.change(uow, version_id, current["revision"], values)
+            else:
+                row = await versions.add(
+                    uow, version_id, {**values, "created_by": context.principal_id}
+                )
             await DeletionGuard(context.scope).link(
                 uow, source_id, ContentRef("tool", tool_id), ContentRef("version", version_id)
             )
@@ -430,8 +458,8 @@ class ToolService:
             )
             return ToolVersionView(
                 version=version_view(row),
-                revision=1,
-                definition=version.definition,
+                revision=row["revision"],
+                definition=definition,
                 status=status("DRAFT"),
                 execution_enabled=False,
                 unavailable_reason="工具尚未发布",
@@ -464,6 +492,8 @@ class ToolService:
         scope = context.scope
         return [
             content_key(scope),
+            policy_key(scope.channel_id),
+            policy_key("system"),
             ResourceKey(scope.channel_id, "tool-code", (code,)),
             ResourceKey(scope.channel_id, "version-label", ("tool", tool_id, version_label)),
             record_key(scope.channel_id, "tools", tool_id),

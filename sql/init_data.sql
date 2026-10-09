@@ -657,7 +657,7 @@ WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_ale
 FROM creativity_alembic_version));
 
 -- 天气归档 model_routes：1 条。
-INSERT INTO model_routes (id, channel_id, created_at, updated_at, revision, code, name, status) SELECT CAST('route_0595b357c65e4c879af695163ee5d129' AS VARCHAR(64)) AS anon_1, CAST('channel_407de822881947339e26ec7d9d55a8a0' AS VARCHAR(64)) AS anon_2, CAST('2026-10-06 19:37:51.701558+00:00' AS TIMESTAMP WITH TIME ZONE) AS anon_3, CAST('2026-10-06 19:38:14.395125+00:00' AS TIMESTAMP WITH TIME ZONE) AS anon_4, CAST(2 AS BIGINT) AS anon_5, CAST('daily_weather_route' AS VARCHAR(64)) AS anon_6, CAST('天气助手模型路由' AS VARCHAR(128)) AS anon_7, CAST('ACTIVE' AS VARCHAR(32)) AS anon_8
+INSERT INTO model_routes (id, channel_id, created_at, updated_at, revision, code, name, status) SELECT CAST('route_0595b357c65e4c879af695163ee5d129' AS VARCHAR(64)) AS anon_1, CAST('channel_407de822881947339e26ec7d9d55a8a0' AS VARCHAR(64)) AS anon_2, CAST('2026-10-06 19:37:51.701558+00:00' AS TIMESTAMP WITH TIME ZONE) AS anon_3, CAST('2026-10-06 19:38:14.395125+00:00' AS TIMESTAMP WITH TIME ZONE) AS anon_4, CAST(2 AS BIGINT) AS anon_5, CAST('daily_weather_route' AS VARCHAR(64)) AS anon_6, CAST('通用模型路由' AS VARCHAR(128)) AS anon_7, CAST('ACTIVE' AS VARCHAR(32)) AS anon_8
 WHERE NOT (EXISTS (SELECT creativity_alembic_version.version_num, creativity_alembic_version.channel_id
 FROM creativity_alembic_version));
 

@@ -1,0 +1,14 @@
+{
+  "effect_type": "READ_ONLY",
+  "subject_requirements": {
+    "required": false
+  },
+  "cache_policy": {
+    "ttl_seconds": 0,
+    "freshness_seconds": 120
+  },
+  "retry_policy": {
+    "max_attempts": 1
+  },
+  "idempotency_policy": "none"
+}

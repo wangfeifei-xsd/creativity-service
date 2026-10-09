@@ -1,0 +1,165 @@
+{
+  "effect_type": "IDEMPOTENT_WRITE",
+  "subject_requirements": {
+    "required": false
+  },
+  "cache_policy": {
+    "ttl_seconds": 0,
+    "freshness_seconds": 120
+  },
+  "retry_policy": {
+    "max_attempts": 1
+  },
+  "idempotency_policy": "source_key",
+  "write_policy": {
+    "status_tool_version_id": "bind_get_operation_status",
+    "authorization_mode": "preauthorized",
+    "allowed_agent_codes": [
+      "rental_order_guidance"
+    ],
+    "allowed_principal_ids": [
+      "bind_principal"
+    ],
+    "argument_constraints": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "guidance_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "lease_generation": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "fact_revision": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "assistance_decision": {
+                "type": "string",
+                "enum": [
+                  "GUIDE",
+                  "NO_ADDITIONAL_HELP"
+                ]
+              },
+              "assessment": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "views": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "TENANT",
+                        "LANDLORD"
+                      ]
+                    },
+                    "user_problem": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1500
+                    },
+                    "situation": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1500
+                    },
+                    "next_step": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1500
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1500
+                    },
+                    "steps": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "minItems": 0,
+                      "maxItems": 8
+                    },
+                    "problem_path": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1500
+                    },
+                    "action_codes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "VIEW_ORDER"
+                        ]
+                      },
+                      "minItems": 0,
+                      "maxItems": 4
+                    },
+                    "evidence_refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 160
+                      },
+                      "minItems": 1,
+                      "maxItems": 30
+                    }
+                  },
+                  "required": [
+                    "role",
+                    "user_problem",
+                    "situation",
+                    "next_step",
+                    "reason",
+                    "steps",
+                    "problem_path",
+                    "action_codes",
+                    "evidence_refs"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 0,
+                "maxItems": 2
+              }
+            },
+            "required": [
+              "guidance_id",
+              "lease_generation",
+              "fact_revision",
+              "assistance_decision",
+              "assessment",
+              "views"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 20
+        }
+      },
+      "required": [
+        "results"
+      ],
+      "additionalProperties": false
+    },
+    "max_submissions": 2,
+    "max_checks": 3,
+    "check_delay_ms": 1000
+  }
+}

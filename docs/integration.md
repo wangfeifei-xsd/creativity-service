@@ -48,6 +48,8 @@ Token 到期后重新交换并签名查询原运行。创建响应丢失时保�
 
 API 和 Worker 配置一致的 `CREATIVITY_MCP_DESTINATIONS`；MCP 鉴权不需要加密主密钥。创建连接、配置鉴权、发现远端工具，导入业务工具草稿并测试发布。Agent 绑定具体工具版本，远端 schema 或连接修订变化后重新验证发布。
 
+更新凭据后，先重新测试、发现并启用连接，再在远程工具的导入窗口选择原有工具执行“重新绑定”。契约与影响类型相同时，仅更新发现绑定，保留原工具的权限、预授权、输出校验和执行策略；当前配置转为未发布，重新发布后才能恢复 Agent 调用。契约发生变化时拒绝覆盖，须创建独立工具并重新配置 Agent。重复提交同一发现的导入保持幂等。
+
 MCP 的 appSecret、静态 Token、OAuth 令牌和 PKCE verifier 直接保存在同渠道、同环境的 `credentials.secret_value`，无需配置解密主密钥。连接通过凭据引用读取，管理响应与日志不回显原文。初始化归档可直接携带配置凭据；不同环境修改连接地址与凭据后，手动测试、发现并启用。短期 Token 和 OAuth 临时授权不作为初始配置归档。
 
 服务间鉴权使用 `POST /admin/v1/mcp-connections/{id}/authentication`，提交当前 revision、token_endpoint、app_id 和 app_secret。密钥原文存入独立凭据记录，连接仅保存鉴权方式、地址与应用标识；同一应用可省略密钥以保留现值。平台以 client_credentials 表单交换短期 Token，缓存按渠道、环境、连接与凭据修订隔离，到期前续取。令牌端点须以 `purpose=oauth` 单独加入出站许可。业务收到无效 Token 时清理缓存，不自动重放该业务，下一次调用重新交换。传输选择 streamable_http，独立于 oauth 用户授权码模式。

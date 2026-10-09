@@ -97,7 +97,8 @@ class ResourceManagement:
             config = configs.get(identifier)
             permissions = policy.actions(kind, identifier, resource_state(context, kind, row))
             count = references.get(identifier, 0)
-            released = identifier in published
+            # 重新绑定 MCP 后保留发布归属，但当前配置须重新发布才可执行。
+            released = identifier in published and bool(config and config["state"] == "PUBLISHED")
             reason = f"被 {count} 个资源引用，请先解除关联" if count else None
             actions = [
                 AccessAction(

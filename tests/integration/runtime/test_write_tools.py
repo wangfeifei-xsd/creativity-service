@@ -13,6 +13,7 @@ from creativity_service.modules.runs.interruptions import ResumeInput
 from creativity_service.modules.tools.schemas import (
     ToolCreate,
     ToolDefinition,
+    ToolRelease,
     ToolTestInput,
     ToolVersionCreate,
 )
@@ -51,7 +52,7 @@ class Source:
         )
 
 
-async def prepare(env, source):
+async def prepare(env, source, *, automatic=False, debug=True):
     versions = []
     for name, effect, fields in (
         ("check", "READ_ONLY", {"operation_key": {"type": "string"}}),
@@ -98,6 +99,22 @@ async def prepare(env, source):
                 "status_tool_version_id": versions[0].version_id,
                 "max_submissions": 2,
                 "max_checks": 3,
+                **(
+                    {
+                        "authorization_mode": "preauthorized",
+                        "allowed_agent_codes": [env.body.agent_code],
+                        "allowed_principal_ids": [env.context.principal_id],
+                        "argument_constraints": {
+                            "type": "object",
+                            "properties": {"value": {"const": "确认内容"}},
+                            "required": ["value"],
+                            "additionalProperties": False,
+                        },
+                        "check_delay_ms": 0,
+                    }
+                    if automatic
+                    else {}
+                ),
             },
         )
         version = await env.tools.management.create_version(
@@ -105,7 +122,16 @@ async def prepare(env, source):
             tool.tool_id,
             ToolVersionCreate(version_label="验收版", definition=definition),
         )
+        if not debug or name == "check":
+            version = await env.tools.management.freeze(
+                env.context, version.version.version_id, version.revision
+            )
+            await env.tools.management.release(
+                env.context, tool.tool_id, ToolRelease(version_id=version.version.version_id)
+            )
         versions.append(version.version)
+    if not debug:
+        return versions
     receipt = await env.tools.management.test(
         env.context,
         versions[-1].version_id,
@@ -156,3 +182,51 @@ async def test_write_confirmation_and_source_resolution(runtime_env, outcome):
     assert result.result.data["data"] == {"saved": True}
     assert set(source.queries) == set(source.writes)
     assert len(source.writes) == (2 if outcome == "NOT_EXECUTED" else 1)
+
+
+@pytest.mark.parametrize("outcome", ["SUCCEEDED", "NOT_EXECUTED", "UNKNOWN", "MALFORMED"])
+async def test_preauthorized_production_write_recovers_without_approval(runtime_env, outcome):
+    from creativity_service.modules.agents.schemas import AgentEdge, AgentStep
+    from tests.integration.runtime.test_execution import admitted
+
+    env, source = runtime_env, Source(outcome)
+    versions = await prepare(env, source, automatic=True, debug=False)
+    write = AgentStep(
+        key="save",
+        name="预授权保存",
+        kind="tool",
+        dependency=versions[1].version_id,
+        inputs={"value": {"source": "constant", "value": "确认内容"}},
+        input_schema={
+            "type": "object",
+            "properties": {"value": {"type": "string"}},
+            "required": ["value"],
+            "additionalProperties": False,
+        },
+        output_schema={"type": "object"},
+    )
+    definition = env.definition.model_copy(
+        update={
+            "workflow_type": "stateful",
+            "entrypoint": "stateful.v1",
+            "start_step": "save",
+            "steps": (write, *env.definition.steps),
+            "edges": (
+                AgentEdge(source="save", target=env.definition.start_step),
+                *env.definition.edges,
+            ),
+            "bindings": env.definition.bindings.model_copy(
+                update={"tool_versions": tuple(v.version_id for v in versions)}
+            ),
+        }
+    )
+    receipt, message = await admitted(env, definition=definition, purpose="production")
+    await execute_message(env.runs, message, "automatic", env.runtime)
+    result = await env.runs.get_run(env.context, receipt.run_id)
+    if outcome in {"UNKNOWN", "MALFORMED"}:
+        assert result.state == "WAITING_INPUT", result.model_dump_json()
+        assert len(source.writes) == 1 and len(source.queries) == 3
+    else:
+        assert result.state == "SUCCEEDED", result.model_dump_json()
+        assert len(source.writes) == (2 if outcome == "NOT_EXECUTED" else 1)
+    assert set(source.queries) == set(source.writes)
