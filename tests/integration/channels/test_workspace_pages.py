@@ -1,4 +1,4 @@
-"""06 页面选项与切换使用真实 PostgreSQL、Redis 和原授权服务。"""
+"""06 页面选项与切换使用真实 MySQL、Redis 和原授权服务。"""
 
 import pytest
 

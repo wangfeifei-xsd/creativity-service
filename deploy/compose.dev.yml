@@ -1,18 +1,18 @@
 name: creativity-dev
 
 services:
-  postgres:
-    image: postgres:17-alpine
+  mysql:
+    image: mysql:8.0.45
     environment:
-      POSTGRES_USER: ${DEV_POSTGRES_USER:?请复制并配置 .env}
-      POSTGRES_PASSWORD: ${DEV_POSTGRES_PASSWORD:?请设置开发数据库密码}
-      POSTGRES_DB: ${DEV_POSTGRES_DB:?请设置开发数据库名称}
+      MYSQL_ROOT_PASSWORD: ${DEV_MYSQL_PASSWORD:?请设置开发数据库密码}
+      MYSQL_DATABASE: ${DEV_MYSQL_DB:-creativity}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_bin", "--transaction-isolation=READ-COMMITTED"]
     ports:
-      - "127.0.0.1:${DEV_POSTGRES_PORT:-55432}:5432"
+      - "127.0.0.1:${DEV_MYSQL_PORT:-3306}:3306"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      test: ["CMD-SHELL", 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysqladmin ping -h 127.0.0.1 -uroot --silent']
       interval: 3s
       timeout: 3s
       retries: 30
@@ -74,6 +74,6 @@ services:
         mc mb --ignore-existing "local/$$S3_BUCKET"
 
 volumes:
-  postgres-data:
+  mysql-data:
   redis-data:
   minio-data:

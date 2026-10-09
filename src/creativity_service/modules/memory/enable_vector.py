@@ -1,18 +1,13 @@
-"""由运维显式安装 PostgreSQL 提供的向量扩展，不创建业务函数或修改业务数据。"""
+"""验证 Milvus 连接；集合按实际模型维度自动创建。"""
 
-from sqlalchemy import create_engine, text
+import asyncio
 
-from creativity_service.core.config import Settings
+from creativity_service.modules.memory.vector_store import MilvusStore
 
 
 def main() -> None:
-    engine = create_engine(Settings().database_url.get_secret_value())
-    try:
-        with engine.begin() as connection:
-            connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        print("向量扩展已就绪")
-    finally:
-        engine.dispose()
+    asyncio.run(MilvusStore().health())
+    print("Milvus 已就绪")
 
 
 if __name__ == "__main__":

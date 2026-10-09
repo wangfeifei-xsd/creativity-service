@@ -313,7 +313,7 @@ class WebhookService:
                 repo(context.scope, "webhook_deliveries").predicate(),
                 deliveries.c.endpoint_id == endpoint["id"],
                 deliveries.c.kind == "run.terminal",
-                deliveries.c.payload["run_id"].astext == table.c.id,
+                deliveries.c.payload["run_id"].as_string() == table.c.id,
             )
             .exists()
         )

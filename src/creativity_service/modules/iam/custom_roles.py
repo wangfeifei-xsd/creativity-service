@@ -4,13 +4,14 @@ from collections.abc import Sequence
 from typing import Any, Literal
 
 from pydantic import Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, true
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.sql import CompoundSelect, Select
 
 from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import AuthContext, ControlScope
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.types import json_array_rows
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import Contract, Revision, ServiceError, new_id
 from creativity_service.modules.iam.access import AccessService
@@ -135,27 +136,33 @@ class CustomRoles:
                 }
             table = TABLES["platform_accounts" if channel_id == "system" else "channel_memberships"]
             field = table.c.platform_roles if channel_id == "system" else table.c.roles
-            account_bindings = select(
-                func.jsonb_array_elements_text(field).label("role_id"),
-                table.c.id.label("user_id"),
-            ).where(table.c.channel_id == channel_id, table.c.status == "ACTIVE")
+            role_values = json_array_rows(field)
+            account_bindings = (
+                select(role_values.c.value.label("role_id"), table.c.id.label("user_id"))
+                .select_from(table.join(role_values, true()))
+                .where(table.c.channel_id == channel_id, table.c.status == "ACTIVE")
+            )
             bindings: Select[Any] | CompoundSelect[Any] = account_bindings
             if channel_id == "system":
                 members = TABLES["channel_memberships"]
+                account_roles = json_array_rows(table.c.role_ids)
+                member_roles = json_array_rows(members.c.roles)
                 bindings = account_bindings.union(
-                    select(func.jsonb_array_elements_text(table.c.role_ids), table.c.id).where(
+                    select(account_roles.c.value, table.c.id)
+                    .select_from(table.join(account_roles, true()))
+                    .where(
                         table.c.channel_id == "system",
                         table.c.status == "ACTIVE",
-                        func.jsonb_typeof(table.c.role_ids) == "array",
+                        func.json_type(table.c.role_ids) == "ARRAY",
                     ),
                     select(table.c.role_id, table.c.id).where(
                         table.c.channel_id == "system",
                         table.c.status == "ACTIVE",
                         table.c.role_id.is_not(None),
                     ),
-                    select(
-                        func.jsonb_array_elements_text(members.c.roles), members.c.user_id
-                    ).where(members.c.channel_id != "system", members.c.status == "ACTIVE"),
+                    select(member_roles.c.value, members.c.user_id)
+                    .select_from(members.join(member_roles, true()))
+                    .where(members.c.channel_id != "system", members.c.status == "ACTIVE"),
                 )
             linked = bindings.subquery()
             count_rows = (

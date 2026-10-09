@@ -11,7 +11,7 @@ def test_runtime_sdk_compatibility(monkeypatch):
     from litellm import completion
     from mcp import ClientSession
     from sqlalchemy import text
-    from sqlalchemy.dialects.postgresql import dialect
+    from sqlalchemy.dialects.mysql import dialect
 
     class State(TypedDict):
         value: int

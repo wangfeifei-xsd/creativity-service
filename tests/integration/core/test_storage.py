@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 from alembic.config import Config
 from pydantic import SecretBytes
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import cast, create_engine, inspect, literal, select, text
 
 from alembic import command
 from creativity_service.core.config import Settings
@@ -17,10 +17,28 @@ from creativity_service.core.database.audit import (
     check_sql,
 )
 from creativity_service.core.database.tables import metadata
+from creativity_service.core.database.types import DocumentJSON
 from creativity_service.core.primitives import ServiceError
 from creativity_service.core.security.credentials import CredentialService
 
 pytestmark = pytest.mark.integration
+
+
+async def test_json_object_keys_and_structural_membership(engine):
+    document = cast(literal('{"a.b": null, "引号\\"": 1, "items": ["run:read"]}'), DocumentJSON)
+    async with engine.connect() as connection:
+        result = (
+            await connection.execute(
+                select(
+                    document.has_key("a.b"),
+                    document.has_key('引号"'),
+                    document.has_key("a"),
+                    document.contains({"items": ["run:read"]}),
+                    document.contains({"items": ["run"]}),
+                )
+            )
+        ).one()
+    assert tuple(result) == (True, True, False, True, False)
 
 
 async def test_actual_schema_and_framework_storage(engine, database_schema):
@@ -35,9 +53,11 @@ def test_full_migration_repeat_offline_and_downgrade():
     config = Config("alembic.ini")
     config.set_main_option("version_table_schema", name)
     try:
-        with engine.begin() as connection:
-            connection.execute(text(f'CREATE SCHEMA "{name}"'))
-            connection.execute(text(f'SET LOCAL search_path TO "{name}"'))
+        with engine.connect() as connection:
+            connection.execute(
+                text(f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin")
+            )
+            connection.execute(text(f"USE `{name}`"))
             config.attributes["connection"] = connection
             command.upgrade(config, "head")
             command.upgrade(config, "head")
@@ -49,12 +69,12 @@ def test_full_migration_repeat_offline_and_downgrade():
         config.attributes.pop("connection")
         output = io.StringIO()
         config.output_buffer = output
-        command.upgrade(config, "0040_model_networks:head", sql=True)
+        command.upgrade(config, "head", sql=True)
         assert check_sql(output.getvalue()) == []
-        assert "0041_channel_environments" in output.getvalue()
+        assert "0048_mysql_milvus" in output.getvalue()
     finally:
-        with engine.begin() as connection:
-            connection.execute(text(f'DROP SCHEMA IF EXISTS "{name}" CASCADE'))
+        with engine.connect() as connection:
+            connection.execute(text(f"DROP DATABASE IF EXISTS `{name}`"))
         engine.dispose()
 
 

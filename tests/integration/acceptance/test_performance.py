@@ -199,7 +199,7 @@ async def test_twenty_clients_management_and_admission(runtime_env):
         "admission_service": statistics(admission_times, 500),
         "admission_http_including_subject_review": statistics(http_times, 500),
         "boundary": (
-            "管理查询经过 TCP、Redis 鉴权及真实 PostgreSQL；服务受理从已认证上下文调用正式服务，"
+            "管理查询经过 TCP、Redis 鉴权及真实 MySQL；服务受理从已认证上下文调用正式服务，"
             "单独反映无外部等待的开销；业务 HTTP 受理包含签名委托和真实 MCP 主体复核，"
             "该总时延不能直接等同于扣除外部等待后的平台开销。所有模型执行均排除。"
         ),

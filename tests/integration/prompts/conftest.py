@@ -1,10 +1,10 @@
-"""提示词使用独立 PostgreSQL schema，模型与证据替身只存在于测试。"""
+"""提示词使用独立 MySQL 8 schema，模型与证据替身只存在于测试。"""
 
 from uuid import uuid4
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, make_url, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import command
@@ -27,24 +27,26 @@ class Authorization:
 def prompt_database_schema():
     engine = create_engine(Settings().database_url.get_secret_value())
     name = f"test_prompts_{uuid4().hex}"
-    with engine.begin() as connection:
-        connection.execute(text(f'CREATE SCHEMA "{name}"'))
-        connection.execute(text(f'SET LOCAL search_path TO "{name}"'))
+    with engine.connect() as connection:
+        connection.execute(
+            text(f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin")
+        )
+        connection.execute(text(f"USE `{name}`"))
         config = Config("alembic.ini")
         config.set_main_option("version_table_schema", name)
         config.attributes["connection"] = connection
         command.upgrade(config, "head")
     yield name
-    with engine.begin() as connection:
-        connection.execute(text(f'DROP SCHEMA "{name}" CASCADE'))
+    with engine.connect() as connection:
+        connection.execute(text(f"DROP DATABASE `{name}`"))
     engine.dispose()
 
 
 @pytest.fixture
 async def engine(prompt_database_schema):
     engine = create_async_engine(
-        Settings().database_url.get_secret_value(),
-        connect_args={"options": f"-csearch_path={prompt_database_schema}"},
+        make_url(Settings().async_database_url).set(database=prompt_database_schema),
+        isolation_level="READ COMMITTED",
     )
     yield engine
     await engine.dispose()

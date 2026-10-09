@@ -9,7 +9,6 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
-    DateTime,
     Index,
     Integer,
     LargeBinary,
@@ -17,10 +16,11 @@ from sqlalchemy import (
     Numeric,
     String,
     Table,
-    Text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.types import TypeEngine
+
+from creativity_service.core.database.types import DocumentJSON, UTCDateTime
 
 BASELINE = json.loads(Path(__file__).with_name("tables_v0046_0.json").read_text(encoding="utf-8"))
 
@@ -31,11 +31,11 @@ def column_type(name: str) -> TypeEngine[Any]:
     if match := re.fullmatch(r"numeric\((\d+),(\d+)\)", name):
         return Numeric(int(match[1]), int(match[2]))
     return {
-        "text": Text(),
-        "jsonb": JSONB(),
+        "text": LONGTEXT(),
+        "jsonb": DocumentJSON(),
         "bigint": BigInteger(),
         "integer": Integer(),
-        "timestamptz": DateTime(timezone=True),
+        "timestamptz": UTCDateTime(),
         "boolean": Boolean(),
         "bytea": LargeBinary(),
     }[name]

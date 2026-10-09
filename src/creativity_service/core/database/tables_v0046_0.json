@@ -1399,5 +1399,40 @@
     "control_purpose": null,
     "content": false,
     "cleanup_type": null
+  },
+  {
+    "module": "core",
+    "name": "transaction_lock_slots",
+    "comment": "服务层事务互斥固定锁槽",
+    "columns": [
+      {
+        "name": "channel_id",
+        "type": "varchar(64)",
+        "comment": "锁目录所属系统渠道",
+        "required": true,
+        "source": "服务端固定值",
+        "sensitivity": "内部"
+      },
+      {
+        "name": "slot",
+        "type": "integer",
+        "comment": "包含锁顺序分组的固定槽位",
+        "required": true,
+        "source": "服务端哈希映射",
+        "sensitivity": "内部"
+      }
+    ],
+    "indexes": [
+      [
+        "channel_id",
+        "slot"
+      ]
+    ],
+    "status": "已实现",
+    "revision": "0048_mysql_milvus",
+    "scope": "系统",
+    "control_purpose": "migration",
+    "content": false,
+    "cleanup_type": null
   }
 ]

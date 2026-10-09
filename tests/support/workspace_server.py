@@ -8,7 +8,7 @@ import uvicorn
 from alembic.config import Config
 from fastapi import FastAPI
 from redis.asyncio import Redis
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, make_url, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import command
@@ -27,16 +27,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = Settings()
     schema = f"test_ui06_{uuid4().hex}"
     sync_engine = create_engine(settings.database_url.get_secret_value())
-    with sync_engine.begin() as connection:
-        connection.execute(text(f'CREATE SCHEMA "{schema}"'))
-        connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
+    with sync_engine.connect() as connection:
+        connection.execute(
+            text(f"CREATE DATABASE `{schema}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin")
+        )
+        connection.execute(text(f"USE `{schema}`"))
         config = Config("alembic.ini")
         config.set_main_option("version_table_schema", schema)
         config.attributes["connection"] = connection
         command.upgrade(config, "head")
     engine = create_async_engine(
-        settings.database_url.get_secret_value(),
-        connect_args={"options": f"-csearch_path={schema}"},
+        make_url(settings.async_database_url).set(database=schema),
+        isolation_level="READ COMMITTED",
     )
     redis = Redis.from_url(settings.redis_auth_url.get_secret_value(), socket_timeout=2)
     iam, channels = build_channel_services(engine, redis, schema)
@@ -58,8 +60,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await redis.delete(*keys)
         await redis.aclose()
         await engine.dispose()
-        with sync_engine.begin() as connection:
-            connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+        with sync_engine.connect() as connection:
+            connection.execute(text(f"DROP DATABASE `{schema}`"))
         sync_engine.dispose()
 
 

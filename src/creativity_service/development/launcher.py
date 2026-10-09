@@ -55,6 +55,7 @@ def export_settings(settings: Settings) -> None:
     for name in ("database_url", *REDIS_FIELDS):
         os.environ[f"CREATIVITY_{name.upper()}"] = getattr(settings, name).get_secret_value()
     os.environ["CREATIVITY_S3_ENDPOINT_URL"] = settings.s3_endpoint_url
+    os.environ["CREATIVITY_MILVUS_URI"] = settings.milvus_uri
     os.environ["CREATIVITY_LOG_DIRECTORY"] = str(settings.log_directory.resolve())
 
 
@@ -198,7 +199,7 @@ def serve(settings: Settings, port: int, *, reload: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="检查并启动本地 PostgreSQL、pgvector、Redis、对象存储与后端进程"
+        description="检查并启动本地 MySQL 8、Milvus、Redis、对象存储与后端进程"
     )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--check", action="store_true", help="只检查依赖连接和向量能力")

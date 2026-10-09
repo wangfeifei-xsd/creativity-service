@@ -8,13 +8,23 @@ ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE = ROOT / "docs/data-model"
 
 
+def physical_type(value):
+    return {
+        "jsonb": "json",
+        "timestamptz": "datetime(6) UTC",
+        "bytea": "blob",
+        "text": "longtext",
+    }.get(value, value.replace("numeric(", "decimal("))
+
+
 def field_table(columns):
     lines = [
         "| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
     lines += [
-        f"| `{c['name']}` | `{c['type']}` | {c['comment']} | {'是' if c['required'] else '否'} | "
+        f"| `{c['name']}` | `{physical_type(c['type'])}` | {c['comment']} | "
+        f"{'是' if c['required'] else '否'} | "
         f"{c['source']} | {c['sensitivity']} |"
         for c in columns
     ]
@@ -34,9 +44,8 @@ def render():
         "字段文档由 `scripts/render_data_model.py` 生成。"
         "共享基础的代码定义位于 `core/database/baseline_v0001.json`；"
         "各模块归档中的 `revision` 保留原始修订来源，供模型归属与一致性检查使用。"
-        "[初始基线](../../alembic/versions/0001_initial.py) 冻结至 "
-        "`0034_admission_indexes`；后续增量迁移依次升级至 "
-        "`0047_remove_model_networks`。"
+        "[MySQL 8 初始基线](../../alembic/mysql_versions/0048_mysql_milvus.py) "
+        "冻结至 `0048_mysql_milvus`；原 PostgreSQL 修订仅保留作历史来源。"
         "开发规范引用 [rule.md](../../../rule.md)。",
         "",
         "空库初始化按顺序执行表结构 [sql/init.sql](../../sql/init.sql) 和"
@@ -50,7 +59,7 @@ def render():
         "对象逻辑标识（如 run_id、conversation_id、version_id）在所属表统一物理存为 `id`；"
         "关联字段保留业务名称。渠道主档的 `id` 与 `channel_id` 相等。"
         "业务必填由服务入口验证，所有普通列均显式赋值。"
-        "JSONB 中的类型化内容由所属模块 schema 校验；敏感级别按来源可向上提升。",
+        "JSON 中的类型化内容由所属模块 schema 校验；敏感级别按来源可向上提升。",
         "",
         "[关系与生命周期](relations.md) · [服务不变量](service-invariants.md) · "
         "[存储职责](storage-map.md) · [迁移兼容](changes.md)",
@@ -110,7 +119,7 @@ def render():
             lines += [
                 f"## {obj['name']}",
                 "",
-                f"存储：{obj['storage']}；无 PostgreSQL 副本。",
+                f"存储：{obj['storage']}；无 MySQL 副本。",
                 "",
                 *field_table(obj["columns"]),
                 "",

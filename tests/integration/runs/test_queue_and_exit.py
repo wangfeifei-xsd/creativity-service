@@ -93,7 +93,7 @@ class InternalAuthorization:
         pass
 async def run():
     engine = create_async_engine(os.environ['RUN_TEST_DSN'],
-        connect_args={'options': '-csearch_path=' + os.environ['RUN_TEST_SCHEMA']})
+        isolation_level="READ COMMITTED")
     authorization = InternalAuthorization()
     budgets = BudgetService(engine)
     runs = RunService(engine, authorization, VersionService(engine, authorization),

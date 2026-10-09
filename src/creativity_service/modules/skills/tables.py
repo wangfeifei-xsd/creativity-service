@@ -26,7 +26,11 @@ def build_metadata() -> MetaData:
             info=definition,
         )
         for number, columns in enumerate(definition["indexes"]):
-            Index(f"ix_{table.name}_{number}", *(table.c[name] for name in columns))
+            Index(
+                f"ix_{table.name}_{number}",
+                *(table.c[name] for name in columns),
+                mysql_length={"relative_path": 512} if "relative_path" in columns else None,
+            )
     return result
 
 

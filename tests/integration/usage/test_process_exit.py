@@ -30,7 +30,7 @@ from creativity_service.modules.usage.services import UsageService
 async def run():
     engine = create_async_engine(
         os.environ["USAGE_TEST_DSN"],
-        connect_args={"options": "-csearch_path=" + os.environ["USAGE_TEST_SCHEMA"]},
+        isolation_level="READ COMMITTED",
     )
     scope = Scope.model_validate(json.loads(os.environ["USAGE_TEST_SCOPE"]))
     ledger = UsageService(engine, BudgetService(engine))

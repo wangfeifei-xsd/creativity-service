@@ -10,14 +10,15 @@ from typing import Any
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import LargeBinary, Numeric, Table, cast, func, insert, literal, select
-from sqlalchemy.dialects import postgresql
-from sqlalchemy.schema import CreateIndex, CreateTable, SetColumnComment, SetTableComment
+from sqlalchemy import JSON, LargeBinary, Numeric, Table, cast, func, insert, literal, select
+from sqlalchemy.dialects import mysql
 from sqlalchemy.sql import Executable
 
 from creativity_service.core.database import validate_row
 from creativity_service.core.database.audit import audit_catalog, audit_definitions, check_sql
-from creativity_service.core.migrations import MIGRATION_LOCK_KEY, SYSTEM_CHANNEL_ID
+from creativity_service.core.database.ddl import create_table_sql
+from creativity_service.core.database.types import json_array_rows
+from creativity_service.core.migrations import SYSTEM_CHANNEL_ID
 from creativity_service.core.primitives import ServiceError, digest
 from creativity_service.modules.budgets.schemas import BudgetCreate, PlatformLimitCreate
 from creativity_service.modules.channels.codes import channel_code
@@ -178,7 +179,7 @@ def model() -> tuple[str, str, Table]:
         raise ValueError("初始化归档要求迁移链具有且仅具有一个最新修订")
     catalog = json.loads((ROOT / "docs/data-model/catalog.json").read_text(encoding="utf-8"))
     # 导入迁移模块后使用已登记的实现，复用系统渠道版本表定义。
-    context = MigrationContext.configure(dialect_name="postgresql")
+    context = MigrationContext.configure(dialect_name="mysql")
     version = context.impl.version_table_impl(
         version_table="creativity_alembic_version",
         version_table_schema=None,
@@ -190,7 +191,7 @@ def model() -> tuple[str, str, Table]:
 def append(lines: list[str], statement: Executable) -> None:
     # 交付物是直接执行的 SQL 文本，使用命名参数方言避免把 URL 百分号编译成 %%；
     # 同时匹配文件头的标准字符串设置，嵌套 JSON 反斜杠不能再次转义。
-    dialect = postgresql.dialect(paramstyle="named")
+    dialect = mysql.dialect(paramstyle="named")
     dialect._backslash_escapes = False
     compiled = str(
         statement.compile(dialect=dialect, compile_kwargs={"literal_binds": True})
@@ -200,7 +201,14 @@ def append(lines: list[str], statement: Executable) -> None:
 
 
 def finish(lines: list[str]) -> str:
-    result = "\n".join([*lines, "COMMIT;", ""])
+    result = "\n".join(
+        [
+            *lines,
+            "COMMIT;",
+            "SELECT RELEASE_LOCK(SHA2(CONCAT('creativity:migrate:', DATABASE()), 256));",
+            "",
+        ]
+    )
     failures = check_sql(result)
     if failures:
         raise ValueError("\n".join(failures))
@@ -211,8 +219,9 @@ def transaction_header() -> list[str]:
     return [
         "",
         "BEGIN;",
-        "SET LOCAL standard_conforming_strings = on;",
-        f"SELECT pg_advisory_xact_lock({MIGRATION_LOCK_KEY});",
+        "SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_BACKSLASH_ESCAPES,NO_ENGINE_SUBSTITUTION';",
+        "SET time_zone = '+00:00';",
+        "SELECT GET_LOCK(SHA2(CONCAT('creativity:migrate:', DATABASE()), 256), -1);",
         "",
     ]
 
@@ -221,25 +230,20 @@ def render() -> str:
     model_version, revision, version = model()
     tables = [version, *metadata.sorted_tables]
     lines = [
-        "-- Creativity 表结构初始化归档，适用于 PostgreSQL 17 空库或空 schema。",
+        "-- Creativity 表结构初始化归档，适用于 MySQL 8.0 空数据库。",
         f"-- 模型版本：{model_version}；配套数据归档迁移基线：{revision}。",
-        "-- 初始建库基线：alembic/versions/0001_initial.py；后续修订在其上追加。",
+        "-- 初始建库基线：alembic/mysql_versions/0048_mysql_milvus.py；后续修订在其上追加。",
         f"-- 包含 {len(tables)} 张表、{sum(len(t.c) for t in tables)} 个字段、"
         f"{sum(len(t.indexes) for t in tables)} 个普通索引及全部中文注释。",
         "-- 本文件不写初始化数据；完成后必须执行 sql/init_data.sql，再启动服务或迁移。",
         "-- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。",
         "-- 执行方式见 sql/README.md；表创建在连接的当前 schema。",
-        "-- 已有同名表时整个建表事务失败回滚；不要覆盖已有库。",
+        "-- MySQL DDL 隐式提交；失败时保留已建表，须清理专用新库后重试，不能覆盖已有库。",
         *transaction_header(),
     ]
     for table in tables:
         lines.append(f"-- {table.name}：{table.comment}。")
-        append(lines, CreateTable(table))
-        append(lines, SetTableComment(table))
-        for column in table.c:
-            append(lines, SetColumnComment(column))
-        for index in sorted(table.indexes, key=lambda item: item.name or ""):
-            append(lines, CreateIndex(index))
+        lines.extend([create_table_sql(table) + ";", ""])
     return finish(lines)
 
 
@@ -421,6 +425,16 @@ def render_data() -> str:
     ]
     # 归档部署与迁移共用互斥；版本记录最后写入，避免重复导入产生无约束的重复行。
     pending = ~select(version).exists()
+    # 锁槽属于系统渠道控制数据，和业务种子一起提交；重复导入由版本标记阻断。
+    for start in range(0, 12288, 256):
+        source = json_array_rows(literal(json.dumps(list(range(start, start + 256)))))
+        append(
+            lines,
+            insert(metadata.tables["transaction_lock_slots"]).from_select(
+                ["channel_id", "slot"], select(literal("system"), source.c.value).where(pending)
+            ),
+        )
+
     descriptions = {
         "channels": "初始化平台系统渠道及预置业务渠道，主档分别归自身渠道。",
         "channel_code_index": "初始化系统渠道中的业务渠道目录，供列表、定位和编码查重。",
@@ -450,20 +464,20 @@ def render_data() -> str:
             values = []
             for column in table.c:
                 if column.name in import_time_fields(name):
-                    values.append(func.current_timestamp())
-                elif isinstance(column.type, postgresql.JSONB) and row[column.name] is not None:
+                    values.append(func.utc_timestamp(6))
+                elif isinstance(column.type, JSON) and row[column.name] is not None:
                     values.append(
                         cast(
                             literal(
                                 json.dumps(row[column.name], ensure_ascii=False, sort_keys=True)
                             ),
-                            postgresql.JSONB,
+                            JSON,
                         )
                     )
                 elif isinstance(column.type, LargeBinary) and row[column.name] is not None:
-                    values.append(func.decode(literal(row[column.name].hex()), literal("hex")))
+                    values.append(func.unhex(literal(row[column.name].hex())))
                 else:
-                    values.append(cast(literal(row[column.name], type_=column.type), column.type))
+                    values.append(literal(row[column.name], type_=column.type))
             append(
                 lines,
                 insert(table).from_select(list(table.c.keys()), select(*values).where(pending)),
@@ -477,15 +491,15 @@ def render_data() -> str:
             values = []
             for column in table.c:
                 value = row[column.name]
-                if isinstance(column.type, postgresql.JSONB) and value is not None:
+                if isinstance(column.type, JSON) and value is not None:
                     expression = cast(
                         literal(json.dumps(value, ensure_ascii=False, sort_keys=True)),
-                        postgresql.JSONB,
+                        JSON,
                     )
                 elif isinstance(column.type, LargeBinary) and value is not None:
-                    expression = func.decode(literal(value.hex()), literal("hex"))
+                    expression = func.unhex(literal(value.hex()))
                 else:
-                    expression = cast(literal(value, type_=column.type), column.type)
+                    expression = literal(value, type_=column.type)
                 values.append(expression)
             append(
                 lines,

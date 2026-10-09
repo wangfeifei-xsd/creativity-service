@@ -19,9 +19,9 @@ from creativity_service.development.launcher import startup_lock
 def test_healthy_configured_dependency_never_touches_docker(monkeypatch):
     probe, start = Mock(), Mock()
     monkeypatch.setattr(dependencies, "port_open", Mock(side_effect=AssertionError))
-    assert ensure_endpoint("PostgreSQL", "127.0.0.1", 55432, 5432, probe, start) == (
+    assert ensure_endpoint("MySQL", "127.0.0.1", 53306, 3306, probe, start) == (
         "127.0.0.1",
-        55432,
+        53306,
     )
     start.assert_not_called()
 
@@ -41,7 +41,7 @@ def test_existing_standard_port_is_reused_with_same_connection_probe(monkeypatch
     start.assert_not_called()
 
 
-@pytest.mark.parametrize("occupied", [55432, 5432])
+@pytest.mark.parametrize("occupied", [53306, 3306])
 def test_occupied_port_with_wrong_credentials_does_not_start_another_database(
     monkeypatch, occupied
 ):
@@ -49,7 +49,7 @@ def test_occupied_port_with_wrong_credentials_does_not_start_another_database(
     start = Mock()
     monkeypatch.setattr(dependencies, "port_open", lambda _host, port: port == occupied)
     with pytest.raises(StartupError) as failure:
-        ensure_endpoint("PostgreSQL", "127.0.0.1", 55432, 5432, probe, start)
+        ensure_endpoint("MySQL", "127.0.0.1", 53306, 3306, probe, start)
     assert "连接密码" not in str(failure.value)
     start.assert_not_called()
 
@@ -58,9 +58,7 @@ def test_missing_remote_dependency_is_not_replaced_by_local_docker(monkeypatch):
     start = Mock()
     monkeypatch.setattr(dependencies, "port_open", lambda *_: False)
     with pytest.raises(StartupError, match="远端"):
-        ensure_endpoint(
-            "PostgreSQL", "db.example", 5432, 5432, Mock(side_effect=ConnectionError), start
-        )
+        ensure_endpoint("MySQL", "db.example", 3306, 3306, Mock(side_effect=ConnectionError), start)
     start.assert_not_called()
 
 
@@ -128,6 +126,15 @@ def test_redis_fallback_preserves_credentials_and_database():
     assert updated.path == "/3"
     assert updated.username == "default"
     assert updated.password == "p%40ss%2Fword"
+
+
+def test_milvus_fallback_is_propagated_to_application(settings, monkeypatch, tmp_path):
+    settings = settings.model_copy(update={"milvus_uri": "http://localhost:19531"})
+    docker = DockerRuntime(tmp_path, settings)
+    monkeypatch.setattr(dependencies, "ensure_endpoint", Mock(return_value=("::1", 19530)))
+    prepared = dependencies.prepare_vector(settings, docker, check_only=True)
+    assert prepared.milvus_uri == "http://[::1]:19530"
+    assert settings.milvus_uri == "http://localhost:19531"
 
 
 def test_compose_falls_back_to_project_binary(settings, monkeypatch, tmp_path):

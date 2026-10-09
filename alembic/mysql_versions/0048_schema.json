@@ -1,0 +1,662 @@
+[
+  {
+    "name": "admissions",
+    "ddl": [
+      "CREATE TABLE admissions (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tpolicy_refs JSON COMMENT '命中配额策略',\n\tstatus VARCHAR(32) COMMENT '占用状态',\n\texpires_at DATETIME(6) COMMENT '核查时间',\n\tsnapshot JSON COMMENT '运行来源及候选模型快照',\n\tINDEX ix_admissions_0 (channel_id, id),\n\tINDEX ix_admissions_1 (channel_id, run_id),\n\tINDEX ix_admissions_active (channel_id, status, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='运行准入配额占用' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "agent_candidates",
+    "ddl": [
+      "CREATE TABLE agent_candidates (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tagent_id VARCHAR(64) COMMENT '智能体标识',\n\tsource_version_id VARCHAR(64) COMMENT '来源版本标识',\n\tsource_revision BIGINT COMMENT '来源草稿修订号',\n\tpurpose VARCHAR(32) COMMENT '候选用途',\n\tcontent_digest VARCHAR(64) COMMENT '内容摘要',\n\tdependencies_digest VARCHAR(64) COMMENT '完整依赖摘要',\n\tcandidate_digest VARCHAR(64) COMMENT '候选组合摘要',\n\tspec JSON COMMENT '不可变执行定义',\n\tINDEX ix_agent_candidates_0 (channel_id, id),\n\tINDEX ix_agent_candidates_1 (channel_id, agent_id, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='冻结智能体候选快照' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "agent_environment_states",
+    "ddl": [
+      "CREATE TABLE agent_environment_states (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '目标环境',\n\tagent_id VARCHAR(64) COMMENT '智能体标识',\n\tstatus VARCHAR(32) COMMENT '当前环境启用状态',\n\treason VARCHAR(1024) COMMENT '状态变更原因',\n\tINDEX ix_agent_environment_states_0 (channel_id, id),\n\tINDEX ix_agent_environment_states_1 (channel_id, environment, agent_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='智能体各环境停用状态' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "agent_release_records",
+    "ddl": [
+      "CREATE TABLE agent_release_records (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '目标环境',\n\tagent_id VARCHAR(64) COMMENT '智能体标识',\n\tversion_id VARCHAR(64) COMMENT '生效版本标识',\n\tversion_label VARCHAR(128) COMMENT '版本名称',\n\tprevious_version_id VARCHAR(64) COMMENT '原生效版本标识',\n\tsource_revision BIGINT COMMENT '发布来源修订号',\n\toperation VARCHAR(32) COMMENT '操作类型',\n\tnote VARCHAR(1024) COMMENT '操作说明',\n\tactor_id VARCHAR(128) COMMENT '操作人标识',\n\tactor_name VARCHAR(128) COMMENT '操作人名称',\n\tcontent_digest VARCHAR(64) COMMENT '内容摘要',\n\tdependencies_digest VARCHAR(64) COMMENT '完整依赖摘要',\n\tevidence_refs JSON COMMENT '评测报告引用',\n\tchecks JSON COMMENT '发布检查证据',\n\tINDEX ix_agent_release_records_0 (channel_id, id),\n\tINDEX ix_agent_release_records_1 (channel_id, environment, agent_id, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='智能体发布检查与操作记录' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "agents",
+    "ddl": [
+      "CREATE TABLE agents (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tagent_code VARCHAR(64) COMMENT '调用编码',\n\tname VARCHAR(128) COMMENT '智能体名称',\n\tdescription LONGTEXT COMMENT '用途说明',\n\towner VARCHAR(128) COMMENT '负责人标识',\n\tstatus VARCHAR(32) COMMENT '启用状态',\n\tINDEX ix_agents_0 (channel_id, id),\n\tINDEX ix_agents_1 (channel_id, agent_code)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='智能体资源' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "alert_rules",
+    "ddl": [
+      "CREATE TABLE alert_rules (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tname VARCHAR(128) COMMENT '规则名称',\n\tkind VARCHAR(32) COMMENT '监测类型',\n\tthreshold BIGINT COMMENT '触发次数阈值',\n\twindow_seconds BIGINT COMMENT '监测窗口秒数',\n\tendpoint_id VARCHAR(64) COMMENT '告警投递端点',\n\towner_key VARCHAR(64) COMMENT '创建身份摘要',\n\tidentity JSON COMMENT '原执行身份快照',\n\tstate VARCHAR(32) COMMENT '启停状态',\n\tactive BOOL COMMENT '当前是否告警',\n\tgeneration BIGINT COMMENT '触发周期序号',\n\t`last_value` BIGINT COMMENT '最近观察次数',\n\tpending_events JSON COMMENT '待生成投递事件',\n\tclient_ids JSON COMMENT '订阅的调用服务列表；空列表仅包含配置者运行',\n\tINDEX ix_alert_rules_0 (channel_id, id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='外部告警规则' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "artifacts",
+    "ddl": [
+      "CREATE TABLE artifacts (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tname VARCHAR(255) COMMENT '文件显示名称',\n\tcontent_type VARCHAR(128) COMMENT '内容媒体类型',\n\tobject_key VARCHAR(1024) COMMENT '私有对象路径',\n\tsize_bytes BIGINT COMMENT '文件字节数',\n\tsha256 VARCHAR(64) COMMENT '内容摘要',\n\tstate VARCHAR(32) COMMENT '暂存及可用状态',\n\texpires_at DATETIME(6) COMMENT '保存到期时间',\n\tupload_expires_at DATETIME(6) COMMENT '暂存到期时间',\n\tregistered_at DATETIME(6) COMMENT '登记完成时间',\n\tINDEX ix_artifacts_0 (channel_id, id),\n\tINDEX ix_artifacts_1 (channel_id, environment, state, upload_expires_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='受控文件与产物元数据' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "attempts",
+    "ddl": [
+      "CREATE TABLE attempts (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tstep_id VARCHAR(64) COMMENT '步骤标识',\n\tkind VARCHAR(32) COMMENT '模型或工具类别',\n\ttarget_version_id VARCHAR(64) COMMENT '实际依赖版本',\n\tprovider_credential_id VARCHAR(64) COMMENT '实际供应商凭据',\n\tsource_request_id VARCHAR(256) COMMENT '源请求标识',\n\tstate VARCHAR(32) COMMENT '尝试状态',\n\tstarted_at DATETIME(6) COMMENT '开始时间',\n\tfinished_at DATETIME(6) COMMENT '结束时间',\n\terror JSON COMMENT '脱敏错误',\n\tusage_id VARCHAR(64) COMMENT '用量账本引用',\n\tlease_version BIGINT COMMENT '调用所属租约代次',\n\tsent_at DATETIME(6) COMMENT '外部发送意图登记时间',\n\tretryable BOOL COMMENT '明确失败是否允许有限重试',\n\tINDEX ix_attempts_0 (channel_id, id),\n\tINDEX ix_attempts_1 (channel_id, run_id),\n\tINDEX ix_attempts_2 (channel_id, step_id, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='外部实际尝试' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "audit_events",
+    "ddl": [
+      "CREATE TABLE audit_events (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tactor_id VARCHAR(128) COMMENT '操作主体标识',\n\taction VARCHAR(128) COMMENT '操作名称',\n\ttarget_type VARCHAR(64) COMMENT '对象类型',\n\ttarget_id VARCHAR(128) COMMENT '对象标识',\n\trequest_id VARCHAR(64) COMMENT '请求标识',\n\toutcome VARCHAR(32) COMMENT '操作结果',\n\tsummary JSON COMMENT '脱敏变更摘要',\n\tINDEX ix_audit_events_0 (channel_id, id),\n\tINDEX ix_audit_events_1 (channel_id, created_at),\n\tINDEX ix_audit_events_2 (channel_id, target_type, target_id),\n\tINDEX ix_audit_events_directory (channel_id, created_at, id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='操作审计元数据' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "automation_batches",
+    "ddl": [
+      "CREATE TABLE automation_batches (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tname VARCHAR(128) COMMENT '批次名称',\n\trequest_digest VARCHAR(64) COMMENT '受理请求摘要',\n\titem_ids JSON COMMENT '批次条目关联',\n\towner_key VARCHAR(64) COMMENT '执行身份摘要',\n\tidentity JSON COMMENT '原执行身份快照',\n\tstate VARCHAR(32) COMMENT '当前处理状态',\n\tINDEX ix_automation_batches_0 (channel_id, id),\n\tINDEX ix_automation_batches_1 (channel_id, environment, subject_type, subject_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='批量运行受理批次' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "automation_items",
+    "ddl": [
+      "CREATE TABLE automation_items (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tbatch_id VARCHAR(64) COMMENT '来源批次标识',\n\tschedule_id VARCHAR(64) COMMENT '来源计划标识',\n\tevent_id VARCHAR(128) COMMENT '外部事件或窗口编号',\n\trequest_digest VARCHAR(64) COMMENT '条目语义摘要',\n\trequest JSON COMMENT '受理运行输入',\n\towner_key VARCHAR(64) COMMENT '执行身份摘要',\n\tidentity JSON COMMENT '原执行身份快照',\n\tstate VARCHAR(32) COMMENT '当前处理状态',\n\tlease_until DATETIME(6) COMMENT '派发租约到期',\n\tlease_nonce VARCHAR(64) COMMENT '派发租约凭据',\n\tattempts BIGINT COMMENT '受理尝试次数',\n\trun_id VARCHAR(64) COMMENT '关联运行标识',\n\terror JSON COMMENT '最近受理错误',\n\tINDEX ix_automation_items_0 (channel_id, id),\n\tINDEX ix_automation_items_1 (channel_id, environment, subject_type, subject_id),\n\tINDEX ix_automation_items_2 (channel_id, state, lease_until)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='逐项运行派发记录' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "automation_schedules",
+    "ddl": [
+      "CREATE TABLE automation_schedules (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tname VARCHAR(128) COMMENT '计划名称',\n\tspec JSON COMMENT '周期与运行输入',\n\towner_key VARCHAR(64) COMMENT '执行身份摘要',\n\tidentity JSON COMMENT '原执行身份快照',\n\tstate VARCHAR(32) COMMENT '当前处理状态',\n\tnext_at DATETIME(6) COMMENT '下次触发时间',\n\tlast_error JSON COMMENT '最近派发错误',\n\tINDEX ix_automation_schedules_0 (channel_id, id),\n\tINDEX ix_automation_schedules_1 (channel_id, environment, subject_type, subject_id),\n\tINDEX ix_automation_schedules_2 (channel_id, state, next_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='通用运行定时计划' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "budget_alerts",
+    "ddl": [
+      "CREATE TABLE budget_alerts (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\trule_id VARCHAR(64) COMMENT '规则标识',\n\tperiod_start DATETIME(6) COMMENT '周期开始',\n\tthreshold NUMERIC(12, 6) COMMENT '触发阈值',\n\tscope_key VARCHAR(64) COMMENT '预算范围摘要',\n\tstatus VARCHAR(32) COMMENT '提醒状态',\n\tfirst_triggered_at DATETIME(6) COMMENT '首次触发时间',\n\tresolved_at DATETIME(6) COMMENT '解除时间',\n\ttransitions JSON COMMENT '解除及再次触发轨迹',\n\tINDEX ix_budget_alerts_0 (channel_id, id),\n\tINDEX ix_budget_alerts_1 (channel_id, rule_id, period_start, threshold, scope_key)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='预算阈值提醒' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "budget_policies",
+    "ddl": [
+      "CREATE TABLE budget_policies (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tscope_type VARCHAR(64) COMMENT '预算对象类型',\n\tscope_id VARCHAR(128) COMMENT '预算对象标识',\n\tperiod VARCHAR(32) COMMENT '预算周期',\n\ttimezone VARCHAR(64) COMMENT '业务时区',\n\tcurrency VARCHAR(3) COMMENT '币种',\n\tlimit_value NUMERIC(24, 8) COMMENT '限额',\n\tunit VARCHAR(32) COMMENT '金额或数量单位',\n\tmode VARCHAR(32) COMMENT '控制模式',\n\tthresholds JSON COMMENT '提醒阈值',\n\tstatus VARCHAR(32) COMMENT '策略状态',\n\tname VARCHAR(128) COMMENT '预算名称',\n\tversion_id VARCHAR(64) COMMENT '当前不可变策略版本',\n\tINDEX ix_budget_policies_0 (channel_id, id),\n\tINDEX ix_budget_policies_1 (channel_id, scope_type, scope_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='预算策略' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "budget_reservations",
+    "ddl": [
+      "CREATE TABLE budget_reservations (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tpolicy_id VARCHAR(64) COMMENT '预算策略标识',\n\tpolicy_revision BIGINT COMMENT '策略修订',\n\tperiod_start DATETIME(6) COMMENT '周期开始',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tattempt_id VARCHAR(64) COMMENT '实际尝试标识',\n\treserved_amount NUMERIC(24, 8) COMMENT '预占数量或金额',\n\tsettled_amount NUMERIC(24, 8) COMMENT '结算数量或金额',\n\tcurrency VARCHAR(3) COMMENT '币种',\n\tstatus VARCHAR(32) COMMENT '预占状态',\n\texpires_at DATETIME(6) COMMENT '待核查时间',\n\tpolicy_version_id VARCHAR(64) COMMENT '预占时固定的预算策略版本',\n\tunit VARCHAR(32) COMMENT '占用计量单位',\n\tscope_snapshot JSON COMMENT '预算命中对象与周期快照',\n\tINDEX ix_budget_reservations_0 (channel_id, id),\n\tINDEX ix_budget_reservations_1 (channel_id, policy_id, period_start),\n\tINDEX ix_budget_reservations_2 (channel_id, attempt_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='预算尝试预占' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "builtin_roles",
+    "ddl": [
+      "CREATE TABLE builtin_roles (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\trole_code VARCHAR(64) COMMENT '角色编码',\n\tname VARCHAR(128) COMMENT '角色名称',\n\tallowed_actions JSON COMMENT '允许动作',\n\tgrant_scope VARCHAR(32) COMMENT '授权类别',\n\taccount_assignable BOOL COMMENT '可用于账号管理',\n\tmenu_ids JSON COMMENT '可见菜单节点清单，空值沿用按动作生成',\n\tINDEX ix_builtin_roles_0 (channel_id, id),\n\tINDEX ix_builtin_roles_1 (channel_id, role_code)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='内置角色' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "channel_code_index",
+    "ddl": [
+      "CREATE TABLE channel_code_index (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tchannel_code VARCHAR(64) COMMENT '规范化渠道编码',\n\ttarget_channel_id VARCHAR(64) COMMENT '实际业务渠道标识',\n\tINDEX ix_channel_code_index_0 (channel_id, id),\n\tINDEX ix_channel_code_index_1 (channel_id, channel_code)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='系统渠道的渠道编码定位索引' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "channel_environments",
+    "ddl": [
+      "CREATE TABLE channel_environments (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tname VARCHAR(128) COMMENT '环境名称',\n\tstatus VARCHAR(32) COMMENT '环境状态',\n\trelease_policy JSON COMMENT '发布策略',\n\tretention_policy JSON COMMENT '保存策略',\n\tINDEX ix_channel_environments_0 (channel_id, id),\n\tINDEX ix_channel_environments_1 (channel_id, environment)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='渠道环境' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "channel_keys",
+    "ddl": [
+      "CREATE TABLE channel_keys (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tname VARCHAR(128) COMMENT '密钥名称',\n\tclient_id VARCHAR(64) COMMENT '接入服务标识',\n\tsecret_digest VARCHAR(64) COMMENT '不可逆密钥摘要',\n\tprefix VARCHAR(16) COMMENT '辨认前缀',\n\tsuffix VARCHAR(8) COMMENT '辨认末尾',\n\tscopes JSON COMMENT '权限上限',\n\tstatus VARCHAR(32) COMMENT '密钥状态',\n\texpires_at DATETIME(6) COMMENT '失效时间',\n\tlast_used_at DATETIME(6) COMMENT '最近使用时间',\n\tINDEX ix_channel_keys_0 (channel_id, id),\n\tINDEX ix_channel_keys_1 (channel_id, client_id, status)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='渠道接入密钥' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "channel_lifecycle_events",
+    "ddl": [
+      "CREATE TABLE channel_lifecycle_events (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tevent_type VARCHAR(64) COMMENT '生命周期事件类型',\n\ttarget_type VARCHAR(64) COMMENT '变更对象类型',\n\ttarget_id VARCHAR(64) COMMENT '变更对象标识',\n\tenvironment VARCHAR(16) COMMENT '受影响环境',\n\tpayload JSON COMMENT '变更事实与原始归属',\n\tacknowledgements JSON COMMENT '已处理模块及时间',\n\tINDEX ix_channel_lifecycle_events_0 (channel_id, id),\n\tINDEX ix_channel_lifecycle_events_1 (channel_id, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='渠道生命周期交接事件' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "channel_memberships",
+    "ddl": [
+      "CREATE TABLE channel_memberships (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tuser_id VARCHAR(64) COMMENT '平台账号标识',\n\troles JSON COMMENT '角色清单',\n\tenvironments JSON COMMENT '授权环境',\n\tstatus VARCHAR(32) COMMENT '成员状态',\n\tgranted_by VARCHAR(128) COMMENT '授权人标识',\n\tINDEX ix_channel_memberships_0 (channel_id, id),\n\tINDEX ix_channel_memberships_1 (channel_id, user_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='渠道成员关系' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "channels",
+    "ddl": [
+      "CREATE TABLE channels (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tchannel_code VARCHAR(64) COMMENT '渠道稳定编码',\n\tname VARCHAR(128) COMMENT '渠道名称',\n\tstatus VARCHAR(32) COMMENT '渠道状态',\n\towner VARCHAR(128) COMMENT '负责人名称',\n\tarchived_at DATETIME(6) COMMENT '归档时间',\n\tretention_policy JSON COMMENT '保存策略',\n\tbudget_policy_refs JSON COMMENT '预算策略引用',\n\trate_limit_policy_refs JSON COMMENT '限流策略引用',\n\tINDEX ix_channels_0 (channel_id, id),\n\tINDEX ix_channels_1 (channel_id, channel_code)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='渠道主档' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "checkpoints",
+    "ddl": [
+      "CREATE TABLE checkpoints (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tnamespace VARCHAR(128) COMMENT '流程命名空间',\n\tcheckpoint_key VARCHAR(128) COMMENT '恢复点逻辑标识',\n\tparent_key VARCHAR(128) COMMENT '父恢复点',\n\tlease_version BIGINT COMMENT '提交租约代次',\n\trelease_snapshot_id VARCHAR(64) COMMENT '固定依赖快照',\n\tstate_ref VARCHAR(64) COMMENT '状态内容引用',\n\tmetadata JSON COMMENT '无原文恢复元数据',\n\tINDEX ix_checkpoints_0 (channel_id, id),\n\tINDEX ix_checkpoints_1 (channel_id, run_id, namespace, checkpoint_key)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='自有流程恢复点' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "context_snapshots",
+    "ddl": [
+      "CREATE TABLE context_snapshots (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tincluded_message_ids JSON COMMENT '实际包含消息',\n\tsummary_version VARCHAR(64) COMMENT '摘要版本',\n\tmemory_refs JSON COMMENT '记忆具体版本',\n\ttruncation JSON COMMENT '删减原因及范围',\n\tconversation_id VARCHAR(64) COMMENT '所属会话',\n\tsummary_id VARCHAR(64) COMMENT '引用摘要标识',\n\tsummary_source_ids JSON COMMENT '摘要来源消息集合',\n\tpolicy_version VARCHAR(32) COMMENT '上下文选择策略版本',\n\trequired_characters BIGINT COMMENT '必要指令和当前任务字符数',\n\tINDEX ix_context_snapshots_0 (channel_id, id),\n\tINDEX ix_context_snapshots_1 (channel_id, run_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='实际模型上下文快照' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "conversation_summaries",
+    "ddl": [
+      "CREATE TABLE conversation_summaries (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tconversation_id VARCHAR(64) COMMENT '会话标识',\n\tsource_message_ids JSON COMMENT '来源消息集合',\n\tversion BIGINT COMMENT '摘要版本',\n\tcontent LONGTEXT COMMENT '摘要内容',\n\tstatus VARCHAR(32) COMMENT '摘要有效状态',\n\ttruncation JSON COMMENT '摘要删减记录',\n\tgeneration_run_id VARCHAR(64) COMMENT '受控摘要生成运行',\n\tINDEX ix_conversation_summaries_0 (channel_id, id),\n\tINDEX ix_conversation_summaries_1 (channel_id, conversation_id, version)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='可溯源会话摘要' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "conversation_turns",
+    "ddl": [
+      "CREATE TABLE conversation_turns (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tconversation_id VARCHAR(64) COMMENT '会话标识',\n\tclient_message_id VARCHAR(128) COMMENT '客户端消息标识',\n\trequest_digest VARCHAR(64) COMMENT '语义请求摘要',\n\tuser_message_id VARCHAR(64) COMMENT '用户消息标识',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tsequence BIGINT COMMENT '会话内顺序',\n\tassistant_message_id VARCHAR(64) COMMENT '助手消息标识',\n\tagent_version_id VARCHAR(64) COMMENT '本轮冻结智能体版本',\n\tversion_label VARCHAR(128) COMMENT '本轮版本名称',\n\tinput JSON COMMENT '不可变业务输入',\n\tinput_schema JSON COMMENT '本轮输入契约',\n\toutput_schema JSON COMMENT '本轮输出契约',\n\tsource_run_id VARCHAR(64) COMMENT '普通追问来源运行',\n\tconfirmed_conditions JSON COMMENT '上一轮已确认条件',\n\tINDEX ix_conversation_turns_0 (channel_id, id),\n\tINDEX ix_conversation_turns_1 (channel_id, conversation_id, client_message_id),\n\tINDEX ix_conversation_turns_2 (channel_id, conversation_id, sequence)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='会话轮次与消息幂等' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "conversations",
+    "ddl": [
+      "CREATE TABLE conversations (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tagent_id VARCHAR(64) COMMENT '智能体标识',\n\ttitle VARCHAR(255) COMMENT '会话标题',\n\tstatus VARCHAR(32) COMMENT '会话状态',\n\tactive_run_id VARCHAR(64) COMMENT '当前生成运行',\n\texpires_at DATETIME(6) COMMENT '保留到期时间',\n\tagent_code VARCHAR(128) COMMENT '智能体调用编码',\n\tagent_name VARCHAR(128) COMMENT '智能体名称',\n\tsubject_name VARCHAR(128) COMMENT '主体名称',\n\tinput_schema JSON COMMENT '已接受的输入契约',\n\tnext_sequence BIGINT COMMENT '下一条消息顺序',\n\tnext_turn_sequence BIGINT COMMENT '下一轮顺序',\n\tINDEX ix_conversations_0 (channel_id, id),\n\tINDEX ix_conversations_1 (channel_id, environment, subject_type, subject_id, updated_at),\n\tINDEX ix_conversations_2 (channel_id, environment, created_at, id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='业务会话' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "credentials",
+    "ddl": [
+      "CREATE TABLE credentials (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tpurpose VARCHAR(32) COMMENT '凭据用途',\n\tciphertext BLOB COMMENT '认证加密密文',\n\tkey_version VARCHAR(64) COMMENT '加密密钥版本',\n\tstate VARCHAR(32) COMMENT '凭据状态',\n\tsecret_value LONGTEXT COMMENT 'MCP 凭据原文',\n\tINDEX ix_credentials_0 (channel_id, id),\n\tINDEX ix_credentials_1 (channel_id, environment, purpose, state)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='加密服务凭据' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "custom_roles",
+    "ddl": [
+      "CREATE TABLE custom_roles (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tname VARCHAR(128) COMMENT '角色名称',\n\tallowed_actions JSON COMMENT '角色动作上限',\n\tstate VARCHAR(32) COMMENT '启停状态',\n\tmenu_ids JSON COMMENT '可见菜单节点清单，空值沿用按动作生成',\n\tgrant_scope VARCHAR(32) COMMENT '授权类别',\n\tINDEX ix_custom_roles_0 (channel_id, id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='平台与渠道自定义角色' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "delegation_keys",
+    "ddl": [
+      "CREATE TABLE delegation_keys (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tclient_id VARCHAR(64) COMMENT '接入服务标识',\n\tkey_reference VARCHAR(64) COMMENT '独立签名密文引用',\n\talgorithm VARCHAR(32) COMMENT '固定签名算法',\n\tissuer VARCHAR(128) COMMENT '可信签发者',\n\taudience VARCHAR(128) COMMENT '委托受众',\n\tmax_ttl_seconds INTEGER COMMENT '最长委托有效秒数',\n\tclock_skew_seconds INTEGER COMMENT '允许时钟偏差秒数',\n\tstatus VARCHAR(32) COMMENT '密钥状态',\n\tnot_before DATETIME(6) COMMENT '密钥生效时间',\n\texpires_at DATETIME(6) COMMENT '密钥到期时间',\n\trotated_from VARCHAR(64) COMMENT '轮换前密钥编号',\n\tINDEX ix_delegation_keys_0 (channel_id, id),\n\tINDEX ix_delegation_keys_1 (channel_id, environment, client_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='委托签名验证密钥' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "delegation_nonces",
+    "ddl": [
+      "CREATE TABLE delegation_nonces (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tclient_id VARCHAR(64) COMMENT '稳定接入服务标识',\n\tkid VARCHAR(64) COMMENT '验签密钥编号',\n\tnonce_digest VARCHAR(64) COMMENT '随机数摘要',\n\trequest_digest VARCHAR(64) COMMENT '实际请求绑定摘要',\n\tclaims_digest VARCHAR(64) COMMENT '完整委托声明摘要',\n\tclaims JSON COMMENT '验签后权限声明',\n\tresolved_scope JSON COMMENT '验签后渠道环境主体',\n\texpires_at DATETIME(6) COMMENT '防重放声明有效时间',\n\tretain_until DATETIME(6) COMMENT '防重放记录最早清理时间',\n\tINDEX ix_delegation_nonces_0 (channel_id, id),\n\tINDEX ix_delegation_nonces_1 (channel_id, environment, client_id, nonce_digest),\n\tINDEX ix_delegation_nonces_2 (channel_id, environment, retain_until)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='已验证业务委托与请求防重放' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "deletion_jobs",
+    "ddl": [
+      "CREATE TABLE deletion_jobs (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tmarker_id VARCHAR(64) COMMENT '删除标记',\n\tscope_description JSON COMMENT '待清理范围元数据',\n\taffected_resources JSON COMMENT '影响引用清单',\n\tstate VARCHAR(32) COMMENT '清理状态',\n\tcompleted_at DATETIME(6) COMMENT '完成时间',\n\tconversation_id VARCHAR(64) COMMENT '删除目标会话',\n\tINDEX ix_deletion_jobs_0 (channel_id, id),\n\tINDEX ix_deletion_jobs_1 (channel_id, state, created_at),\n\tINDEX ix_deletion_jobs_2 (channel_id, conversation_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='删除传播任务' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "deletion_markers",
+    "ddl": [
+      "CREATE TABLE deletion_markers (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\ttarget_type VARCHAR(64) COMMENT '删除对象类型',\n\ttarget_id VARCHAR(128) COMMENT '删除对象标识',\n\treason_code VARCHAR(64) COMMENT '删除原因类别',\n\trequested_by VARCHAR(128) COMMENT '删除申请主体',\n\tINDEX ix_deletion_markers_0 (channel_id, id),\n\tINDEX ix_deletion_markers_1 (channel_id, environment, target_type, target_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='不可恢复使用的删除标记' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "deletion_receipts",
+    "ddl": [
+      "CREATE TABLE deletion_receipts (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tjob_id VARCHAR(64) COMMENT '删除任务',\n\tmarker_digest VARCHAR(64) COMMENT '删除清单摘要',\n\tcounts JSON COMMENT '各类已完成数量',\n\tproof_digest VARCHAR(64) COMMENT '完成证明摘要',\n\tcompleted_at DATETIME(6) COMMENT '完成时间',\n\tINDEX ix_deletion_receipts_0 (channel_id, id),\n\tINDEX ix_deletion_receipts_1 (channel_id, job_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='删除清理完成证明' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "deletion_work_items",
+    "ddl": [
+      "CREATE TABLE deletion_work_items (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tjob_id VARCHAR(64) COMMENT '删除任务',\n\thandler_key VARCHAR(128) COMMENT '登记处理器',\n\ttarget_type VARCHAR(64) COMMENT '对象类型',\n\ttarget_id VARCHAR(128) COMMENT '对象标识',\n\tstate VARCHAR(32) COMMENT '步骤状态',\n\tattempts INTEGER COMMENT '尝试次数',\n\tnext_attempt_at DATETIME(6) COMMENT '重试时间',\n\tlast_error VARCHAR(64) COMMENT '脱敏错误类别',\n\tlease_token VARCHAR(64) COMMENT '执行租约令牌',\n\tlease_until DATETIME(6) COMMENT '执行租约到期时间',\n\tcompleted_at DATETIME(6) COMMENT '完成时间',\n\tINDEX ix_deletion_work_items_0 (channel_id, id),\n\tINDEX ix_deletion_work_items_1 (channel_id, job_id, handler_key, target_id),\n\tINDEX ix_deletion_work_items_2 (channel_id, state, next_attempt_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='可重试模块清理步骤' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "dispatch_outbox",
+    "ddl": [
+      "CREATE TABLE dispatch_outbox (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tstate VARCHAR(32) COMMENT '投递状态',\n\tdispatch_attempts INTEGER COMMENT '投递次数',\n\tnext_attempt_at DATETIME(6) COMMENT '下次补偿时间',\n\tlast_error VARCHAR(64) COMMENT '脱敏错误类别',\n\tdelivery_version BIGINT COMMENT '本次投递声明代次',\n\tINDEX ix_dispatch_outbox_0 (channel_id, id),\n\tINDEX ix_dispatch_outbox_1 (channel_id, state, next_attempt_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='可靠调度投递意图' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "evaluation_cases",
+    "ddl": [
+      "CREATE TABLE evaluation_cases (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tdataset_id VARCHAR(64) COMMENT '所属样本集',\n\tcase_key VARCHAR(128) COMMENT '跨版本样本定位键',\n\ttitle VARCHAR(255) COMMENT '样本标题',\n\tpayload JSON COMMENT '输入、断言、标签、人工结论和来源',\n\tfixture_id VARCHAR(64) COMMENT '固定工具数据引用',\n\tprevious_case_id VARCHAR(64) COMMENT '修改前样本引用',\n\tinvalidated BOOL COMMENT '来源已失效',\n\tINDEX ix_evaluation_cases_0 (channel_id, id),\n\tINDEX ix_evaluation_cases_1 (channel_id, dataset_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='不可变评测样本' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "evaluation_dataset_versions",
+    "ddl": [
+      "CREATE TABLE evaluation_dataset_versions (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tdataset_id VARCHAR(64) COMMENT '所属样本集',\n\tversion_label VARCHAR(128) COMMENT '版本名称',\n\tcontent_digest VARCHAR(64) COMMENT '数据和标签摘要',\n\tcase_ids JSON COMMENT '固定样本清单',\n\treference_versions JSON COMMENT '参考资料版本',\n\tcaptured_at DATETIME(6) COMMENT '固定数据时间',\n\treference_digests JSON COMMENT '参考资料版本内容摘要',\n\tINDEX ix_evaluation_dataset_versions_0 (channel_id, id),\n\tINDEX ix_evaluation_dataset_versions_1 (channel_id, dataset_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='不可变评测样本及标签版本' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "evaluation_datasets",
+    "ddl": [
+      "CREATE TABLE evaluation_datasets (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tname VARCHAR(128) COMMENT '样本集名称',\n\tscenario VARCHAR(64) COMMENT '适用能力类别',\n\towner VARCHAR(128) COMMENT '负责人',\n\tapplicability LONGTEXT COMMENT '适用范围',\n\tcurrent_version_id VARCHAR(64) COMMENT '当前样本版本',\n\tINDEX ix_evaluation_datasets_0 (channel_id, id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='评测样本集' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "evaluation_fixtures",
+    "ddl": [
+      "CREATE TABLE evaluation_fixtures (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tpayload JSON COMMENT '按工具版本及参数匹配的固定结果',\n\tcaptured_at DATETIME(6) COMMENT '夹具采集时间',\n\tinvalidated BOOL COMMENT '夹具来源已失效',\n\tINDEX ix_evaluation_fixtures_0 (channel_id, id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='评测工具夹具' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "evaluation_reports",
+    "ddl": [
+      "CREATE TABLE evaluation_reports (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tevaluation_id VARCHAR(64) COMMENT '所属评测',\n\treport_digest VARCHAR(64) COMMENT '报告证据摘要',\n\tpayload JSON COMMENT '覆盖、差异、阻断、用量与耗时',\n\treproducible BOOL COMMENT '来源和固定数据可复现',\n\tINDEX ix_evaluation_reports_0 (channel_id, id),\n\tINDEX ix_evaluation_reports_1 (channel_id, evaluation_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='可追溯评测报告' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "evaluation_results",
+    "ddl": [
+      "CREATE TABLE evaluation_results (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tevaluation_id VARCHAR(64) COMMENT '所属评测',\n\tcase_id VARCHAR(64) COMMENT '固定样本',\n\tcandidate_id VARCHAR(64) COMMENT '冻结候选',\n\tattempt_number INTEGER COMMENT '样本重跑序号',\n\trun_id VARCHAR(64) COMMENT '统一运行',\n\tstate VARCHAR(32) COMMENT '单例状态',\n\tjudgment JSON COMMENT '确定性与语义判定',\n\thuman_label JSON COMMENT '独立人工结论',\n\tclaimed_at DATETIME(6) COMMENT '派发占位时间',\n\tINDEX ix_evaluation_results_0 (channel_id, id),\n\tINDEX ix_evaluation_results_1 (channel_id, evaluation_id),\n\tINDEX ix_evaluation_results_2 (channel_id, run_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='评测单例及重跑记录' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "evaluations",
+    "ddl": [
+      "CREATE TABLE evaluations (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tname VARCHAR(128) COMMENT '任务名称',\n\tdataset_version_id VARCHAR(64) COMMENT '固定样本版本',\n\tdataset_digest VARCHAR(64) COMMENT '固定数据和标签摘要',\n\tcandidate_snapshots JSON COMMENT '冻结候选及完整依赖清单',\n\tbaseline_evaluation_id VARCHAR(64) COMMENT '历史基线评测',\n\tbaseline_candidate_id VARCHAR(64) COMMENT '基线候选',\n\texecution_mode VARCHAR(32) COMMENT '工具数据执行模式',\n\tconfig JSON COMMENT '并发、预算、阈值和发布评测配置',\n\tidentity JSON COMMENT '原始调用身份',\n\tstate VARCHAR(32) COMMENT '调度状态',\n\thuman_review JSON COMMENT '独立报告人工审阅',\n\texpires_at DATETIME(6) COMMENT '发布证据有效期',\n\tINDEX ix_evaluations_0 (channel_id, id),\n\tINDEX ix_evaluations_1 (channel_id, state)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='批量评测调度任务' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "evidence_refs",
+    "ddl": [
+      "CREATE TABLE evidence_refs (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tsource_type VARCHAR(64) COMMENT '来源类型',\n\tsource_id VARCHAR(128) COMMENT '来源标识',\n\tsource_version VARCHAR(128) COMMENT '来源版本',\n\tobserved_at DATETIME(6) COMMENT '观测时间',\n\tlocation JSON COMMENT '字段路径或文本位置',\n\ttitle VARCHAR(255) COMMENT '授权范围内的来源名称',\n\tartifact_id VARCHAR(64) COMMENT '内容产物标识',\n\tauthorization_scope JSON COMMENT '授权范围摘要',\n\tINDEX ix_evidence_refs_0 (channel_id, id),\n\tINDEX ix_evidence_refs_1 (channel_id, source_type, source_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='证据定位与授权范围' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "iam_menus",
+    "ddl": [
+      "CREATE TABLE iam_menus (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tname VARCHAR(128) COMMENT '菜单名称',\n\tkind VARCHAR(16) COMMENT '节点类型',\n\tparent_id VARCHAR(64) COMMENT '父节点标识',\n\tpage_key VARCHAR(64) COMMENT '已注册页面标识',\n\taction_key VARCHAR(64) COMMENT '按钮动作标识',\n\tworkspace VARCHAR(16) COMMENT '适用工作区',\n\tsort_order INTEGER COMMENT '显示顺序',\n\tvisible BOOL COMMENT '菜单可见标记',\n\tactive BOOL COMMENT '启用标记',\n\tINDEX ix_iam_menus_0 (channel_id, id),\n\tINDEX ix_iam_menus_1 (channel_id, parent_id, sort_order)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='平台菜单目录' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "iam_revocations",
+    "ddl": [
+      "CREATE TABLE iam_revocations (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tkind VARCHAR(32) COMMENT '撤销索引类别',\n\ttarget_id VARCHAR(128) COMMENT '撤销对象标识或令牌摘要',\n\tcutoff_at DATETIME(6) COMMENT '撤销签发时间上界',\n\tcompleted_at DATETIME(6) COMMENT '缓存补偿完成时间',\n\tINDEX ix_iam_revocations_0 (channel_id, id),\n\tINDEX ix_iam_revocations_1 (channel_id, kind, target_id),\n\tINDEX ix_iam_revocations_2 (completed_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='认证撤销补偿记录' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "key_identity_index",
+    "ddl": [
+      "CREATE TABLE key_identity_index (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tkey_lookup_digest VARCHAR(64) COMMENT '完整密钥不可逆摘要',\n\tkey_id VARCHAR(64) COMMENT '目标密钥标识',\n\ttarget_channel_id VARCHAR(64) COMMENT '目标渠道标识',\n\tINDEX ix_key_identity_index_0 (channel_id, id),\n\tINDEX ix_key_identity_index_1 (channel_id, key_lookup_digest)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='系统渠道密钥身份索引' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "key_rotations",
+    "ddl": [
+      "CREATE TABLE key_rotations (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\told_key_id VARCHAR(64) COMMENT '原密钥标识',\n\tnew_key_id VARCHAR(64) COMMENT '新密钥标识',\n\toverlap_until DATETIME(6) COMMENT '重叠截止时间',\n\toperator_id VARCHAR(128) COMMENT '操作人标识',\n\tINDEX ix_key_rotations_0 (channel_id, id),\n\tINDEX ix_key_rotations_1 (channel_id, old_key_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='密钥轮换记录' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "mcp_checks",
+    "ddl": [
+      "CREATE TABLE mcp_checks (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tconnection_id VARCHAR(64) COMMENT '连接标识',\n\tnegotiated_version VARCHAR(64) COMMENT '协商协议版本',\n\tserver_info JSON COMMENT '远端信息',\n\tcapabilities JSON COMMENT '协商能力',\n\thealth_status VARCHAR(32) COMMENT '健康状态',\n\tlatency_ms INTEGER COMMENT '耗时毫秒',\n\terror_category VARCHAR(64) COMMENT '错误类别',\n\tconnection_revision BIGINT COMMENT '检查时连接配置修订',\n\toperation VARCHAR(32) COMMENT '检查操作类型',\n\tINDEX ix_mcp_checks_0 (channel_id, id),\n\tINDEX ix_mcp_checks_1 (channel_id, connection_id, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='握手与健康检查' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "mcp_connections",
+    "ddl": [
+      "CREATE TABLE mcp_connections (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tname VARCHAR(128) COMMENT '连接名称',\n\ttransport VARCHAR(64) COMMENT '传输类型',\n\tendpoint VARCHAR(2048) COMMENT '服务地址',\n\tcredential_ref VARCHAR(64) COMMENT '凭据引用',\n\ttimeouts JSON COMMENT '超时策略',\n\tstatus VARCHAR(32) COMMENT '启用状态',\n\thealth_status VARCHAR(32) COMMENT '健康状态',\n\tconfiguration_revision BIGINT COMMENT '连接配置修订',\n\tcredential_revision BIGINT COMMENT '凭据版本',\n\ttested_revision BIGINT COMMENT '握手通过的配置修订',\n\tdiscovered_revision BIGINT COMMENT '发现通过的配置修订',\n\tfailure_count INTEGER COMMENT '连续失败次数',\n\thealth_policy JSON COMMENT '检查频率与失败阈值',\n\tlast_check_at DATETIME(6) COMMENT '最近检查时间',\n\tauth_failed BOOL COMMENT '凭据失效阻断状态',\n\thealth_actor_id VARCHAR(64) COMMENT '健康检查授权成员',\n\tnext_check_at DATETIME(6) COMMENT '下次健康检查时间',\n\tauthentication JSON COMMENT '鉴权方式、令牌地址与应用标识；凭据单独保存',\n\tINDEX ix_mcp_connections_0 (channel_id, id),\n\tINDEX ix_mcp_connections_1 (channel_id, environment, status),\n\tINDEX ix_mcp_connections_2 (channel_id, environment, next_check_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='远程工具连接' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "mcp_discoveries",
+    "ddl": [
+      "CREATE TABLE mcp_discoveries (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tconnection_id VARCHAR(64) COMMENT '连接标识',\n\tconnection_revision BIGINT COMMENT '连接修订',\n\ttool_definitions JSON COMMENT '远端工具定义',\n\tschema_hashes JSON COMMENT '定义摘要',\n\tnegotiated_version VARCHAR(64) COMMENT '发现协商协议版本',\n\tcredential_revision BIGINT COMMENT '发现时凭据版本',\n\tINDEX ix_mcp_discoveries_0 (channel_id, id),\n\tINDEX ix_mcp_discoveries_1 (channel_id, connection_id, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='远端工具发现快照' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "mcp_imports",
+    "ddl": [
+      "CREATE TABLE mcp_imports (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tconnection_id VARCHAR(64) COMMENT '连接标识',\n\tdiscovery_id VARCHAR(64) COMMENT '发现快照',\n\tremote_tool_name VARCHAR(256) COMMENT '远端名称',\n\tlocal_tool_id VARCHAR(64) COMMENT '本地工具标识',\n\tschema_hash VARCHAR(64) COMMENT '远端结构摘要',\n\timported_version VARCHAR(64) COMMENT '本地导入版本',\n\teffect_type VARCHAR(32) COMMENT '管理员核定影响类型',\n\tname VARCHAR(128) COMMENT '本地工具显示名称',\n\tinput_schema JSON COMMENT '固定本地输入契约',\n\tcontract_status VARCHAR(32) COMMENT '固定契约可用状态',\n\tINDEX ix_mcp_imports_0 (channel_id, id),\n\tINDEX ix_mcp_imports_1 (channel_id, connection_id, remote_tool_name),\n\tINDEX ix_mcp_imports_2 (channel_id, environment, connection_id, discovery_id, remote_tool_name)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='远端工具导入映射' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "mcp_oauth_flows",
+    "ddl": [
+      "CREATE TABLE mcp_oauth_flows (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tconnection_id VARCHAR(64) COMMENT '连接标识',\n\tconfiguration_revision BIGINT COMMENT '连接配置修订',\n\tprofile_id VARCHAR(64) COMMENT '身份提供方配置',\n\tprofile_digest VARCHAR(64) COMMENT '提供方配置摘要',\n\townership VARCHAR(16) COMMENT '凭据归属类型',\n\towner_id VARCHAR(64) COMMENT '归属身份摘要',\n\tstate VARCHAR(16) COMMENT '授权流程状态',\n\tverifier_ref VARCHAR(64) COMMENT 'PKCE 验证凭据引用',\n\texpires_at DATETIME(6) COMMENT '授权流程截止时间',\n\tINDEX ix_mcp_oauth_flows_0 (channel_id, id),\n\tINDEX ix_mcp_oauth_flows_1 (channel_id, environment, connection_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='MCP 一次性授权流程' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "mcp_oauth_tokens",
+    "ddl": [
+      "CREATE TABLE mcp_oauth_tokens (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tconnection_id VARCHAR(64) COMMENT '连接标识',\n\tprofile_id VARCHAR(64) COMMENT '身份提供方配置',\n\tprofile_digest VARCHAR(64) COMMENT '提供方配置摘要',\n\townership VARCHAR(16) COMMENT '凭据归属类型',\n\towner_id VARCHAR(64) COMMENT '归属身份摘要',\n\tcredential_ref VARCHAR(64) COMMENT '委托令牌凭据引用',\n\texpires_at DATETIME(6) COMMENT '访问令牌截止时间',\n\tstate VARCHAR(16) COMMENT '委托状态',\n\trefresh_until DATETIME(6) COMMENT '刷新占用截止时间',\n\trefresh_nonce VARCHAR(64) COMMENT '刷新互斥代次',\n\tauthorized_at DATETIME(6) COMMENT '授权发起时间',\n\tINDEX ix_mcp_oauth_tokens_0 (channel_id, id),\n\tINDEX ix_mcp_oauth_tokens_1 (channel_id, environment, connection_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='MCP 分身份委托凭据' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "memories",
+    "ddl": [
+      "CREATE TABLE memories (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tmemory_type VARCHAR(64) COMMENT '记忆类别',\n\t`key` VARCHAR(128) COMMENT '记忆属性名',\n\tdisplay_name VARCHAR(128) COMMENT '属性中文名',\n\tvalue JSON COMMENT '记忆值',\n\tstatus VARCHAR(32) COMMENT '确认及有效状态',\n\texpires_at DATETIME(6) COMMENT '有效截止时间',\n\tcurrent_version_id VARCHAR(64) COMMENT '当前版本',\n\tconfirmed BOOL COMMENT '是否经过明确确认',\n\tobserved_at DATETIME(6) COMMENT '最新有效依据时间',\n\ttrust_level INTEGER COMMENT '有效来源可信等级',\n\tusage_count BIGINT COMMENT '实际使用次数',\n\tsubject_name VARCHAR(255) COMMENT '主体可读名称',\n\tsource_mode VARCHAR(16) COMMENT '来源有效性模式：独立依据或全部依赖',\n\tINDEX ix_memories_0 (channel_id, id),\n\tINDEX ix_memories_1 (channel_id, environment, subject_type, subject_id, `key`, status)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='主体结构化记忆' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "memory_consolidations",
+    "ddl": [
+      "CREATE TABLE memory_consolidations (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tconversation_id VARCHAR(128) COMMENT '来源会话标识',\n\tsource_run_id VARCHAR(128) COMMENT '恢复授权与冻结策略的来源运行',\n\tsource_message_ids JSON COMMENT '本批完整消息引用',\n\tmemory_ids JSON COMMENT '已生成的归档及画像引用',\n\tgeneration_run_id VARCHAR(128) COMMENT '后台生成运行标识',\n\tstate VARCHAR(32) COMMENT '后台整理状态',\n\tattempt INTEGER COMMENT '生成轮次',\n\tnext_attempt_at DATETIME(6) COMMENT '下次允许整理时间',\n\terror_code VARCHAR(128) COMMENT '最后失败原因编码',\n\tsettings JSON COMMENT '冻结策略与属性，不包含会话原文',\n\tpreference_revision INTEGER COMMENT '受理时主体偏好修订',\n\tINDEX ix_memory_consolidations_0 (channel_id, id),\n\tINDEX ix_memory_consolidations_1 (channel_id, state, next_attempt_at),\n\tINDEX ix_memory_consolidations_2 (channel_id, conversation_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='会话归档与人物画像后台整理任务' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "memory_deletion_jobs",
+    "ddl": [
+      "CREATE TABLE memory_deletion_jobs (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tmemory_ids JSON COMMENT '待清理记忆标识集合',\n\tstate VARCHAR(32) COMMENT '清理进度',\n\tcompleted_at DATETIME(6) COMMENT '完成时间',\n\tkind VARCHAR(16) COMMENT '单项遗忘或主体清空',\n\tINDEX ix_memory_deletion_jobs_0 (channel_id, id),\n\tINDEX ix_memory_deletion_jobs_1 (channel_id, environment, subject_type, subject_id, state)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='主体记忆删除清理意图' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "memory_embeddings",
+    "ddl": [
+      "CREATE TABLE memory_embeddings (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tmemory_id VARCHAR(64) COMMENT '来源记忆标识',\n\tmemory_version_id VARCHAR(64) COMMENT '来源记忆版本',\n\tmodel_version_id VARCHAR(64) COMMENT '向量模型版本',\n\trun_id VARCHAR(64) COMMENT '生成向量的运行',\n\tdimensions INTEGER COMMENT '向量维度',\n\tembedding JSON COMMENT '记忆向量',\n\tINDEX ix_memory_embeddings_0 (channel_id, id),\n\tINDEX ix_memory_embeddings_1 (channel_id, environment, subject_type, subject_id, model_version_id),\n\tINDEX ix_memory_embeddings_2 (channel_id, memory_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='按主体和模型版本隔离的记忆向量' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "memory_index_tasks",
+    "ddl": [
+      "CREATE TABLE memory_index_tasks (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tdimensions INTEGER COMMENT '向量维度',\n\toperation VARCHAR(16) COMMENT '待同步的写入或删除操作',\n\tstate VARCHAR(16) COMMENT '同步任务状态',\n\tlease_token VARCHAR(64) COMMENT '当前执行租约标识',\n\tlease_until DATETIME(6) COMMENT '租约失效时间',\n\tnext_attempt_at DATETIME(6) COMMENT '下次同步时间',\n\tattempts INTEGER COMMENT '连续失败次数',\n\tINDEX ix_memory_index_tasks_0 (channel_id, id),\n\tINDEX ix_memory_index_tasks_1 (channel_id, next_attempt_at, state),\n\tINDEX ix_memory_index_tasks_2 (channel_id, environment, subject_type, subject_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='Milvus 向量同步与删除持久化任务' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "memory_policies",
+    "ddl": [
+      "CREATE TABLE memory_policies (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tagent_id VARCHAR(64) COMMENT '智能体标识',\n\tallowed_types JSON COMMENT '允许类别',\n\twrite_mode VARCHAR(32) COMMENT '写入方式',\n\tttl_seconds INTEGER COMMENT '保留秒数',\n\tmax_items INTEGER COMMENT '存储条数上限',\n\tretrieval_limit INTEGER COMMENT '召回条数上限',\n\tread_enabled BOOL COMMENT '是否允许读取',\n\tsuggest_enabled BOOL COMMENT '是否允许建议写入',\n\tfailure_mode VARCHAR(16) COMMENT '读取故障处理方式',\n\tattributes JSON COMMENT '渠道可配置的画像属性定义',\n\tconsolidation JSON COMMENT '后台归档与画像整理策略',\n\tINDEX ix_memory_policies_0 (channel_id, id),\n\tINDEX ix_memory_policies_1 (channel_id, agent_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='渠道与智能体记忆策略' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "memory_preferences",
+    "ddl": [
+      "CREATE TABLE memory_preferences (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tenabled BOOL COMMENT '是否启用',\n\tchanged_by VARCHAR(128) COMMENT '变更主体',\n\tINDEX ix_memory_preferences_0 (channel_id, id),\n\tINDEX ix_memory_preferences_1 (channel_id, environment, subject_type, subject_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='主体长期记忆开关' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "memory_retrievals",
+    "ddl": [
+      "CREATE TABLE memory_retrievals (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tmemory_refs JSON COMMENT '使用的记忆版本',\n\tselection_reason JSON COMMENT '选择依据',\n\twarnings JSON COMMENT '脱敏降级提示',\n\tagent_id VARCHAR(64) COMMENT '使用记忆的智能体',\n\tINDEX ix_memory_retrievals_0 (channel_id, id),\n\tINDEX ix_memory_retrievals_1 (channel_id, run_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='运行记忆召回记录' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "memory_sources",
+    "ddl": [
+      "CREATE TABLE memory_sources (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tmemory_id VARCHAR(64) COMMENT '记忆标识',\n\tsource_type VARCHAR(64) COMMENT '来源类型',\n\tsource_id VARCHAR(128) COMMENT '来源标识',\n\tsource_version VARCHAR(128) COMMENT '来源版本',\n\tobserved_at DATETIME(6) COMMENT '观测时间',\n\tevidence_id VARCHAR(64) COMMENT '证据标识',\n\tstatus VARCHAR(32) COMMENT '来源状态',\n\tauthority VARCHAR(32) COMMENT '来源权限类型',\n\ttrust_level INTEGER COMMENT '来源可信等级',\n\tINDEX ix_memory_sources_0 (channel_id, id),\n\tINDEX ix_memory_sources_1 (channel_id, memory_id),\n\tINDEX ix_memory_sources_2 (channel_id, environment, subject_type, subject_id, source_type, source_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='记忆有效来源' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "memory_versions",
+    "ddl": [
+      "CREATE TABLE memory_versions (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tmemory_id VARCHAR(64) COMMENT '记忆标识',\n\tprevious_version_id VARCHAR(64) COMMENT '前版本',\n\tvalue JSON COMMENT '历史内容空槽位，不保存原文',\n\tchanged_by VARCHAR(128) COMMENT '变更主体',\n\treason VARCHAR(512) COMMENT '变更原因',\n\tversion_number INTEGER COMMENT '版本序号',\n\tstatus VARCHAR(32) COMMENT '变更后状态',\n\tsource_ids JSON COMMENT '有效来源记录集合',\n\tINDEX ix_memory_versions_0 (channel_id, id),\n\tINDEX ix_memory_versions_1 (channel_id, memory_id, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='记忆变更版本' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "messages",
+    "ddl": [
+      "CREATE TABLE messages (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tconversation_id VARCHAR(64) COMMENT '会话标识',\n\t`role` VARCHAR(32) COMMENT '消息角色',\n\tcontent_parts JSON COMMENT '文本及附件引用',\n\trun_id VARCHAR(64) COMMENT '关联运行',\n\tstatus VARCHAR(32) COMMENT '消息完成状态',\n\tsequence BIGINT COMMENT '会话消息顺序',\n\tturn_id VARCHAR(64) COMMENT '关联轮次',\n\tevent_sequence BIGINT COMMENT '已投影运行事件顺序',\n\tINDEX ix_messages_0 (channel_id, id),\n\tINDEX ix_messages_1 (channel_id, conversation_id, created_at, id),\n\tINDEX ix_messages_2 (channel_id, conversation_id, sequence)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='会话消息' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "model_connections",
+    "ddl": [
+      "CREATE TABLE model_connections (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tname VARCHAR(128) COMMENT '连接名称',\n\tprotocol VARCHAR(64) COMMENT '协议类型',\n\tendpoint VARCHAR(2048) COMMENT '服务地址',\n\tcredential_ref VARCHAR(64) COMMENT '凭据标识',\n\ttimeout_seconds INTEGER COMMENT '调用超时秒数',\n\tstatus VARCHAR(32) COMMENT '连接启用状态',\n\thealth_status VARCHAR(32) COMMENT '最近健康状态',\n\tprovider_id VARCHAR(64) COMMENT '供应商字典引用',\n\tcurrent_version_id VARCHAR(64) COMMENT '当前连接版本标识',\n\thealth_reason VARCHAR(512) COMMENT '最近健康异常原因',\n\thealth_checked_at DATETIME(6) COMMENT '最近健康检查时间',\n\tvalidation_revision BIGINT COMMENT '能力验证语义修订号',\n\tINDEX ix_model_connections_0 (channel_id, id),\n\tINDEX ix_model_connections_1 (channel_id, environment, status)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='模型供应商连接' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "model_routes",
+    "ddl": [
+      "CREATE TABLE model_routes (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tcode VARCHAR(64) COMMENT '路由编码',\n\tname VARCHAR(128) COMMENT '路由名称',\n\tstatus VARCHAR(32) COMMENT '启用状态',\n\tINDEX ix_model_routes_0 (channel_id, id),\n\tINDEX ix_model_routes_1 (channel_id, code)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='模型路由资源' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "model_tests",
+    "ddl": [
+      "CREATE TABLE model_tests (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tmodel_id VARCHAR(64) COMMENT '模型标识',\n\tconfig_revision BIGINT COMMENT '配置修订号',\n\tcases JSON COMMENT '验证用例',\n\tresults JSON COMMENT '验证结果',\n\tlatency_ms INTEGER COMMENT '耗时毫秒',\n\tattempt_ids JSON COMMENT '实际尝试引用',\n\tconfig_digest VARCHAR(64) COMMENT '冻结配置摘要',\n\texecution JSON COMMENT '冻结调试执行描述',\n\tstate VARCHAR(32) COMMENT '验证执行状态',\n\trun_id VARCHAR(64) COMMENT '统一调试运行标识',\n\terror_code VARCHAR(64) COMMENT '验证失败类别',\n\treason VARCHAR(512) COMMENT '验证失败原因',\n\tINDEX ix_model_tests_0 (channel_id, id),\n\tINDEX ix_model_tests_1 (channel_id, model_id, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='模型验证记录' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "models",
+    "ddl": [
+      "CREATE TABLE models (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tmodel_code VARCHAR(64) COMMENT '稳定模型编码',\n\tname VARCHAR(128) COMMENT '模型名称',\n\tconnection_id VARCHAR(64) COMMENT '连接标识',\n\tprovider_model_name VARCHAR(256) COMMENT '供应商模型名',\n\tcontext_limit INTEGER COMMENT '上下文上限',\n\tstatus VARCHAR(32) COMMENT '启用状态',\n\tcapabilities JSON COMMENT '按能力记录支持及验证状态',\n\tverified_at DATETIME(6) COMMENT '验证时间',\n\tcurrent_version_id VARCHAR(64) COMMENT '当前模型映射版本标识',\n\tparameters JSON COMMENT '模型默认参数',\n\tparameter_allowlist JSON COMMENT '模型允许的参数清单',\n\tvalidation_revision BIGINT COMMENT '能力验证语义修订号',\n\tINDEX ix_models_0 (channel_id, id),\n\tINDEX ix_models_1 (channel_id, model_code)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='模型映射' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "platform_accounts",
+    "ddl": [
+      "CREATE TABLE platform_accounts (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tlogin_name VARCHAR(128) COMMENT '规范化登录名',\n\tdisplay_name VARCHAR(128) COMMENT '显示名称',\n\tpassword_hash VARCHAR(512) COMMENT '密码安全摘要',\n\tplatform_roles JSON COMMENT '平台角色清单',\n\tstatus VARCHAR(32) COMMENT '账号状态',\n\tmust_change_password BOOL COMMENT '首次修改密码标记',\n\tcredential_updated_at DATETIME(6) COMMENT '凭据更新时间',\n\tcredential_version BIGINT COMMENT '凭据撤销代次',\n\trole_id VARCHAR(64) COMMENT '账号选择的管理角色',\n\trole_ids JSON COMMENT '账号选择的管理角色清单，空值兼容旧单角色',\n\tINDEX ix_platform_accounts_0 (channel_id, id),\n\tINDEX ix_platform_accounts_1 (channel_id, login_name),\n\tINDEX ix_platform_accounts_directory (channel_id, status, login_name, id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='平台账号' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "platform_limits",
+    "ddl": [
+      "CREATE TABLE platform_limits (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tlimit_code VARCHAR(64) COMMENT '平台限额编码',\n\tname VARCHAR(128) COMMENT '限额名称',\n\tkind VARCHAR(32) COMMENT '并发或请求数量类别',\n\tperiod VARCHAR(32) COMMENT '限额周期',\n\ttimezone VARCHAR(64) COMMENT '周期时区',\n\tlimit_value NUMERIC(24, 8) COMMENT '限额数量',\n\tunit VARCHAR(32) COMMENT '计量单位',\n\tstatus VARCHAR(32) COMMENT '限额启用状态',\n\treplaces_id VARCHAR(64) COMMENT '前一个限额版本标识',\n\teffective_at DATETIME(6) COMMENT '该限额版本生效时间',\n\tINDEX ix_platform_limits_0 (channel_id, id),\n\tINDEX ix_platform_limits_1 (channel_id, limit_code),\n\tINDEX ix_platform_limits_current (channel_id, limit_code, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='系统渠道平台总准入限额' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "platform_quota_occupancies",
+    "ddl": [
+      "CREATE TABLE platform_quota_occupancies (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\ttarget_channel_id VARCHAR(64) COMMENT '实际业务渠道标识',\n\trun_id VARCHAR(64) COMMENT '实际运行标识',\n\tlimit_id VARCHAR(64) COMMENT '平台限额版本',\n\tlimit_code VARCHAR(64) COMMENT '稳定平台限额编码',\n\tperiod_start DATETIME(6) COMMENT '计数周期起点',\n\tunit VARCHAR(32) COMMENT '请求量或并发单位',\n\tstatus VARCHAR(32) COMMENT '占用状态',\n\tINDEX ix_platform_quota_held (channel_id, limit_code, status),\n\tINDEX ix_platform_quota_occupancies_0 (channel_id, id),\n\tINDEX ix_platform_quota_occupancies_1 (channel_id, limit_code, period_start),\n\tINDEX ix_platform_quota_occupancies_2 (channel_id, target_channel_id, run_id),\n\tINDEX ix_platform_quota_period (channel_id, limit_code, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='平台配额运行占用' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "price_versions",
+    "ddl": [
+      "CREATE TABLE price_versions (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tmodel_id VARCHAR(64) COMMENT '模型标识',\n\tcurrency VARCHAR(3) COMMENT '币种',\n\tprice_items JSON COMMENT '各计价维度和子集关系',\n\tunit VARCHAR(64) COMMENT '计价单位',\n\teffective_at DATETIME(6) COMMENT '价格生效时间',\n\tsource VARCHAR(1024) COMMENT '价格来源',\n\tname VARCHAR(128) COMMENT '价格版本名称',\n\tsubset_relations JSON COMMENT '适配器计量子集关系',\n\tINDEX ix_price_versions_0 (channel_id, id),\n\tINDEX ix_price_versions_1 (channel_id, model_id, effective_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='模型价格版本' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "prompt_samples",
+    "ddl": [
+      "CREATE TABLE prompt_samples (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tprompt_id VARCHAR(64) COMMENT '提示词资源标识',\n\ttitle VARCHAR(128) COMMENT '样例名称',\n\tinput JSON COMMENT '样例输入',\n\texpected_constraints JSON COMMENT '预期断言',\n\tINDEX ix_prompt_samples_0 (channel_id, id),\n\tINDEX ix_prompt_samples_1 (channel_id, prompt_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='提示词调试样例' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "prompt_tests",
+    "ddl": [
+      "CREATE TABLE prompt_tests (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tversion_id VARCHAR(64) COMMENT '版本标识',\n\tdraft_revision BIGINT COMMENT '草稿修订',\n\trelease_snapshot_id VARCHAR(64) COMMENT '冻结快照标识',\n\tmodel_route_version VARCHAR(64) COMMENT '模型路由版本',\n\trendered_input_ref VARCHAR(64) COMMENT '渲染内容引用',\n\trun_id VARCHAR(64) COMMENT '调试运行标识',\n\tfrozen_version JSON COMMENT '调试时固定的提示词版本',\n\tsample_snapshot JSON COMMENT '调试时固定的样例与预期断言',\n\trendered_input JSON COMMENT '保持来源分区的完整渲染快照',\n\tdescriptor_digest VARCHAR(64) COMMENT '调试执行描述摘要',\n\tsample_id VARCHAR(64) COMMENT '调试样例标识',\n\tmodel_route_name VARCHAR(128) COMMENT '调试时的模型路由名称',\n\tstatus VARCHAR(32) COMMENT '调试受理状态',\n\tINDEX ix_prompt_tests_0 (channel_id, id),\n\tINDEX ix_prompt_tests_1 (channel_id, version_id),\n\tINDEX ix_prompt_tests_2 (channel_id, environment, version_id, descriptor_digest)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='提示词调试记录' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "prompts",
+    "ddl": [
+      "CREATE TABLE prompts (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tprompt_code VARCHAR(64) COMMENT '提示词编码',\n\tname VARCHAR(128) COMMENT '提示词名称',\n\tpurpose VARCHAR(512) COMMENT '使用用途',\n\towner VARCHAR(128) COMMENT '负责人标识',\n\tstatus VARCHAR(32) COMMENT '资源状态',\n\tINDEX ix_prompts_0 (channel_id, id),\n\tINDEX ix_prompts_1 (channel_id, prompt_code)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='提示词资源' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "provider_catalog",
+    "ddl": [
+      "CREATE TABLE provider_catalog (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tcode VARCHAR(64) COMMENT '供应商编码',\n\tname VARCHAR(128) COMMENT '供应商名称',\n\tprotocols JSON COMMENT '支持协议族',\n\ttemplate_content JSON COMMENT '无凭据连接模板',\n\tINDEX ix_provider_catalog_0 (channel_id, id),\n\tINDEX ix_provider_catalog_1 (channel_id, code)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='供应商字典' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "provider_statements",
+    "ddl": [
+      "CREATE TABLE provider_statements (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tname VARCHAR(128) COMMENT '账单来源名称',\n\tsource_digest VARCHAR(64) COMMENT '导入来源摘要',\n\tversion VARCHAR(64) COMMENT '来源账单版本',\n\tconnection_id VARCHAR(64) COMMENT '模型连接标识',\n\tcurrency VARCHAR(3) COMMENT '账单币种',\n\tstart_at DATETIME(6) COMMENT '核查开始时间',\n\tend_at DATETIME(6) COMMENT '核查结束时间',\n\t`lines` JSON COMMENT '规范化供应商记录',\n\towner_key VARCHAR(64) COMMENT '创建身份摘要',\n\tINDEX ix_provider_statements_0 (channel_id, id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='供应商账单核查批次' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "recovery_barriers",
+    "ddl": [
+      "CREATE TABLE recovery_barriers (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tstate VARCHAR(32) COMMENT '恢复屏障状态',\n\trecovery_id VARCHAR(64) COMMENT '本次恢复标识',\n\tmarker_digest VARCHAR(64) COMMENT '已校验删除账本摘要',\n\tverified_at DATETIME(6) COMMENT '删除账本核对时间',\n\tINDEX ix_recovery_barriers_0 (channel_id, id),\n\tINDEX ix_recovery_barriers_1 (channel_id, environment, subject_type, subject_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='内容恢复屏障' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "release_mappings",
+    "ddl": [
+      "CREATE TABLE release_mappings (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tresource_type VARCHAR(64) COMMENT '资源类型',\n\tresource_id VARCHAR(64) COMMENT '稳定资源标识',\n\tversion_id VARCHAR(64) COMMENT '生效版本标识',\n\tpublished_by VARCHAR(128) COMMENT '发布主体标识',\n\trelease_note VARCHAR(1024) COMMENT '发布说明',\n\tINDEX ix_release_mappings_0 (channel_id, id),\n\tINDEX ix_release_mappings_1 (channel_id, environment, resource_type, resource_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='环境生效版本映射' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "release_snapshots",
+    "ddl": [
+      "CREATE TABLE release_snapshots (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\trun_id VARCHAR(64) COMMENT '所属运行标识',\n\tpurpose VARCHAR(32) COMMENT '使用用途',\n\tversions JSON COMMENT '具体版本及草稿内容快照',\n\tdependencies_digest VARCHAR(64) COMMENT '全量依赖摘要',\n\toutput_schema JSON COMMENT '固定输出结构',\n\tINDEX ix_release_snapshots_0 (channel_id, id),\n\tINDEX ix_release_snapshots_1 (channel_id, environment, run_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='执行依赖冻结快照' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "resource_grants",
+    "ddl": [
+      "CREATE TABLE resource_grants (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tgrantee_type VARCHAR(64) COMMENT '受权主体类型',\n\tgrantee_id VARCHAR(128) COMMENT '受权主体标识',\n\tresource_type VARCHAR(64) COMMENT '资源类型',\n\tresource_id VARCHAR(64) COMMENT '资源标识',\n\tallowed_actions JSON COMMENT '允许动作',\n\tenvironments JSON COMMENT '授权环境',\n\tINDEX ix_resource_grants_0 (channel_id, id),\n\tINDEX ix_resource_grants_1 (channel_id, grantee_type, grantee_id),\n\tINDEX ix_resource_grants_2 (channel_id, resource_type, resource_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='资源授权' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "resource_references",
+    "ddl": [
+      "CREATE TABLE resource_references (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tsource_version_id VARCHAR(64) COMMENT '引用方版本标识',\n\ttarget_version_id VARCHAR(64) COMMENT '被引用版本标识',\n\ttarget_resource_type VARCHAR(64) COMMENT '被引用资源类型',\n\tINDEX ix_resource_references_0 (channel_id, id),\n\tINDEX ix_resource_references_1 (channel_id, target_version_id),\n\tINDEX ix_resource_references_2 (channel_id, source_version_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='版本引用关系' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "resource_uses",
+    "ddl": [
+      "CREATE TABLE resource_uses (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '使用环境',\n\tresource_type VARCHAR(64) COMMENT '资源类型',\n\tresource_id VARCHAR(64) COMMENT '稳定资源标识',\n\tresource_name VARCHAR(128) COMMENT '使用时资源名称',\n\trun_id VARCHAR(64) COMMENT '关联运行标识',\n\tagent_name VARCHAR(128) COMMENT '使用时智能体名称',\n\tcaller_name VARCHAR(128) COMMENT '使用时调用方名称',\n\tpurpose VARCHAR(32) COMMENT '运行用途',\n\tINDEX ix_resource_uses_0 (channel_id, id),\n\tINDEX ix_resource_uses_1 (channel_id, resource_type, resource_id),\n\tINDEX ix_resource_uses_2 (channel_id, run_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='资源实际使用记录，每个资源在同一运行中计一次' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "resource_versions",
+    "ddl": [
+      "CREATE TABLE resource_versions (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tresource_type VARCHAR(64) COMMENT '资源类型',\n\tresource_id VARCHAR(64) COMMENT '稳定资源标识',\n\tversion_label VARCHAR(128) COMMENT '可读版本名称',\n\tstate VARCHAR(32) COMMENT '版本状态',\n\tcontent JSON COMMENT '版本内容',\n\tcontent_digest VARCHAR(64) COMMENT '规范化内容摘要',\n\tdependencies JSON COMMENT '固定依赖清单',\n\tdependencies_digest VARCHAR(64) COMMENT '依赖摘要',\n\toutput_schema JSON COMMENT '输出结构定义',\n\tcreated_by VARCHAR(128) COMMENT '创建主体标识',\n\tINDEX ix_resource_versions_0 (channel_id, id),\n\tINDEX ix_resource_versions_1 (channel_id, resource_type, resource_id, state)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='资源版本与草稿' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "run_contents",
+    "ddl": [
+      "CREATE TABLE run_contents (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\trun_id VARCHAR(64) COMMENT '所属运行',\n\tkind VARCHAR(32) COMMENT '内容用途',\n\tpayload JSON COMMENT '受控内容正文',\n\tINDEX ix_run_contents_0 (channel_id, id),\n\tINDEX ix_run_contents_1 (channel_id, run_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='运行敏感内容引用' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "run_events",
+    "ddl": [
+      "CREATE TABLE run_events (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tsequence BIGINT COMMENT '运行内单调序号',\n\tevent_type VARCHAR(64) COMMENT '事件类别',\n\tpayload_ref VARCHAR(64) COMMENT '事件内容引用',\n\texpires_at DATETIME(6) COMMENT '事件失效时间',\n\tINDEX ix_run_events_0 (channel_id, id),\n\tINDEX ix_run_events_1 (channel_id, run_id, sequence)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='可补发运行事件' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "run_idempotency",
+    "ddl": [
+      "CREATE TABLE run_idempotency (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tclient_id VARCHAR(64) COMMENT '接入服务稳定标识',\n\tagent_id VARCHAR(64) COMMENT '智能体标识',\n\t`key` VARCHAR(128) COMMENT '调用方幂等键',\n\trequest_digest VARCHAR(64) COMMENT '语义请求摘要',\n\trun_id VARCHAR(64) COMMENT '首次受理运行',\n\texpires_at DATETIME(6) COMMENT '最早可清理时间',\n\tidentity_type VARCHAR(32) COMMENT '稳定身份来源类型',\n\tidentity_id VARCHAR(128) COMMENT '稳定调用服务或管理操作者',\n\tscope_digest VARCHAR(64) COMMENT '幂等范围摘要',\n\tINDEX ix_run_idempotency_0 (channel_id, id),\n\tINDEX ix_run_idempotency_1 (channel_id, environment, subject_type, subject_id, client_id, agent_id, `key`),\n\tINDEX ix_run_idempotency_2 (channel_id, scope_digest, `key`)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='接入请求幂等' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "run_leases",
+    "ddl": [
+      "CREATE TABLE run_leases (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tworker_id VARCHAR(128) COMMENT '进程标识',\n\tlease_version BIGINT COMMENT '租约代次',\n\theartbeat_at DATETIME(6) COMMENT '最近续租时间',\n\texpires_at DATETIME(6) COMMENT '租约到期时间',\n\tINDEX ix_run_leases_0 (channel_id, id),\n\tINDEX ix_run_leases_1 (channel_id, run_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='工作进程执行租约' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "run_occupancies",
+    "ddl": [
+      "CREATE TABLE run_occupancies (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tconversation_id VARCHAR(64) COMMENT '占用会话',\n\trun_id VARCHAR(64) COMMENT '占用运行',\n\tstate VARCHAR(32) COMMENT '占用状态',\n\tINDEX ix_run_occupancies_0 (channel_id, id),\n\tINDEX ix_run_occupancies_1 (channel_id, environment, conversation_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='运行会话执行占用' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "run_recoveries",
+    "ddl": [
+      "CREATE TABLE run_recoveries (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\trun_id VARCHAR(64) COMMENT '所属运行',\n\tlease_version BIGINT COMMENT '失效租约代次',\n\tdecision VARCHAR(32) COMMENT '恢复判断结果',\n\treason VARCHAR(64) COMMENT '脱敏原因类别',\n\tINDEX ix_run_recoveries_0 (channel_id, id),\n\tINDEX ix_run_recoveries_1 (channel_id, run_id, lease_version)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='执行租约恢复判断记录' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "run_steps",
+    "ddl": [
+      "CREATE TABLE run_steps (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tnode_key VARCHAR(128) COMMENT '流程节点',\n\tstate VARCHAR(32) COMMENT '步骤状态',\n\tinput_ref VARCHAR(64) COMMENT '输入引用',\n\toutput_ref VARCHAR(64) COMMENT '输出引用',\n\tcheckpoint_ref VARCHAR(64) COMMENT '恢复点',\n\tsequence BIGINT COMMENT '步骤顺序',\n\tattempt_count INTEGER COMMENT '实际尝试累计次数',\n\tlease_version BIGINT COMMENT '最近有效提交租约代次',\n\tINDEX ix_run_steps_0 (channel_id, id),\n\tINDEX ix_run_steps_1 (channel_id, run_id, sequence)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='执行步骤' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "runs",
+    "ddl": [
+      "CREATE TABLE runs (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tsource_type VARCHAR(32) COMMENT '发起来源',\n\tclient_id VARCHAR(64) COMMENT '接入服务',\n\tkey_id VARCHAR(64) COMMENT '渠道密钥',\n\tactor_id VARCHAR(128) COMMENT '管理发起人',\n\tagent_id VARCHAR(64) COMMENT '智能体',\n\tagent_version_id VARCHAR(64) COMMENT '智能体版本',\n\trelease_snapshot_id VARCHAR(64) COMMENT '冻结依赖快照',\n\tpurpose VARCHAR(32) COMMENT '调用用途',\n\tstate VARCHAR(32) COMMENT '技术状态',\n\tdeadline DATETIME(6) COMMENT '全程截止时间',\n\tconversation_id VARCHAR(64) COMMENT '会话标识',\n\tparent_run_id VARCHAR(64) COMMENT '来源运行',\n\tinput_ref VARCHAR(64) COMMENT '输入内容引用',\n\tresult_ref VARCHAR(64) COMMENT '正式结果引用',\n\tpartial_output_ref VARCHAR(64) COMMENT '部分输出引用',\n\terror JSON COMMENT '脱敏错误',\n\tcompleted_at DATETIME(6) COMMENT '终结时间',\n\tagent_code VARCHAR(128) COMMENT '智能体调用编码',\n\tagent_name VARCHAR(128) COMMENT '受理时智能体名称',\n\tidentity JSON COMMENT '不含访问令牌的原始身份',\n\texecution_policy JSON COMMENT '冻结执行限额与步骤策略',\n\ttimeout_seconds INTEGER COMMENT '全程时限秒数',\n\ttimeout_source VARCHAR(128) COMMENT '时限配置来源',\n\tevent_sequence BIGINT COMMENT '最后事件序号',\n\tresources_released BOOL COMMENT '终态占用已释放',\n\trecovery_count INTEGER COMMENT '租约失效恢复次数',\n\tINDEX ix_runs_0 (channel_id, id),\n\tINDEX ix_runs_1 (channel_id, environment, state, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='逻辑执行任务' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "service_clients",
+    "ddl": [
+      "CREATE TABLE service_clients (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tname VARCHAR(128) COMMENT '服务名称',\n\tscopes JSON COMMENT '权限上限',\n\tstatus VARCHAR(32) COMMENT '服务状态',\n\tINDEX ix_service_clients_0 (channel_id, id),\n\tINDEX ix_service_clients_1 (channel_id, environment, status)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='业务接入服务' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "skill_files",
+    "ddl": [
+      "CREATE TABLE skill_files (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tversion_id VARCHAR(64) COMMENT '技能版本',\n\trelative_path VARCHAR(1024) COMMENT '包内路径',\n\tcontent_type VARCHAR(128) COMMENT '媒体类型',\n\tsize_bytes BIGINT COMMENT '文件字节数',\n\tsha256 VARCHAR(64) COMMENT '文件摘要',\n\tartifact_id VARCHAR(64) COMMENT '受控内容引用',\n\tloadable BOOL COMMENT '当前是否可加载',\n\tunavailable_reason LONGTEXT COMMENT '不可加载原因',\n\tINDEX ix_skill_files_0 (channel_id, id),\n\tINDEX ix_skill_files_1 (channel_id, version_id, relative_path(512))\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='技能版本文件清单' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "skill_tests",
+    "ddl": [
+      "CREATE TABLE skill_tests (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tversion_id VARCHAR(64) COMMENT '技能版本',\n\trelease_snapshot_id VARCHAR(64) COMMENT '上下文冻结快照',\n\tselected_files JSON COMMENT '实际加载文件',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tresult JSON COMMENT '测试结果',\n\tcontext_snapshot JSON COMMENT '加载输入与版本冻结快照',\n\tINDEX ix_skill_tests_0 (channel_id, id),\n\tINDEX ix_skill_tests_1 (channel_id, version_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='技能加载测试' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "skills",
+    "ddl": [
+      "CREATE TABLE skills (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tskill_code VARCHAR(64) COMMENT '技能编码',\n\tname VARCHAR(128) COMMENT '技能名称',\n\tdescription LONGTEXT COMMENT '用途说明',\n\towner VARCHAR(128) COMMENT '负责人',\n\ttags JSON COMMENT '发现标签',\n\tstatus VARCHAR(32) COMMENT '启用状态',\n\tINDEX ix_skills_0 (channel_id, id),\n\tINDEX ix_skills_1 (channel_id, skill_code)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='技能资源' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "source_links",
+    "ddl": [
+      "CREATE TABLE source_links (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tsource_type VARCHAR(64) COMMENT '来源类型',\n\tsource_id VARCHAR(128) COMMENT '来源标识',\n\tderived_type VARCHAR(64) COMMENT '派生类型',\n\tderived_id VARCHAR(128) COMMENT '派生标识',\n\tsource_version VARCHAR(128) COMMENT '来源版本',\n\tINDEX ix_source_links_0 (channel_id, id),\n\tINDEX ix_source_links_1 (channel_id, environment, source_type, source_id),\n\tINDEX ix_source_links_2 (channel_id, environment, derived_type, derived_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='内容来源与派生关系' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "subject_review_bindings",
+    "ddl": [
+      "CREATE TABLE subject_review_bindings (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tclient_id VARCHAR(64) COMMENT '受限接入服务标识',\n\tconnection_id VARCHAR(64) COMMENT '固定身份复核连接',\n\tdiscovery_id VARCHAR(64) COMMENT '授权时发现快照',\n\tremote_tool_name VARCHAR(256) COMMENT '专用身份复核工具名',\n\ttool_name VARCHAR(128) COMMENT '身份工具显示名称',\n\tconnection_revision BIGINT COMMENT '授权时连接配置修订',\n\tschema_hash VARCHAR(128) COMMENT '授权时身份工具契约摘要',\n\ttimeout_seconds INTEGER COMMENT '身份复核超时秒数',\n\tenabled BOOL COMMENT '是否允许身份复核',\n\tINDEX ix_subject_review_bindings_0 (channel_id, id),\n\tINDEX ix_subject_review_bindings_1 (channel_id, environment, client_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='当前主体复核的固定 MCP 绑定' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "tool_calls",
+    "ddl": [
+      "CREATE TABLE tool_calls (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tstep_id VARCHAR(64) COMMENT '步骤标识',\n\tattempt_id VARCHAR(64) COMMENT '尝试标识',\n\ttool_version_id VARCHAR(64) COMMENT '工具版本',\n\targs_digest VARCHAR(64) COMMENT '参数摘要',\n\tstate VARCHAR(32) COMMENT '调用状态',\n\tsource_request_id VARCHAR(256) COMMENT '源请求标识',\n\tresult_ref VARCHAR(64) COMMENT '结果内容引用',\n\tlatency_ms INTEGER COMMENT '耗时毫秒',\n\terror JSON COMMENT '脱敏错误',\n\ttool_id VARCHAR(64) COMMENT '工具资源标识',\n\tredacted_arguments JSON COMMENT '脱敏输入参数',\n\tresult_summary JSON COMMENT '结果结构摘要',\n\tevidence_ids JSON COMMENT '有效证据标识集合',\n\tattempt JSON COMMENT '独立尝试状态',\n\tINDEX ix_tool_calls_0 (channel_id, id),\n\tINDEX ix_tool_calls_1 (channel_id, run_id),\n\tINDEX ix_tool_calls_2 (channel_id, attempt_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='工具实际调用' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "tools",
+    "ddl": [
+      "CREATE TABLE tools (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\ttool_code VARCHAR(64) COMMENT '调用编码',\n\tname VARCHAR(128) COMMENT '工具名称',\n\tdescription LONGTEXT COMMENT '用途说明',\n\tsource_type VARCHAR(32) COMMENT '来源类型',\n\towner VARCHAR(128) COMMENT '负责人',\n\tstatus VARCHAR(32) COMMENT '启用状态',\n\tINDEX ix_tools_0 (channel_id, id),\n\tINDEX ix_tools_1 (channel_id, tool_code)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='工具资源' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "transaction_lock_slots",
+    "ddl": [
+      "CREATE TABLE transaction_lock_slots (\n\tchannel_id VARCHAR(64) COMMENT '锁目录所属系统渠道',\n\tslot INTEGER COMMENT '包含锁顺序分组的固定槽位',\n\tINDEX ix_transaction_lock_slots_0 (channel_id, slot)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='服务层事务互斥固定锁槽' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "usage_adjustments",
+    "ddl": [
+      "CREATE TABLE usage_adjustments (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tusage_id VARCHAR(64) COMMENT '账本标识',\n\tevent_id VARCHAR(64) COMMENT '来源事件标识',\n\tprevious_revision BIGINT COMMENT '前次修订',\n\tamount_delta NUMERIC(24, 8) COMMENT '金额变动',\n\tcurrency VARCHAR(3) COMMENT '币种',\n\treason VARCHAR(512) COMMENT '修正原因',\n\tcalculation JSON COMMENT '核算依据',\n\tINDEX ix_usage_adjustments_0 (channel_id, id),\n\tINDEX ix_usage_adjustments_1 (channel_id, usage_id, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='用量计价修正轨迹' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "usage_aggregates",
+    "ddl": [
+      "CREATE TABLE usage_aggregates (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tdimensions JSON COMMENT '统计维度',\n\tdimensions_digest VARCHAR(64) COMMENT '统计范围摘要',\n\tperiod_start DATETIME(6) COMMENT '周期开始',\n\tcurrency VARCHAR(3) COMMENT '币种',\n\ttotals JSON COMMENT '数量及完整性分组',\n\tledger_watermark DATETIME(6) COMMENT '账本处理水位',\n\tINDEX ix_usage_aggregates_0 (channel_id, id),\n\tINDEX ix_usage_aggregates_1 (channel_id, dimensions_digest, period_start, currency)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='可重算用量聚合' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "usage_events",
+    "ddl": [
+      "CREATE TABLE usage_events (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tattempt_id VARCHAR(64) COMMENT '尝试标识',\n\tconnection_id VARCHAR(64) COMMENT '供应商连接标识',\n\tsource_request_id VARCHAR(256) COMMENT '供应商请求标识',\n\tevent_version BIGINT COMMENT '事件版本',\n\traw_usage JSON COMMENT '原始计量值与子集口径',\n\tusage_status VARCHAR(32) COMMENT '事件完整性',\n\tobserved_at DATETIME(6) COMMENT '观测时间',\n\tevent_payload JSON COMMENT '经契约验证的完整计量事件',\n\tpayload_digest VARCHAR(64) COMMENT '事件内容摘要',\n\tapplied BOOL COMMENT '是否成为当前有效计量',\n\tINDEX ix_usage_events_0 (channel_id, id),\n\tINDEX ix_usage_events_1 (channel_id, connection_id, source_request_id, event_version)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='供应商用量来源事件' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "usage_exchange_rates",
+    "ddl": [
+      "CREATE TABLE usage_exchange_rates (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tbase_currency VARCHAR(3) COMMENT '原始币种',\n\tquote_currency VARCHAR(3) COMMENT '折算币种',\n\trate NUMERIC(24, 8) COMMENT '折算汇率',\n\teffective_at DATETIME(6) COMMENT '汇率日期',\n\tsource VARCHAR(1024) COMMENT '汇率来源',\n\tINDEX ix_usage_exchange_rates_0 (channel_id, id),\n\tINDEX ix_usage_exchange_rates_1 (channel_id, base_currency, quote_currency, effective_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='核算展示汇率版本' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "usage_exports",
+    "ddl": [
+      "CREATE TABLE usage_exports (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\trequested_by VARCHAR(128) COMMENT '导出人',\n\tfilters JSON COMMENT '授权筛选条件',\n\ttimezone VARCHAR(64) COMMENT '业务时区',\n\tchannel_range JSON COMMENT '明确授权的渠道集合',\n\tstate VARCHAR(32) COMMENT '导出状态',\n\tartifact_id VARCHAR(64) COMMENT '产物标识',\n\tscope_snapshot JSON COMMENT '创建时受信查询范围',\n\tobject_key VARCHAR(1024) COMMENT '渠道隔离的私有产物路径',\n\tmetadata JSON COMMENT '计量口径及价格完整性',\n\terror_message VARCHAR(512) COMMENT '导出失败原因',\n\texpires_at DATETIME(6) COMMENT '导出失效时间',\n\tINDEX ix_usage_exports_0 (channel_id, id),\n\tINDEX ix_usage_exports_1 (channel_id, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='用量导出请求' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "usage_records",
+    "ddl": [
+      "CREATE TABLE usage_records (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\trun_id VARCHAR(64) COMMENT '运行标识',\n\tattempt_id VARCHAR(64) COMMENT '实际尝试标识',\n\tsource_type VARCHAR(32) COMMENT '来源类型',\n\tclient_id VARCHAR(64) COMMENT '接入服务标识',\n\tkey_id VARCHAR(64) COMMENT '渠道密钥标识',\n\tactor_id VARCHAR(128) COMMENT '管理主体标识',\n\tagent_id VARCHAR(64) COMMENT '智能体标识',\n\tmodel_id VARCHAR(64) COMMENT '模型标识',\n\tconnection_id VARCHAR(64) COMMENT '供应商连接标识',\n\tpurpose VARCHAR(32) COMMENT '调用用途',\n\tinput_tokens BIGINT COMMENT '输入数量',\n\toutput_tokens BIGINT COMMENT '输出数量',\n\tcached_tokens BIGINT COMMENT '缓存子集数量',\n\treasoning_tokens BIGINT COMMENT '推理子集数量',\n\traw_usage_ref VARCHAR(64) COMMENT '原始用量引用',\n\tusage_status VARCHAR(32) COMMENT '用量完整性',\n\tpricing_status VARCHAR(32) COMMENT '计价完整性',\n\tprice_version_id VARCHAR(64) COMMENT '价格版本标识',\n\tamount NUMERIC(24, 8) COMMENT '核算金额',\n\tcurrency VARCHAR(3) COMMENT '币种',\n\tsnapshot JSON COMMENT '受信运行来源及可读名称快照',\n\tnormalized_tokens JSON COMMENT '按维度归一化用量',\n\tsubset_relations JSON COMMENT '计量子集关系',\n\tcalculation JSON COMMENT '当前核算公式及依据',\n\tupper_tokens JSON COMMENT '调用前核准的计量上限',\n\tupper_amount NUMERIC(24, 8) COMMENT '调用前预占金额',\n\tstate VARCHAR(32) COMMENT '实际调用结算状态',\n\tsent_at DATETIME(6) COMMENT '供应商调用发送前登记时间',\n\toutcome VARCHAR(32) COMMENT '实际尝试结果',\n\tlatest_event_version BIGINT COMMENT '当前有效来源事件版本',\n\tlatest_event_id VARCHAR(64) COMMENT '当前有效来源事件',\n\tfinal_reported BOOL COMMENT '是否收到供应商最终用量',\n\tsource_request_id VARCHAR(256) COMMENT '固定供应商请求标识',\n\tINDEX ix_usage_records_0 (channel_id, id),\n\tINDEX ix_usage_records_1 (channel_id, attempt_id),\n\tINDEX ix_usage_records_2 (channel_id, created_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='实际尝试用量账本' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "webhook_deliveries",
+    "ddl": [
+      "CREATE TABLE webhook_deliveries (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tendpoint_id VARCHAR(64) COMMENT '投递端点标识',\n\tevent_id VARCHAR(64) COMMENT '稳定事件编号',\n\tkind VARCHAR(64) COMMENT '事件类型',\n\tpayload JSON COMMENT '最小事件正文',\n\towner_key VARCHAR(64) COMMENT '执行身份摘要',\n\tstate VARCHAR(32) COMMENT '当前处理状态',\n\tattempts BIGINT COMMENT '累计投递次数',\n\tnext_at DATETIME(6) COMMENT '下次尝试时间',\n\tlease_until DATETIME(6) COMMENT '投递租约到期',\n\tlease_nonce VARCHAR(64) COMMENT '投递租约凭据',\n\terror JSON COMMENT '最近投递错误',\n\thttp_status BIGINT COMMENT '最近响应状态',\n\tcycle_attempts BIGINT COMMENT '本轮自动投递次数，人工重投重新计数',\n\tINDEX ix_webhook_deliveries_0 (channel_id, id),\n\tINDEX ix_webhook_deliveries_1 (channel_id, environment, subject_type, subject_id),\n\tINDEX ix_webhook_deliveries_2 (channel_id, state, next_at)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='持久化事件投递' COLLATE utf8mb4_0900_bin"
+    ]
+  },
+  {
+    "name": "webhook_endpoints",
+    "ddl": [
+      "CREATE TABLE webhook_endpoints (\n\tid VARCHAR(64) COMMENT '记录标识',\n\tchannel_id VARCHAR(64) COMMENT '所属渠道标识',\n\tcreated_at DATETIME(6) COMMENT '创建时间',\n\tupdated_at DATETIME(6) COMMENT '更新时间',\n\trevision BIGINT COMMENT '并发修订号',\n\tenvironment VARCHAR(16) COMMENT '所属环境',\n\tsubject_type VARCHAR(64) COMMENT '业务主体类型',\n\tsubject_id VARCHAR(128) COMMENT '业务主体编号',\n\tname VARCHAR(128) COMMENT '端点名称',\n\turl LONGTEXT COMMENT '固定接收地址',\n\tsecret_ref VARCHAR(64) COMMENT '签名密钥密文引用',\n\tevents JSON COMMENT '订阅事件类型',\n\towner_key VARCHAR(64) COMMENT '执行身份摘要',\n\tidentity JSON COMMENT '原执行身份快照',\n\tstate VARCHAR(32) COMMENT '当前处理状态',\n\tclient_ids JSON COMMENT '订阅的调用服务列表；空列表仅包含配置者运行',\n\tINDEX ix_webhook_endpoints_0 (channel_id, id),\n\tINDEX ix_webhook_endpoints_1 (channel_id, environment, subject_type, subject_id)\n)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='事件投递端点' COLLATE utf8mb4_0900_bin"
+    ]
+  }
+]

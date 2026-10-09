@@ -1,4 +1,4 @@
-"""使用独立 PostgreSQL schema；内部定义与授权替身仅存在于测试装配。"""
+"""使用独立 MySQL 8 schema；内部定义与授权替身仅存在于测试装配。"""
 
 from types import SimpleNamespace
 from uuid import uuid4
@@ -25,17 +25,19 @@ def database_schema():
     engine = create_engine(Settings().database_url.get_secret_value())
     name = f"test_runs_{uuid4().hex}"
     try:
-        with engine.begin() as connection:
-            connection.execute(text(f'CREATE SCHEMA "{name}"'))
-            connection.execute(text(f'SET LOCAL search_path TO "{name}"'))
+        with engine.connect() as connection:
+            connection.execute(
+                text(f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin")
+            )
+            connection.execute(text(f"USE `{name}`"))
             config = Config("alembic.ini")
             config.set_main_option("version_table_schema", name)
             config.attributes["connection"] = connection
             command.upgrade(config, "head")
         yield name
     finally:
-        with engine.begin() as connection:
-            connection.execute(text(f'DROP SCHEMA "{name}" CASCADE'))
+        with engine.connect() as connection:
+            connection.execute(text(f"DROP DATABASE `{name}`"))
         engine.dispose()
 
 

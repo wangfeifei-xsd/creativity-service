@@ -1,6 +1,23 @@
 services:
-  postgres:
-    image: creativity-postgres-vector:17-0.8.2
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile.postgres-vector
+  milvus:
+    image: milvusdb/milvus:v2.6.3
+    command: ["milvus", "run", "standalone"]
+    environment:
+      DEPLOY_MODE: STANDALONE
+      ETCD_USE_EMBED: "true"
+      ETCD_DATA_DIR: /var/lib/milvus/etcd
+      ETCD_CONFIG_PATH: /milvus/configs/embedEtcd.yaml
+      COMMON_STORAGETYPE: local
+    ports:
+      - "127.0.0.1:${DEV_MILVUS_PORT:-19530}:19530"
+      - "127.0.0.1:${DEV_MILVUS_HEALTH_PORT:-19091}:9091"
+    volumes:
+      - milvus-data:/var/lib/milvus
+      - ./milvus-embedded-etcd.yml:/milvus/configs/embedEtcd.yaml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+volumes:
+  milvus-data:

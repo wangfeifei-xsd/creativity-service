@@ -10,10 +10,11 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import Date, DateTime, LargeBinary, Numeric, Table
+from sqlalchemy import Date, LargeBinary, Numeric, Table
 
 from creativity_service.core.context import Scope
 from creativity_service.core.database import validate_row
+from creativity_service.core.database.types import UTCDateTime
 from creativity_service.core.deletion import barrier_id
 from creativity_service.core.primitives import digest
 from creativity_service.modules.models.policy import configuration_digest, require_capabilities
@@ -41,7 +42,7 @@ def typed_archive_values(table: Table, source: dict[str, Any]) -> dict[str, Any]
         value = row.get(column.name)
         if value is None:
             continue
-        if isinstance(column.type, DateTime):
+        if isinstance(column.type, UTCDateTime):
             row[column.name] = datetime.fromisoformat(value)
         elif isinstance(column.type, Date):
             row[column.name] = date.fromisoformat(value)

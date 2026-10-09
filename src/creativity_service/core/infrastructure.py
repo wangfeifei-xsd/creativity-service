@@ -27,9 +27,13 @@ class ReadinessResponse(BaseModel):
 
 class Infrastructure:
     def __init__(self, settings: Settings) -> None:
+        from creativity_service.modules.memory.vector_store import MilvusStore
+
+        self.vectors = MilvusStore(settings)
         self.timeout = settings.health_timeout_seconds
         self.engine = create_async_engine(
-            settings.database_url.get_secret_value(),
+            settings.async_database_url,
+            isolation_level="READ COMMITTED",
             pool_pre_ping=True,
             connect_args={"connect_timeout": max(1, int(self.timeout))},
         )
@@ -63,7 +67,9 @@ class Infrastructure:
 
     async def check_database(self) -> None:
         async with self.engine.connect() as connection:
-            await connection.execute(text("SELECT 1"))
+            version = await connection.scalar(text("SELECT VERSION()"))
+            if not str(version).startswith("8."):
+                raise RuntimeError("业务数据库要求 MySQL 8")
 
     async def check_storage(self) -> None:
         await asyncio.to_thread(self.s3.head_bucket, Bucket=self.bucket)
@@ -71,6 +77,7 @@ class Infrastructure:
     async def check_readiness(self) -> ReadinessResponse:
         checks: dict[str, Callable[[], Awaitable[object]]] = {
             "database": self.check_database,
+            "vector_store": self.vectors.health,
             **{name: client.ping for name, client in self.redis_clients.items()},
             "object_storage": self.check_storage,
         }

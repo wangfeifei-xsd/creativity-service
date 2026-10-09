@@ -1,8 +1,10 @@
-"""Web、Worker 和补偿入口共用的 PostgreSQL 事务互斥协议。"""
+"""Web、Worker 和补偿入口共用的 MySQL InnoDB 事务互斥协议。"""
 
+import json
 from dataclasses import dataclass, replace
 from functools import cached_property
 from hashlib import sha256
+from itertools import groupby
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -26,7 +28,10 @@ class ResourceKey:
     @cached_property
     def lock_id(self) -> int:
         payload = ["lock-v1", self.channel_id, self.resource_type, list(self.business_key)]
-        return int.from_bytes(sha256(canonical_json(payload)).digest()[:8], "big", signed=True)
+        rank = {"usage-ledger": 1, "usage-platform-limits": 2}.get(self.resource_type, 0)
+        return (
+            rank * 4096 + int.from_bytes(sha256(canonical_json(payload)).digest()[:8], "big") % 4096
+        )
 
 
 def record_key(channel_id: str, table: str, record_id: str) -> ResourceKey:
@@ -61,17 +66,25 @@ async def acquire_locks(connection: AsyncConnection, keys: frozenset[ResourceKey
     modes: dict[int, bool] = {}
     for key in ordered:
         modes[key.lock_id] = modes.get(key.lock_id, True) and key.shared
-    if ordered:
-        result = await connection.execute(
-            text(
-                "SELECT current_setting('transaction_isolation'), "
-                "CASE WHEN shared THEN pg_advisory_xact_lock_shared(lock_id) "
-                "ELSE pg_advisory_xact_lock(lock_id) END "
-                "FROM unnest(CAST(:keys AS bigint[]), CAST(:shared AS boolean[])) "
-                "AS locks(lock_id, shared)"
-            ),
-            {"keys": list(modes), "shared": list(modes.values())},
+    if not ordered:
+        return
+    isolation = await connection.scalar(text("SELECT @@transaction_isolation"))
+    if isolation != "READ-COMMITTED":
+        raise RuntimeError("事务互斥协议要求 READ COMMITTED 隔离级别")
+    # 固定锁槽只由初始化脚本写入，碰撞只增加等待，不会绕过互斥。
+    # 有序参数表驱动精确索引查找，禁止优化器退化成扫描整个系统渠道。
+    # IN 查询即使 FORCE INDEX，也可能临时锁住不匹配行，破坏全局锁顺序。
+    for shared, group in groupby(modes.items(), key=lambda item: item[1]):
+        slots = [slot for slot, _ in group]
+        statement = text(
+            "SELECT /*+ NO_BKA(locked) NO_BNL(locked) */ locked.slot "
+            "FROM JSON_TABLE(:slots, '$[*]' COLUMNS (slot BIGINT PATH '$')) AS requested "
+            "STRAIGHT_JOIN transaction_lock_slots AS locked "
+            "FORCE INDEX (ix_transaction_lock_slots_0) "
+            "ON locked.channel_id='system' AND locked.slot=requested.slot "
+            "ORDER BY requested.slot "
+            + ("FOR SHARE OF locked" if shared else "FOR UPDATE OF locked")
         )
-        # 隔离级别与取锁共用一次往返，仍检查当前真实事务，不能只信任引擎默认配置。
-        if result.scalar() != "read committed":
-            raise RuntimeError("事务互斥协议要求 READ COMMITTED 隔离级别")
+        found = list((await connection.scalars(statement, {"slots": json.dumps(slots)})).all())
+        if found != slots:
+            raise RuntimeError("事务锁槽缺失或重复，请修复初始化数据")

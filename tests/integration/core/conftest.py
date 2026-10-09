@@ -1,10 +1,10 @@
-"""核心集成测试使用真实 PostgreSQL 独立 schema；替身只在这里装配。"""
+"""核心集成测试使用真实 MySQL 8 独立 schema；替身只在这里装配。"""
 
 from uuid import uuid4
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, make_url, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import command
@@ -31,24 +31,26 @@ class TestVersionValidator:
 def database_schema():
     engine = create_engine(Settings().database_url.get_secret_value())
     name = f"test_core_{uuid4().hex}"
-    with engine.begin() as connection:
-        connection.execute(text(f'CREATE SCHEMA "{name}"'))
-        connection.execute(text(f'SET LOCAL search_path TO "{name}"'))
+    with engine.connect() as connection:
+        connection.execute(
+            text(f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin")
+        )
+        connection.execute(text(f"USE `{name}`"))
         config = Config("alembic.ini")
         config.set_main_option("version_table_schema", name)
         config.attributes["connection"] = connection
         command.upgrade(config, "head")
     yield name
-    with engine.begin() as connection:
-        connection.execute(text(f'DROP SCHEMA "{name}" CASCADE'))
+    with engine.connect() as connection:
+        connection.execute(text(f"DROP DATABASE `{name}`"))
     engine.dispose()
 
 
 @pytest.fixture
 async def engine(database_schema):
     engine = create_async_engine(
-        Settings().database_url.get_secret_value(),
-        connect_args={"options": f"-csearch_path={database_schema}"},
+        make_url(Settings().async_database_url).set(database=database_schema),
+        isolation_level="READ COMMITTED",
         pool_size=10,
         max_overflow=10,
     )

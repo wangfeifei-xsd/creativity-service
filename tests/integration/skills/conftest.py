@@ -1,4 +1,4 @@
-"""复用真实 PostgreSQL、Redis、IAM 与 MinIO，技能测试不伪造外部执行。"""
+"""复用真实 MySQL、Redis、IAM 与 MinIO，技能测试不伪造外部执行。"""
 
 import boto3
 import pytest

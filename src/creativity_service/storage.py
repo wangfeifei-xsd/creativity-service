@@ -52,6 +52,9 @@ for source in (
     usage_metadata,
 ):
     for table in source.tables.values():
-        table.to_metadata(metadata)
+        stored = table.to_metadata(metadata)
+        stored.dialect_options["mysql"].update(
+            engine="InnoDB", charset="utf8mb4", collate="utf8mb4_0900_bin"
+        )
 
 register_content_models(metadata)

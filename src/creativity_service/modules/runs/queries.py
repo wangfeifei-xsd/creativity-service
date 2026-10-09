@@ -51,7 +51,13 @@ class QueryService(RunKernel):
                 dict(r)
                 for r in (
                     await connection.execute(
-                        select(table.c.agent_id, table.c.agent_name, table.c.key_id, table.c.error)
+                        select(
+                            table.c.agent_id,
+                            table.c.agent_name,
+                            table.c.key_id,
+                            table.c.error["code"].as_string().label("error_code"),
+                            table.c.error["message"].as_string().label("error_message"),
+                        )
                         .where(*predicates)
                         .distinct()
                     )
@@ -76,7 +82,7 @@ class QueryService(RunKernel):
                 {"value": code, "label": message}
                 for code, message in sorted(
                     {
-                        r["error"]["code"]: r["error"]["message"] for r in visible if r["error"]
+                        r["error_code"]: r["error_message"] for r in visible if r["error_code"]
                     }.items()
                 )
             ],

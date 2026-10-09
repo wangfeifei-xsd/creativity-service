@@ -1,12 +1,10 @@
-"""向量请求在事务外执行；写回和 pgvector 距离排序均限定已复核的完整主体范围。"""
+"""向量请求在事务外执行；MySQL 写回和 Milvus 召回均限定已复核的完整主体范围。"""
 
 from __future__ import annotations
 
 import json
 import math
 from typing import TYPE_CHECKING, Any, cast
-
-from sqlalchemy import text
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import Repository, transaction
@@ -19,6 +17,7 @@ from creativity_service.modules.memory.embedding_tables import metadata
 from creativity_service.modules.memory.reading import MemoryReadData
 from creativity_service.modules.memory.schemas import MemoryPolicy, MemoryRef, MemorySelection
 from creativity_service.modules.memory.tables import metadata as memories
+from creativity_service.modules.memory.vector_sync import VectorSync, enqueue
 from creativity_service.modules.models.schemas import FrozenModel
 
 if TYPE_CHECKING:
@@ -189,49 +188,50 @@ async def semantic_selection(
                     row["current_version_id"],
                 )
             )
-        await vectors.add_many(uow, additions)
+        created = await vectors.add_many(uow, additions)
         await DeletionGuard(context.scope).link_many(uow, links)
+        cached.update(created)
+        await enqueue(uow, [row for identifier, row in cached.items() if identifier in valid])
+    sync = VectorSync(memory.engine)
+    identifiers = list(valid)
+    for start in range(0, len(identifiers), 100):
+        await sync.sync(context.scope, identifiers[start : start + 100])
+    await sync.require_synced(context.scope, identifiers)
+    found = await sync.store.search(
+        context.scope, model.model_version_id, generated[0], identifiers, effective.retrieval_limit
+    )
+    # Milvus 只返回引用。网络等待期间的遗忘、关闭和版本变更在新事务内批量复核。
+    async with transaction(memory.engine, context.scope, repo.keys(context.scope)) as uow:
+        run = await memory.runtime_run(uow, context, lease.run_id)
+        effective = memory.intersect_policy(
+            await memory.effective_policy(uow, context, run["agent_id"], policy), policy
+        )
+        preferences = await memory.preference(uow, context, [])
+        loaded = await memory_repo.get_many(
+            uow.connection, [valid[i]["id"] for i in found if i in valid]
+        )
+        data = await MemoryReadData.load(
+            uow, context, [(context, r) for r in loaded.values()], None
+        )
         selected: list[MemoryRef] = []
-        if valid:
-            extension_schema = await uow.connection.scalar(
-                text(
-                    "SELECT n.nspname FROM pg_extension e JOIN pg_namespace n "
-                    "ON n.oid=e.extnamespace WHERE e.extname='vector'"
-                )
-            )
-            if not extension_schema:
-                raise ServiceError("VECTOR_UNAVAILABLE", "数据库未安装向量检索扩展", 503)
-            namespace = uow.connection.dialect.identifier_preparer.quote(extension_schema)
-            # 物化边界先筛选完整范围和仍有效的版本，再计算距离，禁止全库召回后过滤。
-            found = await uow.connection.execute(
-                text(f"""
-                WITH scoped AS MATERIALIZED (
-                    SELECT id, memory_id, memory_version_id, embedding
-                    FROM memory_embeddings
-                    WHERE channel_id=:channel_id AND environment=:environment
-                    AND subject_type IS NOT DISTINCT FROM :subject_type
-                    AND subject_id IS NOT DISTINCT FROM :subject_id
-                    AND model_version_id=:model_version AND dimensions=:dimensions
-                    AND id = ANY(:identifiers)
-                )
-                SELECT memory_id, memory_version_id FROM scoped
-                ORDER BY CAST(embedding::text AS {namespace}.vector)
-                    OPERATOR({namespace}.<=>) CAST(:query AS {namespace}.vector), id
-                LIMIT :limit
-            """),
-                {
-                    **context.scope.model_dump(),
-                    "model_version": model.model_version_id,
-                    "dimensions": len(generated[0]),
-                    "identifiers": list(valid),
-                    "query": json.dumps(generated[0]),
-                    "limit": effective.retrieval_limit,
-                },
-            )
-            selected = [
-                MemoryRef(memory_id=row.memory_id, version_id=row.memory_version_id)
-                for row in found
-            ]
+        if (
+            effective.read_enabled
+            and preferences.enabled
+            and preferences.revision == stored["selection_reason"]["preference_revision"]
+        ):
+            for identifier in found:
+                previous = valid.get(identifier)
+                row = loaded.get(previous["id"]) if previous else None
+                if not row or previous is None:
+                    continue
+                row = await memory.refresh(uow, context, row, data)
+                if row["current_version_id"] == previous["current_version_id"] and memory.usable(
+                    row, effective
+                ):
+                    selected.append(
+                        MemoryRef(memory_id=row["id"], version_id=row["current_version_id"])
+                    )
+            selected = selected[: effective.retrieval_limit]
         await repo.save(
             uow,
             "memory_retrievals",

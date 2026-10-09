@@ -2,12 +2,13 @@
 
 from typing import Any
 
-from sqlalchemy import and_, exists, func, literal, or_, select, true, union_all
+from sqlalchemy import and_, exists, literal, or_, select, true, union_all
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.context import Scope
 from creativity_service.core.database import Repository, UnitOfWork
 from creativity_service.core.database.tables import metadata
+from creativity_service.core.database.types import json_array_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.primitives import ServiceError, digest
 
@@ -84,9 +85,7 @@ def reference_statement(scope: Scope, identifiers: list[str]) -> Any:
             for table in [repository(TABLES[kind], scope).table]
         ]
     ).subquery()
-    targets = (
-        func.jsonb_array_elements_text(versions.c.dependencies).table_valued("value").lateral()
-    )
+    targets = json_array_rows(versions.c.dependencies)
     current_agent = and_(
         versions.c.resource_type == "agent",
         or_(

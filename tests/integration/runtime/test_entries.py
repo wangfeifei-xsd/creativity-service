@@ -434,7 +434,8 @@ async def test_baseline_upgrade_preserves_saved_identity_versions_and_runs(runti
         assert contents() == before
         assert audit_database(connection, env.schema) == []
 
-    async with env.engine.begin() as connection:
+    # MySQL DDL 和迁移版本由迁移器提交，调用方只提供连接。
+    async with env.engine.connect() as connection:
         await connection.run_sync(migrate)
     assert await load_spec(env.runs, await env.runs.load(message)) == spec
     await execute_message(env.runs, message, "after_upgrade", env.runtime)

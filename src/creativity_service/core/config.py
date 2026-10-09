@@ -12,7 +12,7 @@ from sqlalchemy.engine import make_url
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="CREATIVITY_",
-        env_file=".env",
+        env_file=(".env", ".env.local"),
         env_file_encoding="utf-8",
         extra="ignore",
         hide_input_in_errors=True,
@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     log_max_bytes: int = Field(default=10 * 1024 * 1024, ge=1024)
     log_backup_count: int = Field(default=5, ge=1, le=30)
     database_url: SecretStr
+    milvus_uri: str = "http://127.0.0.1:19530"
+    milvus_token: SecretStr = SecretStr("")
+    milvus_database: str = "default"
+    milvus_collection_prefix: str = Field(
+        default="creativity_memory", pattern=r"^[a-zA-Z][a-zA-Z0-9_]{0,100}$"
+    )
+    milvus_timeout_seconds: float = Field(default=10, gt=0, le=60)
     redis_cache_url: SecretStr
     redis_auth_url: SecretStr
     celery_broker_url: SecretStr
@@ -42,6 +49,14 @@ class Settings(BaseSettings):
     otel_enabled: bool = False
     otel_exporter_otlp_endpoint: str | None = None
 
+    @property
+    def async_database_url(self) -> str:
+        return (
+            make_url(self.database_url.get_secret_value())
+            .set(drivername="mysql+asyncmy")
+            .render_as_string(hide_password=False)
+        )
+
     @field_validator("database_url")
     @classmethod
     def validate_database_url(cls, value: SecretStr) -> SecretStr:
@@ -49,11 +64,11 @@ class Settings(BaseSettings):
             url = make_url(value.get_secret_value())
         except Exception as exc:
             raise ValueError("数据库连接地址格式不正确") from exc
-        if url.drivername != "postgresql+psycopg" or not url.host or not url.database:
-            raise ValueError("数据库必须使用 postgresql+psycopg 并指定主机和数据库")
+        if url.drivername != "mysql+pymysql" or not url.host or not url.database:
+            raise ValueError("数据库必须使用 mysql+pymysql 并指定主机和数据库")
         return value
 
-    @field_validator("s3_endpoint_url", "otel_exporter_otlp_endpoint")
+    @field_validator("s3_endpoint_url", "otel_exporter_otlp_endpoint", "milvus_uri")
     @classmethod
     def validate_http_url(cls, value: str | None) -> str | None:
         if value is None:

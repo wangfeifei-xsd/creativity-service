@@ -5,10 +5,10 @@ from datetime import timedelta
 from typing import Any
 
 from sqlalchemy import cast, func, select
-from sqlalchemy.dialects.postgresql import JSONB
 
 from creativity_service.core.context import AuthContext, TaskEnvelope
 from creativity_service.core.database import Repository, UnitOfWork, transaction
+from creativity_service.core.database.types import DocumentJSON
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.primitives import ServiceError, digest, utcnow
 from creativity_service.modules.agents.schemas import FrozenExecutionSpec
@@ -203,13 +203,13 @@ class MemoryConsolidation:
                 .where(
                     Repository(jobs, context.scope).predicate(),
                     jobs.c.conversation_id == conversation["id"],
-                    jobs.c.source_message_ids.op("?")(table.c.id),
+                    func.json_contains(jobs.c.source_message_ids, func.json_quote(table.c.id)) == 1,
                 )
                 .exists()
             )
-            frozen_policy = cast(contents.c.payload["payload_json"].astext, JSONB)["definition"][
-                "context"
-            ]["memory_policy"]
+            frozen_policy = cast(contents.c.payload["payload_json"].as_string(), DocumentJSON)[
+                "definition"
+            ]["context"]["memory_policy"]
             peer = table.alias("turn_peer")
             complete_turn = (
                 select(peer.c.id)
@@ -245,7 +245,7 @@ class MemoryConsolidation:
                     complete_turn,
                     ~used,
                     frozen_policy["suggest_enabled"].as_boolean().is_(True),
-                    frozen_policy["write_mode"].astext != "DISABLED",
+                    frozen_policy["write_mode"].as_string() != "DISABLED",
                 )
             )
             if cutoff:

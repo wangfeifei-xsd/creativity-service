@@ -33,10 +33,10 @@ def archived_objects(path: Path) -> list[dict[str, Any]]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="校验并恢复初始化 SQL 封存的技能对象")
     parser.add_argument("--sql", type=Path, default=Path("sql/init_data.sql"))
-    parser.add_argument("--schema", default="public")
+    parser.add_argument("--schema")
     parser.add_argument("--check", action="store_true", help="只校验数据库及对象存储，不写入")
     args = parser.parse_args()
-    if not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9_]*", args.schema):
+    if args.schema and not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9_]*", args.schema):
         parser.error("schema 标识不正确")
     items = archived_objects(args.sql)
     settings = Settings()
@@ -44,7 +44,8 @@ def main() -> None:
     table = metadata.tables["artifacts"]
     try:
         with engine.connect() as connection:
-            connection.execute(text(f'SET search_path TO "{args.schema}"'))
+            if args.schema:
+                connection.execute(text(f"USE `{args.schema}`"))
             stored = {
                 (row["channel_id"], row["id"]): row
                 for row in connection.execute(

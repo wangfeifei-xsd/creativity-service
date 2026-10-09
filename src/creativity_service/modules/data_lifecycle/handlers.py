@@ -16,6 +16,7 @@ from creativity_service.modules.data_lifecycle.graph import TARGETS
 from creativity_service.modules.data_lifecycle.repository import put, rows
 from creativity_service.modules.evaluations.independent import surviving_sources
 from creativity_service.modules.memory.services import MemoryService
+from creativity_service.modules.memory.vector_sync import VectorSync, enqueue
 from creativity_service.modules.runs.schemas import TERMINAL
 from creativity_service.modules.runs.services import RunService
 from creativity_service.modules.usage.redaction import meter_only
@@ -103,6 +104,23 @@ class ContentHandlers:
         await self.authorization.require(context, "content:cleanup", ref.resource_id)
         if ref.resource_type == "run":
             await self.cancel(context, ref.resource_id)
+        if ref.resource_type == "memory_embedding":
+            async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
+                try:
+                    await DeletionGuard(context.scope).check(uow, [ref])
+                except ServiceError as exc:
+                    if exc.code != "CONTENT_DELETED":
+                        raise
+                else:
+                    raise ServiceError("DELETION_MARKER_REQUIRED", "清理前必须登记删除标记", 409)
+                row = await Repository(metadata.tables["memory_embeddings"], context.scope).get(
+                    uow.connection, ref.resource_id
+                )
+                if row:
+                    await enqueue(uow, [row], delete=True)
+            sync = VectorSync(self.engine)
+            await sync.sync(context.scope, [ref.resource_id])
+            await sync.require_synced(context.scope, [ref.resource_id], "DELETE")
         object_key = None
         async with transaction(
             self.engine,

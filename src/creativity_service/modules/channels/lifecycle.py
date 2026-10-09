@@ -40,7 +40,15 @@ class LifecycleService:
                 raise ValueError("未终结任务数量不能为负数")
             return count
         # 11 尚未安装时不可能产生任务；一旦存在任务表，必须登记真实检查，不能按零处理。
-        if await connection.scalar(text("SELECT to_regclass('runs')")) is not None:
+        if (
+            await connection.scalar(
+                text(
+                    "SELECT table_name FROM information_schema.tables "
+                    "WHERE table_schema=DATABASE() AND table_name='runs'"
+                )
+            )
+            is not None
+        ):
             return None
         return 0
 

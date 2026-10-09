@@ -3,10 +3,9 @@
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select
-
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork
+from creativity_service.core.database.queries import latest_per_group
 from creativity_service.core.database.tables import metadata
 from creativity_service.core.primitives import ServiceError, digest, utcnow
 from creativity_service.modules.agents.schemas import AgentDefinition
@@ -114,15 +113,14 @@ async def published_dependencies_match(
     table = metadata.tables["resource_versions"]
     historical = (
         await uow.connection.execute(
-            select(table.c.id, table.c.resource_id, table.c.content)
-            .where(
+            latest_per_group(
+                table,
+                "resource_id",
                 table.c.channel_id == uow.scope.channel_id,
                 table.c.resource_type == "budget_policy",
                 table.c.state == "FROZEN",
                 table.c.created_at <= version["created_at"],
             )
-            .distinct(table.c.resource_id)
-            .order_by(table.c.resource_id, table.c.created_at.desc(), table.c.id.desc())
         )
     ).mappings()
     budgets = list(manifest["policies"]["budgets"])

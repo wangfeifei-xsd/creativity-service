@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Table, insert, literal, select, union_all
+from sqlalchemy import Table, insert, select, union_all
 
 from creativity_service.core.primitives import ServiceError
 
@@ -46,16 +46,7 @@ class InsertBatch:
             ]
             if await self.uow.connection.scalar(union_all(*checks).limit(1)) is not None:
                 raise ServiceError("DUPLICATE_ID", "批量新增标识已存在", 409)
-            # CTE 仅合并普通 INSERT；全部业务检查已在服务层完成，没有数据库业务分支。
-            writes = [
-                insert(table).values(**records[0]).cte(f"new_{table.name}")
-                for table, records in grouped.items()
-                if len(records) == 1
-            ]
-            if writes:
-                await self.uow.connection.execute(select(literal(True)).add_cte(*writes))
-            # 同表多行走驱动批量参数，避免为每条来源边构造一棵 INSERT 编译树。
+            # MySQL 按表使用驱动批量写入，所有记录仍在同一受保护事务中。
             for table, records in grouped.items():
-                if len(records) > 1:
-                    await self.uow.connection.execute(insert(table), records)
+                await self.uow.connection.execute(insert(table), records)
         self.records.clear()

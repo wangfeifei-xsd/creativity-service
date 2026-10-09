@@ -1,4 +1,4 @@
-"""复用真实渠道、IAM、PostgreSQL 与 Redis 夹具。"""
+"""复用真实渠道、IAM、MySQL 与 Redis 夹具。"""
 
 import pytest
 

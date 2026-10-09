@@ -25,6 +25,8 @@ def test_structure_and_initial_data_are_separate_and_reproducible():
     assert schema == render_init_sql.ARCHIVE.read_text()
     assert data == render_init_sql.DATA_ARCHIVE.read_text()
     assert "INSERT INTO" not in schema
+    assert "CREATE INDEX" not in schema
+    assert "\tINDEX ix_" in schema
     assert "CREATE TABLE" not in data
     assert data == render_init_sql.render_data()
     assert "qwerty123$%^" not in data
@@ -270,7 +272,7 @@ def test_seed_contains_deepseek_model_and_ciphertext_without_deployment_secrets(
     assert connection["environment"] == credential["environment"] == "dev"
     assert len(bytes.fromhex(credential["ciphertext"])) > 28
     data = render_init_sql.render_data()
-    assert "decode(" in data and "sk-" not in data
+    assert "unhex(" in data and "sk-" not in data
     assert "CREATIVITY_MODEL_ENCRYPTION_KEYS" not in data
     assert "allowed_networks" not in data
     assert "allowed_networks" not in render_init_sql.render()

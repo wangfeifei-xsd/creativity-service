@@ -70,7 +70,8 @@ async def test_access_inventory_and_migration_keep_credentials_and_nonce(integra
         command.upgrade(config, "head")
         assert inventory(connection) == before
 
-    async with env.engine.begin() as connection:
+    # MySQL 迁移自行提交，不能嵌入调用方的事务上下文。
+    async with env.engine.connect() as connection:
         await connection.run_sync(roundtrip)
     current = await verify(env, claim)
     assert current.scope == original.scope

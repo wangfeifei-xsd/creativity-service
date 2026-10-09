@@ -71,8 +71,10 @@ async def snapshot(env):
         indexes = (
             (
                 await conn.execute(
-                    text("""SELECT tablename, indexname, indexdef FROM pg_indexes
-                    WHERE schemaname=:schema ORDER BY tablename, indexname"""),
+                    text("""SELECT table_name, index_name, column_name,
+                    seq_in_index, non_unique, sub_part
+                    FROM information_schema.statistics WHERE table_schema=:schema
+                    ORDER BY table_name, index_name, seq_in_index"""),
                     {"schema": env.schema},
                 )
             )
@@ -87,10 +89,9 @@ async def snapshot(env):
         constraints = (
             (
                 await conn.execute(
-                    text("""SELECT t.relname AS table_name, c.conname,
-                pg_get_constraintdef(c.oid) AS definition FROM pg_constraint c
-                JOIN pg_class t ON t.oid=c.conrelid JOIN pg_namespace n ON n.oid=t.relnamespace
-                WHERE n.nspname=:schema ORDER BY t.relname, c.conname"""),
+                    text("""SELECT table_name, constraint_name, constraint_type
+                FROM information_schema.table_constraints WHERE table_schema=:schema
+                ORDER BY table_name, constraint_name"""),
                     {"schema": env.schema},
                 )
             )
@@ -99,10 +100,7 @@ async def snapshot(env):
         )
     structure = {
         "columns": [dict(row) for row in columns],
-        "indexes": [
-            {**dict(row), "indexdef": row["indexdef"].replace(env.schema, "ISOLATED_SCHEMA")}
-            for row in indexes
-        ],
+        "indexes": [dict(row) for row in indexes],
         "constraints": [dict(row) for row in constraints],
     }
     tables = {row["table_name"] for row in columns}

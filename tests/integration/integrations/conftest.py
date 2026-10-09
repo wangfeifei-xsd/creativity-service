@@ -1,4 +1,4 @@
-"""独立 PostgreSQL schema、Redis 身份与委托签名凭据。"""
+"""独立 MySQL 数据库、Redis 身份与委托签名凭据。"""
 
 import base64
 from datetime import timedelta

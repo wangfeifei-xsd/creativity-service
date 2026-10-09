@@ -22,7 +22,10 @@ pytestmark = pytest.mark.integration
 def test_real_services_and_no_automatic_tables():
     settings = Settings()
     engine = create_engine(settings.database_url.get_secret_value())
-    query = text("SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename")
+    query = text(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema=DATABASE() ORDER BY table_name"
+    )
     try:
         with engine.connect() as connection:
             before = connection.execute(query).all()
@@ -30,7 +33,7 @@ def test_real_services_and_no_automatic_tables():
             assert client.get("/health/live").status_code == 200
             response = client.get("/health/ready")
             assert response.status_code == 200, response.json()
-            assert len(response.json()["checks"]) == 6
+            assert len(response.json()["checks"]) == 7
         with engine.connect() as connection:
             assert connection.execute(query).all() == before
         subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True)
@@ -44,7 +47,7 @@ def test_real_services_and_no_automatic_tables():
 @pytest.mark.parametrize(
     ("field", "value", "failed"),
     [
-        ("database_url", "postgresql+psycopg://test:test@127.0.0.1:1/test", "database"),
+        ("database_url", "mysql+pymysql://test:test@127.0.0.1:1/test", "database"),
         ("redis_auth_url", "redis://127.0.0.1:1/1", "redis_auth"),
         ("s3_bucket", "creativity-missing-test-bucket", "object_storage"),
     ],

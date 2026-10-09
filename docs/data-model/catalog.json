@@ -1,5 +1,5 @@
 {
-  "model_version": "2.1.0",
+  "model_version": "2.0.0",
   "requirements_version": "v0.7",
   "date": "2026-10-08",
   "modules": {
@@ -15708,6 +15708,191 @@
       "scope": "环境",
       "status": "已实现",
       "revision": "0043_resource_management",
+      "control_purpose": null,
+      "content": false,
+      "cleanup_type": null
+    },
+    {
+      "module": "core",
+      "name": "transaction_lock_slots",
+      "comment": "服务层事务互斥固定锁槽",
+      "columns": [
+        {
+          "name": "channel_id",
+          "type": "varchar(64)",
+          "comment": "锁目录所属系统渠道",
+          "required": true,
+          "source": "服务端固定值",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "slot",
+          "type": "integer",
+          "comment": "包含锁顺序分组的固定槽位",
+          "required": true,
+          "source": "服务端哈希映射",
+          "sensitivity": "内部"
+        }
+      ],
+      "indexes": [
+        [
+          "channel_id",
+          "slot"
+        ]
+      ],
+      "status": "已实现",
+      "revision": "0048_mysql_milvus",
+      "scope": "系统",
+      "control_purpose": "migration",
+      "content": false,
+      "cleanup_type": null
+    },
+    {
+      "module": "memory",
+      "name": "memory_index_tasks",
+      "comment": "Milvus 向量同步与删除持久化任务",
+      "columns": [
+        {
+          "name": "id",
+          "type": "varchar(64)",
+          "comment": "记录标识",
+          "required": true,
+          "source": "服务端随机标识",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "channel_id",
+          "type": "varchar(64)",
+          "comment": "所属渠道标识",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "comment": "创建时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "comment": "更新时间",
+          "required": true,
+          "source": "服务端时钟",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "comment": "并发修订号",
+          "required": true,
+          "source": "服务层递增",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "environment",
+          "type": "varchar(16)",
+          "comment": "所属环境",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "subject_type",
+          "type": "varchar(64)",
+          "comment": "业务主体类型",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "subject_id",
+          "type": "varchar(128)",
+          "comment": "业务主体编号",
+          "required": true,
+          "source": "受信服务上下文",
+          "sensitivity": "个人"
+        },
+        {
+          "name": "dimensions",
+          "type": "integer",
+          "comment": "向量维度",
+          "required": true,
+          "source": "服务端校验后的向量结果",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "operation",
+          "type": "varchar(16)",
+          "comment": "待同步的写入或删除操作",
+          "required": true,
+          "source": "服务层同步协议",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "state",
+          "type": "varchar(16)",
+          "comment": "同步任务状态",
+          "required": true,
+          "source": "服务层同步协议",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "lease_token",
+          "type": "varchar(64)",
+          "comment": "当前执行租约标识",
+          "required": false,
+          "source": "服务层同步协议",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "lease_until",
+          "type": "timestamptz",
+          "comment": "租约失效时间",
+          "required": false,
+          "source": "服务层同步协议",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "next_attempt_at",
+          "type": "timestamptz",
+          "comment": "下次同步时间",
+          "required": true,
+          "source": "服务层同步协议",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "attempts",
+          "type": "integer",
+          "comment": "连续失败次数",
+          "required": true,
+          "source": "服务层同步协议",
+          "sensitivity": "内部"
+        }
+      ],
+      "indexes": [
+        [
+          "channel_id",
+          "id"
+        ],
+        [
+          "channel_id",
+          "next_attempt_at",
+          "state"
+        ],
+        [
+          "channel_id",
+          "environment",
+          "subject_type",
+          "subject_id"
+        ]
+      ],
+      "status": "已实现",
+      "revision": "0048_vector_sync",
+      "scope": "主体",
       "control_purpose": null,
       "content": false,
       "cleanup_type": null

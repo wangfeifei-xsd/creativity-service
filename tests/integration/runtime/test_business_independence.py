@@ -246,7 +246,7 @@ async def test_fixed_build_two_businesses_and_third_channel_via_management_pages
             "mcp": "real_tcp",
             "api": "real_tcp",
             "ui": "Playwright against built web and real management HTTP",
-            "database": "PostgreSQL isolated schema",
+            "database": "MySQL isolated database",
             "auth": "Redis isolated prefix",
             "worker": "execute_message_in_process",
             "object_store": "memory_fixture",

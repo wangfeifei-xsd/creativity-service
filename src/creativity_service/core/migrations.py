@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from alembic.ddl.postgresql import PostgresqlImpl
+from alembic.ddl.mysql import MySQLImpl
 from sqlalchemy import Column, MetaData, String, Table
 from sqlalchemy.sql.dml import Insert
 
@@ -16,8 +16,8 @@ class MigrationVersionTable(Table):
         return super().insert().values(channel_id=SYSTEM_CHANNEL_ID)
 
 
-class ChannelPostgresqlImpl(PostgresqlImpl):
-    __dialect__ = "postgresql"
+class ChannelMySQLImpl(MySQLImpl):
+    __dialect__ = "mysql"
 
     def version_table_impl(
         self,

@@ -1,4 +1,4 @@
-"""真实 PostgreSQL 与会话来源；授权替身只用于模块独立验收。"""
+"""真实 MySQL 与会话来源；授权替身只用于模块独立验收。"""
 
 import json
 from pathlib import Path

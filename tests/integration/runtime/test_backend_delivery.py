@@ -1,4 +1,4 @@
-"""22：同一独立客户端经真实 HTTP、Redis、PostgreSQL 和 MCP 调用两套配置。"""
+"""22：同一独立客户端经真实 HTTP、Redis、MySQL 和 MCP 调用两套配置。"""
 
 import asyncio
 import base64
@@ -204,7 +204,7 @@ async def evidence_record(env, name, receipt):
             "api": "local_tcp",
             "mcp": "local_tcp" if calls else "unused",
             "model": "controlled_fixture",
-            "database": "PostgreSQL",
+            "database": "MySQL",
             "auth": "Redis",
             "worker": "execute_message_in_process",
             "object_store": "memory_fixture",

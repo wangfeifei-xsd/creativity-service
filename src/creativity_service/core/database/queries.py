@@ -40,3 +40,22 @@ def scoped_select(
             if mode != "null":
                 parameters[f"{group}_{name}"] = value
     return _select(table, tuple(shape)), parameters
+
+
+def latest_per_group(table: Table, group: str, *predicates: ColumnElement[bool]) -> Select[Any]:
+    """按业务组批量读取最新记录；MySQL 使用窗口函数保持确定顺序。"""
+    from sqlalchemy import func
+
+    ranked = (
+        select(
+            table,
+            func.row_number()
+            .over(
+                partition_by=table.c[group], order_by=(table.c.created_at.desc(), table.c.id.desc())
+            )
+            .label("row_position"),
+        )
+        .where(*predicates)
+        .subquery()
+    )
+    return select(*(ranked.c[column.name] for column in table.c)).where(ranked.c.row_position == 1)

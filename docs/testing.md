@@ -6,7 +6,7 @@
 | --- | --- |
 | `make check` | 格式、lint、类型、非集成测试、契约、模型和初始化 SQL 一致性 |
 | `make test` | 非集成测试 |
-| `make integration` | 真实 PostgreSQL、Redis、对象存储及 Worker 集成验证 |
+| `make integration` | 真实 MySQL、Redis、对象存储及 Worker 集成验证 |
 | `make model-check` | 数据模型、初始化 SQL 与存储定义检查 |
 | `make storage-audit` | 当前数据库结构审查 |
 | `make dependency-audit` | Python 依赖公告扫描 |

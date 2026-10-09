@@ -1,7 +1,6 @@
 """本地依赖探测与按需启动；已运行但认证失败的服务不能被当成缺失服务。"""
 
 import ipaddress
-import json
 import logging
 import os
 import shutil
@@ -13,15 +12,14 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit, urlunsplit
 
 import boto3
+import httpx
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError
 from pydantic import SecretStr
 from redis import Redis
 from sqlalchemy import create_engine, make_url, text
-from sqlalchemy.engine import URL
 
 from creativity_service.core.config import Settings
-from creativity_service.core.migrations import MIGRATION_LOCK_KEY
 
 logger = logging.getLogger(__name__)
 REDIS_FIELDS = ("redis_cache_url", "redis_auth_url", "celery_broker_url", "celery_result_url")
@@ -118,10 +116,10 @@ class DockerRuntime:
         self.environment = os.environ.copy()
         database = make_url(settings.database_url.get_secret_value())
         self.environment.update(
-            DEV_POSTGRES_USER=database.username or "",
-            DEV_POSTGRES_PASSWORD=database.password or "",
-            DEV_POSTGRES_DB=database.database or "",
-            DEV_POSTGRES_PORT=str(database.port or 5432),
+            DEV_MYSQL_USER=database.username or "",
+            DEV_MYSQL_PASSWORD=database.password or "",
+            DEV_MYSQL_DB=database.database or "",
+            DEV_MYSQL_PORT=str(database.port or 3306),
             CREATIVITY_S3_ACCESS_KEY_ID=settings.s3_access_key_id.get_secret_value(),
             CREATIVITY_S3_SECRET_ACCESS_KEY=settings.s3_secret_access_key.get_secret_value(),
             CREATIVITY_S3_BUCKET=settings.s3_bucket,
@@ -146,7 +144,7 @@ class DockerRuntime:
             ) from None
         output = result.stdout + result.stderr
         for secret in (
-            self.environment["DEV_POSTGRES_PASSWORD"],
+            self.environment["DEV_MYSQL_PASSWORD"],
             self.environment["CREATIVITY_S3_SECRET_ACCESS_KEY"],
             self.environment.get("DEV_REDIS_PASSWORD", ""),
         ):
@@ -207,9 +205,10 @@ class DockerRuntime:
 
     def start(self, service: str, port: int, *, replace_existing: bool = False) -> None:
         variables = {
-            "postgres": "DEV_POSTGRES_PORT",
+            "mysql": "DEV_MYSQL_PORT",
             "redis": "DEV_REDIS_PORT",
             "minio": "DEV_S3_PORT",
+            "milvus": "DEV_MILVUS_PORT",
         }
         self.environment[variables[service]] = str(port)
         if not replace_existing and self.compose(["ps", "--status", "running", "-q", service]):
@@ -217,46 +216,7 @@ class DockerRuntime:
                 f"项目 Docker 的 {service} 已运行，但当前地址无法连接；请检查端口映射和 .env。"
             )
         logger.info("按需启动 Docker 服务：%s", service)
-        if service == "postgres":
-            # 先完成向量镜像构建，再启动或替换容器，沿用同一 Compose 数据卷。
-            self.compose(["build", "postgres"], timeout=600)
         self.compose(["up", "-d", "--no-deps", "--wait", "--wait-timeout", "60", service])
-
-    def owns_database(self, database: URL) -> bool:
-        if not is_local(database.host or ""):
-            return False
-        try:
-            container = self.compose(["ps", "-a", "-q", "postgres"])
-            if not container or "\n" in container:
-                return False
-            # 用数据库集群标识确认容器确实对应当前连接，不能只凭端口推断归属。
-            engine = create_engine(database, connect_args={"connect_timeout": 3})
-            try:
-                with engine.connect() as connection:
-                    identity = str(
-                        connection.scalar(text("SELECT system_identifier FROM pg_control_system()"))
-                    )
-                    major = int(connection.scalar(text("SHOW server_version_num"))) // 10000
-            finally:
-                engine.dispose()
-            actual = self.run(
-                [
-                    "exec",
-                    container,
-                    "sh",
-                    "-ec",
-                    'psql -X -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" '
-                    '-c "SELECT system_identifier FROM pg_control_system()"',
-                ]
-            )
-            mounts = self.run(["inspect", "--format", "{{json .Mounts}}", container])
-            persistent = any(
-                item["Type"] == "volume" and item["Destination"] == "/var/lib/postgresql/data"
-                for item in json.loads(mounts)
-            )
-            return major == 17 and persistent and actual == identity
-        except Exception:
-            return False
 
 
 def prepare_database(settings: Settings, docker: DockerRuntime, *, check_only: bool) -> Settings:
@@ -273,72 +233,52 @@ def prepare_database(settings: Settings, docker: DockerRuntime, *, check_only: b
             engine.dispose()
 
     host, port = ensure_endpoint(
-        "PostgreSQL",
+        "MySQL 8",
         database.host or "",
-        database.port or 5432,
-        5432,
+        database.port or 3306,
+        3306,
         probe,
-        lambda port: docker.start("postgres", port),
+        lambda port: docker.start("mysql", port),
         check_only=check_only,
     )
     database = database.set(host=host, port=port)
-    prepare_vector(database, docker, check_only=check_only)
+    settings = prepare_vector(settings, docker, check_only=check_only)
     return settings.model_copy(
         update={"database_url": SecretStr(database.render_as_string(hide_password=False))}
     )
 
 
-def prepare_vector(database: URL, docker: DockerRuntime, *, check_only: bool) -> None:
-    engine = create_engine(database, connect_args={"connect_timeout": 3})
-    try:
-        with engine.connect() as connection:
-            available = connection.scalar(
-                text("SELECT default_version FROM pg_available_extensions WHERE name='vector'")
+def prepare_vector(settings: Settings, docker: DockerRuntime, *, check_only: bool) -> Settings:
+    parsed = urlsplit(settings.milvus_uri)
+
+    def probe(host: str, port: int) -> None:
+        headers = (
+            {"Authorization": f"Bearer {settings.milvus_token.get_secret_value()}"}
+            if settings.milvus_token.get_secret_value()
+            else {}
+        )
+        with httpx.Client(timeout=3, trust_env=False) as client:
+            response = client.post(
+                redis_address(settings.milvus_uri, host, port) + "/v2/vectordb/collections/list",
+                headers=headers,
+                json={"dbName": settings.milvus_database},
             )
-            installed = connection.scalar(
-                text("SELECT extversion FROM pg_extension WHERE extname='vector'")
-            )
-    finally:
-        engine.dispose()
-    if not installed and check_only:
-        raise StartupError("当前 PostgreSQL 尚未启用 pgvector。")
-    if not available:
-        if not docker.owns_database(database):
-            raise StartupError(
-                "现有 PostgreSQL 未安装 pgvector；请为该实例安装扩展后重试，不会另建数据库。"
-            )
-        logger.info("为现有开发数据库补充 pgvector，保留原数据卷")
-        docker.start("postgres", database.port or 5432, replace_existing=True)
-    engine = create_engine(database, connect_args={"connect_timeout": 3})
-    try:
-        with engine.begin() as connection:
-            if not installed:
-                connection.execute(
-                    text("SELECT pg_advisory_xact_lock(:key)"), {"key": MIGRATION_LOCK_KEY}
-                )
-                connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            schema = connection.scalar(
-                text(
-                    "SELECT n.nspname FROM pg_extension e "
-                    "JOIN pg_namespace n ON n.oid=e.extnamespace WHERE e.extname='vector'"
-                )
-            )
-            quoted = connection.dialect.identifier_preparer.quote_schema(str(schema))
-            distance = connection.scalar(
-                text(
-                    f"SELECT '[1,0]'::{quoted}.vector "
-                    f"OPERATOR({quoted}.<=>) '[1,0]'::{quoted}.vector"
-                )
-            )
-            if distance != 0:
-                raise StartupError("pgvector 查询校验失败。")
-    except StartupError:
-        raise
-    except Exception:
-        raise StartupError("pgvector 初始化或查询失败，请检查扩展与数据库权限。") from None
-    finally:
-        engine.dispose()
-    logger.info("复用 PostgreSQL 中的 pgvector，向量查询正常")
+            response.raise_for_status()
+            if response.json().get("code") != 0:
+                raise StartupError("Milvus 连接验证失败")
+
+    host, port = ensure_endpoint(
+        "Milvus",
+        parsed.hostname or "",
+        parsed.port or 19530,
+        19530,
+        probe,
+        lambda port: docker.start("milvus", port),
+        check_only=check_only,
+    )
+    return settings.model_copy(
+        update={"milvus_uri": redis_address(settings.milvus_uri, host, port)}
+    )
 
 
 def prepare_redis(settings: Settings, docker: DockerRuntime, *, check_only: bool) -> Settings:

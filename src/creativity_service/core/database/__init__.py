@@ -117,8 +117,8 @@ async def transaction(
     uow = None
     try:
         async with engine.begin() as connection:
-            if connection.dialect.name != "postgresql":
-                raise RuntimeError("事务互斥只支持 PostgreSQL")
+            if connection.dialect.name != "mysql":
+                raise RuntimeError("事务互斥只支持 MySQL 8")
             locked = normalize_keys(frozenset(keys))
             await acquire_locks(connection, locked)
             uow = UnitOfWork(connection, scope, locked)
@@ -155,8 +155,8 @@ async def control_transaction(
     units: dict[str, UnitOfWork] = {}
     try:
         async with engine.begin() as connection:
-            if connection.dialect.name != "postgresql":
-                raise RuntimeError("事务互斥只支持 PostgreSQL")
+            if connection.dialect.name != "mysql":
+                raise RuntimeError("事务互斥只支持 MySQL 8")
             locked = normalize_keys(frozenset(keys))
             await acquire_locks(connection, locked)
             units = {

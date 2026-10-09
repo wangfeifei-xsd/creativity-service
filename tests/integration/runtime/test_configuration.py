@@ -201,7 +201,7 @@ async def record(env, name, receipt, validation, context=None):
         "verification": {
             "model": "controlled_fixture",
             "mcp": "local_tcp" if name == "archive-answer" else "unused",
-            "database": "PostgreSQL",
+            "database": "MySQL",
             "test_scope_retained": False,
             "production_released": False,
         },

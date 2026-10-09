@@ -25,7 +25,9 @@ def test_local_launcher_reuses_services_starts_all_roles_and_stops_cleanly(tmp_p
     url = make_url(settings.database_url.get_secret_value())
     engine = create_engine(url, isolation_level="AUTOCOMMIT")
     with engine.connect() as connection:
-        connection.execute(text(f'CREATE DATABASE "{database}"'))
+        connection.execute(
+            text(f"CREATE DATABASE `{database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin")
+        )
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
@@ -133,5 +135,5 @@ def test_local_launcher_reuses_services_starts_all_roles_and_stops_cleanly(tmp_p
                 if keys:
                     redis.delete(*keys)
         with engine.connect() as connection:
-            connection.execute(text(f'DROP DATABASE "{database}" WITH (FORCE)'))
+            connection.execute(text(f"DROP DATABASE `{database}`"))
         engine.dispose()

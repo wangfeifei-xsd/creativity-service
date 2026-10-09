@@ -4,6 +4,7 @@ import asyncio
 
 import pytest
 from sqlalchemy import event, select, text
+from sqlalchemy.exc import OperationalError
 
 from creativity_service.core.database import Repository, assert_external_io_allowed, transaction
 from creativity_service.core.database.tables import metadata
@@ -12,6 +13,22 @@ from creativity_service.core.primitives import ServiceError
 from creativity_service.core.versioning import VersionService
 
 pytestmark = pytest.mark.integration
+
+
+async def try_lock(connection, key):
+    try:
+        await connection.execute(
+            text(
+                "SELECT slot FROM transaction_lock_slots "
+                "WHERE channel_id='system' AND slot=:slot FOR UPDATE NOWAIT"
+            ),
+            {"slot": key.lock_id},
+        )
+        return True
+    except OperationalError as exc:
+        if exc.orig.args[0] != 3572:
+            raise
+        return False
 
 
 async def test_reused_query_structure_keeps_scope_nulls_and_current_values(engine, context):
@@ -106,13 +123,9 @@ async def test_shared_reads_coexist_and_exclude_mutation(engine, context):
             async with asyncio.timeout(2):
                 await acquire_locks(second, frozenset([read_key(key)]))
             async with engine.begin() as writer:
-                assert not await writer.scalar(
-                    text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": key.lock_id}
-                )
+                assert not await try_lock(writer, key)
         async with engine.begin() as writer:
-            assert not await writer.scalar(
-                text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": key.lock_id}
-            )
+            assert not await try_lock(writer, key)
     async with transaction(engine, context.scope, [key, read_key(key)]) as uow:
         uow.require_lock(key)
         uow.require_read_lock(read_key(key))
@@ -132,6 +145,18 @@ async def test_late_locks_cannot_upgrade_reverse_order_or_cross_channel(engine, 
         uow.require_lock(platform_key())
         with pytest.raises(RuntimeError, match="全局资源顺序"):
             await uow.acquire([ResourceKey(context.scope.channel_id, "earlier", ("write",))])
+
+
+async def test_disjoint_lock_batches_do_not_scan_unrelated_slots(engine, context):
+    keys = sorted(
+        [ResourceKey(context.scope.channel_id, "lock-range", (str(i),)) for i in range(30)],
+        key=lambda key: key.lock_id,
+    )
+    # 新建库的统计可能尚未更新；较大锁槽的批量查找不能等待无关的小锁槽。
+    async with transaction(engine, context.scope, [keys[0]]):
+        async with asyncio.timeout(2):
+            async with engine.begin() as connection:
+                await acquire_locks(connection, frozenset(keys[-3:]))
 
 
 async def draft(service, context, label="第一版"):
@@ -184,7 +209,7 @@ async def test_batch_locks_use_one_roundtrip_and_release_on_rollback(engine, con
     queries = []
 
     def record(connection, cursor, statement, parameters, execution, many):
-        if "pg_advisory_xact_lock(" in statement:
+        if "JOIN transaction_lock_slots AS locked" in statement:
             queries.append(statement)
 
     event.listen(engine.sync_engine, "before_cursor_execute", record)
@@ -193,16 +218,12 @@ async def test_batch_locks_use_one_roundtrip_and_release_on_rollback(engine, con
             async with transaction(engine, context.scope, list(reversed(keys))):
                 async with engine.begin() as contender:
                     for key in keys:
-                        assert not await contender.scalar(
-                            text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": key.lock_id}
-                        )
+                        assert not await try_lock(contender, key)
                 raise RuntimeError("验证回滚")
         assert len(queries) == 1
         async with engine.begin() as contender:
             for key in keys:
-                assert await contender.scalar(
-                    text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": key.lock_id}
-                )
+                assert await try_lock(contender, key)
     finally:
         event.remove(engine.sync_engine, "before_cursor_execute", record)
 

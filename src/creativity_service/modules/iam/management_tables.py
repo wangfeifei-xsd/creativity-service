@@ -4,10 +4,10 @@ import json
 from pathlib import Path
 
 from sqlalchemy import Column, Index, MetaData, Table
-from sqlalchemy.dialects.postgresql import JSONB
 
 from creativity_service.core.database.tables import column_type
 from creativity_service.core.database.tables import metadata as core
+from creativity_service.core.database.types import DocumentJSON
 from creativity_service.modules.iam.operations_tables import metadata as operations
 from creativity_service.modules.iam.tables import metadata as identity
 
@@ -29,7 +29,7 @@ for definition in json.loads(Path(__file__).with_name("baseline_v0035.json").rea
 operations.tables["custom_roles"].append_column(
     Column(
         "menu_ids",
-        JSONB(),
+        DocumentJSON(),
         nullable=True,
         comment="可见菜单节点清单，空值沿用按动作生成",
         info={"required": False, "source": "受信上下文与服务层校验", "sensitivity": "内部"},
@@ -57,7 +57,7 @@ identity.tables["platform_accounts"].append_column(
 identity.tables["platform_accounts"].append_column(
     Column(
         "role_ids",
-        JSONB(),
+        DocumentJSON(),
         nullable=True,
         comment="账号选择的管理角色清单，空值兼容旧单角色",
         info={"required": False, "source": "受信上下文与服务层校验", "sensitivity": "内部"},
@@ -75,7 +75,7 @@ identity.tables["builtin_roles"].append_column(
 identity.tables["builtin_roles"].append_column(
     Column(
         "menu_ids",
-        JSONB(),
+        DocumentJSON(),
         nullable=True,
         comment="可见菜单节点清单，空值沿用按动作生成",
         info={"required": False, "source": "受信上下文与服务层校验", "sensitivity": "内部"},

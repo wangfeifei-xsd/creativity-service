@@ -1,9 +1,8 @@
-"""真实 pgvector 距离、作用域隔离及迟到向量写回的删除屏障。"""
+"""真实 Milvus 距离、作用域隔离及迟到向量写回的删除屏障。"""
 
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import text
 
 from creativity_service.core.database import Repository, transaction
 from creativity_service.core.deletion import ContentRef
@@ -18,6 +17,24 @@ from tests.models.test_protocols import fixture_config
 pytestmark = pytest.mark.integration
 
 
+@pytest.fixture(autouse=True)
+async def isolated_milvus_collections(monkeypatch):
+    from uuid import uuid4
+
+    from creativity_service.modules.memory.vector_store import MilvusStore
+
+    prefix = "test_memory_" + uuid4().hex
+    monkeypatch.setenv("CREATIVITY_MILVUS_COLLECTION_PREFIX", prefix)
+    store = MilvusStore()
+    await store.health()
+    try:
+        yield
+    finally:
+        for name in await store.request("collections/list"):
+            if name.startswith(prefix + "_d"):
+                await store.request("collections/drop", collectionName=name)
+
+
 async def select_semantic(env, hook=None, model_version=None, dimensions=2):
     model = fixture_config().model_copy(update={"scope": env.context.scope})
     if model_version:
@@ -25,7 +42,9 @@ async def select_semantic(env, hook=None, model_version=None, dimensions=2):
     spec = SimpleNamespace(
         versions=[
             SimpleNamespace(
-                version_id="embedding-route", content={"models": [model.model_dump(mode="json")]}
+                version_id="embedding-route",
+                content={"models": [model.model_dump(mode="json")]},
+                content_digest="route-configuration",
             )
         ],
         definition=SimpleNamespace(
@@ -61,12 +80,6 @@ async def select_semantic(env, hook=None, model_version=None, dimensions=2):
 
 
 async def test_semantic_sort_scope_and_forget(env):
-    async with env.engine.connect() as connection:
-        installed = await connection.scalar(
-            text("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname='vector')")
-        )
-    if not installed:
-        pytest.skip("向量集成验收需要安装 pgvector 的数据库")
     saved = await env.memory.create(env.context, MemoryCreate(key="usual_budget", value=budget()))
     await env.memory.create(env.context, MemoryCreate(key="play_style", value="休闲"))
     selected = await select_semantic(env)
@@ -109,6 +122,13 @@ async def test_semantic_sort_scope_and_forget(env):
                 }
                 | {"memory_id": "foreign-memory"},
             )
+        from creativity_service.modules.memory.vector_store import MilvusStore
+
+        await MilvusStore().upsert(
+            scope,
+            vector["dimensions"],
+            [{**vector, **scope.model_dump(), "id": identifier, "memory_id": "foreign-memory"}],
+        )
     assert [r.memory_id for r in (await select_semantic(env)).refs] == [saved.memory_id]
     updated = await env.memory.update(
         env.context, saved.memory_id, MemoryUpdate(revision=saved.revision, value=budget(300))
@@ -203,3 +223,98 @@ async def test_vector_preparation_query_count_does_not_grow_per_memory(env):
             )
             == 12
         )
+
+
+async def test_forget_during_milvus_search_is_checked_again(env, monkeypatch):
+    from creativity_service.modules.memory.vector_store import MilvusStore
+
+    saved = await env.memory.create(env.context, MemoryCreate(key="usual_budget", value=budget()))
+    original = MilvusStore.search
+
+    async def search(self, *args, **kwargs):
+        found = await original(self, *args, **kwargs)
+        await env.memory.forget(env.context, saved.memory_id)
+        return found
+
+    monkeypatch.setattr(MilvusStore, "search", search)
+    assert (await select_semantic(env)).refs == []
+
+
+async def test_durable_vector_retry_and_delete_overtakes_inflight_upsert(env):
+    import asyncio
+
+    from sqlalchemy import select, update
+
+    from creativity_service.core.database import assert_external_io_allowed
+    from creativity_service.core.deletion import content_key
+    from creativity_service.core.primitives import utcnow
+    from creativity_service.modules.memory.vector_store import MilvusStore
+    from creativity_service.modules.memory.vector_sync import TASKS, VECTORS, VectorSync, enqueue
+
+    saved = await env.memory.create(env.context, MemoryCreate(key="usual_budget", value=budget()))
+    await select_semantic(env)
+    scope = env.context.scope
+    async with env.engine.connect() as connection:
+        (vector,) = (
+            (
+                await connection.execute(
+                    select(VECTORS).where(
+                        VECTORS.c.channel_id == scope.channel_id,
+                        VECTORS.c.memory_id == saved.memory_id,
+                    )
+                )
+            )
+            .mappings()
+            .all()
+        )
+    identifier = vector["id"]
+
+    async def pending():
+        async with transaction(env.engine, scope, [content_key(scope)]) as uow:
+            await uow.connection.execute(
+                update(TASKS)
+                .where(TASKS.c.channel_id == scope.channel_id, TASKS.c.id == identifier)
+                .values(state="PENDING", next_attempt_at=utcnow())
+            )
+
+    class Unavailable(MilvusStore):
+        async def upsert(self, *args):
+            assert_external_io_allowed()
+            raise OSError("模拟 Milvus 不可达")
+
+    await pending()
+    with pytest.raises(ServiceError, match="后台将自动重试"):
+        await VectorSync(env.engine, Unavailable()).sync(scope, [identifier])
+    async with env.engine.connect() as connection:
+        task = await Repository(TASKS, scope).get(connection, identifier)
+        assert task["state"] == "PENDING" and task["attempts"] == 1
+    await pending()
+    started, release = asyncio.Event(), asyncio.Event()
+
+    class Delayed(MilvusStore):
+        async def upsert(self, *args):
+            assert_external_io_allowed()
+            started.set()
+            await release.wait()
+            await super().upsert(*args)
+
+    worker = asyncio.create_task(VectorSync(env.engine, Delayed()).sync(scope, [identifier]))
+    await asyncio.wait_for(started.wait(), 5)
+    try:
+        async with transaction(env.engine, scope, [content_key(scope)]) as uow:
+            await enqueue(uow, [dict(vector)], delete=True)
+        await VectorSync(env.engine).sync(scope, [identifier])
+        with pytest.raises(ServiceError, match="仍在同步"):
+            await VectorSync(env.engine).require_synced(scope, [identifier], "DELETE")
+    finally:
+        release.set()
+        await worker
+    await VectorSync(env.engine).sync(scope, [identifier])
+    await VectorSync(env.engine).require_synced(scope, [identifier], "DELETE")
+    assert (
+        await MilvusStore().search(scope, vector["model_version_id"], [1, 0], [identifier], 1) == []
+    )
+    # 重建或迟到补写不能把已删除向量的墓碑改回 UPSERT。
+    async with transaction(env.engine, scope, [content_key(scope)]) as uow:
+        await enqueue(uow, [dict(vector)])
+    await VectorSync(env.engine).require_synced(scope, [identifier], "DELETE")

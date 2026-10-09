@@ -202,7 +202,9 @@ class UsageQueries:
         for key, value in query.model_dump().items():
             if key in {"start_at", "end_at", "timezone", "target_currency"} or value is None:
                 continue
-            column = definition.c[key] if key in definition.c else definition.c.snapshot[key].astext
+            column = (
+                definition.c[key] if key in definition.c else definition.c.snapshot[key].as_string()
+            )
             predicates.append(column == value)
         result = await connection.execute(select(definition).where(*predicates))
         return [dict(row) for row in result.mappings()]

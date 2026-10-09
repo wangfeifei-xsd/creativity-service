@@ -8,6 +8,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy import event, select, text, update
 
 from creativity_service.core.context import Scope
+from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.primitives import ServiceError, new_id, unavailable, utcnow
 from creativity_service.modules.channels.keys import secret_digest
 from creativity_service.modules.channels.schemas import (
@@ -720,10 +721,10 @@ async def test_usage_delegates_explicit_authorized_scopes_and_records_platform_r
         )
     ]
     async with env.engine.connect() as connection:
+        audits = core_metadata.tables["audit_events"]
         summary = await connection.scalar(
-            text(
-                "SELECT summary FROM audit_events "
-                "WHERE channel_id='system' AND action='usage:platform'"
+            select(audits.c.summary).where(
+                audits.c.channel_id == "system", audits.c.action == "usage:platform"
             )
         )
     assert summary["channel_ids"] == [channel_id]

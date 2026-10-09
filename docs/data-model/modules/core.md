@@ -1,6 +1,6 @@
 # 公共设施模型
 
-模型版本 2.1.0；负责方案 03；需求 [00-需求总纲.md](../../../../需求文档/00-需求总纲.md)。总索引见 [README](../README.md)。
+模型版本 2.0.0；负责方案 03；需求 [00-需求总纲.md](../../../../需求文档/00-需求总纲.md)。总索引见 [README](../README.md)。
 
 ## resource_versions
 
@@ -10,18 +10,18 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `resource_type` | `varchar(64)` | 资源类型 | 是 | 服务层校验后的业务输入 | 内部 |
 | `resource_id` | `varchar(64)` | 稳定资源标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `version_label` | `varchar(128)` | 可读版本名称 | 是 | 服务层校验后的业务输入 | 内部 |
 | `state` | `varchar(32)` | 版本状态 | 是 | 服务层校验后的业务输入 | 内部 |
-| `content` | `jsonb` | 版本内容 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `content` | `json` | 版本内容 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `content_digest` | `varchar(64)` | 规范化内容摘要 | 是 | 服务层校验后的业务输入 | 内部 |
-| `dependencies` | `jsonb` | 固定依赖清单 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `dependencies` | `json` | 固定依赖清单 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `dependencies_digest` | `varchar(64)` | 依赖摘要 | 是 | 服务层校验后的业务输入 | 内部 |
-| `output_schema` | `jsonb` | 输出结构定义 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `output_schema` | `json` | 输出结构定义 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `created_by` | `varchar(128)` | 创建主体标识 | 是 | 服务层校验后的业务输入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, resource_type, resource_id, state)`。
@@ -34,8 +34,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `resource_type` | `varchar(64)` | 资源类型 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -54,17 +54,17 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
 | `subject_id` | `varchar(128)` | 业务主体编号 | 否 | 受信服务上下文 | 个人 |
 | `run_id` | `varchar(64)` | 所属运行标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `purpose` | `varchar(32)` | 使用用途 | 是 | 服务层校验后的业务输入 | 内部 |
-| `versions` | `jsonb` | 具体版本及草稿内容快照 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `versions` | `json` | 具体版本及草稿内容快照 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `dependencies_digest` | `varchar(64)` | 全量依赖摘要 | 是 | 服务层校验后的业务输入 | 内部 |
-| `output_schema` | `jsonb` | 固定输出结构 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `output_schema` | `json` | 固定输出结构 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, run_id)`。
 
@@ -76,8 +76,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `source_version_id` | `varchar(64)` | 引用方版本标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `target_version_id` | `varchar(64)` | 被引用版本标识 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -93,8 +93,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
@@ -105,7 +105,7 @@
 | `target_id` | `varchar(128)` | 对象标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `request_id` | `varchar(64)` | 请求标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `outcome` | `varchar(32)` | 操作结果 | 是 | 服务层校验后的业务输入 | 内部 |
-| `summary` | `jsonb` | 脱敏变更摘要 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `summary` | `json` | 脱敏变更摘要 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 
 普通索引：`(channel_id, id)`；`(channel_id, created_at)`；`(channel_id, target_type, target_id)`；`(channel_id, created_at, id)`。
 
@@ -119,15 +119,15 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `purpose` | `varchar(32)` | 凭据用途 | 是 | 服务层校验后的业务输入 | 内部 |
-| `ciphertext` | `bytea` | 认证加密密文 | 否 | 服务层校验后的业务输入 | 敏感内容 |
+| `ciphertext` | `blob` | 认证加密密文 | 否 | 服务层校验后的业务输入 | 敏感内容 |
 | `key_version` | `varchar(64)` | 加密密钥版本 | 否 | 服务层校验后的业务输入 | 内部 |
 | `state` | `varchar(32)` | 凭据状态 | 是 | 服务层校验后的业务输入 | 内部 |
-| `secret_value` | `text` | MCP 凭据原文 | 否 | 服务层校验后的业务输入 | 敏感内容 |
+| `secret_value` | `longtext` | MCP 凭据原文 | 否 | 服务层校验后的业务输入 | 敏感内容 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, purpose, state)`。
 
@@ -139,8 +139,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
@@ -151,9 +151,9 @@
 | `size_bytes` | `bigint` | 文件字节数 | 是 | 服务层校验后的业务输入 | 内部 |
 | `sha256` | `varchar(64)` | 内容摘要 | 是 | 服务层校验后的业务输入 | 内部 |
 | `state` | `varchar(32)` | 暂存及可用状态 | 是 | 服务层校验后的业务输入 | 内部 |
-| `expires_at` | `timestamptz` | 保存到期时间 | 是 | 服务层校验后的业务输入 | 内部 |
-| `upload_expires_at` | `timestamptz` | 暂存到期时间 | 是 | 服务层校验后的业务输入 | 内部 |
-| `registered_at` | `timestamptz` | 登记完成时间 | 否 | 服务层校验后的业务输入 | 内部 |
+| `expires_at` | `datetime(6) UTC` | 保存到期时间 | 是 | 服务层校验后的业务输入 | 内部 |
+| `upload_expires_at` | `datetime(6) UTC` | 暂存到期时间 | 是 | 服务层校验后的业务输入 | 内部 |
+| `registered_at` | `datetime(6) UTC` | 登记完成时间 | 否 | 服务层校验后的业务输入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, state, upload_expires_at)`。
 
@@ -165,8 +165,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
@@ -187,8 +187,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
@@ -208,8 +208,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
@@ -217,7 +217,7 @@
 | `state` | `varchar(32)` | 恢复屏障状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `recovery_id` | `varchar(64)` | 本次恢复标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `marker_digest` | `varchar(64)` | 已校验删除账本摘要 | 是 | 服务层校验后的业务输入 | 内部 |
-| `verified_at` | `timestamptz` | 删除账本核对时间 | 否 | 服务层校验后的业务输入 | 内部 |
+| `verified_at` | `datetime(6) UTC` | 删除账本核对时间 | 否 | 服务层校验后的业务输入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`。
 
@@ -242,8 +242,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 渠道、运行和稳定资源标识的摘要 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 使用环境 | 是 | 受信执行上下文 | 内部 |
 | `resource_type` | `varchar(64)` | 资源类型 | 是 | 受信执行上下文 | 内部 |
@@ -255,3 +255,16 @@
 | `purpose` | `varchar(32)` | 运行用途 | 是 | 受信执行上下文 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, resource_type, resource_id)`；`(channel_id, run_id)`。
+
+## transaction_lock_slots
+
+服务层事务互斥固定锁槽。状态：已实现；归属：系统；归档修订：0048_mysql_milvus。
+
+| 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
+| --- | --- | --- | --- | --- | --- |
+| `channel_id` | `varchar(64)` | 锁目录所属系统渠道 | 是 | 服务端固定值 | 内部 |
+| `slot` | `integer` | 包含锁顺序分组的固定槽位 | 是 | 服务端哈希映射 | 内部 |
+
+普通索引：`(channel_id, slot)`。
+
+控制面用途：`migration`；账号/角色身份引用不赋予其他渠道数据访问权。

@@ -1,6 +1,6 @@
 # 工具定义与证据模型
 
-模型版本 2.1.0；负责方案 10；需求 [10-工具管理.md](../../../../需求文档/10-工具管理.md)。总索引见 [README](../README.md)。
+模型版本 2.0.0；负责方案 10；需求 [10-工具管理.md](../../../../需求文档/10-工具管理.md)。总索引见 [README](../README.md)。
 
 ## tools
 
@@ -10,12 +10,12 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `tool_code` | `varchar(64)` | 调用编码 | 是 | 服务层校验后的业务输入 | 内部 |
 | `name` | `varchar(128)` | 工具名称 | 是 | 服务层校验后的业务输入 | 内部 |
-| `description` | `text` | 用途说明 | 是 | 服务层校验后的业务输入 | 内部 |
+| `description` | `longtext` | 用途说明 | 是 | 服务层校验后的业务输入 | 内部 |
 | `source_type` | `varchar(32)` | 来源类型 | 是 | 服务层校验后的业务输入 | 内部 |
 | `owner` | `varchar(128)` | 负责人 | 是 | 服务层校验后的业务输入 | 内部 |
 | `status` | `varchar(32)` | 启用状态 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -30,8 +30,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
@@ -45,12 +45,12 @@
 | `source_request_id` | `varchar(256)` | 源请求标识 | 否 | 服务层校验后的业务输入 | 内部 |
 | `result_ref` | `varchar(64)` | 结果内容引用 | 否 | 服务层校验后的业务输入 | 内部 |
 | `latency_ms` | `integer` | 耗时毫秒 | 否 | 服务层校验后的业务输入 | 内部 |
-| `error` | `jsonb` | 脱敏错误 | 否 | 服务层校验后的业务输入 | 敏感内容 |
+| `error` | `json` | 脱敏错误 | 否 | 服务层校验后的业务输入 | 敏感内容 |
 | `tool_id` | `varchar(64)` | 工具资源标识 | 是 | 服务层校验后的业务输入 | 内部 |
-| `redacted_arguments` | `jsonb` | 脱敏输入参数 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `result_summary` | `jsonb` | 结果结构摘要 | 否 | 服务层校验后的业务输入 | 内部 |
-| `evidence_ids` | `jsonb` | 有效证据标识集合 | 是 | 服务层校验后的业务输入 | 内部 |
-| `attempt` | `jsonb` | 独立尝试状态 | 否 | 服务层校验后的业务输入 | 内部 |
+| `redacted_arguments` | `json` | 脱敏输入参数 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `result_summary` | `json` | 结果结构摘要 | 否 | 服务层校验后的业务输入 | 内部 |
+| `evidence_ids` | `json` | 有效证据标识集合 | 是 | 服务层校验后的业务输入 | 内部 |
+| `attempt` | `json` | 独立尝试状态 | 否 | 服务层校验后的业务输入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id)`；`(channel_id, attempt_id)`。
 
@@ -62,8 +62,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
@@ -71,11 +71,11 @@
 | `source_type` | `varchar(64)` | 来源类型 | 是 | 服务层校验后的业务输入 | 内部 |
 | `source_id` | `varchar(128)` | 来源标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `source_version` | `varchar(128)` | 来源版本 | 是 | 服务层校验后的业务输入 | 内部 |
-| `observed_at` | `timestamptz` | 观测时间 | 是 | 服务层校验后的业务输入 | 内部 |
-| `location` | `jsonb` | 字段路径或文本位置 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `observed_at` | `datetime(6) UTC` | 观测时间 | 是 | 服务层校验后的业务输入 | 内部 |
+| `location` | `json` | 字段路径或文本位置 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `title` | `varchar(255)` | 授权范围内的来源名称 | 否 | 服务层校验后的业务输入 | 内部 |
 | `artifact_id` | `varchar(64)` | 内容产物标识 | 否 | 服务层校验后的业务输入 | 内部 |
-| `authorization_scope` | `jsonb` | 授权范围摘要 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `authorization_scope` | `json` | 授权范围摘要 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 
 普通索引：`(channel_id, id)`；`(channel_id, source_type, source_id)`。
 
@@ -85,16 +85,16 @@
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
-| `input_schema` | `jsonb` | 输入结构 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `output_schema` | `jsonb` | 输出结构 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `binding` | `jsonb` | 固定来源绑定 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `input_schema` | `json` | 输入结构 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `output_schema` | `json` | 输出结构 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `binding` | `json` | 固定来源绑定 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `effect_type` | `varchar(32)` | 真实影响类型 | 是 | 服务层校验后的业务输入 | 内部 |
-| `required_scopes` | `jsonb` | 必要授权 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `subject_requirements` | `jsonb` | 主体限制 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `required_scopes` | `json` | 必要授权 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `subject_requirements` | `json` | 主体限制 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `timeout_seconds` | `integer` | 超时秒数 | 是 | 服务层校验后的业务输入 | 内部 |
 | `max_result_size` | `bigint` | 结果字节上限 | 是 | 服务层校验后的业务输入 | 内部 |
-| `retry_policy` | `jsonb` | 重试策略 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `idempotency_policy` | `jsonb` | 源幂等策略 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `cache_policy` | `jsonb` | 完整范围缓存策略 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `model_fields_allowed` | `jsonb` | 模型业务参数白名单 | 是 | 服务层校验后的业务输入 | 内部 |
-| `environments` | `jsonb` | 适用环境集合 | 是 | 服务层校验后的业务输入 | 内部 |
+| `retry_policy` | `json` | 重试策略 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `idempotency_policy` | `json` | 源幂等策略 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `cache_policy` | `json` | 完整范围缓存策略 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `model_fields_allowed` | `json` | 模型业务参数白名单 | 是 | 服务层校验后的业务输入 | 内部 |
+| `environments` | `json` | 适用环境集合 | 是 | 服务层校验后的业务输入 | 内部 |

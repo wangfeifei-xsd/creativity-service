@@ -50,4 +50,4 @@ gamerental:
 
 当前前端覆盖租客与号主的支付页、订单页、站内消息及实时提示；员工专属上下文/入口、主动问答和外部通知作为后续独立能力。测试使用隔离数据库和受控模型/工具响应验证编排及可靠性，不代表真实供应商内容质量和线上联调已经验收。
 
-租号本地数据库验收仅允许隔离 MySQL，不允许 H2。租号仓库提供 `scripts/test-order-assistant.sh` 自动创建 MySQL 8.4 临时容器、执行本场景及 MCP/消息回归、退出清理。Creativity 测试继续使用隔离 PostgreSQL/Redis。
+租号本地数据库验收仅允许隔离 MySQL，不允许 H2。租号仓库提供 `scripts/test-order-assistant.sh` 自动创建 MySQL 8.4 临时容器、执行本场景及 MCP/消息回归、退出清理。Creativity 测试继续使用隔离 MySQL/Redis。

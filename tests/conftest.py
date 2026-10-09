@@ -15,7 +15,7 @@ def settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
     return Settings(
         _env_file=None,
         environment="test",
-        database_url="postgresql+psycopg://test:test@127.0.0.1:1/test",
+        database_url="mysql+pymysql://test:test@127.0.0.1:1/test",
         redis_cache_url="redis://127.0.0.1:1/0",
         redis_auth_url="redis://127.0.0.1:1/1",
         celery_broker_url="redis://127.0.0.1:1/2",

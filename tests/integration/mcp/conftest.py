@@ -1,4 +1,4 @@
-"""复用真实 IAM、PostgreSQL、Redis 与独立 MCP HTTP 服务。"""
+"""复用真实 IAM、MySQL、Redis 与独立 MCP HTTP 服务。"""
 
 import pytest
 

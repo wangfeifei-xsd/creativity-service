@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Connection, create_engine, inspect, text
-from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects import mysql
 from sqlalchemy.schema import CreateIndex, CreateTable
 
 from creativity_service.core.database.tables import BASELINE
@@ -28,7 +28,7 @@ from creativity_service.modules.tools.tables import BASELINE as TOOL_BASELINE
 from creativity_service.modules.usage.tables import BASELINE as USAGE_BASELINE
 from creativity_service.storage import metadata
 
-POSTGRESQL_DIALECT: Any = postgresql.dialect
+MYSQL_DIALECT: Any = mysql.dialect
 
 CHINESE = re.compile(r"[\u4e00-\u9fff]")
 FORBIDDEN_SQL = re.compile(
@@ -59,9 +59,9 @@ def audit_definitions() -> list[str]:
                 or column.computed is not None
             ):
                 failures.append(f"{table.name}.{column.name} 存在隐式赋值")
-        failures += check_sql(str(CreateTable(table).compile(dialect=POSTGRESQL_DIALECT())))
+        failures += check_sql(str(CreateTable(table).compile(dialect=MYSQL_DIALECT())))
         for index in table.indexes:
-            failures += check_sql(str(CreateIndex(index).compile(dialect=POSTGRESQL_DIALECT())))
+            failures += check_sql(str(CreateIndex(index).compile(dialect=MYSQL_DIALECT())))
     return failures
 
 
@@ -137,7 +137,9 @@ def audit_catalog(root: Path) -> list[str]:
     if [t for t in catalog["tables"] if t["revision"] == "0024_evaluations"] != EVALUATION_BASELINE:
         failures.append("评测模块归档与冻结实现不一致")
     archived = [
-        t for t in catalog["tables"] if t["revision"] in {"0001_core", "0043_resource_management"}
+        t
+        for t in catalog["tables"]
+        if t["revision"] in {"0001_core", "0043_resource_management", "0048_mysql_milvus"}
     ]
     current_core, current_iam = deepcopy(BASELINE), deepcopy(IAM_BASELINE)
     # 管理目录的增量索引叠加到当前归档，旧基线保持冻结供历史迁移使用。
@@ -214,6 +216,11 @@ def audit_catalog(root: Path) -> list[str]:
     return failures
 
 
+def normalize_type(value: str) -> str:
+    value = re.sub(r" collate \w+", "", value.lower()).replace("numeric(", "decimal(")
+    return "bool" if value == "tinyint(1)" else value
+
+
 def audit_database(
     connection: Connection, schema: str = "public", *, compare: bool = True
 ) -> list[str]:
@@ -259,13 +266,13 @@ def audit_database(
             table = metadata.tables[name]
             actual = {
                 c["name"]: (
-                    str(c["type"].compile(dialect=connection.dialect)).lower(),
+                    normalize_type(str(c["type"].compile(dialect=connection.dialect))),
                     c["comment"],
                 )
                 for c in columns
             }
             expected = {
-                c.name: (str(c.type.compile(dialect=POSTGRESQL_DIALECT())).lower(), c.comment)
+                c.name: (normalize_type(str(c.type.compile(dialect=MYSQL_DIALECT()))), c.comment)
                 for c in table.c
             }
             if actual != expected:
@@ -281,18 +288,10 @@ def audit_database(
     if compare and set(metadata.tables) - set(names):
         failures.append("实际数据库缺少公共表")
     checks: dict[str, str] = {
-        "触发器": "SELECT count(*) FROM pg_trigger t "
-        "JOIN pg_class c ON c.oid=t.tgrelid "
-        "JOIN pg_namespace n ON n.oid=c.relnamespace "
-        "WHERE n.nspname=:schema AND NOT t.tgisinternal",
-        "行级安全": "SELECT count(*) FROM pg_class c "
-        "JOIN pg_namespace n ON n.oid=c.relnamespace "
-        "WHERE n.nspname=:schema AND (c.relrowsecurity OR c.relforcerowsecurity)",
-        "存储函数或过程": "SELECT count(*) FROM pg_proc p "
-        "JOIN pg_namespace n ON n.oid=p.pronamespace "
-        "WHERE n.nspname=:schema "
-        "AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid=p.oid AND d.deptype='e')",
-        "权限策略": "SELECT count(*) FROM pg_policies WHERE schemaname=:schema",
+        "触发器": "SELECT count(*) FROM information_schema.triggers WHERE trigger_schema=:schema",
+        "存储函数或过程": (
+            "SELECT count(*) FROM information_schema.routines WHERE routine_schema=:schema"
+        ),
     }
     for label, query in checks.items():
         if connection.execute(text(query), {"schema": schema}).scalar_one():
@@ -303,7 +302,7 @@ def audit_database(
 def main() -> None:
     parser = argparse.ArgumentParser(description="检查存储定义、迁移和实际 schema")
     parser.add_argument("--database", action="store_true")
-    parser.add_argument("--schema", default="public")
+    parser.add_argument("--schema")
     parser.add_argument("--sql", type=Path)
     args = parser.parse_args()
     root = Path.cwd()
@@ -316,7 +315,9 @@ def main() -> None:
         engine = create_engine(Settings().database_url.get_secret_value())
         try:
             with engine.connect() as connection:
-                failures += audit_database(connection, args.schema)
+                failures += audit_database(
+                    connection, args.schema or str(connection.engine.url.database)
+                )
         finally:
             engine.dispose()
     if failures:

@@ -147,7 +147,7 @@ def environment(output, workspace=None):
         "database": database,
         "source": trees,
         "boundaries": {
-            "database": "真实 PostgreSQL，测试使用独立 schema；迁移审查使用开发 schema",
+            "database": "真实 MySQL，测试使用独立数据库；迁移审查使用开发数据库",
             "redis": "真实 Redis，独立前缀",
             "mcp": "两种真实 TCP Streamable HTTP 服务，源数据由受控夹具提供",
             "model": "受控替身；未验收真实供应商",

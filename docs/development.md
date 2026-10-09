@@ -6,7 +6,7 @@
 
 ## 工程与配置
 
-Python 3.12、uv 0.10.12；基础设施为 PostgreSQL、Redis 和 S3 兼容对象存储。精确依赖以 [pyproject.toml](../pyproject.toml) 与 [uv.lock](../uv.lock) 为准。
+Python 3.12、uv 0.10.12；基础设施为 MySQL 8、Milvus、Redis 和 S3 兼容对象存储。精确依赖以 [pyproject.toml](../pyproject.toml) 与 [uv.lock](../uv.lock) 为准。
 
 配置从 `.env` 加载，进程环境优先；变量示例见 [.env.example](../.env.example)，完整字段及校验见 [Settings](../src/creativity_service/core/config.py)。API、Worker 和 Beat 使用相同数据库、凭据主密钥、出站策略及资源配置。缓存、认证、队列和任务结果使用独立 Redis 数据库。
 

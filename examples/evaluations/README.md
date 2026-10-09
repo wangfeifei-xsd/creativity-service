@@ -19,7 +19,7 @@ uv run python -m examples.evaluations.prepare
 
 Agent 文件尚未绑定接入渠道的模型路由和提示词。先在目标渠道配置并发布这些依赖，再替换 `definition.bindings` 中的版本引用，按管理 API 创建 Agent。样本可从“效果评测 → 样本集 → 导入样本”预览导入；发布用标签需由该渠道审阅人员核对。不要直接把通用框架预期当成正式业务效果目标。
 
-可在真实 PostgreSQL/Redis 的隔离测试环境运行统一执行管线，输出可追溯报告：
+可在真实 MySQL/Redis 的隔离测试环境运行统一执行管线，输出可追溯报告：
 
 ```sh
 CREATIVITY_EVALUATION_EVIDENCE_DIR=.logs/24 \

@@ -1,4 +1,4 @@
-"""真实 PostgreSQL 和 IAM，供应商能力仅使用受信完成回调夹具。"""
+"""真实 MySQL 和 IAM，供应商能力仅使用受信完成回调夹具。"""
 
 from types import SimpleNamespace
 

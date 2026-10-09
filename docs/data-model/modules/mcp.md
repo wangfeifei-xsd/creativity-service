@@ -1,6 +1,6 @@
 # 远程工具连接模型
 
-模型版本 2.1.0；负责方案 14；需求 [09-MCP配置.md](../../../../需求文档/09-MCP配置.md)。总索引见 [README](../README.md)。
+模型版本 2.0.0；负责方案 14；需求 [09-MCP配置.md](../../../../需求文档/09-MCP配置.md)。总索引见 [README](../README.md)。
 
 ## mcp_connections
 
@@ -10,15 +10,15 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `name` | `varchar(128)` | 连接名称 | 是 | 服务层校验后的业务输入 | 内部 |
 | `transport` | `varchar(64)` | 传输类型 | 是 | 服务层校验后的业务输入 | 内部 |
 | `endpoint` | `varchar(2048)` | 服务地址 | 是 | 服务层校验后的业务输入 | 内部 |
 | `credential_ref` | `varchar(64)` | 凭据引用 | 否 | 服务层校验后的业务输入 | 内部 |
-| `timeouts` | `jsonb` | 超时策略 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `timeouts` | `json` | 超时策略 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `status` | `varchar(32)` | 启用状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `health_status` | `varchar(32)` | 健康状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `configuration_revision` | `bigint` | 连接配置修订 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -26,12 +26,12 @@
 | `tested_revision` | `bigint` | 握手通过的配置修订 | 否 | 服务层校验后的业务输入 | 内部 |
 | `discovered_revision` | `bigint` | 发现通过的配置修订 | 否 | 服务层校验后的业务输入 | 内部 |
 | `failure_count` | `integer` | 连续失败次数 | 是 | 服务层校验后的业务输入 | 内部 |
-| `health_policy` | `jsonb` | 检查频率与失败阈值 | 是 | 服务层校验后的业务输入 | 内部 |
-| `last_check_at` | `timestamptz` | 最近检查时间 | 否 | 服务层校验后的业务输入 | 内部 |
+| `health_policy` | `json` | 检查频率与失败阈值 | 是 | 服务层校验后的业务输入 | 内部 |
+| `last_check_at` | `datetime(6) UTC` | 最近检查时间 | 否 | 服务层校验后的业务输入 | 内部 |
 | `auth_failed` | `boolean` | 凭据失效阻断状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `health_actor_id` | `varchar(64)` | 健康检查授权成员 | 是 | 受信服务上下文 | 内部 |
-| `next_check_at` | `timestamptz` | 下次健康检查时间 | 是 | 受信服务上下文 | 内部 |
-| `authentication` | `jsonb` | 鉴权方式、令牌地址与应用标识；凭据单独保存 | 否 | 管理员鉴权配置 | 内部 |
+| `next_check_at` | `datetime(6) UTC` | 下次健康检查时间 | 是 | 受信服务上下文 | 内部 |
+| `authentication` | `json` | 鉴权方式、令牌地址与应用标识；凭据单独保存 | 否 | 管理员鉴权配置 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, status)`；`(channel_id, environment, next_check_at)`。
 
@@ -43,14 +43,14 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `connection_id` | `varchar(64)` | 连接标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `negotiated_version` | `varchar(64)` | 协商协议版本 | 否 | 服务层校验后的业务输入 | 内部 |
-| `server_info` | `jsonb` | 远端信息 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `capabilities` | `jsonb` | 协商能力 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `server_info` | `json` | 远端信息 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `capabilities` | `json` | 协商能力 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `health_status` | `varchar(32)` | 健康状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `latency_ms` | `integer` | 耗时毫秒 | 否 | 服务层校验后的业务输入 | 内部 |
 | `error_category` | `varchar(64)` | 错误类别 | 否 | 服务层校验后的业务输入 | 内部 |
@@ -67,14 +67,14 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `connection_id` | `varchar(64)` | 连接标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `connection_revision` | `bigint` | 连接修订 | 是 | 服务层校验后的业务输入 | 内部 |
-| `tool_definitions` | `jsonb` | 远端工具定义 | 是 | 服务层校验后的业务输入 | 敏感内容 |
-| `schema_hashes` | `jsonb` | 定义摘要 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `tool_definitions` | `json` | 远端工具定义 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `schema_hashes` | `json` | 定义摘要 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `negotiated_version` | `varchar(64)` | 发现协商协议版本 | 是 | 服务层校验后的业务输入 | 内部 |
 | `credential_revision` | `bigint` | 发现时凭据版本 | 否 | 服务层校验后的业务输入 | 内部 |
 
@@ -88,8 +88,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `connection_id` | `varchar(64)` | 连接标识 | 是 | 服务层校验后的业务输入 | 内部 |
@@ -100,7 +100,7 @@
 | `imported_version` | `varchar(64)` | 本地导入版本 | 是 | 服务层校验后的业务输入 | 内部 |
 | `effect_type` | `varchar(32)` | 管理员核定影响类型 | 是 | 服务层校验后的业务输入 | 内部 |
 | `name` | `varchar(128)` | 本地工具显示名称 | 是 | 服务层校验后的业务输入 | 内部 |
-| `input_schema` | `jsonb` | 固定本地输入契约 | 是 | 服务层校验后的业务输入 | 内部 |
+| `input_schema` | `json` | 固定本地输入契约 | 是 | 服务层校验后的业务输入 | 内部 |
 | `contract_status` | `varchar(32)` | 固定契约可用状态 | 是 | 服务层校验后的业务输入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, connection_id, remote_tool_name)`；`(channel_id, environment, connection_id, discovery_id, remote_tool_name)`。
@@ -113,8 +113,8 @@ MCP 一次性授权流程。状态：已实现；归属：主体；归档修订�
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
@@ -127,7 +127,7 @@ MCP 一次性授权流程。状态：已实现；归属：主体；归档修订�
 | `owner_id` | `varchar(64)` | 归属身份摘要 | 是 | 受信授权流程 | 内部 |
 | `state` | `varchar(16)` | 授权流程状态 | 是 | 受信授权流程 | 内部 |
 | `verifier_ref` | `varchar(64)` | PKCE 验证凭据引用 | 是 | 受信授权流程 | 内部 |
-| `expires_at` | `timestamptz` | 授权流程截止时间 | 是 | 受信授权流程 | 内部 |
+| `expires_at` | `datetime(6) UTC` | 授权流程截止时间 | 是 | 受信授权流程 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, connection_id)`。
 
@@ -139,8 +139,8 @@ MCP 分身份委托凭据。状态：已实现；归属：主体；归档修订�
 | --- | --- | --- | --- | --- | --- |
 | `id` | `varchar(64)` | 记录标识 | 是 | 服务端随机标识 | 内部 |
 | `channel_id` | `varchar(64)` | 所属渠道标识 | 是 | 受信服务上下文 | 内部 |
-| `created_at` | `timestamptz` | 创建时间 | 是 | 服务端时钟 | 内部 |
-| `updated_at` | `timestamptz` | 更新时间 | 是 | 服务端时钟 | 内部 |
+| `created_at` | `datetime(6) UTC` | 创建时间 | 是 | 服务端时钟 | 内部 |
+| `updated_at` | `datetime(6) UTC` | 更新时间 | 是 | 服务端时钟 | 内部 |
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `environment` | `varchar(16)` | 所属环境 | 是 | 受信服务上下文 | 内部 |
 | `subject_type` | `varchar(64)` | 业务主体类型 | 否 | 受信服务上下文 | 内部 |
@@ -151,10 +151,10 @@ MCP 分身份委托凭据。状态：已实现；归属：主体；归档修订�
 | `ownership` | `varchar(16)` | 凭据归属类型 | 是 | 受信授权流程 | 内部 |
 | `owner_id` | `varchar(64)` | 归属身份摘要 | 是 | 受信授权流程 | 内部 |
 | `credential_ref` | `varchar(64)` | 委托令牌凭据引用 | 是 | 受信授权流程 | 内部 |
-| `expires_at` | `timestamptz` | 访问令牌截止时间 | 是 | 受信授权流程 | 内部 |
+| `expires_at` | `datetime(6) UTC` | 访问令牌截止时间 | 是 | 受信授权流程 | 内部 |
 | `state` | `varchar(16)` | 委托状态 | 是 | 受信授权流程 | 内部 |
-| `refresh_until` | `timestamptz` | 刷新占用截止时间 | 否 | 受信授权流程 | 内部 |
+| `refresh_until` | `datetime(6) UTC` | 刷新占用截止时间 | 否 | 受信授权流程 | 内部 |
 | `refresh_nonce` | `varchar(64)` | 刷新互斥代次 | 否 | 受信授权流程 | 内部 |
-| `authorized_at` | `timestamptz` | 授权发起时间 | 是 | 受信授权流程 | 内部 |
+| `authorized_at` | `datetime(6) UTC` | 授权发起时间 | 是 | 受信授权流程 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, connection_id)`。

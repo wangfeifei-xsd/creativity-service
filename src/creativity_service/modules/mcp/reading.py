@@ -2,10 +2,9 @@
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import select
-
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.queries import latest_per_group
 from creativity_service.core.database.tables import metadata as core
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.primitives import ServiceError, digest
@@ -34,13 +33,12 @@ async def import_reasons(
             r["connection_id"]: dict(r)
             for r in (
                 await connection.execute(
-                    select(table)
-                    .where(
+                    latest_per_group(
+                        table,
+                        "connection_id",
                         Repository(table, context.scope).predicate(),
                         table.c.connection_id.in_(connections),
                     )
-                    .distinct(table.c.connection_id)
-                    .order_by(table.c.connection_id, table.c.created_at.desc(), table.c.id.desc())
                 )
             ).mappings()
         }

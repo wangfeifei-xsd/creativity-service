@@ -24,7 +24,7 @@ Agent 的输入输出、步骤和流转内容可填入管理向导，`bind_*` �
 
 ## 固定版本复现
 
-需要项目 README 所列 PostgreSQL/Redis、Python 3.12、uv 0.10.12、Node.js 22 和 pnpm 10.32.1，以及 Playwright 浏览器。复制开发 `.env` 或通过环境提供连接参数。验证会创建独立 PostgreSQL schema、Redis 前缀和本机临时 HTTP/MCP 端口，结束后清理；不修改开发库数据和结构。
+需要项目 README 所列 MySQL/Redis、Python 3.12、uv 0.10.12、Node.js 22 和 pnpm 10.32.1，以及 Playwright 浏览器。复制开发 `.env` 或通过环境提供连接参数。验证会创建独立 MySQL 数据库、Redis 前缀和本机临时 HTTP/MCP 端口，结束后清理；不修改开发库数据和结构。
 
 在 `creativity-service` 中运行：
 
@@ -60,6 +60,6 @@ uv run python -m examples.onboarding.server --scenario third --port 18083 --iden
 
 输出目录包含三组可导入配置、页面截图、HTTP 请求标识、MCP 协议方法、源调用关联、结果、SSE 游标、用量和故障记录。`baseline.json`、`after-two.json`、`after-three.json`、`final.json` 对比平台源码、锁文件、构建、路由、OpenAPI、迁移、实际数据库结构和后端客户端；任何差异均使验证失败。Wheel 中的源码也须与待测源码逐文件一致。
 
-API/MCP 使用真实 TCP，存储与鉴权使用 PostgreSQL/Redis。模型输出及 Token 数量为受控替身，对象存储为内存夹具，Worker 通过正式 `execute_message` 入口在测试进程执行。这些记录只证明通用接入、隔离和版本边界；真实供应商组合、独立 Celery 部署、生产对象存储及业务效果由后续验收覆盖。渠道均为测试环境，不绕过生产评测门禁。
+API/MCP 使用真实 TCP，存储与鉴权使用 MySQL/Redis。模型输出及 Token 数量为受控替身，对象存储为内存夹具，Worker 通过正式 `execute_message` 入口在测试进程执行。这些记录只证明通用接入、隔离和版本边界；真实供应商组合、独立 Celery 部署、生产对象存储及业务效果由后续验收覆盖。渠道均为测试环境，不绕过生产评测门禁。
 
 一次性 API Key、Token 和委托秘密只经进程管道传递；不录制浏览器 trace，不写入交付证据。持久证据中的运行、渠道和来源编号属于已清理的测试数据，不是生产运行引用。

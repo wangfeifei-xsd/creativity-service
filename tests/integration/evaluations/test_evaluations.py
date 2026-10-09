@@ -501,6 +501,8 @@ async def test_two_shapes_full_case_matrix(evaluation_env, kind):
             if key == "fault":
                 env.adapter.failures = ["MODEL_UNAVAILABLE"] * 5
             else:
+                # 用例调度顺序由标识决定，故障用例剩余重试不能污染下一条固定响应。
+                env.adapter.failures = []
                 env.adapter.responses = [responses[key]]
             await execute_message(
                 env.runs,

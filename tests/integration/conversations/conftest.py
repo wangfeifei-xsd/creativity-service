@@ -1,4 +1,4 @@
-"""真实 PostgreSQL、运行服务及受控对象存储替身。"""
+"""真实 MySQL、运行服务及受控对象存储替身。"""
 
 import pytest
 

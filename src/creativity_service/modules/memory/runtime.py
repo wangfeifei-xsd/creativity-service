@@ -492,7 +492,7 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
             .where(
                 Repository(memories, context.scope).predicate(),
                 memories.c.key == key,
-                jobs.c.memory_ids.op("?")(memories.c.id),
+                func.json_contains(jobs.c.memory_ids, func.json_quote(memories.c.id)) == 1,
             )
             .exists()
         )
