@@ -429,7 +429,6 @@ class ModelRouting:
                 "provider_credential_id": current.provider_credential_id,
                 # 目的地只能取已加载并校验的当前连接，不能由调用快照覆盖。
                 "endpoint": current.endpoint,
-                "allowed_networks": current.allowed_networks,
             }
         )
 

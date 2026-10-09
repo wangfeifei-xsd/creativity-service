@@ -14,8 +14,7 @@ from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import Attempt, BudgetReservation
 from creativity_service.core.database import assert_external_io_allowed
 from creativity_service.core.primitives import ServiceError
-from creativity_service.core.security.credentials import CredentialService
-from creativity_service.core.security.outbound import OutboundPolicy
+from creativity_service.integrations.models.connection import ModelConnectionClient
 from creativity_service.integrations.models.contracts import (
     Cancellation,
     ModelEvent,
@@ -23,9 +22,8 @@ from creativity_service.integrations.models.contracts import (
     cancellable,
     validate_request,
 )
-from creativity_service.integrations.models.transport import ModelTransport, RawCapture
+from creativity_service.integrations.models.transport import RawCapture
 from creativity_service.integrations.models.usage import normalize_usage
-from creativity_service.modules.models.outbound import validate_connection_target
 from creativity_service.modules.models.policy import PROTOCOLS, may_retry
 from creativity_service.modules.models.schemas import FrozenModel
 
@@ -71,14 +69,10 @@ def error_code(exc: Exception) -> str:
 class LiteLLMAdapter:
     def __init__(
         self,
-        credentials: CredentialService,
-        outbound: OutboundPolicy | None,
+        client: ModelConnectionClient,
         prepare: Callable[..., Awaitable[FrozenModel]],
-        *,
-        transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None,
     ) -> None:
-        self.credentials, self.outbound, self.prepare = credentials, outbound, prepare
-        self.transport_factory = transport_factory
+        self.client, self.prepare = client, prepare
 
     async def events(
         self,
@@ -121,12 +115,8 @@ class LiteLLMAdapter:
                         "MODEL_CONFIGURATION_STALE", "尝试登记后的连接或凭据已变化", 409
                     )
                 parameters = validate_request(current, request, attempt, reservation)
-                target = await validate_connection_target(
-                    context.scope, current.endpoint, current.allowed_networks, self.outbound
-                )
 
-                async def invoke(secret: SecretBytes) -> None:
-                    nonlocal emitted
+                async def before_send() -> None:
                     # 密钥读取可能等待远端，发送前重新检查模型状态和使用授权。
                     checked = await self.prepare(context, current, required, debug=debug)
                     if (
@@ -136,29 +126,23 @@ class LiteLLMAdapter:
                         raise ServiceError(
                             "MODEL_CONFIGURATION_STALE", "模型凭据已轮换，请重新创建尝试", 409
                         )
-                    inner = self.transport_factory() if self.transport_factory else None
-                    async with httpx.AsyncClient(
-                        transport=ModelTransport(target, capture, inner),
-                        timeout=current.timeout_seconds,
-                        follow_redirects=False,
-                        trust_env=False,
-                    ) as http_client:
-                        async for event in self._invoke(
-                            current,
-                            request,
-                            parameters,
-                            attempt.attempt_id,
-                            secret,
-                            http_client,
-                            cancel,
-                        ):
-                            if event.kind in {"text", "tool"}:
-                                emitted = True
-                            await queue.put(event)
 
-                await self.credentials.call(
-                    context, current.provider_credential_id, "model", invoke
-                )
+                async def invoke(secret: SecretBytes, http_client: httpx.AsyncClient) -> None:
+                    nonlocal emitted
+                    async for event in self._invoke(
+                        current,
+                        request,
+                        parameters,
+                        attempt.attempt_id,
+                        secret,
+                        http_client,
+                        cancel,
+                    ):
+                        if event.kind in {"text", "tool"}:
+                            emitted = True
+                        await queue.put(event)
+
+                await self.client.call(context, current, invoke, before_send, capture)
                 source_id = capture.request_id or capture.response_id or attempt.attempt_id
                 await queue.put(
                     ModelEvent(

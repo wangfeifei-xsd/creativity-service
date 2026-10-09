@@ -89,14 +89,6 @@
       "FrozenModel": {
         "additionalProperties": false,
         "properties": {
-          "allowed_networks": {
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 32,
-            "title": "Allowed Networks",
-            "type": "array"
-          },
           "config_digest": {
             "title": "Config Digest",
             "type": "string"
@@ -345,14 +337,6 @@
     },
     "additionalProperties": false,
     "properties": {
-      "allowed_networks": {
-        "items": {
-          "type": "string"
-        },
-        "maxItems": 32,
-        "title": "Allowed Networks",
-        "type": "array"
-      },
       "config_digest": {
         "title": "Config Digest",
         "type": "string"

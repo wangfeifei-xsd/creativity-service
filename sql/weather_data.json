@@ -365,11 +365,7 @@
         "current_version_id": "version_1dffe1ef7ed944d1a3a0840daf09efe8",
         "health_reason": null,
         "health_checked_at": "2026-10-06T19:18:23.056004+00:00",
-        "validation_revision": 2,
-        "allowed_networks": [
-          "198.18.0.36/32",
-          "2001:2::59/128"
-        ]
+        "validation_revision": 2
       }
     ],
     "model_routes": [
@@ -403,28 +399,28 @@
             "reason": null,
             "evidence": "live",
             "verified_at": "2026-10-06T19:02:59.061005+00:00",
-            "config_digest": "2f44d1ff2f51289d557da204cef01f6af1dbe77469c284dac8e99e8e71b1f570"
+            "config_digest": "b7384c0d86047a165a0091bc8e39a33555f73f356ad48cf5be87ebcbbce71e45"
           },
           "tools": {
             "state": "SUPPORTED",
             "reason": null,
             "evidence": "live",
             "verified_at": "2026-10-06T18:57:16.699800+00:00",
-            "config_digest": "2f44d1ff2f51289d557da204cef01f6af1dbe77469c284dac8e99e8e71b1f570"
+            "config_digest": "b7384c0d86047a165a0091bc8e39a33555f73f356ad48cf5be87ebcbbce71e45"
           },
           "streaming": {
             "state": "SUPPORTED",
             "reason": null,
             "evidence": "live",
             "verified_at": "2026-10-06T19:02:59.061005+00:00",
-            "config_digest": "2f44d1ff2f51289d557da204cef01f6af1dbe77469c284dac8e99e8e71b1f570"
+            "config_digest": "b7384c0d86047a165a0091bc8e39a33555f73f356ad48cf5be87ebcbbce71e45"
           },
           "structured_output": {
             "state": "UNSUPPORTED",
             "reason": "当前配置未通过该用例验证",
             "evidence": "live",
             "verified_at": "2026-10-06T18:57:16.699800+00:00",
-            "config_digest": "2f44d1ff2f51289d557da204cef01f6af1dbe77469c284dac8e99e8e71b1f570"
+            "config_digest": "b7384c0d86047a165a0091bc8e39a33555f73f356ad48cf5be87ebcbbce71e45"
           }
         },
         "verified_at": "2026-10-06T19:02:59.061005+00:00",
@@ -1094,14 +1090,10 @@
               "parameters": {
                 "max_tokens": 4096
               },
-              "config_digest": "2f44d1ff2f51289d557da204cef01f6af1dbe77469c284dac8e99e8e71b1f570",
+              "config_digest": "b7384c0d86047a165a0091bc8e39a33555f73f356ad48cf5be87ebcbbce71e45",
               "connection_id": "connection_3c0b1670eba5422184aa8bf86ebc2417",
               "model_revision": 4,
               "timeout_seconds": 60,
-              "allowed_networks": [
-                "198.18.0.36/32",
-                "2001:2::59/128"
-              ],
               "model_version_id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
               "connection_revision": 9,
               "parameter_allowlist": [
@@ -1128,7 +1120,7 @@
             "tools"
           ]
         },
-        "content_digest": "736d473bc88a022948869519b8fc64021d5e2eb875013de491a9f7bb1c7198b4",
+        "content_digest": "c5041a0d981488a7656416624b6a50abb3a310510c946e10b589cc012ee2a498",
         "dependencies": [
           "version_1dffe1ef7ed944d1a3a0840daf09efe8",
           "version_ab199b3f3d1d4d62bde6f40d1362a959"
@@ -1389,15 +1381,11 @@
           "health_status": "UNKNOWN",
           "credential_ref": "credential_362142ee695842f5ac2775d471613d8a",
           "timeout_seconds": 60,
-          "allowed_networks": [
-            "198.18.0.36/32",
-            "2001:2::59/128"
-          ],
           "health_checked_at": null,
           "current_version_id": "version_1dffe1ef7ed944d1a3a0840daf09efe8",
           "validation_revision": 2
         },
-        "content_digest": "03e72bb884eabcb23af099e489ba2af1474fa2201c6010fba8c117958600b405",
+        "content_digest": "b51a0843ce7dfcf9225997e5f598afd21ae654d48134253a09798d0c041ab53d",
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {},

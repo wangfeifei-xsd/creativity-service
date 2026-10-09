@@ -11,8 +11,9 @@ from pydantic import SecretBytes
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.contracts import Attempt, BudgetReservation
 from creativity_service.core.primitives import ServiceError, utcnow
-from creativity_service.core.security.outbound import Destination, OutboundPolicy
+from creativity_service.core.security.outbound import ValidatedTarget
 from creativity_service.integrations.models.adapter import LiteLLMAdapter
+from creativity_service.integrations.models.connection import ModelConnectionClient
 from creativity_service.integrations.models.contracts import Cancellation, ModelRequest
 from creativity_service.integrations.models.transport import (
     ModelTransport,
@@ -87,7 +88,7 @@ class Credentials:
 
 
 async def resolved(host, port):
-    return ["93.184.216.34"]
+    return ["198.18.1.151"]
 
 
 async def unchanged(context, frozen, capabilities, *, debug=False):
@@ -96,10 +97,8 @@ async def unchanged(context, frozen, capabilities, *, debug=False):
 
 def adapter(handler):
     return LiteLLMAdapter(
-        Credentials(),
-        OutboundPolicy((Destination("one", "test", "model", "models.example"),), resolved),
+        ModelConnectionClient(Credentials(), resolved, lambda: httpx.MockTransport(handler)),
         unchanged,
-        transport_factory=lambda: httpx.MockTransport(handler),
     )
 
 
@@ -403,8 +402,7 @@ async def test_cancellation_closes_inflight_request():
 
 async def test_pins_ip_blocks_redirects_and_duplicate_http():
     config = fixture_config()
-    policy = OutboundPolicy((Destination("one", "test", "model", "models.example"),), resolved)
-    target = await policy.validate(config.scope, "model", config.endpoint)
+    target = ValidatedTarget(config.endpoint, "models.example", 443, ("198.18.1.151",), {})
     backend = PinnedBackend(target)
     with pytest.raises(ServiceError):
         await backend.connect_tcp("other.example", 443)

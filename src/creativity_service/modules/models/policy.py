@@ -128,12 +128,6 @@ def configuration_digest(model: dict[str, Any], connection: dict[str, Any]) -> s
             "connection_validation_revision": connection.get("validation_revision", 1),
             "connection": {
                 **{k: connection[k] for k in ("id", "protocol", "endpoint", "timeout_seconds")},
-                # 空范围与旧公网配置摘要兼容；显式范围改变必须重新验证能力。
-                **(
-                    {"allowed_networks": connection["allowed_networks"]}
-                    if connection.get("allowed_networks")
-                    else {}
-                ),
             },
             "model": {
                 k: model[k]

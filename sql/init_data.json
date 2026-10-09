@@ -1839,7 +1839,7 @@
         "dependencies": [
           "version_0e0ebbfa8c804ad29d8255ff33032d93"
         ],
-        "dependencies_digest": "be67ee2d46890d7c77406c821ce131d489574f833a2221e7161448e7fc57ff77",
+        "dependencies_digest": "9ea95c0e3e7d89d12349af8adbc61fbfb8a99abb9dce2797bae57930d5076400",
         "output_schema": {},
         "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
       },
@@ -1863,10 +1863,9 @@
           "timeout_seconds": 60,
           "health_checked_at": null,
           "current_version_id": "version_0e0ebbfa8c804ad29d8255ff33032d93",
-          "validation_revision": 1,
-          "allowed_networks": []
+          "validation_revision": 1
         },
-        "content_digest": "bcb6ec8322828c1206acad973b1365f1c0ef5de0004129e5fb5c7041669724b3",
+        "content_digest": "410c6e2ba55fb4d6c7a6bad4b67a8619b6513273666524abdfbe73b64eb149c6",
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {},
@@ -1936,8 +1935,7 @@
         "current_version_id": "version_0e0ebbfa8c804ad29d8255ff33032d93",
         "health_reason": null,
         "health_checked_at": null,
-        "validation_revision": 1,
-        "allowed_networks": []
+        "validation_revision": 1
       }
     ],
     "models": [

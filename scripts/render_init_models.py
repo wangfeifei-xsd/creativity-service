@@ -3,7 +3,6 @@
 from typing import Any
 
 from creativity_service.core.primitives import ServiceError, digest
-from creativity_service.modules.models.outbound import normalize_networks
 from creativity_service.modules.models.policy import (
     configuration_digest,
     validate_endpoint,
@@ -56,8 +55,6 @@ def validate_initial_models(tables: dict[str, Any], tenants: dict[str, Any], adm
         body = ConnectionInput.model_validate({k: row[k] for k in ConnectionInput.model_fields})
         if validate_endpoint(body.protocol, body.endpoint) != body.endpoint:
             raise ValueError("初始模型连接地址未规范化")
-        if normalize_networks(body.allowed_networks) != body.allowed_networks:
-            raise ValueError("初始模型连接网络范围未规范化")
         content = body.model_dump(exclude={"revision"}) | {
             k: row[k]
             for k in (

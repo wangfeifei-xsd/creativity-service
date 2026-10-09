@@ -36,7 +36,7 @@ def render():
         "各模块归档中的 `revision` 保留原始修订来源，供模型归属与一致性检查使用。"
         "[初始基线](../../alembic/versions/0001_initial.py) 冻结至 "
         "`0034_admission_indexes`；后续增量迁移依次升级至 "
-        "`0046_mcp_plain_credentials`。"
+        "`0047_remove_model_networks`。"
         "开发规范引用 [rule.md](../../../rule.md)。",
         "",
         "空库初始化按顺序执行表结构 [sql/init.sql](../../sql/init.sql) 和"

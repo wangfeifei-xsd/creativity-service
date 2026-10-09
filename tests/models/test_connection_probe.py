@@ -5,9 +5,9 @@ import pytest
 from pydantic import SecretBytes
 
 from creativity_service.core.primitives import ServiceError
-from creativity_service.core.security.outbound import ValidatedTarget
+from creativity_service.integrations.models.connection import ModelConnectionClient
 from creativity_service.integrations.models.probe import probe_connection
-from tests.models.test_protocols import fixture_config
+from tests.models.test_protocols import Credentials, context, fixture_config, resolved
 
 
 @pytest.mark.parametrize(
@@ -31,13 +31,17 @@ async def test_probe_uses_one_authenticated_catalog_request(protocol, path):
             assert request.headers["anthropic-version"] == "2023-06-01"
         return httpx.Response(200, json={"data": [{"id": "provider-model"}]})
 
-    target = ValidatedTarget(config.endpoint, "models.example", 443, ("93.184.216.34",), {})
-    await probe_connection(
-        config,
-        target,
-        SecretBytes(b"fixture-secret"),
-        transport_factory=lambda: httpx.MockTransport(handler),
+    connection = ModelConnectionClient(
+        Credentials(), resolved, lambda: httpx.MockTransport(handler)
     )
+
+    async def before_send():
+        pass
+
+    async def probe(secret, client):
+        await probe_connection(config, SecretBytes(b"fixture-secret"), client)
+
+    await connection.call(context(config), config, probe, before_send)
     assert len(seen) == 1
 
 
@@ -55,20 +59,24 @@ async def test_probe_uses_one_authenticated_catalog_request(protocol, path):
 )
 async def test_probe_rejects_failure_without_echoing_provider_body(status, body, code):
     config = fixture_config()
-    target = ValidatedTarget(config.endpoint, "models.example", 443, ("93.184.216.34",), {})
     seen = []
 
     async def handler(request):
         seen.append(request)
         return httpx.Response(status, json=body, headers={"location": "https://untrusted.example"})
 
+    connection = ModelConnectionClient(
+        Credentials(), resolved, lambda: httpx.MockTransport(handler)
+    )
+
+    async def before_send():
+        pass
+
+    async def probe(secret, client):
+        await probe_connection(config, secret, client)
+
     with pytest.raises(ServiceError) as error:
-        await probe_connection(
-            config,
-            target,
-            SecretBytes(b"fixture-secret"),
-            transport_factory=lambda: httpx.MockTransport(handler),
-        )
+        await connection.call(context(config), config, probe, before_send)
     assert error.value.code == code
     assert "secret-provider-body" not in str(error.value)
     assert len(seen) == 1

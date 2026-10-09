@@ -9,7 +9,6 @@ from pydantic import SecretBytes
 from creativity_service.core.database import assert_external_io_allowed
 from creativity_service.core.deletion import CleanupRegistry, ContentRef, DeletionService
 from creativity_service.core.primitives import ServiceError
-from creativity_service.core.security.outbound import Destination, OutboundPolicy
 from creativity_service.modules.channels.schemas import EnvironmentCreate
 from creativity_service.modules.iam.schemas import ChannelContextInput
 from creativity_service.modules.models.assembly import build_model_services
@@ -150,12 +149,9 @@ async def setup(env, publish=False, configuration_only=False):
         assert_external_io_allowed()
         return ["93.184.216.34"]
 
-    policy = OutboundPolicy(
-        (Destination(tenant.channel.channel_id, "test", "model", "models.example"),), resolve
-    )
     env.model_cleanup = CleanupRegistry()
     services = build_model_services(
-        env.engine, env.iam, key_provider=Keys(), outbound=policy, cleanup=env.model_cleanup
+        env.engine, env.iam, key_provider=Keys(), resolver=resolve, cleanup=env.model_cleanup
     )
     env.client._transport.app.state.models = services
     config = services.configuration
@@ -337,11 +333,9 @@ async def test_revoked_connection_blocks_attempt_but_keeps_history(channel_env):
     frozen = executor.submissions[0].configuration
     prepared = await services.routing.prepare_attempt(tenant.manager.context, frozen, ["text"])
     assert prepared.provider_credential_id == connection.credential_ref
-    forged = frozen.model_copy(
-        update={"endpoint": "https://untrusted.example", "allowed_networks": ["10.0.0.0/8"]}
-    )
+    forged = frozen.model_copy(update={"endpoint": "https://untrusted.example"})
     trusted = await services.routing.prepare_attempt(tenant.manager.context, forged, ["text"])
-    assert trusted.endpoint == connection.endpoint and trusted.allowed_networks == []
+    assert trusted.endpoint == connection.endpoint
     current = (await services.configuration.connections(tenant.manager)).items[0]
     await services.configuration.save_connection(
         tenant.manager,
@@ -489,11 +483,9 @@ async def test_full_migration_schema_matches_registered_storage(channel_env):
     assert failures == []
 
 
-async def test_connection_page_saves_and_freezes_networks_without_network_io(
+async def test_connection_page_saves_and_freezes_endpoint_without_network_io(
     channel_env, monkeypatch
 ):
-    from creativity_service.modules.models import outbound
-
     tenant, services, body, connection, _, model = await setup(channel_env)
     _, executor = await complete(services, tenant, model)
     frozen = executor.submissions[0].configuration
@@ -504,21 +496,19 @@ async def test_connection_page_saves_and_freezes_networks_without_network_io(
         calls.append((host, port))
         return ["93.184.216.34"]
 
-    # 使用正式的连接授权路径，不注入服务器目的地白名单。
-    services.configuration.outbound = None
-    monkeypatch.setattr(outbound, "OutboundPolicy", lambda rules: OutboundPolicy(rules, resolve))
+    services.configuration.client.resolver = resolve
     current = (await services.configuration.connections(tenant.manager)).items[0]
     updated = await services.configuration.save_connection(
         tenant.manager,
         body.model_copy(
             update={
-                "allowed_networks": ["93.184.216.34/32"],
+                "endpoint": "https://changed.example/v1",
                 "revision": current.revision,
             }
         ),
         connection.id,
     )
-    assert updated.allowed_networks == ["93.184.216.34/32"]
+    assert updated.endpoint == "https://changed.example/v1"
     assert calls == []
     changed = await services.configuration.detail(tenant.manager, model.id)
     assert all(c.state == "UNVERIFIED" for c in changed.capabilities)
@@ -527,10 +517,10 @@ async def test_connection_page_saves_and_freezes_networks_without_network_io(
     history = await services.configuration.history(
         tenant.manager, "model_connection", connection.id
     )
-    assert history[-1].content["allowed_networks"] == ["93.184.216.34/32"]
-    # 同一凭据可以由有权管理员配置新的公网连接，不依赖额外服务器登记。
+    assert history[-1].content["endpoint"] == "https://changed.example/v1"
+    # 同一凭据可以由有权管理员配置新的连接，不依赖额外服务器登记。
     added = await services.configuration.save_connection(
         tenant.manager, body.model_copy(update={"endpoint": "https://another.example:8443/v1"})
     )
-    assert added.endpoint == "https://another.example:8443/v1" and added.allowed_networks == []
+    assert added.endpoint == "https://another.example:8443/v1"
     assert calls == []

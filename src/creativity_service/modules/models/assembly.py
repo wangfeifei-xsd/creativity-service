@@ -14,8 +14,9 @@ from creativity_service.core.deletion import CleanupRegistry, ContentRef, Deleti
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError
 from creativity_service.core.security.credentials import CredentialService, KeyProvider
-from creativity_service.core.security.outbound import OutboundPolicy
+from creativity_service.core.security.outbound import resolve_host
 from creativity_service.integrations.models.adapter import LiteLLMAdapter
+from creativity_service.integrations.models.connection import ModelConnectionClient, Resolver
 from creativity_service.modules.iam.services import IamServices
 from creativity_service.modules.models.connection_testing import ModelConnectionTesting
 from creativity_service.modules.models.ports import DebugExecutor, ModelPriceReader
@@ -156,7 +157,7 @@ def build_model_services(
     *,
     settings: ModelSettings | None = None,
     key_provider: KeyProvider | None = None,
-    outbound: OutboundPolicy | None = None,
+    resolver: Resolver = resolve_host,
     executor: DebugExecutor | None = None,
     prices: ModelPriceReader | None = None,
     cleanup: CleanupRegistry | None = None,
@@ -166,7 +167,8 @@ def build_model_services(
         key_provider = ConfiguredKeys(settings.key_version, settings.encryption_keys)
     iam.authorization.resources = ModelResourceReader(engine, iam.authorization.resources)
     credentials = CredentialService(engine, key_provider, ModelCredentialAuthorization(iam))
-    service = ModelService(engine, iam, credentials, outbound, executor, prices)
+    client = ModelConnectionClient(credentials, resolver)
+    service = ModelService(engine, iam, credentials, client, executor, prices)
     routing = ModelRouting(service)
     if cleanup:
 
@@ -202,6 +204,6 @@ def build_model_services(
         service,
         routing,
         ModelTesting(service),
-        LiteLLMAdapter(credentials, outbound, routing.prepare_attempt),
+        LiteLLMAdapter(client, routing.prepare_attempt),
         ModelConnectionTesting(service),
     )

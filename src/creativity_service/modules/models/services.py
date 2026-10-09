@@ -18,8 +18,8 @@ from creativity_service.core.name_codes import name_code
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.core.security.credentials import CredentialService
-from creativity_service.core.security.outbound import OutboundPolicy
 from creativity_service.core.versioning import version_view
+from creativity_service.integrations.models.connection import ModelConnectionClient
 from creativity_service.modules.iam.accounts import current_actor
 from creativity_service.modules.iam.audit import append_event
 from creativity_service.modules.iam.authorization import (
@@ -31,7 +31,6 @@ from creativity_service.modules.iam.reading import resource_state
 from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.iam.schemas import AccessAction, GrantInput, GrantView
 from creativity_service.modules.iam.services import IamServices
-from creativity_service.modules.models.outbound import normalize_networks
 from creativity_service.modules.models.policy import (
     CAPABILITY_LABELS,
     CAPABILITY_NAMES,
@@ -73,11 +72,11 @@ class ModelService:
         engine: AsyncEngine,
         iam: IamServices,
         credentials: CredentialService,
-        outbound: OutboundPolicy | None,
+        client: ModelConnectionClient,
         executor: DebugExecutor | None = None,
         prices: ModelPriceReader | None = None,
     ) -> None:
-        self.engine, self.iam, self.credentials, self.outbound = engine, iam, credentials, outbound
+        self.engine, self.iam, self.credentials, self.client = engine, iam, credentials, client
         self.executor, self.prices = executor, prices
 
     async def context(self, session: AdminSession) -> AuthContext:
@@ -273,8 +272,7 @@ class ModelService:
     ) -> ConnectionView:
         context = await self.context(session)
         endpoint = validate_endpoint(body.protocol, body.endpoint)
-        networks = normalize_networks(body.allowed_networks)
-        # 保存只校验配置；DNS 和 IP 授权在连接测试及实际调用前检查。
+        # 保存只校验配置格式；网络连接由统一模型客户端执行。
         providers = {p["id"]: p for p in await self.provider_rows()}
         if (
             body.provider_id not in providers
@@ -296,7 +294,6 @@ class ModelService:
             values = {
                 **body.model_dump(exclude={"revision"}),
                 "endpoint": endpoint,
-                "allowed_networks": networks,
                 "current_version_id": version_id,
                 "health_status": "UNKNOWN",
                 "health_reason": None,
@@ -307,8 +304,7 @@ class ModelService:
             ) + int(
                 existing is not None
                 and any(
-                    existing[k] != values[k]
-                    for k in ("protocol", "endpoint", "timeout_seconds", "allowed_networks")
+                    existing[k] != values[k] for k in ("protocol", "endpoint", "timeout_seconds")
                 )
             )
             if existing:
@@ -652,7 +648,6 @@ class ModelService:
             provider_credential_id=connection["credential_ref"],
             protocol=connection["protocol"],
             endpoint=connection["endpoint"],
-            allowed_networks=connection["allowed_networks"] or [],
             provider_model_name=model["provider_model_name"],
             timeout_seconds=connection["timeout_seconds"],
             parameters=model["parameters"],

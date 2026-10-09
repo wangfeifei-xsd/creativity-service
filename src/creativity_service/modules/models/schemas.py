@@ -46,7 +46,6 @@ class ConnectionInput(Contract):
     provider_id: Identifier
     protocol: ProtocolType
     endpoint: str = Field(min_length=1, max_length=2048)
-    allowed_networks: list[str] = Field(default_factory=list, max_length=32)
     credential_ref: Identifier
     timeout_seconds: int = Field(default=60, ge=1, le=600)
     status: Status = "ACTIVE"
@@ -133,7 +132,6 @@ class FrozenModel(Contract):
     provider_credential_id: str
     protocol: ProtocolType
     endpoint: str
-    allowed_networks: list[str] = Field(default_factory=list, max_length=32)
     provider_model_name: str
     timeout_seconds: int
     parameters: dict[str, Any]

@@ -13,14 +13,13 @@ from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.integrations.models.probe import probe_connection
-from creativity_service.modules.models.outbound import validate_connection_target
 from creativity_service.modules.models.policy import PROTOCOLS
 from creativity_service.modules.models.repositories import model_key, repository, required
 from creativity_service.modules.models.schemas import ConnectionTestView
 from creativity_service.modules.models.services import ModelService
 
 ERRORS = {
-    "DESTINATION_FORBIDDEN": "模型地址不在允许的 IP 范围内，请检查连接配置",
+    "DESTINATION_FORBIDDEN": "模型请求目标与连接配置不一致，请检查基础地址",
     "DESTINATION_UNAVAILABLE": "模型地址解析失败，请检查基础地址和网络",
     "MODEL_REDIRECT_FORBIDDEN": "供应商返回了重定向，请填写最终基础地址",
     "CREDENTIAL_UNAVAILABLE": "连接凭据已停用或不可用，请更新凭据",
@@ -84,21 +83,18 @@ class ModelConnectionTesting:
         try:
             # 包含 DNS、密钥读取及 HTTP 的总时限；所有外部等待都在事务外。
             async with asyncio.timeout(min(config.timeout_seconds, 15)):
-                target = await validate_connection_target(
-                    context.scope, config.endpoint, config.allowed_networks, service.outbound
-                )
 
-                async def invoke(secret: SecretBytes) -> None:
+                async def before_send() -> None:
                     await service.iam.authorization.boundary(
                         context, "model:manage", "channel", context.scope.channel_id
                     )
                     async with transaction(service.engine, context.scope, keys) as uow:
                         self.unchanged(initial, await self.load(uow, context, model_id))
-                    await probe_connection(config, target, secret)
 
-                await service.credentials.call(
-                    context, config.provider_credential_id, "model", invoke
-                )
+                async def invoke(secret: SecretBytes, client: httpx.AsyncClient) -> None:
+                    await probe_connection(config, secret, client)
+
+                await service.client.call(context, config, invoke, before_send)
         except ServiceError as exc:
             if exc.code in {
                 "FORBIDDEN",

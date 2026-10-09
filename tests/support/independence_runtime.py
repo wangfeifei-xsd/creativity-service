@@ -173,7 +173,7 @@ async def runtime(env, folder):
     async def resolve(host, port):
         return ["93.184.216.34"]
 
-    env.model_outbound = OutboundPolicy((), resolve)
+    env.model_resolver = resolve
     env.tools = build_tool_services(env.engine, env.iam.authorization)
     env.mcp = build_mcp_service(env.engine, env.iam.authorization, env.tools, outbound=env.outbound)
     env.bundle = build_integration_services(
@@ -200,7 +200,7 @@ async def runtime(env, folder):
     env.adapter = Adapter()
     env.models = replace(
         build_model_services(
-            env.engine, env.iam, key_provider=TestKeys(), outbound=env.model_outbound
+            env.engine, env.iam, key_provider=TestKeys(), resolver=env.model_resolver
         ),
         adapter=env.adapter,
     )
@@ -359,4 +359,3 @@ def allow_source(env, channel_id, source):
             allowed_networks=("127.0.0.1/32",),
         ),
     )
-    env.model_outbound.destinations += (Destination(channel_id, "test", "model", "models.example"),)

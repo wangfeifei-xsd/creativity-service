@@ -1,24 +1,18 @@
 """供应商鉴权和连通性检查，只读取协议模型目录，不生成内容。"""
 
-from collections.abc import Callable
-
 import httpx
 from pydantic import SecretBytes
 
 from creativity_service.core.primitives import ServiceError
-from creativity_service.core.security.outbound import ValidatedTarget
-from creativity_service.integrations.models.transport import ModelTransport, RawCapture
 from creativity_service.modules.models.schemas import FrozenModel
 
 
 async def probe_connection(
     config: FrozenModel,
-    target: ValidatedTarget,
     secret: SecretBytes,
-    *,
-    transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None,
+    client: httpx.AsyncClient,
 ) -> None:
-    """沿用固定 IP、TLS 域名检查和禁止重定向的传输，最多等待十五秒。"""
+    """使用统一连接入口提供的客户端读取模型目录，不另建传输。"""
     token = secret.get_secret_value().decode()
     if config.protocol == "chat_completions":
         url = config.endpoint.rstrip("/") + "/models"
@@ -28,15 +22,7 @@ async def probe_connection(
         headers = {"x-api-key": token, "anthropic-version": "2023-06-01"}
     else:
         raise ServiceError("MODEL_PROTOCOL_DISABLED", "该协议尚未启用连接检查", 422)
-    async with httpx.AsyncClient(
-        transport=ModelTransport(
-            target, RawCapture(), transport_factory() if transport_factory else None
-        ),
-        timeout=min(config.timeout_seconds, 15),
-        follow_redirects=False,
-        trust_env=False,
-    ) as client:
-        response = await client.get(url, headers=headers)
+    response = await client.get(url, headers=headers)
     if response.status_code in {401, 403}:
         raise ServiceError("MODEL_AUTH_FAILED", "供应商鉴权失败，请检查连接凭据及其访问权限", 422)
     if response.status_code == 429:

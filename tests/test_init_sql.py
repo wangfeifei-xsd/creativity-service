@@ -272,7 +272,8 @@ def test_seed_contains_deepseek_model_and_ciphertext_without_deployment_secrets(
     data = render_init_sql.render_data()
     assert "decode(" in data and "sk-" not in data
     assert "CREATIVITY_MODEL_ENCRYPTION_KEYS" not in data
-    assert "198.18.0.36/32" in data  # 保留天气验证时的真实连接配置及摘要。
+    assert "allowed_networks" not in data
+    assert "allowed_networks" not in render_init_sql.render()
     assert len(tables["resource_references"]) == 1
     assert len(tables["source_links"]) == 3
 

@@ -5,7 +5,6 @@ from types import SimpleNamespace
 import pytest
 
 from creativity_service.core.deletion import CleanupRegistry
-from creativity_service.core.security.outbound import Destination, OutboundPolicy
 from creativity_service.modules.agents.assembly import build_agent_service
 from creativity_service.modules.agents.registry import templates
 from creativity_service.modules.agents.schemas import AgentBindings, AgentCreate
@@ -75,9 +74,7 @@ async def agent_env(channel_env, request):
         env.engine,
         env.iam,
         key_provider=Keys(),
-        outbound=OutboundPolicy(
-            (Destination(channel.channel_id, environment, "model", "models.example"),), resolve
-        ),
+        resolver=resolve,
     )
     provider = await models.configuration.save_provider(
         env.admin, ProviderInput(code="fixture", name="能力夹具", protocols=["chat_completions"])

@@ -2723,14 +2723,6 @@
           "required": true,
           "source": "关键配置改变时由模型服务递增",
           "sensitivity": "内部"
-        },
-        {
-          "name": "allowed_networks",
-          "type": "jsonb",
-          "comment": "连接允许的 IP 网段，空数组仅允许公网",
-          "required": true,
-          "source": "连接管理页经服务层校验",
-          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -16314,14 +16306,6 @@
           "comment": "能力验证语义修订号",
           "required": true,
           "source": "关键配置改变时由模型服务递增",
-          "sensitivity": "内部"
-        },
-        {
-          "name": "allowed_networks",
-          "type": "jsonb",
-          "comment": "连接允许的 IP 网段，空数组仅允许公网",
-          "required": true,
-          "source": "连接管理页经服务层校验",
           "sensitivity": "内部"
         }
       ],

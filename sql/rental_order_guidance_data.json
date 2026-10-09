@@ -885,10 +885,7 @@
         "current_version_id": "version_90734e0e8b794bc5851101ab2bdfcb0f",
         "health_reason": null,
         "health_checked_at": "2026-10-08T11:40:17.574591+00:00",
-        "validation_revision": 3,
-        "allowed_networks": [
-          "198.18.1.102/32"
-        ]
+        "validation_revision": 3
       }
     ],
     "model_routes": [
@@ -922,14 +919,14 @@
             "reason": null,
             "evidence": "live",
             "verified_at": "2026-10-08T11:40:17.574591+00:00",
-            "config_digest": "bf927c7982ed6b0574db89ff8ba829ef639b1198e9c60495201899d114f22078"
+            "config_digest": "7c7b521a5c2a2569e2e31f4c80b80a0c2788299ac2663ededf80b871e39e209d"
           },
           "tools": {
             "state": "SUPPORTED",
             "reason": null,
             "evidence": "live",
             "verified_at": "2026-10-08T11:40:17.574591+00:00",
-            "config_digest": "bf927c7982ed6b0574db89ff8ba829ef639b1198e9c60495201899d114f22078"
+            "config_digest": "7c7b521a5c2a2569e2e31f4c80b80a0c2788299ac2663ededf80b871e39e209d"
           },
           "streaming": {
             "state": "SUPPORTED",
@@ -2151,13 +2148,10 @@
               "parameters": {
                 "max_tokens": 4096
               },
-              "config_digest": "bf927c7982ed6b0574db89ff8ba829ef639b1198e9c60495201899d114f22078",
+              "config_digest": "7c7b521a5c2a2569e2e31f4c80b80a0c2788299ac2663ededf80b871e39e209d",
               "connection_id": "connection_3c0b1670eba5422184aa8bf86ebc2417",
               "model_revision": 5,
               "timeout_seconds": 60,
-              "allowed_networks": [
-                "198.18.1.102/32"
-              ],
               "model_version_id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
               "connection_revision": 12,
               "parameter_allowlist": [
@@ -2184,7 +2178,7 @@
             "tools"
           ]
         },
-        "content_digest": "1e33a5b89582c5a699d4e6bb16b0c0de3c8ba4a646c56759b122c8650a92927a",
+        "content_digest": "49e908308696b30cdcec894e8f4f5d332dc11c31f152363b646e310e11334b55",
         "dependencies": [
           "version_90734e0e8b794bc5851101ab2bdfcb0f",
           "version_ab199b3f3d1d4d62bde6f40d1362a959"
@@ -3073,14 +3067,11 @@
           "health_status": "UNKNOWN",
           "credential_ref": "credential_362142ee695842f5ac2775d471613d8a",
           "timeout_seconds": 60,
-          "allowed_networks": [
-            "198.18.1.102/32"
-          ],
           "health_checked_at": null,
           "current_version_id": "version_90734e0e8b794bc5851101ab2bdfcb0f",
           "validation_revision": 3
         },
-        "content_digest": "e480c0152fae55650f2b098966bab603407757ff6d9c387a3f54043d5f2cc127",
+        "content_digest": "4112d99debd9144d4e2348d7d6625fc5f247142f025cd7c9100c3606b8dbb5e0",
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {},
