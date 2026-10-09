@@ -9,6 +9,7 @@ from pydantic import Field
 from creativity_service.core.contracts import Attempt, BudgetReservation, UsageEvent
 from creativity_service.core.primitives import Contract, ServiceError, utcnow
 from creativity_service.core.versioning import validate_schema
+from creativity_service.integrations.models.images import validate_image_messages
 from creativity_service.modules.models.policy import validate_parameters
 from creativity_service.modules.models.schemas import FrozenModel
 
@@ -26,6 +27,15 @@ class ModelRequest(Contract):
     @property
     def requires_native_output(self) -> bool:
         return self.output_schema is not None and self.output_mode == "native"
+
+    @property
+    def requires_vision(self) -> bool:
+        return any(
+            isinstance(block, dict) and block.get("type") == "image_url"
+            for message in self.messages
+            if isinstance(message.get("content"), list)
+            for block in message["content"]
+        )
 
 
 class ModelEvent(Contract):
@@ -119,8 +129,7 @@ def validate_request(
             "name",
         }:
             raise ServiceError("MODEL_INPUT_INVALID", "消息格式不受支持", 422)
-        if message.get("content") is not None and not isinstance(message["content"], str):
-            raise ServiceError("MODEL_CAPABILITY_UNSUPPORTED", "当前适配器仅支持文本内容", 422)
+    validate_image_messages(request.messages)
     for tool in request.tools:
         if tool.get("type") != "function" or not isinstance(tool.get("function"), dict):
             raise ServiceError("MODEL_INPUT_INVALID", "工具定义格式不正确", 422)

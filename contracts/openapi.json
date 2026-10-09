@@ -3857,13 +3857,31 @@
               "tools",
               "stream_cancel",
               "usage",
-              "embedding"
+              "embedding",
+              "vision"
             ],
             "title": "Case",
             "type": "string"
           },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Images",
+            "type": "array"
+          },
           "name": {
             "title": "Name",
+            "type": "string"
+          },
+          "output_mode": {
+            "default": "native",
+            "enum": [
+              "native",
+              "prompt"
+            ],
+            "title": "Output Mode",
             "type": "string"
           },
           "output_schema": {
@@ -4051,7 +4069,8 @@
               "tools",
               "stream_cancel",
               "usage",
-              "embedding"
+              "embedding",
+              "vision"
             ],
             "title": "Case",
             "type": "string"
@@ -17525,11 +17544,12 @@
                 "tools",
                 "stream_cancel",
                 "usage",
-                "embedding"
+                "embedding",
+                "vision"
               ],
               "type": "string"
             },
-            "maxItems": 6,
+            "maxItems": 7,
             "minItems": 1,
             "title": "Cases",
             "type": "array"
@@ -17556,7 +17576,8 @@
                 "tools",
                 "stream_cancel",
                 "usage",
-                "embedding"
+                "embedding",
+                "vision"
               ],
               "type": "string"
             },

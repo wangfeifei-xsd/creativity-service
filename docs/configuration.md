@@ -12,6 +12,8 @@
 
 API 和 Worker 的连接凭据、加密密钥与出站许可应一致。完整可选环境变量见 [Settings](../src/creativity_service/core/config.py)，模型字段见 [模型契约](../contracts/internal/models.json)；供应商的实际兼容结果需单独验收。
 
+视觉理解可在模型详情的“验证”中选择，默认仍为文本生成和用量口径。验证经统一运行时发送随机图形图片，识别颜色、形状和顺序后记录当前配置的能力证据；不要求原生结构化输出，单独验证不会覆盖其他能力。Chat Completions 与 Anthropic Messages 接受用户消息中的文本及 `image_url` 内容块，图片使用 PNG、JPEG 或静态 WebP 的 Base64 data URL；每张最多 5 MiB、1600 万像素，每次最多 10 张且合计不超过 20 MiB。适配器不下载外部图片地址或读取本地文件，业务图片调用同样检查视觉能力证据。协议夹具通过不代表具体供应商或模型已通过真实视觉验证。
+
 <a id="prompts"></a>
 
 ## 提示词

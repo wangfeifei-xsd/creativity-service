@@ -4,6 +4,8 @@ import json
 from time import monotonic
 from typing import Any, cast
 
+from jsonschema import Draft202012Validator
+
 from creativity_service.core.context import AuthContext, TaskEnvelope
 from creativity_service.core.contracts import BusinessResult
 from creativity_service.core.contracts.display import display_status
@@ -45,7 +47,7 @@ RESULT_SCHEMA = templates()[0].definition.output_schema
 
 
 def test_definition(
-    steps: list[AgentStep], bindings: AgentBindings | None = None
+    steps: list[AgentStep], bindings: AgentBindings | None = None, *, max_model_rounds: int = 6
 ) -> AgentDefinition:
     return AgentDefinition(
         workflow_type="structured",
@@ -63,7 +65,7 @@ def test_definition(
             max_iterations=1,
             deadline_seconds=300,
             loop_timeout_seconds=300,
-            max_model_rounds=6,
+            max_model_rounds=max_model_rounds,
             token_limit=32000,
         ),
     )
@@ -105,7 +107,8 @@ class ModelDebug:
                     max_retries=2,
                 )
                 for case in execution.cases
-            ]
+            ],
+            max_model_rounds=max(6, len(execution.cases)),
         )
         spec = await self.admission.freeze_test(
             context,
@@ -353,8 +356,24 @@ class DebugExecutor:
                         case.case,
                         ModelRequest(
                             operation="embedding" if case.case == "embedding" else "generation",
-                            messages=[{"role": "user", "content": case.prompt}],
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": (
+                                        [
+                                            {"type": "text", "text": case.prompt},
+                                            *[
+                                                {"type": "image_url", "image_url": {"url": image}}
+                                                for image in case.images
+                                            ],
+                                        ]
+                                        if case.images
+                                        else case.prompt
+                                    ),
+                                }
+                            ],
                             output_schema=case.output_schema,
+                            output_mode=case.output_mode,
                             tools=case.tools,
                             stream=case.case == "stream_cancel",
                         ),
@@ -379,6 +398,16 @@ class DebugExecutor:
                 passed = error is None and bool(output)
                 if case.case == "usage":
                     passed = passed and bool(output.get("reported"))
+                if case.case == "vision":
+                    # 不能仅以请求成功或模型返回文字证明看图能力。
+                    passed = (
+                        passed
+                        and bool(case.images)
+                        and case.output_schema is not None
+                        and Draft202012Validator(case.output_schema).is_valid(
+                            output.get("structured")
+                        )
+                    )
                 if case.case == "tools":
                     calls = output.get("tools", [])
                     passed = passed and len(calls) == 1 and calls[0]["name"] == "echo"

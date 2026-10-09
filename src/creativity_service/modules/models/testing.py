@@ -24,6 +24,7 @@ from creativity_service.modules.models.schemas import (
     TestView,
 )
 from creativity_service.modules.models.services import ModelService
+from creativity_service.modules.models.vision import vision_case
 
 
 def _capability_case(case: TestCase, prompt: str, **options: Any) -> CaseDefinition:
@@ -75,6 +76,16 @@ CASES = {
         cancel_after_chunks=1,
     ),
     "usage": CaseDefinition(case="usage", name="用量口径", prompt="请只回复：计量验证"),
+    "vision": _capability_case(
+        case="vision",
+        prompt=(
+            '识别图片中从左到右的四个图形，只返回 JSON 对象，格式为 {"shapes":'
+            '[{"color":"颜色","shape":"形状"}]}，数组必须有四项。'
+            "颜色使用 red、green、blue、yellow；形状使用 circle、square、triangle、diamond。"
+            "按实际图片填写，不要返回 Markdown 或额外说明。"
+        ),
+        output_mode="prompt",
+    ),
 }
 STATE_LABELS = {
     "BLOCKED": "不可执行",
@@ -99,6 +110,8 @@ class ModelTesting:
             raise ServiceError("MODEL_TEST_INVALID", "验证用例不能重复", 422)
         test_id = new_id("modeltest")
         source_id = digest([test_id, model_id])
+        # 在写事务前生成图片；冻结同一用例的图片和答案，重试时不重新出题。
+        cases = [vision_case(CASES[c]) if c == "vision" else CASES[c] for c in body.cases]
         async with service.mutation(
             session,
             "model_tests",
@@ -115,9 +128,7 @@ class ModelTesting:
                 [ContentRef("model", model_id), ContentRef("version", model["current_version_id"])],
             )
             snapshot = service.snapshot(context, model, conn)
-            execution = DebugExecution(
-                test_id=test_id, configuration=snapshot, cases=[CASES[c] for c in body.cases]
-            )
+            execution = DebugExecution(test_id=test_id, configuration=snapshot, cases=cases)
             reason = None
             if not PROTOCOLS[conn["protocol"]].enabled:
                 reason = "该协议尚未启用"

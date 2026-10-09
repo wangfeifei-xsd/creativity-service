@@ -107,6 +107,7 @@ class ModelRunner:
                 *(["tools"] if request.tools else []),
                 *(["structured_output"] if request.requires_native_output else []),
                 *(["streaming"] if request.stream else []),
+                *(["vision"] if request.requires_vision else []),
             ]
             if request.operation == "embedding":
                 required = ["embedding"]

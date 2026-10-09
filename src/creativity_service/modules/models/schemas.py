@@ -16,7 +16,7 @@ ProtocolType = Literal[
 Capability = Literal["text", "tools", "structured_output", "streaming", "vision", "embedding"]
 CapabilityState = Literal["SUPPORTED", "UNSUPPORTED", "UNVERIFIED"]
 Status = Literal["ACTIVE", "DISABLED"]
-TestCase = Literal["text", "schema", "tools", "stream_cancel", "usage", "embedding"]
+TestCase = Literal["text", "schema", "tools", "stream_cancel", "usage", "embedding", "vision"]
 
 
 class ProtocolView(Contract):
@@ -181,7 +181,7 @@ class RouteVersionView(ResourceVersion):
 
 
 class TestInput(Contract):
-    cases: list[TestCase] = Field(default=["text", "usage"], min_length=1, max_length=6)
+    cases: list[TestCase] = Field(default=["text", "usage"], min_length=1, max_length=7)
 
 
 class CaseDefinition(Contract):
@@ -189,7 +189,9 @@ class CaseDefinition(Contract):
     name: str
     prompt: str
     capability: Capability | None = None
+    images: list[str] = Field(default_factory=list, max_length=10)
     output_schema: dict[str, Any] | None = None
+    output_mode: Literal["native", "prompt"] = "native"
     tools: list[dict[str, Any]] = Field(default_factory=list)
     cancel_after_chunks: int | None = None
 

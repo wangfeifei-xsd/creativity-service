@@ -58,6 +58,7 @@ CASE_CAPABILITIES: dict[TestCase, Capability] = {
     "schema": "structured_output",
     "tools": "tools",
     "stream_cancel": "streaming",
+    "vision": "vision",
 }
 RECOVERABLE = frozenset({"MODEL_TIMEOUT", "MODEL_RATE_LIMITED", "MODEL_PROVIDER_UNAVAILABLE"})
 
