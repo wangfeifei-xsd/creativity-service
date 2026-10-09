@@ -56,7 +56,7 @@ SEED = ARCHIVE.with_name("init_data.json")
 
 
 def archived_tables():
-    """实际交付数据包含基础种子、天气链路与订单协助配置。"""
+    """实际交付数据包含基础种子、天气与订单协助配置。"""
     base = json.loads(SEED.read_text())["tables"]
     combined = merged_tables(base, load_weather(base)["tables"])
     return merge_guidance(combined, load_guidance(combined)["tables"])
@@ -260,13 +260,16 @@ def test_init_sql_matches_migrations_and_supports_followup_upgrade(isolated_data
     ] == expected_menus
     for name, rows in expected.items():
         initialized = connection.execute(text(f"SELECT * FROM {name} ORDER BY id")).mappings().all()
-        # 每条冻结记录分别核对字段，天气记录保留真实时间，基础数据仍用导入时间。
+        # 每条冻结记录分别核对字段，业务配置保留原时间，基础数据仍用导入时间。
         expected_by_id = {row["id"]: row for row in rows}
         assert {row["id"] for row in initialized} == expected_by_id.keys()
         for row in initialized:
             source = expected_by_id[row["id"]]
             typed = typed_archive_values(metadata.tables[name], source)
             assert {key: row[key] for key in source} == typed
+    # 新库只含配置；同时检查未列入数据源的所有运行、用量、测试和操作表。
+    for name in metadata.tables.keys() - expected.keys():
+        assert connection.scalar(text(f"SELECT count(*) FROM {name}")) == 0, name
     limit = connection.execute(text("SELECT * FROM platform_limits")).mappings().one()
     assert limit["effective_at"] == limit["created_at"] == limit["updated_at"]
     assert limit["effective_at"] <= connection.scalar(text("SELECT CURRENT_TIMESTAMP"))
@@ -686,7 +689,7 @@ def test_initial_data_repeat_preserves_all_records(isolated_database):
     ("capacity", "error_code"), [(5, "BUDGET_EXCEEDED"), (20, "PLATFORM_LIMIT_EXCEEDED")]
 )
 async def test_initialized_concurrency_limits_enforce_admission_and_release(
-    isolated_database, capacity, error_code
+    isolated_database, capacity, error_code, monkeypatch
 ):
     database = isolated_database
     connection = database.connection
@@ -694,6 +697,9 @@ async def test_initialized_concurrency_limits_enforce_admission_and_release(
     connection.exec_driver_sql(
         DATA_ARCHIVE.read_text(encoding="utf-8"), execution_options={"no_parameters": True}
     )
+    # 导入生效时间取数据库时钟，避免宿主机与 PostgreSQL 的时钟偏差干扰并发断言。
+    database_now = connection.scalar(text("SELECT clock_timestamp()"))
+    monkeypatch.setattr("creativity_service.modules.budgets.services.utcnow", lambda: database_now)
     if capacity == 20:
         # 仅在本测试 schema 禁用渠道策略，独立验证平台边界及失败整批回滚。
         connection.execute(text("UPDATE budget_policies SET status='DISABLED'"))
@@ -718,12 +724,7 @@ async def test_initialized_concurrency_limits_enforce_admission_and_release(
             return await budgets.admit(uow, context, run_id)
 
     def assert_occupancy():
-        archived_ids = {row["id"] for row in archived_tables()["admissions"]}
-        admissions = [
-            row
-            for row in connection.execute(text("SELECT * FROM admissions")).mappings()
-            if row["id"] not in archived_ids
-        ]
+        admissions = connection.execute(text("SELECT * FROM admissions")).mappings().all()
         occupancies = (
             connection.execute(text("SELECT * FROM platform_quota_occupancies")).mappings().all()
         )

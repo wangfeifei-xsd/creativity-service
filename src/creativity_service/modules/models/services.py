@@ -31,10 +31,7 @@ from creativity_service.modules.iam.reading import resource_state
 from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.iam.schemas import AccessAction, GrantInput, GrantView
 from creativity_service.modules.iam.services import IamServices
-from creativity_service.modules.models.outbound import (
-    normalize_networks,
-    validate_connection_target,
-)
+from creativity_service.modules.models.outbound import normalize_networks
 from creativity_service.modules.models.policy import (
     CAPABILITY_LABELS,
     CAPABILITY_NAMES,
@@ -277,7 +274,7 @@ class ModelService:
         context = await self.context(session)
         endpoint = validate_endpoint(body.protocol, body.endpoint)
         networks = normalize_networks(body.allowed_networks)
-        await validate_connection_target(context.scope, endpoint, networks, self.outbound)
+        # 保存只校验配置；DNS 和 IP 授权在连接测试及实际调用前检查。
         providers = {p["id"]: p for p in await self.provider_rows()}
         if (
             body.provider_id not in providers

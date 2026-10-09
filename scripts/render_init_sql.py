@@ -404,15 +404,15 @@ def render_data() -> str:
         f"-- 模型版本：{model_version}；完成后登记迁移基线：{revision}。",
         "-- 数据源：sql/init_data.json，冻结控制面配置、预置渠道、模型和 MCP 连接及并发策略。",
         "-- 包含 admin 账号、两种管理员的菜单关联、账号角色关联及历史兼容角色。",
-        "-- 天气链路数据源：sql/weather_data.json；仅保留成功运行及必要依赖。",
-        "-- 订单协助配置源：sql/rental_order_guidance_data.json；包含完整配置及必要模型能力验证。",
+        "-- 天气配置数据源：sql/weather_data.json；仅保留配置及必要依赖。",
+        "-- 订单协助配置源：sql/rental_order_guidance_data.json；包含完整配置及模型能力摘要。",
         "-- 预置渠道的首位管理员复用 admin，天气示例仅开放开发环境。",
         "-- 初始密码仅存安全摘要，首次登录须改密；不复制其他账号或接入凭据。",
         "-- 平台并发上限归系统渠道，各渠道并发策略及冻结版本归对应业务渠道。",
         "-- 包含开发环境 DeepSeek V4 Flash 及密文凭据；解密主密钥和出站策略另行配置。",
         "-- 租号服务归档已验证连接、appSecret 原文与六个工具；不包含临时 Token。",
         "-- 订单协助巡检保留启用与每 60 秒配置；不导入历史巡检队列或订单执行账本。",
-        "-- 保留天气链路所需能力验证、真实输入输出和用量；历史身份不携带登录会话。",
+        "-- 不导入使用、运行、用量、测试、审计或发布操作记录；模型仅保留已验证能力摘要。",
         "-- 技能对象字节随本 SQL 注释封存，导入后运行 scripts.restore_init_objects 恢复对象存储。",
         "-- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。",
         "-- 所有数据和迁移标记在一个事务提交；已有版本记录时整份数据不再插入。",
@@ -429,7 +429,7 @@ def render_data() -> str:
         "builtin_roles": "初始化数据库角色目录，menu_ids 保存角色与菜单关联。",
         "platform_accounts": "初始化 admin；role_id 与 platform_roles 保存账号与角色关联。",
         "channel_memberships": "首位管理员基础成员种子；天气归档补齐开发环境。",
-        "resource_grants": "初始授权基础种子；天气归档限定开发环境及成功记录。",
+        "resource_grants": "初始授权基础种子；天气归档限定开发环境。",
         "platform_limits": "初始化平台并发上限，导入时生效；不复制实际运行占用。",
         "resource_versions": "初始化各业务渠道并发策略、模型及连接的冻结版本及内容摘要。",
         "budget_policies": "初始化各业务渠道并发硬上限，不复制用量、预占或预算提醒。",
@@ -468,7 +468,7 @@ def render_data() -> str:
                 lines,
                 insert(table).from_select(list(table.c.keys()), select(*values).where(pending)),
             )
-    lines.append("-- 天气成功链路及订单协助配置：保留发布配置、依赖和必要模型验证。")
+    lines.append("-- 天气助手及订单协助配置：保留发布配置、依赖和已验证能力摘要。")
     for name, rows in sorted(archived.items()):
         table = metadata.tables[name]
         lines.append(f"-- 业务配置归档 {name}：{len(rows)} 条。")

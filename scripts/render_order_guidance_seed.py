@@ -17,15 +17,17 @@ from creativity_service.modules.integrations.automation_schemas import ScheduleC
 from creativity_service.modules.skills.schemas import SkillDefinition
 from creativity_service.modules.tools.schemas import ToolDefinition
 from creativity_service.storage import metadata
-from scripts.render_weather_seed import object_bytes, typed_archive_values
+from scripts.render_weather_seed import (
+    object_bytes,
+    typed_archive_values,
+    validate_configuration_references,
+)
 
 GUIDANCE_SEED = Path(__file__).resolve().parents[1] / "sql/rental_order_guidance_data.json"
 GUIDANCE_TABLES = frozenset(
-    "agents agent_release_records resource_versions resource_references release_mappings "
-    "source_links tools prompts skills skill_files artifacts automation_schedules credentials "
-    "mcp_connections mcp_checks mcp_discoveries mcp_imports model_routes model_connections "
-    "models model_tests runs run_steps run_contents run_events attempts release_snapshots "
-    "admissions usage_records usage_events usage_adjustments".split()
+    "agents resource_versions resource_references release_mappings source_links tools "
+    "prompts skills skill_files artifacts automation_schedules credentials mcp_connections "
+    "mcp_discoveries mcp_imports model_routes model_connections models".split()
 )
 OVERRIDE_TABLES = frozenset(
     "credentials mcp_connections model_connections model_routes models resource_versions".split()
@@ -33,7 +35,7 @@ OVERRIDE_TABLES = frozenset(
 
 
 def merge_guidance(base: dict[str, Any], additions: dict[str, Any]) -> dict[str, Any]:
-    """仅允许当前共享模型与租号连接覆盖早期配置，历史运行快照保持原样。"""
+    """仅允许当前共享模型与租号连接覆盖早期配置，不混入历史执行记录。"""
     result = {name: {row["id"]: row for row in rows} for name, rows in base.items()}
     for name, rows in additions.items():
         current = result.setdefault(name, {})
@@ -81,11 +83,6 @@ def validate_guidance(seed: dict[str, Any], base: dict[str, Any]) -> None:
             "PUBLISHED",
         ):
             raise ValueError("订单协助发布映射不完整")
-    for row in tables["agent_release_records"]:
-        if row["version_id"] not in versions or (
-            row["previous_version_id"] and row["previous_version_id"] not in versions
-        ):
-            raise ValueError("订单协助发布版本缺失")
     agent = index["agents"][source["agent_id"]]
     for row in tables["resource_versions"]:
         if row["resource_type"] == "agent":
@@ -158,7 +155,7 @@ def validate_guidance(seed: dict[str, Any], base: dict[str, Any]) -> None:
             ):
                 raise ValueError("订单协助写工具预授权不完整")
     validate_objects(seed, index)
-    validate_model_evidence(tables, index)
+    validate_configuration_references(index)
 
 
 def validate_objects(seed: dict[str, Any], index: dict[str, Any]) -> None:
@@ -195,40 +192,6 @@ def validate_objects(seed: dict[str, Any], index: dict[str, Any]) -> None:
                     or hashlib.sha256(content).hexdigest() != row["sha256"]
                 ):
                     raise ValueError("订单协助技能文件摘要不一致")
-
-
-def validate_model_evidence(tables: dict[str, Any], index: dict[str, Any]) -> None:
-    """只保留模型当前能力所需的终态验证，不恢复业务运行或活跃配额。"""
-    tests = index["model_tests"]
-    runs = index["runs"]
-    contents = index["run_contents"]
-    for model in tables["models"]:
-        if any(value.get("test_id") not in tests for value in model["capabilities"].values()):
-            raise ValueError("订单协助模型能力验证缺失")
-    test_runs = {row["run_id"] for row in tables["model_tests"]}
-    if test_runs != {row["id"] for row in tables["runs"]}:
-        raise ValueError("订单协助只归档必要模型验证运行")
-    for run in tables["runs"]:
-        if (
-            run["state"] != "SUCCEEDED"
-            or not run["resources_released"]
-            or run["identity"].get("session_id")
-            or run["identity"].get("token_digest")
-            or any(run[key] not in contents for key in ("input_ref", "result_ref"))
-        ):
-            raise ValueError("订单协助模型验证终态或内容不完整")
-    for test in tables["model_tests"]:
-        if test["state"] != "PASSED" or not set(test["attempt_ids"]) <= index["attempts"].keys():
-            raise ValueError("订单协助模型验证调用不完整")
-    for name in ("run_steps", "attempts", "run_contents", "run_events", "usage_records"):
-        for row in tables[name]:
-            if row["run_id"] not in runs:
-                raise ValueError("订单协助模型验证运行引用缺失")
-            for key in ("input_ref", "output_ref", "raw_response_ref"):
-                if row.get(key) and contents.get(row[key], {}).get("run_id") != row["run_id"]:
-                    raise ValueError("订单协助模型验证内容引用缺失")
-    if any(row["status"] != "RELEASED" for row in tables["admissions"]):
-        raise ValueError("订单协助不能归档活动配额")
 
 
 def load_guidance(base: dict[str, Any]) -> dict[str, Any]:

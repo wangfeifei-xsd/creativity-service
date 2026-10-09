@@ -163,8 +163,7 @@ def test_seed_contains_platform_and_channel_concurrency_limits_with_frozen_versi
     combined = merge_guidance(combined, load_guidance(combined)["tables"])
     assert data.count("INSERT INTO resource_versions ") == len(combined["resource_versions"])
     assert "platform_quota_occupancies" not in data
-    assert data.count("INSERT INTO admissions ") == len(combined["admissions"])
-    assert all(row["status"] == "RELEASED" for row in weather["tables"]["admissions"])
+    assert "INSERT INTO admissions " not in data
     assert "INSERT INTO budget_alerts " not in data
 
 
@@ -429,29 +428,53 @@ def test_check_detects_stale_data_archive_independently(tmp_path, monkeypatch):
     render_init_sql.main()
 
 
-@pytest.mark.parametrize("fault", ["failed", "date", "evidence", "session", "object"])
-def test_weather_archive_rejects_incomplete_or_unverified_chain(fault):
+@pytest.mark.parametrize("fault", ["dependency", "source", "runtime", "object"])
+def test_weather_archive_rejects_incomplete_configuration(fault):
     base = json.loads(render_init_sql.SEED.read_text())["tables"]
     weather = load_weather(base)
-    run_id = weather["source"]["cases"]["天气如何？"]
-    run = next(row for row in weather["tables"]["runs"] if row["id"] == run_id)
-    result = next(
-        row["payload"]
-        for row in weather["tables"]["run_contents"]
-        if row["id"] == run["result_ref"]
-    )
-    if fault == "failed":
-        run["state"] = "FAILED"
-    elif fault == "date":
-        result["data"]["date"] = "2026-10-07"
-    elif fault == "evidence":
-        result["evidence_refs"] = []
-    elif fault == "session":
-        run["identity"]["token_digest"] = "不应恢复的登录会话"
+    tables = weather["tables"]
+    if fault == "dependency":
+        tables["resource_versions"][0]["dependencies"].append("missing-version")
+    elif fault == "source":
+        tables["source_links"][0]["derived_type"] = "run"
+        tables["source_links"][0]["derived_id"] = "historical-run"
+    elif fault == "runtime":
+        tables["resource_versions"][0]["resource_type"] = "runtime"
     else:
         weather["objects"][0]["base64"] = "AA=="
     with pytest.raises(ValueError):
         validate_weather(weather, base)
+
+
+HISTORY_TABLES = """
+    admissions agent_candidates agent_release_records attempts audit_events evidence_refs
+    mcp_checks model_tests prompt_tests release_snapshots resource_uses run_contents
+    run_events run_steps runs tool_calls usage_adjustments usage_events usage_records
+""".split()
+
+
+@pytest.mark.parametrize("table", HISTORY_TABLES)
+@pytest.mark.parametrize("archive", ["base", "weather", "guidance"])
+def test_initial_archive_rejects_historical_records(archive, table):
+    base = json.loads(render_init_sql.SEED.read_text())
+    if archive == "base":
+        seed, validate, args = base, render_init_sql.validate_seed, []
+    elif archive == "weather":
+        seed, validate, args = load_weather(base["tables"]), validate_weather, [base["tables"]]
+    else:
+        combined = merged_tables(base["tables"], load_weather(base["tables"])["tables"])
+        seed, validate, args = load_guidance(combined), validate_guidance, [combined]
+    seed["tables"][table] = [{"id": "historical-record"}]
+    with pytest.raises(ValueError, match="表清单|初始化数据只能包含"):
+        validate(seed, *args)
+
+
+def test_generated_sql_contains_configuration_without_history():
+    sql = render_init_sql.render_data()
+    for name in HISTORY_TABLES:
+        assert f"INSERT INTO {name} " not in sql
+    assert "INSERT INTO automation_schedules " in sql
+    assert "INSERT INTO mcp_imports " in sql
 
 
 def test_sql_contains_complete_skill_object_without_external_file_dependency():

@@ -489,7 +489,7 @@ async def test_full_migration_schema_matches_registered_storage(channel_env):
     assert failures == []
 
 
-async def test_connection_page_authorizes_destination_and_freezes_networks(
+async def test_connection_page_saves_and_freezes_networks_without_network_io(
     channel_env, monkeypatch
 ):
     from creativity_service.modules.models import outbound
@@ -519,7 +519,7 @@ async def test_connection_page_authorizes_destination_and_freezes_networks(
         connection.id,
     )
     assert updated.allowed_networks == ["93.184.216.34/32"]
-    assert calls == [("models.example", 443)]
+    assert calls == []
     changed = await services.configuration.detail(tenant.manager, model.id)
     assert all(c.state == "UNVERIFIED" for c in changed.capabilities)
     with pytest.raises(ServiceError, match="模型配置已变化"):
@@ -533,4 +533,4 @@ async def test_connection_page_authorizes_destination_and_freezes_networks(
         tenant.manager, body.model_copy(update={"endpoint": "https://another.example:8443/v1"})
     )
     assert added.endpoint == "https://another.example:8443/v1" and added.allowed_networks == []
-    assert calls[-1] == ("another.example", 8443)
+    assert calls == []

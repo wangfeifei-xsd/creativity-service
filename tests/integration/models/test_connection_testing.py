@@ -5,14 +5,81 @@ from sqlalchemy import func, select
 
 from creativity_service.core.database import assert_external_io_allowed
 from creativity_service.core.primitives import ServiceError
+from creativity_service.core.security.outbound import OutboundPolicy
 from creativity_service.modules.iam.schemas import ChannelContextInput
-from creativity_service.modules.models import connection_testing
+from creativity_service.modules.models import connection_testing, outbound
 from creativity_service.modules.models.repositories import repository
 from creativity_service.storage import metadata
 from tests.integration.channels.conftest import login, provision
 from tests.integration.models.test_models import setup
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.mark.parametrize("dns_available", [True, False])
+async def test_empty_networks_can_be_saved_before_dns_or_connection_test(
+    channel_env, monkeypatch, dns_available
+):
+    tenant, services, body, connection, _, model = await setup(channel_env)
+    calls = []
+
+    async def resolve(host, port):
+        calls.append((host, port))
+        if not dns_available:
+            raise OSError("域名暂时无法解析")
+        return ["198.18.1.151"]
+
+    async def probe(*args):
+        pytest.fail("解析失败或 IP 未授权时不能请求供应商")
+
+    services.configuration.outbound = None
+    monkeypatch.setattr(outbound, "OutboundPolicy", lambda rules: OutboundPolicy(rules, resolve))
+    monkeypatch.setattr(connection_testing, "probe_connection", probe)
+    headers = {"Authorization": "Bearer " + tenant.token.access_token}
+    path = f"/admin/v1/model-connections/{connection.id}"
+    # 新建空范围和清空既有范围都应保存，不能依赖当前代理或 DNS 状态。
+    created = await channel_env.client.post(
+        "/admin/v1/model-connections", json=body.model_dump(mode="json"), headers=headers
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["allowed_networks"] == []
+    previous = await channel_env.client.patch(
+        path,
+        json={
+            **body.model_dump(mode="json"),
+            "allowed_networks": ["198.18.0.0/15"],
+            "revision": connection.revision,
+        },
+        headers=headers,
+    )
+    assert previous.status_code == 200, previous.text
+    cleared = await channel_env.client.patch(
+        path,
+        json={
+            **body.model_dump(mode="json"),
+            "allowed_networks": [],
+            "revision": previous.json()["revision"],
+        },
+        headers=headers,
+    )
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["allowed_networks"] == []
+    assert cleared.json()["health_status"] == "UNKNOWN"
+    history = await services.configuration.history(
+        tenant.manager, "model_connection", connection.id
+    )
+    assert history[-1].content["allowed_networks"] == []
+    assert calls == []
+    checked = await channel_env.client.post(
+        f"/admin/v1/models/{model.id}/connection-test", headers=headers
+    )
+    assert checked.status_code == 200, checked.text
+    result = checked.json()
+    assert result["success"] is False
+    assert result["error_code"] == (
+        "DESTINATION_FORBIDDEN" if dns_available else "MODEL_NETWORK_ERROR"
+    )
+    assert calls == [("models.example", 443)]
 
 
 async def test_management_workspace_can_check_connection_without_business_execution(

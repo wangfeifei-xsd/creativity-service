@@ -7,6 +7,7 @@ from creativity_service.core.database import assert_external_io_allowed
 from creativity_service.core.primitives import ServiceError
 from creativity_service.core.security.outbound import OutboundPolicy
 from creativity_service.modules.models import outbound
+from creativity_service.modules.models.policy import validate_endpoint
 
 
 @pytest.fixture
@@ -106,3 +107,26 @@ async def test_connection_url_cannot_bypass_https_or_path_checks(resolution, end
             Scope(channel_id="channel-one", environment="test"), endpoint, []
         )
     assert not calls
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://models.example",
+        "https://user:pass@models.example",
+        "https://models.example:invalid",
+        "https://models.example:65536",
+        "https://models.example:0",
+        "https://models.example/../admin",
+        "https://models.example/%2e%2e/admin",
+        "https://models.example\\admin",
+        "https://models.example/\nadmin",
+        "https://models.example?key=secret",
+        "https://models.example#fragment",
+        "https://models.example/chat/completions",
+    ],
+)
+def test_invalid_connection_settings_are_rejected_without_dns(endpoint):
+    with pytest.raises(ServiceError) as error:
+        validate_endpoint("chat_completions", endpoint)
+    assert error.value.code == "MODEL_ENDPOINT_INVALID"

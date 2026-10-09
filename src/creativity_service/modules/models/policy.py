@@ -1,7 +1,7 @@
 """能力、参数和固定回退顺序的确定性业务规则。"""
 
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from creativity_service.core.primitives import ServiceError, digest
 from creativity_service.modules.models.schemas import (
@@ -65,10 +65,20 @@ RECOVERABLE = frozenset({"MODEL_TIMEOUT", "MODEL_RATE_LIMITED", "MODEL_PROVIDER_
 def validate_endpoint(protocol: ProtocolType, endpoint: str) -> str:
     try:
         parsed = urlsplit(endpoint)
-    except ValueError as exc:
+        hostname = (parsed.hostname or "").encode("idna").decode()
+        port = parsed.port
+    except (ValueError, UnicodeError) as exc:
         raise ServiceError("MODEL_ENDPOINT_INVALID", "模型基础地址格式不正确", 422) from exc
+    if parsed.scheme != "https" or not hostname or port == 0:
+        raise ServiceError("MODEL_ENDPOINT_INVALID", "模型基础地址必须是有效的 HTTPS 地址", 422)
     if parsed.query or parsed.fragment or parsed.username or parsed.password or not parsed.hostname:
         raise ServiceError("MODEL_ENDPOINT_INVALID", "模型地址不能包含凭据、查询参数或片段", 422)
+    if (
+        "\\" in endpoint
+        or any(ord(char) < 33 or ord(char) == 127 for char in endpoint)
+        or any(part in {".", ".."} for part in unquote(parsed.path).split("/"))
+    ):
+        raise ServiceError("MODEL_ENDPOINT_INVALID", "模型基础地址格式不正确", 422)
     path = parsed.path.rstrip("/")
     if any(
         part in path
