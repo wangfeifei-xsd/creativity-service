@@ -45,6 +45,7 @@ from creativity_service.modules.models.assembly import ModelSettings, build_mode
 from creativity_service.modules.models.schemas import ProviderView
 from creativity_service.modules.usage.assembly import build_usage_services
 from creativity_service.storage import metadata
+from scripts.render_order_guidance_seed import load_guidance, merge_guidance
 from scripts.render_weather_seed import load_weather, merged_tables, typed_archive_values
 from tests.support.captcha import captcha_token
 
@@ -55,9 +56,10 @@ SEED = ARCHIVE.with_name("init_data.json")
 
 
 def archived_tables():
-    """实际交付数据同时包含基础种子与成功天气链路。"""
+    """实际交付数据包含基础种子、天气链路与订单协助配置。"""
     base = json.loads(SEED.read_text())["tables"]
-    return merged_tables(base, load_weather(base)["tables"])
+    combined = merged_tables(base, load_weather(base)["tables"])
+    return merge_guidance(combined, load_guidance(combined)["tables"])
 
 
 @pytest.fixture
@@ -578,10 +580,25 @@ async def test_initialized_admin_pages_and_content_boundaries(
             token = await iam.sessions.enter(
                 session, ChannelContextInput(channel_id=channel, environment="dev")
             )
+            # 用归档计划的真实执行身份解析正式 Agent，不运行模型或租号工具。
+            schedule = archived_tables()["automation_schedules"][0]
+            restored = await app.state.agents.resolve_published(
+                AuthContext.model_validate(schedule["identity"]),
+                schedule["spec"]["request"]["agent_code"],
+            )
+            assert restored.agent_name == "订单协助助手"
+            assert restored.purpose == "production"
+            assert restored.definition.limits.max_model_rounds == 1
+            assert restored.definition.limits.output_repair_attempts == 0
+            assert restored.definition.context.context_limit == 64000
+            assert len(restored.definition.bindings.tool_versions) == 6
             paths = [
                 "models",
                 "model-routes",
                 "skills",
+                "agents",
+                "tools",
+                "prompts",
                 "conversations",
                 "memories",
                 "memory-subjects",

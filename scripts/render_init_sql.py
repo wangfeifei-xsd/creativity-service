@@ -32,7 +32,13 @@ from creativity_service.modules.usage.pricing import timezone
 from creativity_service.storage import metadata
 from scripts.render_init_mcp import validate_initial_mcp
 from scripts.render_init_models import MODEL_SEED_TABLES, validate_initial_models
-from scripts.render_weather_seed import OBJECT_MARKER, load_weather, typed_archive_values
+from scripts.render_order_guidance_seed import load_guidance, merge_guidance
+from scripts.render_weather_seed import (
+    OBJECT_MARKER,
+    load_weather,
+    merged_tables,
+    typed_archive_values,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE = ROOT / "sql/init.sql"
@@ -391,17 +397,21 @@ def render_data() -> str:
     seed = json.loads(SEED.read_text(encoding="utf-8"))
     validate_seed(seed)
     weather = load_weather(seed["tables"])
+    guidance = load_guidance(merged_tables(seed["tables"], weather["tables"]))
+    archived = merge_guidance(weather["tables"], guidance["tables"])
     lines = [
         "-- Creativity 初始化数据归档，必须在配套 sql/init.sql 建表后执行。",
         f"-- 模型版本：{model_version}；完成后登记迁移基线：{revision}。",
         "-- 数据源：sql/init_data.json，冻结控制面配置、预置渠道、模型和 MCP 连接及并发策略。",
         "-- 包含 admin 账号、两种管理员的菜单关联、账号角色关联及历史兼容角色。",
         "-- 天气链路数据源：sql/weather_data.json；仅保留成功运行及必要依赖。",
+        "-- 订单协助配置源：sql/rental_order_guidance_data.json；包含完整配置及必要模型能力验证。",
         "-- 预置渠道的首位管理员复用 admin，天气示例仅开放开发环境。",
         "-- 初始密码仅存安全摘要，首次登录须改密；不复制其他账号或接入凭据。",
         "-- 平台并发上限归系统渠道，各渠道并发策略及冻结版本归对应业务渠道。",
         "-- 包含开发环境 DeepSeek V4 Flash 及密文凭据；解密主密钥和出站策略另行配置。",
-        "-- 租号服务归档基本配置与 appSecret 原文，无需解密主密钥；导入后重新测试、发现与启用。",
+        "-- 租号服务归档已验证连接、appSecret 原文与六个工具；不包含临时 Token。",
+        "-- 订单协助巡检保留启用与每 60 秒配置；不导入历史巡检队列或订单执行账本。",
         "-- 保留天气链路所需能力验证、真实输入输出和用量；历史身份不携带登录会话。",
         "-- 技能对象字节随本 SQL 注释封存，导入后运行 scripts.restore_init_objects 恢复对象存储。",
         "-- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。",
@@ -434,7 +444,7 @@ def render_data() -> str:
         lines.append(f"-- {descriptions[name]}")
         table = metadata.tables[name]
         for source in sorted(seed["tables"][name], key=lambda item: item["id"]):
-            if source["id"] in {row["id"] for row in weather["tables"].get(name, [])}:
+            if source["id"] in {row["id"] for row in archived.get(name, [])}:
                 continue
             row = typed_seed_values(table, source)
             values = []
@@ -458,10 +468,10 @@ def render_data() -> str:
                 lines,
                 insert(table).from_select(list(table.c.keys()), select(*values).where(pending)),
             )
-    lines.append("-- 成功天气链路：保留采集时的真实时间、发布配置、调用证据与用量。")
-    for name, rows in weather["tables"].items():
+    lines.append("-- 天气成功链路及订单协助配置：保留发布配置、依赖和必要模型验证。")
+    for name, rows in sorted(archived.items()):
         table = metadata.tables[name]
-        lines.append(f"-- 天气归档 {name}：{len(rows)} 条。")
+        lines.append(f"-- 业务配置归档 {name}：{len(rows)} 条。")
         for source in rows:
             row = typed_archive_values(table, source)
             values = []
@@ -481,7 +491,7 @@ def render_data() -> str:
                 lines,
                 insert(table).from_select(list(table.c.keys()), select(*values).where(pending)),
             )
-    for item in weather["objects"]:
+    for item in [*weather["objects"], *guidance["objects"]]:
         lines.append(OBJECT_MARKER + json.dumps(item, ensure_ascii=False, sort_keys=True))
     lines.append("")
     lines.append("-- 最后登记迁移完成标记；失败回滚时不留下半份初始化数据。")

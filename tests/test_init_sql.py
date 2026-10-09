@@ -14,6 +14,7 @@ from creativity_service.modules.iam.repositories import membership_id, role_cata
 from creativity_service.modules.models.policy import PROTOCOLS, validate_endpoint
 from creativity_service.modules.models.schemas import ProviderView
 from scripts import render_init_sql
+from scripts.render_order_guidance_seed import load_guidance, merge_guidance, validate_guidance
 from scripts.render_weather_seed import load_weather, merged_tables, validate_weather
 from scripts.restore_init_objects import archived_objects
 
@@ -159,9 +160,10 @@ def test_seed_contains_platform_and_channel_concurrency_limits_with_frozen_versi
     assert data.count("INSERT INTO budget_policies ") == len(tenants)
     weather = load_weather(tables)
     combined = merged_tables(tables, weather["tables"])
+    combined = merge_guidance(combined, load_guidance(combined)["tables"])
     assert data.count("INSERT INTO resource_versions ") == len(combined["resource_versions"])
     assert "platform_quota_occupancies" not in data
-    assert data.count("INSERT INTO admissions ") == len(weather["tables"]["admissions"])
+    assert data.count("INSERT INTO admissions ") == len(combined["admissions"])
     assert all(row["status"] == "RELEASED" for row in weather["tables"]["admissions"])
     assert "INSERT INTO budget_alerts " not in data
 
@@ -455,7 +457,37 @@ def test_weather_archive_rejects_incomplete_or_unverified_chain(fault):
 def test_sql_contains_complete_skill_object_without_external_file_dependency():
     base = json.loads(render_init_sql.SEED.read_text())["tables"]
     weather = load_weather(base)
-    assert archived_objects(render_init_sql.DATA_ARCHIVE) == weather["objects"]
+    guidance = load_guidance(merged_tables(base, weather["tables"]))
+    assert archived_objects(render_init_sql.DATA_ARCHIVE) == [
+        *weather["objects"],
+        *guidance["objects"],
+    ]
+
+
+@pytest.mark.parametrize(
+    "fault", ["dependency", "binding", "identity", "scope", "object", "queue", "capability"]
+)
+def test_order_guidance_archive_rejects_incomplete_restore(fault):
+    base = json.loads(render_init_sql.SEED.read_text())["tables"]
+    combined = merged_tables(base, load_weather(base)["tables"])
+    guidance = load_guidance(combined)
+    tables = guidance["tables"]
+    if fault == "dependency":
+        tables["resource_versions"][0]["dependencies"].append("missing-version")
+    elif fault == "binding":
+        tables["mcp_imports"][0]["schema_hash"] = "0" * 64
+    elif fault == "identity":
+        tables["automation_schedules"][0]["identity"]["token_digest"] = "不应恢复的会话"
+    elif fault == "scope":
+        tables["automation_schedules"][0]["environment"] = "prod"
+    elif fault == "object":
+        guidance["objects"][0]["base64"] = "AA=="
+    elif fault == "queue":
+        tables["automation_items"] = []
+    elif fault == "capability":
+        tables["models"][0]["capabilities"]["text"]["test_id"] = "missing-test"
+    with pytest.raises(ValueError):
+        validate_guidance(guidance, combined)
 
 
 @pytest.mark.parametrize("fault", ["missing", "scope", "blocked", "digest", "unverified"])
