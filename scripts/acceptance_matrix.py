@@ -85,6 +85,14 @@ AGT-F11 = test_offline_and_emergency_preserve_history
 AGT-F12 AGT-A05 = test_agt_a05_rollback_rechecks_disabled_tool
 AGT-F13 = test_published_dependency_edit_preserves_admitted_content test_candidate_draft_revision_and_no_runtime_field_override test_prod_http_rechecks_evidence_and_draft_changes
 AGT-A06 = test_conversation_history_and_no_implicit_conversation test_stateless_calls_do_not_create_sessions_and_exports_reauthorize
+AGT-A07 = test_generic_workflow_accepts_configured_steps_and_legacy_keeps_topology test_cycle_requires_registered_type_limits_and_exit
+AGT-A08 = test_agt_a04_code_revision_and_mapping_races test_debug_input_errors_identify_fields_without_echoing_values
+AGT-A09 = test_branch_must_be_exhaustive_and_source_must_dominate_consumer test_missing_source_incompatible_output_and_required_input
+AGT-A10 = test_generic_workflow_accepts_configured_steps_and_legacy_keeps_topology test_unproven_schema_constraints_and_boolean_subschemas
+AGT-F14 = test_invalid_dependency_is_repaired_without_creating_resources test_changed_dependency_blocks_save_and_generated_instructions_execute
+AGT-F15 AGT-A13 = test_builtin_readonly_and_excluded_from_business_directory test_http_apply_rejects_client_proposal_and_other_identity test_failed_schema_and_foreign_channel_cannot_produce_draft
+AGT-A11 = test_create_from_server_proposal_is_atomic_and_idempotent test_followup_keeps_context_and_needs_input_cannot_save test_changed_dependency_blocks_save_and_generated_instructions_execute
+AGT-A12 = test_modification_adds_draft_and_detects_concurrent_change test_create_from_server_proposal_is_atomic_and_idempotent
 SES-F01 = test_foreign_agent_and_attachment_are_rejected test_service_subject_isolation_and_management_scope_restore
 SES-F02 = test_budget_rejection_rolls_back_message_and_occupancy test_run_entry_uses_message_id_before_http_key
 SES-F03 SES-A01 = test_ses_a01_concurrent_different_messages_only_one_run
@@ -203,6 +211,11 @@ DEFERRED = {
     "TOL-A06": "源业务写工具及写入状态查询为 P1。",
 }
 PARTIAL = {
+    "AGT-A07": "后端覆盖可配置拓扑及循环规则；流程图布局、缩放及查看编辑一致性另执行前端 tests/agents.spec.ts，不从后端通过推断页面验收。",
+    "AGT-A08": "后端覆盖修订冲突与字段错误；侧栏切换、保存和错误后的内容保留另执行前端 tests/agents.spec.ts。",
+    "AGT-A09": "后端覆盖字段来源及条件有效性；布尔、数值、文本控件及分支调序另执行前端 tests/agents.spec.ts。",
+    "AGT-A10": "后端覆盖配置结构与复杂约束；窄屏溢出、高级 JSON 和侧栏同步另执行前端 tests/agents.spec.ts。",
+    "AGT-A11": "真实 MySQL 验证运行、用量登记及草稿保存，模型响应为受控夹具；对话及方案预览另执行前端 tests/agents.spec.ts，真实供应商效果单独核验。",
     "INT-F14": "覆盖 MCP 缺失与部分结果、契约失配及工具名称展示；各业务字段的名称和单位须由业务 MCP schema 及对应业务验收确认。",
     "INT-A06": "覆盖远端工具契约变更后拒绝旧绑定及重新导入；不再验收已移除的固定 HTTP 能力列表。",
     "CHN-A17": "集成用例覆盖状态、关联有效性、分页和授权隔离；红绿呈现、窄屏及快捷跳转另执行前端 tests/channels.spec.ts，不从后端通过推断页面验收。",

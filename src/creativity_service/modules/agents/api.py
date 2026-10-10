@@ -6,6 +6,13 @@ from fastapi import APIRouter, Depends, Query, Request
 
 from creativity_service.core.context import AuthContext, require_http_context
 from creativity_service.core.primitives import unavailable
+from creativity_service.modules.agents.assistance import AgentAssistance
+from creativity_service.modules.agents.assistance_schemas import (
+    AssistanceApply,
+    AssistanceRequest,
+    AssistanceSaved,
+    AssistanceTurn,
+)
 from creativity_service.modules.agents.schemas import (
     AgentCreate,
     AgentDetail,
@@ -24,6 +31,7 @@ from creativity_service.modules.agents.schemas import (
 )
 from creativity_service.modules.agents.services import AgentService
 from creativity_service.modules.releases.services import ReleaseService
+from creativity_service.modules.runs.schemas import AdmissionReceipt
 
 router = APIRouter(tags=["智能体与版本发布"])
 Context = Annotated[AuthContext, Depends(require_http_context)]
@@ -57,6 +65,31 @@ async def options(context: Context, service: Services) -> AgentOptions:
 @router.post("/agents", response_model=AgentDetail, status_code=201)
 async def create(context: Context, service: Services, body: AgentCreate) -> AgentDetail:
     return await service.create(context, body)
+
+
+def assistance(request: Request) -> AgentAssistance:
+    runtime = getattr(request.app.state, "runtime", None)
+    value: AgentAssistance | None = getattr(runtime, "assistance", None)
+    if value is None:
+        raise unavailable("智能协助")
+    return value
+
+
+@router.post("/agents/assistance", response_model=AdmissionReceipt, status_code=202)
+async def assist(context: Context, request: Request, body: AssistanceRequest) -> AdmissionReceipt:
+    return await assistance(request).submit(context, body)
+
+
+@router.get("/agents/assistance/runs/{run_id}", response_model=AssistanceTurn)
+async def assistance_turn(context: Context, request: Request, run_id: str) -> AssistanceTurn:
+    return await assistance(request).turn(context, run_id)
+
+
+@router.post("/agents/assistance/runs/{run_id}/apply", response_model=AssistanceSaved)
+async def assistance_apply(
+    context: Context, request: Request, run_id: str, body: AssistanceApply | None = None
+) -> AssistanceSaved:
+    return await assistance(request).apply(context, run_id)
 
 
 @router.get("/agents/{agent_id}", response_model=AgentDetail)

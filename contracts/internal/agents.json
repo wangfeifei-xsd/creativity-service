@@ -621,6 +621,12 @@
         "title": "Input Schema",
         "type": "object"
       },
+      "instructions": {
+        "default": "",
+        "maxLength": 32000,
+        "title": "Instructions",
+        "type": "string"
+      },
       "limits": {
         "$ref": "#/$defs/AgentLimits",
         "default": {
@@ -716,6 +722,11 @@
         "properties": {
           "content_digest": {
             "title": "Content Digest",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
             "type": "string"
           },
           "name": {

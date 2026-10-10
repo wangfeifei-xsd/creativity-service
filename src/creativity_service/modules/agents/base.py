@@ -278,6 +278,7 @@ class AgentKernel:
     @staticmethod
     def dependency_summary(row: dict[str, Any], resource: dict[str, Any]) -> AgentDependency:
         return AgentDependency(
+            description=resource.get("description") or resource.get("purpose") or "",
             resource_type=row["resource_type"],
             resource_id=row["resource_id"],
             version_id=row["id"],

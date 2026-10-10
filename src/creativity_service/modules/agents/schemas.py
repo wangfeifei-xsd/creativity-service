@@ -126,6 +126,7 @@ class AgentBindings(Contract):
 
 
 class AgentDefinition(Contract):
+    instructions: str = Field(default="", max_length=32000)
     workflow_type: WorkflowType
     entrypoint: Identifier
     input_schema: dict[str, Any]
@@ -177,6 +178,7 @@ class AgentIssue(Contract):
 
 
 class AgentDependency(Contract):
+    description: str = ""
     resource_type: str
     resource_id: str
     version_id: str
@@ -265,6 +267,7 @@ class AgentStateInput(Contract):
 
 
 class AgentView(Contract):
+    builtin: bool = False
     agent_id: str
     agent_code: str
     name: str

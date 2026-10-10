@@ -75,6 +75,10 @@ class AgentService(AgentSnapshots):
         return row
 
     async def create(self, context: AuthContext, body: AgentCreate) -> AgentDetail:
+        from creativity_service.modules.agents.builtin import BUILTIN_CODE
+
+        if body.agent_code == BUILTIN_CODE:
+            raise ServiceError("BUILTIN_IMMUTABLE", "内置智能体由平台维护，不能创建或修改", 403)
         await self.require(context, "agent:manage", "new")
         agent_id, version_id, audit_id = new_id("agent"), new_id("version"), new_id("audit")
         keys = self.keys(
@@ -237,10 +241,24 @@ class AgentService(AgentSnapshots):
                 result.append(
                     self.agent_summary(row, states.get(self.mapping_id(context, row["id"])), [])
                 )
+        from creativity_service.modules.agents.builtin import builtin_view
+
+        allowed_new = policy.actions("agent", "new")
+        assistant = builtin_view()
+        if (
+            not published_only
+            and "agent:manage" in allowed_new
+            and (
+                not search
+                or search.casefold() in (assistant.name + assistant.description).casefold()
+            )
+        ):
+            result.insert(0, assistant)
         return AgentList(
             items=result,
             actions=visible_actions(
-                policy.actions("agent", "new"), [("create", "新增智能体", "agent:manage")]
+                allowed_new,
+                [("create", "新增智能体", "agent:manage"), ("assist", "智能协助", "agent:manage")],
             ),
         )
 
@@ -268,6 +286,7 @@ class AgentService(AgentSnapshots):
         released = next((v for v in versions if mapping and v["id"] == mapping["version_id"]), None)
         draft = next((v for v in reversed(versions) if v["state"] == "DRAFT"), None)
         labels = {
+            "instructions": "任务指令",
             "input_schema": "输入结构",
             "output_schema": "输出结构",
             "workflow_type": "流程类型",

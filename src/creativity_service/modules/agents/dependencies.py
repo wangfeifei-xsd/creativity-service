@@ -54,8 +54,12 @@ class DependencyResolver:
         resources: dict[str, dict[str, dict[str, Any]]] | None = None,
     ) -> tuple[list[dict[str, Any]], dict[str, Any], list[FrozenModel]]:
         bindings, scope = definition.bindings, context.scope
-        if not bindings.prompt_version or not bindings.model_route_version:
-            raise ServiceError("DEPENDENCY_INVALID", "请选择提示词和模型路由", 422)
+        if not bindings.model_route_version or not (
+            bindings.prompt_version or definition.instructions.strip()
+        ):
+            raise ServiceError(
+                "DEPENDENCY_INVALID", "请选择模型路由，并填写任务指令或选择提示词", 422
+            )
         rows = (
             loaded
             if loaded is not None
@@ -66,7 +70,7 @@ class DependencyResolver:
 
         await require_dependencies(uow, scope, [r["id"] for r in rows])
         types = [
-            (bindings.prompt_version, "prompt"),
+            *([(bindings.prompt_version, "prompt")] if bindings.prompt_version else []),
             (bindings.model_route_version, "model_route"),
             *((identifier, "tool") for identifier in bindings.tool_versions),
             *((identifier, "skill") for identifier in bindings.skill_versions),
@@ -213,7 +217,11 @@ class DependencyResolver:
             known_versions=indexed,
             resources=parents,
         )
-        prompt = PromptContent.model_validate(indexed[bindings.prompt_version]["content"])
+        prompt = (
+            PromptContent.model_validate(indexed[bindings.prompt_version]["content"])
+            if bindings.prompt_version
+            else PromptContent()
+        )
         for prompt_variable in prompt.variables:
             if prompt_variable.source == "input" and prompt_variable.required:
                 source = schema_field(definition.input_schema, prompt_variable.name)

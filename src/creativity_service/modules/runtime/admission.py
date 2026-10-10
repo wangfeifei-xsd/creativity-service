@@ -105,7 +105,8 @@ class FrozenResolver:
             spec.purpose not in {"debug", "evaluation"}
             and not (
                 spec.purpose == "production"
-                and json.loads(spec.payload_json).get("runtime", {}).get("kind") == "memory"
+                and json.loads(spec.payload_json).get("runtime", {}).get("kind")
+                in {"memory", "agent_assistance"}
             )
             or spec.versions[0].resource_type != "runtime"
         ):
@@ -163,6 +164,10 @@ class RuntimeAdmission:
                 raise ServiceError(
                     "MEMORY_RETRY_REQUIRED", "请从后台记忆整理重试以保留来源批次", 422
                 )
+            if payload["runtime"].get("kind") == "agent_assistance":
+                raise ServiceError(
+                    "INTERNAL_RETRY_REQUIRED", "请从原功能入口重试，以保留来源和配置范围", 422
+                )
             descriptor = {**payload["runtime"], "report_test": False}
             spec = await self.freeze_test(
                 context,
@@ -205,8 +210,8 @@ class RuntimeAdmission:
         purpose: Purpose = "debug",
     ) -> FrozenExecutionSpec:
         await self.runs.authorization.require(context, "run:create", "new")
-        if purpose == "production" and descriptor.get("kind") != "memory":
-            raise ServiceError("SNAPSHOT_INVALID", "正式内部运行仅接受后台记忆整理", 403)
+        if purpose == "production" and descriptor.get("kind") not in {"memory", "agent_assistance"}:
+            raise ServiceError("SNAPSHOT_INVALID", "正式内部运行的类型未登记", 403)
         identifier = digest([context.scope.model_dump(), context.principal_id, key])
         version_id = "runtime_" + identifier[:48]
         source_refs = [[s.resource_type, s.resource_id] for s in sources]
