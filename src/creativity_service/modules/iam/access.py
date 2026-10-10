@@ -27,7 +27,7 @@ from creativity_service.modules.iam.authorization import (
     platform_actions,
     require_platform,
 )
-from creativity_service.modules.iam.display import resource_names
+from creativity_service.modules.iam.display import all_resources_name, resource_names
 from creativity_service.modules.iam.reading import require_action
 from creativity_service.modules.iam.repositories import (
     TABLES,
@@ -780,7 +780,7 @@ class AccessService:
                 (o.channel_name for o in options if o.channel_id == row["resource_id"]), None
             )
         elif row["resource_id"] == "*":
-            resource_name = "该类全部资源"
+            resource_name = all_resources_name(row["resource_type"])
         elif "resources" in data:
             resource_name = data["resources"].get((row["resource_type"], row["resource_id"]))
         elif self.authorization.resources:

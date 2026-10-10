@@ -5,6 +5,7 @@ from typing import Any, Literal, Self
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, SecretStr, model_validator
+from pydantic_core import PydanticCustomError
 
 from creativity_service.core.primitives import (
     Contract,
@@ -27,7 +28,7 @@ class ScheduleCreate(Contract):
         try:
             ZoneInfo(self.timezone)
         except ZoneInfoNotFoundError as exc:
-            raise ValueError("时区不存在") from exc
+            raise PydanticCustomError("timezone_invalid", "时区不存在") from exc
         if (self.interval_seconds is None) == (self.daily_at is None):
             raise ValueError("请选择固定间隔或每日时间之一")
         if self.request.conversation_id or len(canonical_json(self.request.input)) > 262144:
@@ -77,7 +78,7 @@ class BatchCreate(Contract):
     @model_validator(mode="after")
     def bounded(self) -> Self:
         if len({item.event_id for item in self.items}) != len(self.items):
-            raise ValueError("同批次事件编号不能重复")
+            raise PydanticCustomError("batch_event_duplicate", "同批次事件编号不能重复")
         if len(canonical_json(self.model_dump(mode="json"))) > 1048576:
             raise ValueError("批次输入超过一兆字节")
         return self

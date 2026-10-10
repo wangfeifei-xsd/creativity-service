@@ -15,6 +15,7 @@ from creativity_service.core.config import Settings
 from creativity_service.core.infrastructure import Infrastructure
 from creativity_service.core.observability import JsonFormatter, request_id_context
 from creativity_service.modules.iam.schemas import PasswordChange
+from creativity_service.modules.integrations.automation_schemas import BatchCreate, ScheduleCreate
 
 
 def test_missing_config_fails_before_startup(settings, monkeypatch, tmp_path):
@@ -94,6 +95,40 @@ def test_password_length_errors_explain_limits_without_exposing_input(
     assert response.status_code == 422
     assert response.json()["error"]["fields"] == [{"path": ["new_password"], "message": message}]
     assert current_password not in response.text and new_password not in response.text
+
+
+def test_automation_root_validation_reports_safe_chinese_reasons(settings):
+    app = create_app(settings)
+
+    @app.post("/admin/v1/test-batch")
+    async def validate_batch(body: BatchCreate):
+        return {"valid": True}
+
+    @app.post("/admin/v1/test-schedule")
+    async def validate_schedule(body: ScheduleCreate):
+        return {"valid": True}
+
+    request = {"agent_code": "test", "input": {"private": "不可回显的输入"}}
+    item = {"event_id": "private-event", "request": request}
+    with TestClient(app) as client:
+        for path, payload, expected in (
+            ("test-batch", {"name": "批次", "items": [item, item]}, "同批次事件编号不能重复"),
+            (
+                "test-schedule",
+                {
+                    "name": "计划",
+                    "request": request,
+                    "timezone": "Unknown/Zone",
+                    "daily_at": "09:00",
+                },
+                "时区不存在",
+            ),
+        ):
+            response = client.post(f"/admin/v1/{path}", json=payload)
+            assert response.status_code == 422
+            assert response.json()["error"]["message"] == expected
+            assert "不可回显的输入" not in response.text
+            assert "private-event" not in response.text
 
 
 @pytest.mark.parametrize("failed", ["database", "redis_auth", "object_storage"])

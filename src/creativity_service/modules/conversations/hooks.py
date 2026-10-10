@@ -10,7 +10,14 @@ from creativity_service.core.database import Repository, UnitOfWork, scope_value
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import ResourceKey
-from creativity_service.core.primitives import RunInput, ServiceError, digest, new_id, utcnow
+from creativity_service.core.primitives import (
+    RunInput,
+    ServiceError,
+    canonical_json,
+    digest,
+    new_id,
+    utcnow,
+)
 from creativity_service.modules.conversations import repositories as repo
 from creativity_service.modules.conversations.schemas import ConversationRunRequest
 from creativity_service.modules.runs import repositories as run_repo
@@ -381,13 +388,31 @@ class ConversationHooks:
             uow.connection, "conversations", context.scope, id=run["conversation_id"]
         )
         if row["status"] not in {"DELETING", "DELETED"}:
+            result = (
+                await run_repo.one(
+                    uow.connection, "run_contents", context.scope.channel_id, id=run["result_ref"]
+                )
+                if run["state"] == "SUCCEEDED" and run["result_ref"]
+                else None
+            )
             status = {"SUCCEEDED": "COMPLETED", "CANCELLED": "CANCELLED"}.get(
                 run["state"], "FAILED"
             )
             for message in await repo.rows(
                 uow.connection, "messages", context.scope, run_id=run["id"]
             ):
-                if message["status"] != status:
-                    await repo.save(uow, "messages", message["id"], {"status": status})
+                values: dict[str, Any] = {"status": status}
+                # 非流式结构化结果也须进入消息历史，供后续上下文和分支读取。
+                if (
+                    result
+                    and result["payload"]
+                    and message["role"] == "assistant"
+                    and not any(part.get("text", "").strip() for part in message["content_parts"])
+                ):
+                    values["content_parts"] = [
+                        {"type": "text", "text": canonical_json(result["payload"]).decode()}
+                    ]
+                if message["status"] != status or "content_parts" in values:
+                    await repo.save(uow, "messages", message["id"], values)
         if row["active_run_id"] == run["id"]:
             await repo.save(uow, "conversations", row["id"], {"active_run_id": None})

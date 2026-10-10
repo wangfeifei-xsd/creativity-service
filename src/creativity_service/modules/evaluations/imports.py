@@ -74,10 +74,17 @@ def preview(body: ImportInput) -> ImportPreview:
                 raise ValueError("样本定位键重复")
             seen.add(case.case_key)
         except ValidationError as exc:
-            errors = [
-                ".".join(str(v) for v in e["loc"]) + "：字段格式不合法"
-                for e in exc.errors(include_input=False)
-            ]
+            for error in exc.errors(include_input=False):
+                path = ".".join(str(value) for value in error["loc"])
+                reason = str(error.get("ctx", {}).get("error", ""))
+                # 只展示已知固定文案，其他校验不回显样本原文。
+                if not path and reason in {
+                    "输入与上下文字段不能重名",
+                    "样本需要确定性断言、预期拒绝或人工判定标准",
+                }:
+                    errors.append(reason)
+                else:
+                    errors.append(f"{path or '样本'}：字段格式不合法")
         except (TypeError, ValueError):
             errors = ["行格式、字段映射或样本定位键不合法"]
         rows.append(ImportRow(row_number=number, case=case if not errors else None, errors=errors))

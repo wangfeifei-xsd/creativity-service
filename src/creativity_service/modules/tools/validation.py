@@ -3,11 +3,10 @@
 import re
 from typing import Any
 
-from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
 
 from creativity_service.core.primitives import ServiceError, canonical_json
-from creativity_service.core.schema_validation import check_schema
+from creativity_service.core.schema_validation import check_schema, schema_errors
 from creativity_service.modules.tools.schemas import ToolDefinition
 
 
@@ -171,29 +170,7 @@ def validate_definition(definition: ToolDefinition) -> None:
 
 
 def validate_json(value: Any, schema: dict[str, Any], code: str) -> None:
-    errors = Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(value)
-    fields: list[dict[str, Any]] = []
-    for error in errors:
-        path = list(error.absolute_path)
-        if error.validator == "required" and isinstance(error.instance, dict):
-            fields.extend(
-                {"path": [*path, name], "message": "缺少必填字段"}
-                for name in error.validator_value
-                if name not in error.instance
-            )
-        else:
-            fields.append(
-                {
-                    "path": path,
-                    "message": {
-                        "type": "字段类型不正确",
-                        "additionalProperties": "含未获授权的字段",
-                        "enum": "字段取值不在允许范围",
-                    }.get(str(error.validator), "字段值不符合约定"),
-                }
-            )
-        if len(fields) >= 20:
-            break
+    fields = schema_errors(value, schema, check_formats=True)
     if fields:
         # 不回显原始消息，避免其中包含密码、业务输入或外部文本。
         raise ToolValidationError(

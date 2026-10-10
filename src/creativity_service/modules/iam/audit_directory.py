@@ -89,8 +89,18 @@ async def audit_page(
         references = [
             (r["target_type"], r["target_id"]) for r in records if r["target_type"] != "account"
         ]
+        # 早期数据集事件使用 evaluation 类型，依据事件动作解析其真实对象。
+        dataset_events = {
+            r["target_id"] for r in records if r["action"] == "evaluation.dataset_version"
+        }
+        references.extend(("evaluation_dataset", identifier) for identifier in dataset_events)
         references.extend(
-            ("version", r["summary"][field])
+            (
+                "evaluation_dataset_version"
+                if r["action"] == "evaluation.dataset_version"
+                else "version",
+                r["summary"][field],
+            )
             for r in records
             for field in ("version_id", "previous_version_id")
             if isinstance(r["summary"].get(field), str)
@@ -115,6 +125,12 @@ async def audit_page(
             "model_connection": "model_connections",
             "version": "resource_versions",
             "evaluation": "evaluations",
+            "evaluation_dataset": "evaluation_datasets",
+            "evaluation_dataset_version": "evaluation_dataset_versions",
+            "schedule": "automation_schedules",
+            "batch": "automation_batches",
+            "webhook_endpoint": "webhook_endpoints",
+            "alert_rule": "alert_rules",
             "budget_policy": "budget_policies",
         }
         for kind, name in display_tables.items():
@@ -155,7 +171,12 @@ async def audit_page(
         details = {}
         for field, label in (("version_id", "版本"), ("previous_version_id", "原版本")):
             if summary.get(field):
-                details[label] = names.get(("version", summary[field]), "名称不可用")
+                version_kind = (
+                    "evaluation_dataset_version"
+                    if row["action"] == "evaluation.dataset_version"
+                    else "version"
+                )
+                details[label] = names.get((version_kind, summary[field]), "名称不可用")
         if isinstance(summary.get("revision"), int):
             details["修订号"] = str(summary["revision"])
         state_names = {
@@ -180,6 +201,8 @@ async def audit_page(
                 or (
                     subject.display_name
                     if row["target_type"] in {"account", "membership"} and subject
+                    else names.get(("evaluation_dataset", row["target_id"]))
+                    if row["action"] == "evaluation.dataset_version"
                     else names.get((row["target_type"], row["target_id"]))
                 ),
                 outcome=row["outcome"],

@@ -9,6 +9,24 @@ from creativity_service.core.context import AuthContext
 from creativity_service.core.database import Repository
 
 
+def all_resources_name(kind: str) -> str:
+    names = {
+        "evaluation": "评测资源",
+        "model": "模型",
+        "prompt": "提示词",
+        "tool": "工具",
+        "mcp_connection": "MCP 连接",
+        "agent": "智能体",
+        "skill": "技能",
+        "conversation": "会话",
+        "memory": "记忆",
+        "run": "运行记录",
+        "model_route": "模型路由",
+        "model_connection": "模型连接",
+    }
+    return f"全部{names[kind]}" if kind in names else "该类全部资源"
+
+
 async def resource_names(
     connection: AsyncConnection,
     reader: ResourceStateReader | None,

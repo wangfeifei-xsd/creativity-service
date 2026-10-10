@@ -6,7 +6,7 @@ from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import NavigationItem, VisibleAction
 from creativity_service.core.primitives import Contract, ServiceError
 from creativity_service.modules.iam.authorization import require_platform
-from creativity_service.modules.iam.display import resource_names
+from creativity_service.modules.iam.display import all_resources_name, resource_names
 from creativity_service.modules.iam.repositories import role_catalog, rows
 from creativity_service.modules.iam.roles import (
     ACTION_NAMES,
@@ -108,7 +108,7 @@ async def access_options(iam: IamServices, session: AdminSession, channel_id: st
                 [ref for ref in refs if ref[1] != "*"],
             )
         for kind, identifier in dict.fromkeys(refs):
-            name = "该类全部资源" if identifier == "*" else names.get((kind, identifier))
+            name = all_resources_name(kind) if identifier == "*" else names.get((kind, identifier))
             if name:
                 resources.append(
                     ResourceOption(resource_type=kind, resource_id=identifier, label=name)

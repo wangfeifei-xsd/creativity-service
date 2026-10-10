@@ -64,6 +64,8 @@ def register_error_handlers(app: FastAPI) -> None:
             "missing": "请填写此项",
             "extra_forbidden": "不支持此字段",
             "json_invalid": "请求内容不是有效的 JSON",
+            "timezone_invalid": "时区不存在",
+            "batch_event_duplicate": "同批次事件编号不能重复",
         }
         fields = []
         for item in exc.errors():
@@ -78,7 +80,8 @@ def register_error_handlers(app: FastAPI) -> None:
             fields.append(
                 FieldError(path=cast(list[str | int], list(item["loc"])[1:]), message=message)
             )
-        return error_response(422, "VALIDATION_ERROR", "请检查填写内容", fields)
+        summary = next((field.message for field in fields if not field.path), "请检查填写内容")
+        return error_response(422, "VALIDATION_ERROR", summary, fields)
 
     @app.exception_handler(HTTPException)
     async def http_error(_request: Request, exc: HTTPException) -> JSONResponse:

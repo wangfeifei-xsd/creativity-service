@@ -2,8 +2,6 @@
 
 from typing import Any
 
-from jsonschema import Draft202012Validator
-
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.database.inserts import InsertBatch
@@ -17,6 +15,7 @@ from creativity_service.core.primitives import (
     unavailable,
     utcnow,
 )
+from creativity_service.core.schema_validation import SchemaInputError, schema_errors
 from creativity_service.core.versioning import version_view
 from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.agents.base import AgentKernel
@@ -454,8 +453,9 @@ class AgentSnapshots(AgentKernel):
         self, context: AuthContext, version_id: str, body: AgentTestInput
     ) -> AgentTestView:
         spec = await self.freeze_candidate(context, version_id, body.revision)
-        if not Draft202012Validator(spec.definition.input_schema).is_valid(body.input):
-            raise ServiceError("INPUT_SCHEMA_INVALID", "输入不符合智能体结构要求", 422)
+        fields = schema_errors(body.input, spec.definition.input_schema)
+        if fields:
+            raise SchemaInputError("INPUT_SCHEMA_INVALID", "请检查输入字段的类型与约束", fields)
         if self.runner is None:
             raise unavailable("智能体调试运行服务")
         return await self.runner.submit(context, spec, body)

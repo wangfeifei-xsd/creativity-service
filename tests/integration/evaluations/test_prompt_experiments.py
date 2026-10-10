@@ -4,7 +4,10 @@ import pytest
 
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.evaluations.schemas import EvaluationCreate
-from creativity_service.modules.prompts.schemas import PromptContent, PromptDraftCreate
+from creativity_service.modules.prompts.schemas import PromptContent, PromptCreate, PromptDraftEdit
+from creativity_service.modules.resources.schemas import ResourceMutation
+from creativity_service.modules.resources.services import ResourceManagement
+from tests.integration.channels.test_resource_management import ValidConfiguration
 from tests.integration.evaluations.test_evaluations import finish, prepare
 
 pytestmark = [
@@ -26,18 +29,34 @@ async def test_prompt_experiment_runs_without_release_and_rejects_other_changes(
     env = evaluation_env
     first, dataset, _ = await prepare(env, 1)
     prompt = (await env.prompts.list_items(env.context)).items[0]
-    draft = await env.prompts.create_draft(
+    variant = await env.prompts.create(
         env.context,
-        prompt.prompt_id,
-        PromptDraftCreate(
-            version_label="实验措辞",
+        PromptCreate(prompt_code="experiment_variant", name="实验措辞", purpose="独立对照提示词"),
+    )
+    draft = await env.prompts.version_detail(env.context, variant.prompt_id)
+    draft = await env.prompts.edit_draft(
+        env.context,
+        variant.prompt_id,
+        PromptDraftEdit(
+            revision=draft.revision,
             content=PromptContent(instruction_blocks={"system": "请按结构回答。"}),
         ),
+    )
+    # 发布门禁另有专门验收，此处用已发布独立资源验证实验对照与运行快照。
+    management = ResourceManagement(
+        env.engine, env.iam.authorization, {"prompt": ValidConfiguration()}
+    )
+    await management.mutate(
+        env.context,
+        "prompt",
+        variant.prompt_id,
+        "publish",
+        ResourceMutation(revision=variant.revision, configuration_revision=draft.revision),
     )
     definition = env.definition.model_copy(
         update={
             "bindings": env.definition.bindings.model_copy(
-                update={"prompt_version": draft.version.version_id}
+                update={"prompt_version": variant.prompt_id}
             )
         }
     )
@@ -63,6 +82,27 @@ async def test_prompt_experiment_runs_without_release_and_rejects_other_changes(
     assert report.complete and report.cost["run_count"] == 2
     assert len(report.candidates) == 2
     assert not any(c["release_passed"] for c in report.candidates)
+    duplicate = await env.agents.create(
+        env.context, env.body.model_copy(update={"agent_code": "duplicate_prompt_variant"})
+    )
+    with pytest.raises(ServiceError) as failure:
+        await env.evaluations.create(
+            env.context,
+            body.model_copy(
+                update={
+                    "candidates": [
+                        body.candidates[0],
+                        body.candidates[1].model_copy(
+                            update={
+                                "version_id": duplicate.versions[0].version_id,
+                                "revision": duplicate.versions[0].revision,
+                            }
+                        ),
+                    ]
+                }
+            ),
+        )
+    assert failure.value.code == "EXPERIMENT_DUPLICATE"
     for change in (
         {"release_target": True},
         {"experiment_prompt_id": "missing-prompt"},

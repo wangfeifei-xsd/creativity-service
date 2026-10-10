@@ -1,10 +1,12 @@
 """会话分支的幂等、上下文继承与单向删除传播。"""
 
 import asyncio
+import json
 
 import pytest
 
 from creativity_service.core.context import TaskEnvelope
+from creativity_service.core.contracts import BusinessResult
 from creativity_service.core.database import transaction
 from creativity_service.core.deletion import ContentRef, DeletionGuard, DeletionService
 from creativity_service.core.primitives import ServiceError
@@ -12,6 +14,43 @@ from creativity_service.modules.conversations.schemas import BranchInput
 from tests.integration.conversations.test_conversations import finish, message, records, submit
 
 pytestmark = pytest.mark.integration
+
+
+async def test_non_streamed_reply_is_preserved_in_history_and_branch(env):
+    receipt = await submit(env)
+    lease = await env.runs.claim_lease(
+        TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=receipt.run.run_id),
+        "structured-worker",
+    )
+    assert lease
+    result = BusinessResult(
+        schema_version="1",
+        business_status="COMPLETED",
+        data={"value": 7},
+        warnings=(),
+        evidence_refs=(),
+    )
+    await env.runs.finish_run(lease, "SUCCEEDED", result)
+    branch = await env.conversations.branch(
+        env.context,
+        env.cid,
+        BranchInput(message_id=receipt.assistant_message_id, idempotency_key="structured"),
+    )
+    copied = await records(env, "messages", conversation_id=branch.conversation_id)
+    assistant = next(item for item in copied if item["role"] == "assistant")
+    assert json.loads(assistant["content_parts"][0]["text"])["data"] == {"value": 7}
+    assert assistant["run_id"] is None
+    following = await env.conversations.submit(env.context, branch.conversation_id, message("two"))
+    next_lease = await env.runs.claim_lease(
+        TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=following.run.run_id),
+        "following-worker",
+    )
+    assert next_lease
+    selected = await env.conversations.select_context(
+        env.context, branch.conversation_id, next_lease.run_id, "必要指令"
+    )
+    reply = next(item for item in selected.messages if item["role"] == "assistant")
+    assert json.loads(reply["content_parts"][0]["text"])["data"] == {"value": 7}
 
 
 async def test_branch_replay_context_and_no_shared_run_ownership(env):

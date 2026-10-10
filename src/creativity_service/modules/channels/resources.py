@@ -158,6 +158,7 @@ class ResourceCatalog:
                     path=f"/{CATALOG[row['kind']][2]}/{row['id']}",
                     status_label={
                         "ACTIVE": "启用",
+                        "ENABLED": "启用",
                         "DISABLED": "停用",
                         "ARCHIVED": "已归档",
                         "DRAFT": "草稿",
