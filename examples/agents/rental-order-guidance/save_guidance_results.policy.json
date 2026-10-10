@@ -31,27 +31,32 @@
               "guidance_id": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 128
+                "maxLength": 128,
+                "title": "协助事项标识"
               },
               "lease_generation": {
                 "type": "integer",
-                "minimum": 1
+                "minimum": 1,
+                "title": "领取批次"
               },
               "fact_revision": {
                 "type": "string",
-                "pattern": "^[0-9a-f]{64}$"
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "事实版本摘要"
               },
               "assistance_decision": {
                 "type": "string",
                 "enum": [
                   "GUIDE",
                   "NO_ADDITIONAL_HELP"
-                ]
+                ],
+                "title": "协助决策"
               },
               "assessment": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 2000
+                "maxLength": 2000,
+                "title": "协助评估"
               },
               "views": {
                 "type": "array",
@@ -63,27 +68,32 @@
                       "enum": [
                         "TENANT",
                         "LANDLORD"
-                      ]
+                      ],
+                      "title": "接收方角色"
                     },
                     "user_problem": {
                       "type": "string",
                       "minLength": 1,
-                      "maxLength": 1500
+                      "maxLength": 1500,
+                      "title": "用户问题"
                     },
                     "situation": {
                       "type": "string",
                       "minLength": 1,
-                      "maxLength": 1500
+                      "maxLength": 1500,
+                      "title": "当前处境"
                     },
                     "next_step": {
                       "type": "string",
                       "minLength": 1,
-                      "maxLength": 1500
+                      "maxLength": 1500,
+                      "title": "下一步建议"
                     },
                     "reason": {
                       "type": "string",
                       "minLength": 1,
-                      "maxLength": 1500
+                      "maxLength": 1500,
+                      "title": "建议依据"
                     },
                     "steps": {
                       "type": "array",
@@ -93,12 +103,14 @@
                         "maxLength": 500
                       },
                       "minItems": 0,
-                      "maxItems": 8
+                      "maxItems": 8,
+                      "title": "建议操作步骤"
                     },
                     "problem_path": {
                       "type": "string",
                       "minLength": 1,
-                      "maxLength": 1500
+                      "maxLength": 1500,
+                      "title": "问题处理路径"
                     },
                     "action_codes": {
                       "type": "array",
@@ -109,7 +121,8 @@
                         ]
                       },
                       "minItems": 0,
-                      "maxItems": 4
+                      "maxItems": 4,
+                      "title": "可用操作"
                     },
                     "evidence_refs": {
                       "type": "array",
@@ -119,7 +132,8 @@
                         "maxLength": 160
                       },
                       "minItems": 1,
-                      "maxItems": 30
+                      "maxItems": 30,
+                      "title": "事实依据引用"
                     }
                   },
                   "required": [
@@ -136,7 +150,8 @@
                   "additionalProperties": false
                 },
                 "minItems": 0,
-                "maxItems": 2
+                "maxItems": 2,
+                "title": "各方协助内容"
               }
             },
             "required": [
@@ -150,7 +165,8 @@
             "additionalProperties": false
           },
           "minItems": 1,
-          "maxItems": 20
+          "maxItems": 20,
+          "title": "协助分析结果"
         }
       },
       "required": [

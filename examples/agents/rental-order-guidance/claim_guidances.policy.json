@@ -31,7 +31,8 @@
             "maxLength": 128
           },
           "minItems": 1,
-          "maxItems": 20
+          "maxItems": 20,
+          "title": "协助事项标识列表"
         }
       },
       "required": [

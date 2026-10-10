@@ -1287,7 +1287,8 @@
                   "minLength": 1
                 },
                 "maxItems": 20,
-                "minItems": 1
+                "minItems": 1,
+                "title": "协助事项标识列表"
               }
             },
             "additionalProperties": false
@@ -1318,7 +1319,8 @@
                     "minLength": 1
                   },
                   "maxItems": 20,
-                  "minItems": 1
+                  "minItems": 1,
+                  "title": "协助事项标识列表"
                 }
               },
               "additionalProperties": false
@@ -1338,13 +1340,16 @@
             ],
             "properties": {
               "item": {
-                "type": "object"
+                "type": "object",
+                "title": "当前协助事项"
               },
               "items": {
-                "type": "array"
+                "type": "array",
+                "title": "已领取事项列表"
               },
               "has_work": {
-                "type": "boolean"
+                "type": "boolean",
+                "title": "是否领取到协助事项"
               },
               "guidance_ids": {
                 "type": "array",
@@ -1354,10 +1359,12 @@
                   "minLength": 1
                 },
                 "maxItems": 20,
-                "minItems": 1
+                "minItems": 1,
+                "title": "协助事项标识列表"
               },
               "needs_analysis": {
-                "type": "boolean"
+                "type": "boolean",
+                "title": "是否需要模型分析"
               }
             }
           },
@@ -1376,7 +1383,7 @@
             "allowed_types": []
           }
         },
-        "content_digest": "5528f475fdaab182de56e15f58ed0424d3e3e3e384730c8df9cf0bcd73bf08cd",
+        "content_digest": "bf3884b96bdc7379a3426a2d1db53ea66a0d90b19b4c0cc9a041e4ba6575606e",
         "dependencies": [
           "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e"
         ],
@@ -1391,13 +1398,16 @@
           ],
           "properties": {
             "item": {
-              "type": "object"
+              "type": "object",
+              "title": "当前协助事项"
             },
             "items": {
-              "type": "array"
+              "type": "array",
+              "title": "已领取事项列表"
             },
             "has_work": {
-              "type": "boolean"
+              "type": "boolean",
+              "title": "是否领取到协助事项"
             },
             "guidance_ids": {
               "type": "array",
@@ -1407,10 +1417,12 @@
                 "minLength": 1
               },
               "maxItems": 20,
-              "minItems": 1
+              "minItems": 1,
+              "title": "协助事项标识列表"
             },
             "needs_analysis": {
-              "type": "boolean"
+              "type": "boolean",
+              "title": "是否需要模型分析"
             }
           }
         },
@@ -1452,7 +1464,8 @@
               "limit": {
                 "type": "integer",
                 "maximum": 20,
-                "minimum": 1
+                "minimum": 1,
+                "title": "单次查询数量"
               }
             },
             "additionalProperties": false
@@ -1470,10 +1483,12 @@
             ],
             "properties": {
               "items": {
-                "type": "array"
+                "type": "array",
+                "title": "待协助事项列表"
               },
               "has_work": {
-                "type": "boolean"
+                "type": "boolean",
+                "title": "是否有待协助事项"
               },
               "guidance_ids": {
                 "type": "array",
@@ -1483,7 +1498,8 @@
                   "minLength": 1
                 },
                 "maxItems": 20,
-                "minItems": 1
+                "minItems": 1,
+                "title": "协助事项标识列表"
               }
             }
           },
@@ -1502,7 +1518,7 @@
             "allowed_types": []
           }
         },
-        "content_digest": "9e07fb96f5a4355ee24a4ed070bd8f5e57c8771249caa53a7d233bcac68e2d2b",
+        "content_digest": "3280ea927442e66f231db30fde239a1ede4ef3db8e507e64595f0dcc06d97d64",
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {
@@ -1513,10 +1529,12 @@
           ],
           "properties": {
             "items": {
-              "type": "array"
+              "type": "array",
+              "title": "待协助事项列表"
             },
             "has_work": {
-              "type": "boolean"
+              "type": "boolean",
+              "title": "是否有待协助事项"
             },
             "guidance_ids": {
               "type": "array",
@@ -1526,7 +1544,8 @@
                 "minLength": 1
               },
               "maxItems": 20,
-              "minItems": 1
+              "minItems": 1,
+              "title": "协助事项标识列表"
             }
           }
         },
@@ -1573,7 +1592,8 @@
                   "minLength": 1
                 },
                 "maxItems": 20,
-                "minItems": 1
+                "minItems": 1,
+                "title": "协助事项标识列表"
               }
             },
             "additionalProperties": false
@@ -1601,7 +1621,7 @@
             "allowed_types": []
           }
         },
-        "content_digest": "0cc0b94b40fe755a9b2b60fb3eca10c5bb8537ea8fb58574c1a91a0008dd3cf0",
+        "content_digest": "1f9fbe9781849a20d4f805d12af70a96354d852bf9ada41a3bd3140f50dbd63c",
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {
@@ -1645,7 +1665,8 @@
               "operation_key": {
                 "type": "string",
                 "maxLength": 128,
-                "minLength": 1
+                "minLength": 1,
+                "title": "操作回执标识"
               }
             },
             "additionalProperties": false
@@ -1673,7 +1694,7 @@
             "allowed_types": []
           }
         },
-        "content_digest": "ebf11fc9388724606f99ece9f745f0dc6011b1c77baf824d0d826f1ff509ee34",
+        "content_digest": "a06710483a242713948978e8a9e38299acfe4e3e156f918e45d872f24642b905",
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {
@@ -1748,7 +1769,8 @@
                               "TENANT",
                               "LANDLORD"
                             ],
-                            "type": "string"
+                            "type": "string",
+                            "title": "接收方角色"
                           },
                           "steps": {
                             "type": "array",
@@ -1758,22 +1780,26 @@
                               "minLength": 1
                             },
                             "maxItems": 8,
-                            "minItems": 0
+                            "minItems": 0,
+                            "title": "建议操作步骤"
                           },
                           "reason": {
                             "type": "string",
                             "maxLength": 1500,
-                            "minLength": 1
+                            "minLength": 1,
+                            "title": "建议依据"
                           },
                           "next_step": {
                             "type": "string",
                             "maxLength": 1500,
-                            "minLength": 1
+                            "minLength": 1,
+                            "title": "下一步建议"
                           },
                           "situation": {
                             "type": "string",
                             "maxLength": 1500,
-                            "minLength": 1
+                            "minLength": 1,
+                            "title": "当前处境"
                           },
                           "action_codes": {
                             "type": "array",
@@ -1784,17 +1810,20 @@
                               "type": "string"
                             },
                             "maxItems": 4,
-                            "minItems": 0
+                            "minItems": 0,
+                            "title": "可用操作"
                           },
                           "problem_path": {
                             "type": "string",
                             "maxLength": 1500,
-                            "minLength": 1
+                            "minLength": 1,
+                            "title": "问题处理路径"
                           },
                           "user_problem": {
                             "type": "string",
                             "maxLength": 1500,
-                            "minLength": 1
+                            "minLength": 1,
+                            "title": "用户问题"
                           },
                           "evidence_refs": {
                             "type": "array",
@@ -1804,44 +1833,52 @@
                               "minLength": 1
                             },
                             "maxItems": 30,
-                            "minItems": 1
+                            "minItems": 1,
+                            "title": "事实依据引用"
                           }
                         },
                         "additionalProperties": false
                       },
                       "maxItems": 2,
-                      "minItems": 0
+                      "minItems": 0,
+                      "title": "各方协助内容"
                     },
                     "assessment": {
                       "type": "string",
                       "maxLength": 2000,
-                      "minLength": 1
+                      "minLength": 1,
+                      "title": "协助评估"
                     },
                     "guidance_id": {
                       "type": "string",
                       "maxLength": 128,
-                      "minLength": 1
+                      "minLength": 1,
+                      "title": "协助事项标识"
                     },
                     "fact_revision": {
                       "type": "string",
-                      "pattern": "^[0-9a-f]{64}$"
+                      "pattern": "^[0-9a-f]{64}$",
+                      "title": "事实版本摘要"
                     },
                     "lease_generation": {
                       "type": "integer",
-                      "minimum": 1
+                      "minimum": 1,
+                      "title": "领取批次"
                     },
                     "assistance_decision": {
                       "enum": [
                         "GUIDE",
                         "NO_ADDITIONAL_HELP"
                       ],
-                      "type": "string"
+                      "type": "string",
+                      "title": "协助决策"
                     }
                   },
                   "additionalProperties": false
                 },
                 "maxItems": 20,
-                "minItems": 1
+                "minItems": 1,
+                "title": "协助分析结果"
               }
             },
             "additionalProperties": false
@@ -1898,7 +1935,8 @@
                                 "TENANT",
                                 "LANDLORD"
                               ],
-                              "type": "string"
+                              "type": "string",
+                              "title": "接收方角色"
                             },
                             "steps": {
                               "type": "array",
@@ -1908,22 +1946,26 @@
                                 "minLength": 1
                               },
                               "maxItems": 8,
-                              "minItems": 0
+                              "minItems": 0,
+                              "title": "建议操作步骤"
                             },
                             "reason": {
                               "type": "string",
                               "maxLength": 1500,
-                              "minLength": 1
+                              "minLength": 1,
+                              "title": "建议依据"
                             },
                             "next_step": {
                               "type": "string",
                               "maxLength": 1500,
-                              "minLength": 1
+                              "minLength": 1,
+                              "title": "下一步建议"
                             },
                             "situation": {
                               "type": "string",
                               "maxLength": 1500,
-                              "minLength": 1
+                              "minLength": 1,
+                              "title": "当前处境"
                             },
                             "action_codes": {
                               "type": "array",
@@ -1934,17 +1976,20 @@
                                 "type": "string"
                               },
                               "maxItems": 4,
-                              "minItems": 0
+                              "minItems": 0,
+                              "title": "可用操作"
                             },
                             "problem_path": {
                               "type": "string",
                               "maxLength": 1500,
-                              "minLength": 1
+                              "minLength": 1,
+                              "title": "问题处理路径"
                             },
                             "user_problem": {
                               "type": "string",
                               "maxLength": 1500,
-                              "minLength": 1
+                              "minLength": 1,
+                              "title": "用户问题"
                             },
                             "evidence_refs": {
                               "type": "array",
@@ -1954,44 +1999,52 @@
                                 "minLength": 1
                               },
                               "maxItems": 30,
-                              "minItems": 1
+                              "minItems": 1,
+                              "title": "事实依据引用"
                             }
                           },
                           "additionalProperties": false
                         },
                         "maxItems": 2,
-                        "minItems": 0
+                        "minItems": 0,
+                        "title": "各方协助内容"
                       },
                       "assessment": {
                         "type": "string",
                         "maxLength": 2000,
-                        "minLength": 1
+                        "minLength": 1,
+                        "title": "协助评估"
                       },
                       "guidance_id": {
                         "type": "string",
                         "maxLength": 128,
-                        "minLength": 1
+                        "minLength": 1,
+                        "title": "协助事项标识"
                       },
                       "fact_revision": {
                         "type": "string",
-                        "pattern": "^[0-9a-f]{64}$"
+                        "pattern": "^[0-9a-f]{64}$",
+                        "title": "事实版本摘要"
                       },
                       "lease_generation": {
                         "type": "integer",
-                        "minimum": 1
+                        "minimum": 1,
+                        "title": "领取批次"
                       },
                       "assistance_decision": {
                         "enum": [
                           "GUIDE",
                           "NO_ADDITIONAL_HELP"
                         ],
-                        "type": "string"
+                        "type": "string",
+                        "title": "协助决策"
                       }
                     },
                     "additionalProperties": false
                   },
                   "maxItems": 20,
-                  "minItems": 1
+                  "minItems": 1,
+                  "title": "协助分析结果"
                 }
               },
               "additionalProperties": false
@@ -2019,7 +2072,7 @@
             "allowed_types": []
           }
         },
-        "content_digest": "d4b19f52398e265cca8b9ecee9cf891096cb84e95af0fa29059b30eaddbb1fcc",
+        "content_digest": "576cb16cf7ced19eb57fe61cb2465b2dc4734dd9097f33859e9e9aca7bf2d3e2",
         "dependencies": [
           "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e"
         ],
@@ -2070,7 +2123,8 @@
                   "minLength": 1
                 },
                 "maxItems": 20,
-                "minItems": 1
+                "minItems": 1,
+                "title": "协助事项标识列表"
               }
             },
             "additionalProperties": false
@@ -2101,7 +2155,8 @@
                     "minLength": 1
                   },
                   "maxItems": 20,
-                  "minItems": 1
+                  "minItems": 1,
+                  "title": "协助事项标识列表"
                 }
               },
               "additionalProperties": false
@@ -2129,7 +2184,7 @@
             "allowed_types": []
           }
         },
-        "content_digest": "4202d20c581b7c346ba436c639644687de1955d0f7da433da37627951a793794",
+        "content_digest": "37a846432b229309728972dffae539035190f54677cbdf06a1563fbcd40ec143",
         "dependencies": [
           "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e"
         ],
@@ -2383,7 +2438,8 @@
                   "limit": {
                     "type": "integer",
                     "maximum": 20,
-                    "minimum": 1
+                    "minimum": 1,
+                    "title": "单次查询数量"
                   }
                 },
                 "additionalProperties": false
@@ -2396,10 +2452,12 @@
                 ],
                 "properties": {
                   "items": {
-                    "type": "array"
+                    "type": "array",
+                    "title": "待协助事项列表"
                   },
                   "has_work": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "title": "是否有待协助事项"
                   },
                   "guidance_ids": {
                     "type": "array",
@@ -2409,7 +2467,8 @@
                       "minLength": 1
                     },
                     "maxItems": 20,
-                    "minItems": 1
+                    "minItems": 1,
+                    "title": "协助事项标识列表"
                   }
                 }
               },
@@ -2445,7 +2504,8 @@
                       "minLength": 1
                     },
                     "maxItems": 20,
-                    "minItems": 1
+                    "minItems": 1,
+                    "title": "协助事项标识列表"
                   }
                 },
                 "additionalProperties": false
@@ -2460,13 +2520,16 @@
                 ],
                 "properties": {
                   "item": {
-                    "type": "object"
+                    "type": "object",
+                    "title": "当前协助事项"
                   },
                   "items": {
-                    "type": "array"
+                    "type": "array",
+                    "title": "已领取事项列表"
                   },
                   "has_work": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "title": "是否领取到协助事项"
                   },
                   "guidance_ids": {
                     "type": "array",
@@ -2476,10 +2539,12 @@
                       "minLength": 1
                     },
                     "maxItems": 20,
-                    "minItems": 1
+                    "minItems": 1,
+                    "title": "协助事项标识列表"
                   },
                   "needs_analysis": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "title": "是否需要模型分析"
                   }
                 }
               },
@@ -2508,7 +2573,8 @@
                 ],
                 "properties": {
                   "context": {
-                    "type": "object"
+                    "type": "object",
+                    "title": "本单事实与协助上下文"
                   }
                 },
                 "additionalProperties": false
@@ -2553,7 +2619,8 @@
                                   "TENANT",
                                   "LANDLORD"
                                 ],
-                                "type": "string"
+                                "type": "string",
+                                "title": "接收方角色"
                               },
                               "steps": {
                                 "type": "array",
@@ -2563,22 +2630,26 @@
                                   "minLength": 1
                                 },
                                 "maxItems": 8,
-                                "minItems": 0
+                                "minItems": 0,
+                                "title": "建议操作步骤"
                               },
                               "reason": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "建议依据"
                               },
                               "next_step": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "下一步建议"
                               },
                               "situation": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "当前处境"
                               },
                               "action_codes": {
                                 "type": "array",
@@ -2589,17 +2660,20 @@
                                   "type": "string"
                                 },
                                 "maxItems": 4,
-                                "minItems": 0
+                                "minItems": 0,
+                                "title": "可用操作"
                               },
                               "problem_path": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "问题处理路径"
                               },
                               "user_problem": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "用户问题"
                               },
                               "evidence_refs": {
                                 "type": "array",
@@ -2609,44 +2683,52 @@
                                   "minLength": 1
                                 },
                                 "maxItems": 30,
-                                "minItems": 1
+                                "minItems": 1,
+                                "title": "事实依据引用"
                               }
                             },
                             "additionalProperties": false
                           },
                           "maxItems": 2,
-                          "minItems": 0
+                          "minItems": 0,
+                          "title": "各方协助内容"
                         },
                         "assessment": {
                           "type": "string",
                           "maxLength": 2000,
-                          "minLength": 1
+                          "minLength": 1,
+                          "title": "协助评估"
                         },
                         "guidance_id": {
                           "type": "string",
                           "maxLength": 128,
-                          "minLength": 1
+                          "minLength": 1,
+                          "title": "协助事项标识"
                         },
                         "fact_revision": {
                           "type": "string",
-                          "pattern": "^[0-9a-f]{64}$"
+                          "pattern": "^[0-9a-f]{64}$",
+                          "title": "事实版本摘要"
                         },
                         "lease_generation": {
                           "type": "integer",
-                          "minimum": 1
+                          "minimum": 1,
+                          "title": "领取批次"
                         },
                         "assistance_decision": {
                           "enum": [
                             "GUIDE",
                             "NO_ADDITIONAL_HELP"
                           ],
-                          "type": "string"
+                          "type": "string",
+                          "title": "协助决策"
                         }
                       },
                       "additionalProperties": false
                     },
                     "maxItems": 20,
-                    "minItems": 1
+                    "minItems": 1,
+                    "title": "协助分析结果"
                   }
                 },
                 "additionalProperties": false
@@ -2709,7 +2791,8 @@
                                   "TENANT",
                                   "LANDLORD"
                                 ],
-                                "type": "string"
+                                "type": "string",
+                                "title": "接收方角色"
                               },
                               "steps": {
                                 "type": "array",
@@ -2719,22 +2802,26 @@
                                   "minLength": 1
                                 },
                                 "maxItems": 8,
-                                "minItems": 0
+                                "minItems": 0,
+                                "title": "建议操作步骤"
                               },
                               "reason": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "建议依据"
                               },
                               "next_step": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "下一步建议"
                               },
                               "situation": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "当前处境"
                               },
                               "action_codes": {
                                 "type": "array",
@@ -2745,17 +2832,20 @@
                                   "type": "string"
                                 },
                                 "maxItems": 4,
-                                "minItems": 0
+                                "minItems": 0,
+                                "title": "可用操作"
                               },
                               "problem_path": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "问题处理路径"
                               },
                               "user_problem": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "用户问题"
                               },
                               "evidence_refs": {
                                 "type": "array",
@@ -2765,44 +2855,52 @@
                                   "minLength": 1
                                 },
                                 "maxItems": 30,
-                                "minItems": 1
+                                "minItems": 1,
+                                "title": "事实依据引用"
                               }
                             },
                             "additionalProperties": false
                           },
                           "maxItems": 2,
-                          "minItems": 0
+                          "minItems": 0,
+                          "title": "各方协助内容"
                         },
                         "assessment": {
                           "type": "string",
                           "maxLength": 2000,
-                          "minLength": 1
+                          "minLength": 1,
+                          "title": "协助评估"
                         },
                         "guidance_id": {
                           "type": "string",
                           "maxLength": 128,
-                          "minLength": 1
+                          "minLength": 1,
+                          "title": "协助事项标识"
                         },
                         "fact_revision": {
                           "type": "string",
-                          "pattern": "^[0-9a-f]{64}$"
+                          "pattern": "^[0-9a-f]{64}$",
+                          "title": "事实版本摘要"
                         },
                         "lease_generation": {
                           "type": "integer",
-                          "minimum": 1
+                          "minimum": 1,
+                          "title": "领取批次"
                         },
                         "assistance_decision": {
                           "enum": [
                             "GUIDE",
                             "NO_ADDITIONAL_HELP"
                           ],
-                          "type": "string"
+                          "type": "string",
+                          "title": "协助决策"
                         }
                       },
                       "additionalProperties": false
                     },
                     "maxItems": 20,
-                    "minItems": 1
+                    "minItems": 1,
+                    "title": "协助分析结果"
                   }
                 },
                 "additionalProperties": false
@@ -2842,7 +2940,8 @@
                       "minLength": 1
                     },
                     "maxItems": 20,
-                    "minItems": 1
+                    "minItems": 1,
+                    "title": "协助事项标识列表"
                   }
                 },
                 "additionalProperties": false
@@ -2905,23 +3004,28 @@
                 ],
                 "properties": {
                   "data": {
-                    "type": "object"
+                    "type": "object",
+                    "title": "业务结果"
                   },
                   "warnings": {
-                    "type": "array"
+                    "type": "array",
+                    "title": "提示信息"
                   },
                   "evidence_refs": {
-                    "type": "array"
+                    "type": "array",
+                    "title": "事实依据引用"
                   },
                   "schema_version": {
                     "type": "string",
-                    "const": "1.0"
+                    "const": "1.0",
+                    "title": "结果结构版本"
                   },
                   "business_status": {
                     "enum": [
                       "COMPLETED"
                     ],
-                    "type": "string"
+                    "type": "string",
+                    "title": "业务状态"
                   }
                 },
                 "additionalProperties": false
@@ -2937,23 +3041,28 @@
                 ],
                 "properties": {
                   "data": {
-                    "type": "object"
+                    "type": "object",
+                    "title": "业务结果"
                   },
                   "warnings": {
-                    "type": "array"
+                    "type": "array",
+                    "title": "提示信息"
                   },
                   "evidence_refs": {
-                    "type": "array"
+                    "type": "array",
+                    "title": "事实依据引用"
                   },
                   "schema_version": {
                     "type": "string",
-                    "const": "1.0"
+                    "const": "1.0",
+                    "title": "结果结构版本"
                   },
                   "business_status": {
                     "enum": [
                       "COMPLETED"
                     ],
-                    "type": "string"
+                    "type": "string",
+                    "title": "业务状态"
                   }
                 },
                 "additionalProperties": false
@@ -3023,30 +3132,35 @@
             ],
             "properties": {
               "data": {
-                "type": "object"
+                "type": "object",
+                "title": "业务结果"
               },
               "warnings": {
-                "type": "array"
+                "type": "array",
+                "title": "提示信息"
               },
               "evidence_refs": {
-                "type": "array"
+                "type": "array",
+                "title": "事实依据引用"
               },
               "schema_version": {
                 "type": "string",
-                "const": "1.0"
+                "const": "1.0",
+                "title": "结果结构版本"
               },
               "business_status": {
                 "enum": [
                   "COMPLETED"
                 ],
-                "type": "string"
+                "type": "string",
+                "title": "业务状态"
               }
             },
             "additionalProperties": false
           },
           "workflow_type": "stateful"
         },
-        "content_digest": "bd7d67718d1e01c4e9eecb50af353fefc2b0017c7721e1372107f4d517fc9061",
+        "content_digest": "de49c2f5a224eb07bea3c94d610a4c27d45032522a5b94c5b520acb012576ca7",
         "dependencies": [
           "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
           "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
@@ -3070,23 +3184,28 @@
           ],
           "properties": {
             "data": {
-              "type": "object"
+              "type": "object",
+              "title": "业务结果"
             },
             "warnings": {
-              "type": "array"
+              "type": "array",
+              "title": "提示信息"
             },
             "evidence_refs": {
-              "type": "array"
+              "type": "array",
+              "title": "事实依据引用"
             },
             "schema_version": {
               "type": "string",
-              "const": "1.0"
+              "const": "1.0",
+              "title": "结果结构版本"
             },
             "business_status": {
               "enum": [
                 "COMPLETED"
               ],
-              "type": "string"
+              "type": "string",
+              "title": "业务状态"
             }
           },
           "additionalProperties": false
@@ -3229,7 +3348,8 @@
                   "limit": {
                     "type": "integer",
                     "maximum": 20,
-                    "minimum": 1
+                    "minimum": 1,
+                    "title": "单次查询数量"
                   }
                 },
                 "additionalProperties": false
@@ -3242,10 +3362,12 @@
                 ],
                 "properties": {
                   "items": {
-                    "type": "array"
+                    "type": "array",
+                    "title": "待协助事项列表"
                   },
                   "has_work": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "title": "是否有待协助事项"
                   },
                   "guidance_ids": {
                     "type": "array",
@@ -3255,7 +3377,8 @@
                       "minLength": 1
                     },
                     "maxItems": 20,
-                    "minItems": 1
+                    "minItems": 1,
+                    "title": "协助事项标识列表"
                   }
                 }
               },
@@ -3291,7 +3414,8 @@
                       "minLength": 1
                     },
                     "maxItems": 20,
-                    "minItems": 1
+                    "minItems": 1,
+                    "title": "协助事项标识列表"
                   }
                 },
                 "additionalProperties": false
@@ -3306,13 +3430,16 @@
                 ],
                 "properties": {
                   "item": {
-                    "type": "object"
+                    "type": "object",
+                    "title": "当前协助事项"
                   },
                   "items": {
-                    "type": "array"
+                    "type": "array",
+                    "title": "已领取事项列表"
                   },
                   "has_work": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "title": "是否领取到协助事项"
                   },
                   "guidance_ids": {
                     "type": "array",
@@ -3322,10 +3449,12 @@
                       "minLength": 1
                     },
                     "maxItems": 20,
-                    "minItems": 1
+                    "minItems": 1,
+                    "title": "协助事项标识列表"
                   },
                   "needs_analysis": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "title": "是否需要模型分析"
                   }
                 }
               },
@@ -3354,7 +3483,8 @@
                 ],
                 "properties": {
                   "context": {
-                    "type": "object"
+                    "type": "object",
+                    "title": "本单事实与协助上下文"
                   }
                 },
                 "additionalProperties": false
@@ -3399,7 +3529,8 @@
                                   "TENANT",
                                   "LANDLORD"
                                 ],
-                                "type": "string"
+                                "type": "string",
+                                "title": "接收方角色"
                               },
                               "steps": {
                                 "type": "array",
@@ -3409,22 +3540,26 @@
                                   "minLength": 1
                                 },
                                 "maxItems": 8,
-                                "minItems": 0
+                                "minItems": 0,
+                                "title": "建议操作步骤"
                               },
                               "reason": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "建议依据"
                               },
                               "next_step": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "下一步建议"
                               },
                               "situation": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "当前处境"
                               },
                               "action_codes": {
                                 "type": "array",
@@ -3435,17 +3570,20 @@
                                   "type": "string"
                                 },
                                 "maxItems": 4,
-                                "minItems": 0
+                                "minItems": 0,
+                                "title": "可用操作"
                               },
                               "problem_path": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "问题处理路径"
                               },
                               "user_problem": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "用户问题"
                               },
                               "evidence_refs": {
                                 "type": "array",
@@ -3455,44 +3593,52 @@
                                   "minLength": 1
                                 },
                                 "maxItems": 30,
-                                "minItems": 1
+                                "minItems": 1,
+                                "title": "事实依据引用"
                               }
                             },
                             "additionalProperties": false
                           },
                           "maxItems": 2,
-                          "minItems": 0
+                          "minItems": 0,
+                          "title": "各方协助内容"
                         },
                         "assessment": {
                           "type": "string",
                           "maxLength": 2000,
-                          "minLength": 1
+                          "minLength": 1,
+                          "title": "协助评估"
                         },
                         "guidance_id": {
                           "type": "string",
                           "maxLength": 128,
-                          "minLength": 1
+                          "minLength": 1,
+                          "title": "协助事项标识"
                         },
                         "fact_revision": {
                           "type": "string",
-                          "pattern": "^[0-9a-f]{64}$"
+                          "pattern": "^[0-9a-f]{64}$",
+                          "title": "事实版本摘要"
                         },
                         "lease_generation": {
                           "type": "integer",
-                          "minimum": 1
+                          "minimum": 1,
+                          "title": "领取批次"
                         },
                         "assistance_decision": {
                           "enum": [
                             "GUIDE",
                             "NO_ADDITIONAL_HELP"
                           ],
-                          "type": "string"
+                          "type": "string",
+                          "title": "协助决策"
                         }
                       },
                       "additionalProperties": false
                     },
                     "maxItems": 20,
-                    "minItems": 1
+                    "minItems": 1,
+                    "title": "协助分析结果"
                   }
                 },
                 "additionalProperties": false
@@ -3555,7 +3701,8 @@
                                   "TENANT",
                                   "LANDLORD"
                                 ],
-                                "type": "string"
+                                "type": "string",
+                                "title": "接收方角色"
                               },
                               "steps": {
                                 "type": "array",
@@ -3565,22 +3712,26 @@
                                   "minLength": 1
                                 },
                                 "maxItems": 8,
-                                "minItems": 0
+                                "minItems": 0,
+                                "title": "建议操作步骤"
                               },
                               "reason": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "建议依据"
                               },
                               "next_step": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "下一步建议"
                               },
                               "situation": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "当前处境"
                               },
                               "action_codes": {
                                 "type": "array",
@@ -3591,17 +3742,20 @@
                                   "type": "string"
                                 },
                                 "maxItems": 4,
-                                "minItems": 0
+                                "minItems": 0,
+                                "title": "可用操作"
                               },
                               "problem_path": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "问题处理路径"
                               },
                               "user_problem": {
                                 "type": "string",
                                 "maxLength": 1500,
-                                "minLength": 1
+                                "minLength": 1,
+                                "title": "用户问题"
                               },
                               "evidence_refs": {
                                 "type": "array",
@@ -3611,44 +3765,52 @@
                                   "minLength": 1
                                 },
                                 "maxItems": 30,
-                                "minItems": 1
+                                "minItems": 1,
+                                "title": "事实依据引用"
                               }
                             },
                             "additionalProperties": false
                           },
                           "maxItems": 2,
-                          "minItems": 0
+                          "minItems": 0,
+                          "title": "各方协助内容"
                         },
                         "assessment": {
                           "type": "string",
                           "maxLength": 2000,
-                          "minLength": 1
+                          "minLength": 1,
+                          "title": "协助评估"
                         },
                         "guidance_id": {
                           "type": "string",
                           "maxLength": 128,
-                          "minLength": 1
+                          "minLength": 1,
+                          "title": "协助事项标识"
                         },
                         "fact_revision": {
                           "type": "string",
-                          "pattern": "^[0-9a-f]{64}$"
+                          "pattern": "^[0-9a-f]{64}$",
+                          "title": "事实版本摘要"
                         },
                         "lease_generation": {
                           "type": "integer",
-                          "minimum": 1
+                          "minimum": 1,
+                          "title": "领取批次"
                         },
                         "assistance_decision": {
                           "enum": [
                             "GUIDE",
                             "NO_ADDITIONAL_HELP"
                           ],
-                          "type": "string"
+                          "type": "string",
+                          "title": "协助决策"
                         }
                       },
                       "additionalProperties": false
                     },
                     "maxItems": 20,
-                    "minItems": 1
+                    "minItems": 1,
+                    "title": "协助分析结果"
                   }
                 },
                 "additionalProperties": false
@@ -3688,7 +3850,8 @@
                       "minLength": 1
                     },
                     "maxItems": 20,
-                    "minItems": 1
+                    "minItems": 1,
+                    "title": "协助事项标识列表"
                   }
                 },
                 "additionalProperties": false
@@ -3751,23 +3914,28 @@
                 ],
                 "properties": {
                   "data": {
-                    "type": "object"
+                    "type": "object",
+                    "title": "业务结果"
                   },
                   "warnings": {
-                    "type": "array"
+                    "type": "array",
+                    "title": "提示信息"
                   },
                   "evidence_refs": {
-                    "type": "array"
+                    "type": "array",
+                    "title": "事实依据引用"
                   },
                   "schema_version": {
                     "type": "string",
-                    "const": "1.0"
+                    "const": "1.0",
+                    "title": "结果结构版本"
                   },
                   "business_status": {
                     "enum": [
                       "COMPLETED"
                     ],
-                    "type": "string"
+                    "type": "string",
+                    "title": "业务状态"
                   }
                 },
                 "additionalProperties": false
@@ -3783,23 +3951,28 @@
                 ],
                 "properties": {
                   "data": {
-                    "type": "object"
+                    "type": "object",
+                    "title": "业务结果"
                   },
                   "warnings": {
-                    "type": "array"
+                    "type": "array",
+                    "title": "提示信息"
                   },
                   "evidence_refs": {
-                    "type": "array"
+                    "type": "array",
+                    "title": "事实依据引用"
                   },
                   "schema_version": {
                     "type": "string",
-                    "const": "1.0"
+                    "const": "1.0",
+                    "title": "结果结构版本"
                   },
                   "business_status": {
                     "enum": [
                       "COMPLETED"
                     ],
-                    "type": "string"
+                    "type": "string",
+                    "title": "业务状态"
                   }
                 },
                 "additionalProperties": false
@@ -3869,30 +4042,35 @@
             ],
             "properties": {
               "data": {
-                "type": "object"
+                "type": "object",
+                "title": "业务结果"
               },
               "warnings": {
-                "type": "array"
+                "type": "array",
+                "title": "提示信息"
               },
               "evidence_refs": {
-                "type": "array"
+                "type": "array",
+                "title": "事实依据引用"
               },
               "schema_version": {
                 "type": "string",
-                "const": "1.0"
+                "const": "1.0",
+                "title": "结果结构版本"
               },
               "business_status": {
                 "enum": [
                   "COMPLETED"
                 ],
-                "type": "string"
+                "type": "string",
+                "title": "业务状态"
               }
             },
             "additionalProperties": false
           },
           "workflow_type": "stateful"
         },
-        "content_digest": "bd7d67718d1e01c4e9eecb50af353fefc2b0017c7721e1372107f4d517fc9061",
+        "content_digest": "de49c2f5a224eb07bea3c94d610a4c27d45032522a5b94c5b520acb012576ca7",
         "dependencies": [
           "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
           "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
@@ -3919,23 +4097,28 @@
           ],
           "properties": {
             "data": {
-              "type": "object"
+              "type": "object",
+              "title": "业务结果"
             },
             "warnings": {
-              "type": "array"
+              "type": "array",
+              "title": "提示信息"
             },
             "evidence_refs": {
-              "type": "array"
+              "type": "array",
+              "title": "事实依据引用"
             },
             "schema_version": {
               "type": "string",
-              "const": "1.0"
+              "const": "1.0",
+              "title": "结果结构版本"
             },
             "business_status": {
               "enum": [
                 "COMPLETED"
               ],
-              "type": "string"
+              "type": "string",
+              "title": "业务状态"
             }
           },
           "additionalProperties": false
