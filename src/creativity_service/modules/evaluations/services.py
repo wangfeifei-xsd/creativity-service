@@ -396,7 +396,9 @@ class EvaluationService(DatasetService):
             items=items,
             actions=visible_actions(
                 policy.actions("evaluation", "new"), [("create", "发起评测", "evaluation:manage")]
-            ),
+            )
+            if "evaluation:content" in policy.actions("evaluation", "scope")
+            else [],
         )
 
     async def comparison(self, context: AuthContext, identifier: str) -> ComparisonReport:

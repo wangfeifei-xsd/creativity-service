@@ -195,7 +195,9 @@ class AgentService(AgentSnapshots):
             )
         return await self.version_view(context, row)
 
-    async def list_agents(self, context: AuthContext, search: str | None = None) -> AgentList:
+    async def list_agents(
+        self, context: AuthContext, search: str | None = None, *, published_only: bool = False
+    ) -> AgentList:
         policy = await self.authorization.read_policy(context)
         async with self.engine.connect() as connection:
             rows = await repository("agents", context.scope).find(connection)
@@ -208,10 +210,30 @@ class AgentService(AgentSnapshots):
             states = await repository("agent_environment_states", context.scope).get_many(
                 connection, [self.mapping_id(context, row["id"]) for row in rows]
             )
+            if published_only:
+                mappings = await repository("release_mappings", context.scope).get_many(
+                    connection, [self.mapping_id(context, row["id"]) for row in rows]
+                )
+                versions = await repository("resource_versions", context.scope).get_many(
+                    connection, [mapping["version_id"] for mapping in mappings.values()]
+                )
+                published_ids = {
+                    mapping["resource_id"]
+                    for mapping in mappings.values()
+                    if versions.get(mapping["version_id"], {}).get("state") == "PUBLISHED"
+                }
+                rows = [
+                    row
+                    for row in rows
+                    if row["id"] in published_ids
+                    and row["status"] == "ACTIVE"
+                    and states.get(self.mapping_id(context, row["id"]), {}).get("status", "ACTIVE")
+                    == "ACTIVE"
+                ]
         result = []
         for row in rows:
             allowed = policy.actions("agent", row["id"], resource_state(context, "agent", row))
-            if "agent:manage" in allowed:
+            if "agent:manage" in allowed and (not published_only or "run:create" in allowed):
                 result.append(
                     self.agent_summary(row, states.get(self.mapping_id(context, row["id"])), [])
                 )

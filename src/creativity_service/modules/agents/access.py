@@ -170,7 +170,7 @@ async def identity_rows(uow: UnitOfWork, context: AuthContext) -> dict[str, dict
     joined = channel.outerjoin(
         environment,
         and_(
-            environment.c.channel_id == scope.channel_id,
+            environment.c.channel_id == channel.c.id,
             environment.c.environment == scope.environment,
         ),
     )
@@ -181,16 +181,16 @@ async def identity_rows(uow: UnitOfWork, context: AuthContext) -> dict[str, dict
         )
         tables.extend([account, member])
         joined = joined.outerjoin(
+            member,
+            and_(
+                member.c.channel_id == channel.c.id,
+                member.c.user_id == context.actor_id,
+            ),
+        ).outerjoin(
             account,
             and_(
                 account.c.channel_id == "system",
-                account.c.id == context.actor_id,
-            ),
-        ).outerjoin(
-            member,
-            and_(
-                member.c.channel_id == scope.channel_id,
-                member.c.user_id == context.actor_id,
+                account.c.id == member.c.user_id,
             ),
         )
     found = (

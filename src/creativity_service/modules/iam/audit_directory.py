@@ -154,11 +154,14 @@ async def audit_page(
                         predicates.append(source.c[field] == getattr(context.scope, field))
             names.update(
                 {
-                    (kind, row.id): row.display_name
+                    (kind, row.id): f"{row.display_name}（已删除）"
+                    if row.is_deleted
+                    else row.display_name
                     for row in await connection.execute(
-                        active_rows(
-                            select(source.c.id, display.label("display_name")).where(*predicates)
-                        )
+                        # 审计追溯显式读取删除记录的名称，继续限定已授权渠道及环境。
+                        select(
+                            source.c.id, display.label("display_name"), source.c.is_deleted
+                        ).where(*predicates)
                     )
                 }
             )

@@ -224,6 +224,69 @@ async def test_agt_a01_missing_dependencies_capabilities_and_channel_isolation(a
     assert response.status_code == 422
 
 
+async def test_memory_consolidation_requires_structured_route_before_publication(agent_env):
+    from creativity_service.core.deletion import content_key
+    from creativity_service.core.locking import record_key
+    from creativity_service.modules.memory.schemas import MemoryPolicy
+
+    env = agent_env
+    definition = env.definition.model_copy(
+        update={
+            "context": env.definition.context.model_copy(
+                update={"conversation_enabled": True, "memory_policy": MemoryPolicy()}
+            )
+        }
+    )
+    detail = await env.agents.create(
+        env.context, env.body.model_copy(update={"definition": definition})
+    )
+    version_id = detail.versions[0].version_id
+    # 只收窄测试路由的声明；不伪造供应商能力或实际运行证据。
+    async with transaction(
+        env.engine,
+        env.context.scope,
+        [
+            content_key(env.context.scope),
+            record_key(env.context.scope.channel_id, "resource_versions", env.route_id),
+        ],
+    ) as uow:
+        route_repo = repository("resource_versions", env.context.scope)
+        row = await route_repo.get(uow.connection, env.route_id)
+        content = {**row["content"], "required_capabilities": ["text", "tools"]}
+        await route_repo.change(
+            uow,
+            env.route_id,
+            row["revision"],
+            {
+                "content": content,
+                "content_digest": digest(
+                    {"content": content, "output_schema": row["output_schema"]}
+                ),
+            },
+        )
+    result = await env.agents.validate(
+        env.context, version_id, AgentValidateInput(revision=1, purpose="production")
+    )
+    assert not result.valid
+    assert any(i.code == "CAPABILITY_MISMATCH" for c in result.checks for i in c.issues)
+    with pytest.raises(ServiceError, match="原生结构化输出"):
+        await publish(env, detail)
+    # 只读取已有记忆不需要模型生成能力，不应增加冗余发布限制。
+    readonly = definition.model_copy(
+        update={
+            "context": definition.context.model_copy(
+                update={"memory_policy": MemoryPolicy(suggest_enabled=False, write_mode="DISABLED")}
+            )
+        }
+    )
+    await env.agents.edit_version(
+        env.context, version_id, AgentVersionEdit(revision=1, definition=readonly)
+    )
+    assert (
+        await env.agents.validate(env.context, version_id, AgentValidateInput(revision=2))
+    ).valid
+
+
 async def test_shared_route_debug_checks_each_use_and_freezes_one_dependency(agent_env):
     from creativity_service.core.deletion import content_key
     from creativity_service.core.locking import record_key

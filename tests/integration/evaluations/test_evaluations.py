@@ -868,6 +868,10 @@ async def test_channel_scope_and_sensitive_permission_are_independent(evaluation
         ),
     )
     _, reader = await enter(env.iam, session, env.context.scope.channel_id, "prod")
+    available = await env.evaluations.list_evaluations(env.context)
+    assert "create" in {action.action_key for action in available.actions}
+    restricted = await env.evaluations.list_evaluations(reader.context)
+    assert "create" not in {action.action_key for action in restricted.actions}
     view = await env.evaluations.dataset(reader.context, dataset.dataset_id)
     assert view.versions[0].cases[0].payload is None
     report = await env.evaluations.comparison(reader.context, task.evaluation_id)

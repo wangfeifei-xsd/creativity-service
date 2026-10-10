@@ -9,6 +9,7 @@ from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.database import transaction
 from creativity_service.core.deletion import ContentRef, DeletionService
 from creativity_service.core.primitives import RunInput, ServiceError, utcnow
+from creativity_service.modules.agents.repositories import repository as agent_repository
 from creativity_service.modules.data_lifecycle.handlers import ContentHandlers
 from creativity_service.modules.data_lifecycle.services import DataLifecycleService
 from creativity_service.modules.integrations.automation import keys, repo
@@ -19,6 +20,7 @@ from creativity_service.modules.integrations.automation_schemas import (
     Toggle,
 )
 from creativity_service.workers.executor import execute_message
+from tests.integration.agents.test_agents import publish
 from tests.integration.runtime.test_execution import admitted
 
 pytestmark = [
@@ -124,6 +126,41 @@ async def test_schedule_window_restart_pause_and_missed_history(runtime_env):
     )
     await service.fire(current, now + timedelta(hours=3))
     assert len(await service.channel_rows(env.context.scope.channel_id, "automation_items")) == 1
+
+
+async def test_schedule_requires_current_published_agent(runtime_env):
+    env = runtime_env
+    detail = await env.agents.create(env.context, env.body)
+    service = env.runs.automation
+    body = ScheduleCreate(name="发布状态边界", request=request(env), interval_seconds=60)
+    with pytest.raises(ServiceError) as unpublished:
+        await service.create_schedule(env.context, body)
+    assert unpublished.value.code == "AGENT_NOT_RELEASED"
+    assert not (await env.agents.list_agents(env.context, published_only=True)).items
+
+    await publish(env, detail)
+    assert len((await env.agents.list_agents(env.context, published_only=True)).items) == 1
+    row = await service.create_schedule(env.context, body)
+    row = await service.toggle_schedule(
+        env.context, row["id"], Toggle(revision=row["revision"], active=False)
+    )
+    mapping_id = env.agents.mapping_id(env.context, detail.agent.agent_id)
+    async with transaction(
+        env.engine,
+        env.context.scope,
+        env.agents.keys(env.context, detail.agent.agent_id, ("release_mappings", mapping_id)),
+    ) as uow:
+        mappings = agent_repository("release_mappings", env.context.scope)
+        mapping = await mappings.get(uow.connection, mapping_id)
+        assert mapping
+        await mappings.change(uow, mapping_id, mapping["revision"], {"is_deleted": True})
+    with pytest.raises(ServiceError) as removed:
+        await service.toggle_schedule(
+            env.context, row["id"], Toggle(revision=row["revision"], active=True)
+        )
+    assert removed.value.code == "AGENT_NOT_RELEASED"
+    assert not (await env.agents.list_agents(env.context, published_only=True)).items
+    assert (await service.get(env.context, "automation_schedules", row["id"]))["state"] == "PAUSED"
 
 
 async def test_deleted_run_keeps_batch_queryable_and_other_items_cancellable(runtime_env):

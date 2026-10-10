@@ -95,6 +95,21 @@ async def test_alert_trigger_resolve_new_cycle_and_disable(runtime_env, monkeypa
     await alerts.sweep(env.context.scope.channel_id)
     await hooks.sweep(env.context.scope.channel_id)
     assert len(receiver.calls) == 1
+    # 重复观测没有变化时，管理者仍可使用打开编辑器时的版本保存。
+    editing = (await alerts.list(env.context))[0]
+    await alerts.sweep(env.context.scope.channel_id)
+    updated = await alerts.save(
+        env.context,
+        AlertSave(
+            revision=editing["revision"],
+            name="失败提醒（已修改）",
+            kind="run_failure",
+            endpoint_id=endpoint["id"],
+            threshold=1,
+        ),
+        rule["id"],
+    )
+    assert updated["name"] == "失败提醒（已修改）"
     # 更改观测窗口以模拟故障退出时间窗；不伪造新的运行成功事实。
     from sqlalchemy import update
 

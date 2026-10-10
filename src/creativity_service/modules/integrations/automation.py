@@ -12,6 +12,8 @@ from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import RunInput, ServiceError, digest, new_id, utcnow
+from creativity_service.modules.agents.access import locked_require
+from creativity_service.modules.agents.repositories import repository as agent_repository
 from creativity_service.modules.iam.audit import append_event
 from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.iam.repositories import policy_key
@@ -173,6 +175,7 @@ class AutomationService:
         ) as uow:
             await require_management(uow, context, "integration:manage")
             await DeletionGuard(context.scope).check(uow, [])
+            await self.require_scheduled_agent(uow, context, body.request.agent_code)
             row = await add(
                 uow,
                 context,
@@ -191,6 +194,42 @@ class AutomationService:
             await audit_configuration(uow, context, "automation_schedules", identifier, event_id)
         return self.schedule_view(row)
 
+    @staticmethod
+    async def require_scheduled_agent(
+        uow: UnitOfWork, context: AuthContext, agent_code: str
+    ) -> None:
+        """与计划保存共用渠道策略锁，排除未发布、停用和已删除的智能体。"""
+        agents = await agent_repository("agents", context.scope).find(
+            uow.connection, agent_code=agent_code
+        )
+        if len(agents) != 1:
+            raise ServiceError("NOT_FOUND", "智能体不存在", 404)
+        agent = agents[0]
+        await locked_require(uow, context, "run:create", "agent", agent["id"])
+        mapping_id = digest(
+            [context.scope.channel_id, context.scope.environment, "agent", agent["id"]]
+        )
+        state = await agent_repository("agent_environment_states", context.scope).get(
+            uow.connection, mapping_id
+        )
+        if agent["status"] != "ACTIVE" or (state and state["status"] != "ACTIVE"):
+            raise ServiceError("AGENT_DISABLED", "智能体已下线或停用", 403)
+        mapping = await agent_repository("release_mappings", context.scope).get(
+            uow.connection, mapping_id
+        )
+        version = (
+            await agent_repository("resource_versions", context.scope).get(
+                uow.connection, mapping["version_id"]
+            )
+            if mapping
+            else None
+        )
+        if not version or version["state"] != "PUBLISHED":
+            raise ServiceError("AGENT_NOT_RELEASED", "智能体尚未发布到当前环境", 409)
+        await DeletionGuard(context.scope).check(
+            uow, [ContentRef("agent", agent["id"]), ContentRef("version", version["id"])]
+        )
+
     async def toggle_schedule(
         self, context: AuthContext, identifier: str, body: Toggle
     ) -> dict[str, Any]:
@@ -208,6 +247,9 @@ class AutomationService:
             assert row
             values: dict[str, Any] = {"state": "ACTIVE" if body.active else "PAUSED"}
             if body.active:
+                await self.require_scheduled_agent(
+                    uow, context, row["spec"]["request"]["agent_code"]
+                )
                 values["next_at"] = next_window(
                     ScheduleCreate.model_validate(row["spec"]), utcnow()
                 )

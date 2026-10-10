@@ -22582,6 +22582,16 @@
               ],
               "title": "Search"
             }
+          },
+          {
+            "in": "query",
+            "name": "published_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Published Only",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {

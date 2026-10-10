@@ -133,7 +133,13 @@ class MemoryJobs(MemoryKernel):
                     generation_run_id=run_id if run_id and "run:read" in run_allowed else None,
                     created_at=row["created_at"],
                     updated_at=row["updated_at"],
-                    message="请检查运行详情与记忆策略" if row["error_code"] else None,
+                    message=(
+                        "模型不支持后台整理所需的能力，请核对原生结构化输出与模型路由"
+                        if row["error_code"] == "MODEL_CAPABILITY_UNSUPPORTED"
+                        else "请检查运行详情与记忆策略"
+                        if row["error_code"]
+                        else None
+                    ),
                     can_retry=row["state"] == "FAILED" and "memory:write" in permissions,
                 )
             )

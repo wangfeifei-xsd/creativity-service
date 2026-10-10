@@ -288,17 +288,17 @@ class Alerts:
                 ]
             if len(pending) > 100:
                 raise ServiceError("ALERT_BACKLOG_LIMIT", "告警事件积压，请先处理投递端点", 503)
-            current = await self.repo(context).change(
-                uow,
-                row["id"],
-                current["revision"],
-                {
-                    "active": active,
-                    "generation": generation,
-                    "last_value": value,
-                    "pending_events": pending,
-                },
-            )
+            values = {
+                "active": active,
+                "generation": generation,
+                "last_value": value,
+                "pending_events": pending,
+            }
+            # 无变化的周期观测不能推进配置版本，避免编辑期间无故产生版本冲突。
+            if any(current[key] != value for key, value in values.items()):
+                current = await self.repo(context).change(
+                    uow, row["id"], current["revision"], values
+                )
         accepted = True
         for event in current["pending_events"]:
             queued = await self.webhooks.enqueue(

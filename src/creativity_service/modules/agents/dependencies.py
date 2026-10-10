@@ -88,6 +88,15 @@ class DependencyResolver:
         capabilities = {"text"}
         if definition.workflow_type == "tool_loop":
             capabilities.add("tools")
+        memory_policy = definition.context.memory_policy
+        if (
+            definition.context.conversation_enabled
+            and memory_policy
+            and memory_policy.suggest_enabled
+            and memory_policy.write_mode != "DISABLED"
+        ):
+            # 后台归档与画像固定使用原生结构化输出，发布前核验同一模型路由。
+            capabilities.add("structured_output")
         parents = {
             kind: await repository(table, scope).get_many(
                 uow.connection, [row["resource_id"] for row in rows if row["resource_type"] == kind]

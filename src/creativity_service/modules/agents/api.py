@@ -41,9 +41,12 @@ Services = Annotated[AgentService, Depends(service)]
 
 @router.get("/agents", response_model=AgentList)
 async def list_agents(
-    context: Context, service: Services, search: Annotated[str | None, Query(max_length=128)] = None
+    context: Context,
+    service: Services,
+    search: Annotated[str | None, Query(max_length=128)] = None,
+    published_only: bool = False,
 ) -> AgentList:
-    return await service.list_agents(context, search)
+    return await service.list_agents(context, search, published_only=published_only)
 
 
 @router.get("/agents/options", response_model=AgentOptions)
