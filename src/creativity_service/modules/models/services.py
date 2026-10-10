@@ -12,6 +12,7 @@ from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import AuthContext, ControlAuthContext, ControlScope
 from creativity_service.core.contracts import ResourceVersion, VisibleAction
 from creativity_service.core.database import UnitOfWork, transaction, validate_row
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.name_codes import name_code
@@ -147,7 +148,9 @@ class ModelService:
             return [
                 dict(row)
                 for row in (
-                    await connection.execute(select(table).where(table.c.channel_id == "system"))
+                    await connection.execute(
+                        active_rows(select(table).where(table.c.channel_id == "system"))
+                    )
                 ).mappings()
             ]
 
@@ -207,14 +210,19 @@ class ModelService:
             current = (
                 (
                     await uow.connection.execute(
-                        select(table).where(
-                            table.c.channel_id == "system", table.c.id == identifier
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == "system", table.c.id == identifier
+                            ),
+                            include_deleted=True,
                         )
                     )
                 )
                 .mappings()
                 .one_or_none()
             )
+            if current and current["is_deleted"]:
+                raise ServiceError("NOT_FOUND", "供应商已删除，不能复用原标识", 404)
             if (current is None and body.revision is not None) or (
                 current is not None and current["revision"] != body.revision
             ):
@@ -226,6 +234,7 @@ class ModelService:
                     409,
                 )
             row = {
+                "is_deleted": False,
                 **body.model_dump(exclude={"revision", "id", "code"}),
                 "name": name,
                 "code": current["code"] if current else code,

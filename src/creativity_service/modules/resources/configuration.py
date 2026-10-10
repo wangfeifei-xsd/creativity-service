@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.context import Scope
 from creativity_service.core.database import Repository, UnitOfWork
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata
 from creativity_service.core.database.types import json_array_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
@@ -78,8 +79,10 @@ def reference_statement(scope: Scope, identifiers: list[str]) -> Any:
 
     parents = union_all(
         *[
-            select(table.c.id, table.c.name, table.c.status, literal(kind).label("kind")).where(
-                table.c.channel_id == scope.channel_id, table.c.status != "DELETED"
+            active_rows(
+                select(table.c.id, table.c.name, table.c.status, literal(kind).label("kind")).where(
+                    table.c.channel_id == scope.channel_id, table.c.is_deleted.is_(False)
+                )
             )
             for kind in TABLES
             for table in [repository(TABLES[kind], scope).table]
@@ -91,10 +94,12 @@ def reference_statement(scope: Scope, identifiers: list[str]) -> Any:
         or_(
             versions.c.state == "DRAFT",
             exists(
-                select(mappings.c.id).where(
-                    mappings.c.channel_id == scope.channel_id,
-                    mappings.c.resource_type == "agent",
-                    mappings.c.version_id == versions.c.id,
+                active_rows(
+                    select(mappings.c.id).where(
+                        mappings.c.channel_id == scope.channel_id,
+                        mappings.c.resource_type == "agent",
+                        mappings.c.version_id == versions.c.id,
+                    )
                 )
             ),
         ),
@@ -102,7 +107,7 @@ def reference_statement(scope: Scope, identifiers: list[str]) -> Any:
     current_resource = and_(
         versions.c.resource_type.in_(KINDS), versions.c.id == versions.c.resource_id
     )
-    return (
+    return active_rows(
         select(versions.c.resource_type, versions.c.resource_id, targets.c.value.label("target_id"))
         .select_from(
             versions.join(targets, true()).join(
@@ -149,10 +154,12 @@ async def require_edit(uow: UnitOfWork, context: Any, kind: str, identifier: str
     mappings = metadata.tables["release_mappings"]
     environments = set(
         await uow.connection.scalars(
-            select(mappings.c.environment).where(
-                mappings.c.channel_id == context.scope.channel_id,
-                mappings.c.resource_type == kind,
-                mappings.c.resource_id == identifier,
+            active_rows(
+                select(mappings.c.environment).where(
+                    mappings.c.channel_id == context.scope.channel_id,
+                    mappings.c.resource_type == kind,
+                    mappings.c.resource_id == identifier,
+                )
             )
         )
     )

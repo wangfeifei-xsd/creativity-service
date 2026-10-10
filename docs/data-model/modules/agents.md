@@ -1,6 +1,6 @@
 # 智能体定义模型
 
-模型版本 2.0.0；负责方案 16；需求 [06-Agent与流程管理.md](../../../../需求文档/06-Agent与流程管理.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 16；需求 [06-Agent与流程管理.md](../../../../需求文档/06-Agent与流程管理.md)。总索引见 [README](../README.md)。
 
 ## agents
 
@@ -18,6 +18,7 @@
 | `description` | `longtext` | 用途说明 | 是 | 服务层校验后的业务输入 | 内部 |
 | `owner` | `varchar(128)` | 负责人标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `status` | `varchar(32)` | 启用状态 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, agent_code)`。
 
@@ -37,6 +38,7 @@
 | `scenario` | `varchar(64)` | 场景类型 | 是 | 服务层校验后的业务输入 | 内部 |
 | `content` | `json` | 无凭据可复制模板内容 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `version` | `varchar(64)` | 模板版本 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, code)`。
 
@@ -64,6 +66,7 @@
 | `dependencies_digest` | `varchar(64)` | 完整依赖摘要 | 是 | 服务层校验后的业务输入 | 内部 |
 | `candidate_digest` | `varchar(64)` | 候选组合摘要 | 是 | 服务层校验后的业务输入 | 内部 |
 | `spec` | `json` | 不可变执行定义 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, agent_id, created_at)`。
 
@@ -92,6 +95,7 @@
 | `dependencies_digest` | `varchar(64)` | 完整依赖摘要 | 是 | 服务层校验后的业务输入 | 内部 |
 | `evidence_refs` | `json` | 评测报告引用 | 是 | 服务层校验后的业务输入 | 内部 |
 | `checks` | `json` | 发布检查证据 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, agent_id, created_at)`。
 
@@ -110,6 +114,7 @@
 | `agent_id` | `varchar(64)` | 智能体标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `status` | `varchar(32)` | 当前环境启用状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `reason` | `varchar(1024)` | 状态变更原因 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, agent_id)`。
 

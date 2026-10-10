@@ -160,9 +160,12 @@ async def test_deleted_run_keeps_batch_queryable_and_other_items_cancellable(run
         if await lifecycle.sweep(env.context.scope.channel_id, 100) == 0:
             break
     async with env.engine.connect() as db:
-        cleaned = await repo(env.context.scope, "automation_items").get(db, deleted.item_id)
+        assert await repo(env.context.scope, "automation_items").get(db, deleted.item_id) is None
+        cleaned = await repo(env.context.scope, "automation_items", include_deleted=True).get(
+            db, deleted.item_id
+        )
         assert cleaned["state"] == "DELETED" and cleaned["request"] == {}
     assert (await service.batch(env.context, batch.batch_id)).items[0].state == "DELETED"
     with pytest.raises(ServiceError) as denied:
         await service.retry_item(env.context, deleted.item_id, cleaned["revision"])
-    assert denied.value.code == "CONTENT_DELETED"
+    assert denied.value.status == 404

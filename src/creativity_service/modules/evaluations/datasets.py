@@ -8,6 +8,7 @@ from sqlalchemy import select
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.database import Repository, UnitOfWork, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
@@ -193,9 +194,11 @@ class DatasetService:
                 dict(r)
                 for r in (
                     await uow.connection.execute(
-                        select(table).where(
-                            table.c.channel_id == context.scope.channel_id,
-                            table.c.id.in_(identifiers),
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == context.scope.channel_id,
+                                table.c.id.in_(identifiers),
+                            )
                         )
                     )
                 ).mappings()
@@ -320,8 +323,11 @@ class DatasetService:
                 dict(row)
                 for row in (
                     await uow.connection.execute(
-                        select(runs).where(
-                            runs.c.channel_id == context.scope.channel_id, runs.c.id.in_(run_ids)
+                        active_rows(
+                            select(runs).where(
+                                runs.c.channel_id == context.scope.channel_id,
+                                runs.c.id.in_(run_ids),
+                            )
                         )
                     )
                 ).mappings()

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import Repository
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.modules.agents.repositories import RESOURCE_TABLES, repository
 from creativity_service.modules.tools.schemas import ToolImpact, ToolReference
@@ -74,14 +75,16 @@ class ToolReadData:
             calls = metadata.tables["tool_calls"]
             for start in range(0, len(identifiers), 500):
                 result = await connection.execute(
-                    select(calls.c.tool_id, func.count().label("count"))
-                    .where(
-                        calls.c.channel_id == context.scope.channel_id,
-                        calls.c.environment == context.scope.environment,
-                        calls.c.tool_id.in_(identifiers[start : start + 500]),
-                        calls.c.state == "STARTED",
+                    active_rows(
+                        select(calls.c.tool_id, func.count().label("count"))
+                        .where(
+                            calls.c.channel_id == context.scope.channel_id,
+                            calls.c.environment == context.scope.environment,
+                            calls.c.tool_id.in_(identifiers[start : start + 500]),
+                            calls.c.state == "STARTED",
+                        )
+                        .group_by(calls.c.tool_id)
                     )
-                    .group_by(calls.c.tool_id)
                 )
                 counts.update({r["tool_id"]: r["count"] for r in result.mappings()})
         return cls(

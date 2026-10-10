@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from creativity_service.core.context import AuthContext, Authorization, Scope
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.database import Repository, UnitOfWork, scope_values, validate_row
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
@@ -66,7 +67,12 @@ class MemoryKernel:
         raise ServiceError("NOT_FOUND", "记忆记录不存在", 404)
 
     async def locate(
-        self, context: AuthContext, anchor_id: str, *, conversation: bool = False
+        self,
+        context: AuthContext,
+        anchor_id: str,
+        *,
+        conversation: bool = False,
+        include_deleted: bool = False,
     ) -> AuthContext:
         tables = [metadata.tables["memories"]]
         if conversation:
@@ -76,9 +82,12 @@ class MemoryKernel:
                 rows = (
                     (
                         await connection.execute(
-                            select(table).where(
-                                table.c.channel_id == context.scope.channel_id,
-                                table.c.id == anchor_id,
+                            active_rows(
+                                select(table).where(
+                                    table.c.channel_id == context.scope.channel_id,
+                                    table.c.id == anchor_id,
+                                ),
+                                include_deleted=include_deleted,
                             )
                         )
                     )
@@ -307,6 +316,7 @@ class MemoryKernel:
         if await Repository(table, context.scope).get(uow.connection, link_id):
             return
         row = {
+            "is_deleted": False,
             **scope_values(table, context.scope),
             "id": link_id,
             "created_at": utcnow(),
@@ -392,6 +402,7 @@ class MemoryKernel:
             marker_id = digest([context.scope.model_dump(), "memory", row["id"]])
             if not await Repository(markers, context.scope).get(uow.connection, marker_id):
                 marker = {
+                    "is_deleted": False,
                     **scope_values(markers, context.scope),
                     "id": marker_id,
                     "created_at": utcnow(),
@@ -414,6 +425,7 @@ class MemoryKernel:
                     context,
                     row,
                     "SOURCE_REVOKED",
+                    is_deleted=True,
                     status="REVOKED",
                     value=None,
                     subject_name=None,
@@ -489,11 +501,12 @@ class MemoryKernel:
 
         policy = await read_policy(self.authorization, context)
         async with self.engine.connect() as connection:
+            source_filters: dict[str, Any] = {"memory_id": memory_id} if memory_id else {}
             sources = await repo.rows(
                 connection,
                 "memory_sources",
                 context.scope,
-                **({"memory_id": memory_id} if memory_id else {}),
+                **source_filters,
                 status="ACTIVE",
             )
             messages = await Repository(conversations.tables["messages"], context.scope).get_many(

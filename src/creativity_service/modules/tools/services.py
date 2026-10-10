@@ -246,7 +246,7 @@ class ToolService:
         agents: dict[str, ToolReference] = {}
         visible = []
         for row in await self.repository.rows(context, "tools"):
-            if row["status"] == "DELETED":
+            if row["is_deleted"]:
                 continue
             if (
                 source_type
@@ -291,7 +291,7 @@ class ToolService:
         scope = context.scope
         async with transaction(self.engine, scope, [content_key(scope)]) as uow:
             row = await Repository(metadata.tables["tools"], scope).get(uow.connection, tool_id)
-            if row is None or row["status"] == "DELETED":
+            if row is None or row["is_deleted"]:
                 raise ServiceError("NOT_FOUND", "工具不存在", 404)
             permissions = policy.actions("tool", tool_id, resource_state(context, "tool", row))
             require_action(permissions, "tool:manage")

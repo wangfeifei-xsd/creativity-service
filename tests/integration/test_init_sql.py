@@ -84,7 +84,7 @@ def test_mysql_archive_preserves_configuration_and_indexes_inside_create_table(i
         assert conn.exec_driver_sql("SELECT count(*) FROM transaction_lock_slots").scalar() == 12288
         assert (
             conn.exec_driver_sql("SELECT version_num FROM creativity_alembic_version").scalar()
-            == "0048_mysql_milvus"
+            == "0049_soft_delete"
         )
         for name, rows in archived.items():
             table = metadata.tables[name]
@@ -169,3 +169,91 @@ def test_baseline_upgrade_preserves_memory_and_explicit_or_implicit_policy(isola
         row = conn.execute(select(policies)).mappings().one()
         assert row["max_items"] == 25 and row["attributes"] == [{"key": "custom_attribute"}]
         assert row["consolidation"] == {"enabled": True}
+
+
+def test_soft_delete_upgrade_backfills_legacy_rows_and_preserves_existing_markers(
+    isolated_database,
+):
+    env = isolated_database
+    config = Config("alembic.ini")
+    with env.engine.connect() as conn:
+        config.attributes["connection"] = conn
+        command.upgrade(config, "0048_mysql_milvus")
+        conn.exec_driver_sql(
+            "INSERT INTO prompts (id, channel_id, status) "
+            "VALUES ('gone', 'a', 'DELETED'), ('disabled', 'a', 'DISABLED'), "
+            "('existing', 'a', 'ACTIVE')"
+        )
+        conn.exec_driver_sql(
+            "INSERT INTO conversations (id, channel_id, status) "
+            "VALUES ('pending', 'a', 'DELETING'), ('archived', 'a', 'ARCHIVED')"
+        )
+        conn.exec_driver_sql(
+            "INSERT INTO memories (id, channel_id, environment, subject_id, subject_type, status) "
+            "VALUES ('forgotten', 'a', 'dev', 's', 'user', 'REVOKED'), "
+            "('revoked', 'a', 'dev', 's', 'user', 'REVOKED'), "
+            "('forgotten', 'b', 'dev', 's', 'user', 'ACTIVE')"
+        )
+        conn.exec_driver_sql(
+            "INSERT INTO deletion_markers "
+            "(id, channel_id, environment, subject_id, subject_type, target_type, target_id) "
+            "VALUES ('marker', 'a', 'dev', 's', 'user', 'memory', 'forgotten')"
+        )
+        conn.exec_driver_sql(
+            "INSERT INTO channel_memberships (id, channel_id, user_id, status, updated_at) "
+            "VALUES ('removed', 'a', 'removed-user', 'DISABLED', '2026-10-01'), "
+            "('disabled', 'a', 'disabled-user', 'DISABLED', '2026-10-01'), "
+            "('readded', 'a', 'readded-user', 'DISABLED', '2026-10-03')"
+        )
+        conn.exec_driver_sql(
+            "INSERT INTO resource_grants (id, channel_id, allowed_actions, updated_at) "
+            "VALUES ('revoked', 'a', '[]', '2026-10-01'), "
+            "('empty', 'a', '[]', '2026-10-01')"
+        )
+        conn.exec_driver_sql(
+            "INSERT INTO audit_events "
+            "(id, channel_id, target_type, target_id, action, outcome, created_at) "
+            "VALUES ('1', 'a', 'account', 'removed-user', 'membership:remove', "
+            "'SUCCEEDED', '2026-10-02'), "
+            "('2', 'a', 'account', 'readded-user', 'membership:remove', "
+            "'SUCCEEDED', '2026-10-02'), "
+            "('3', 'a', 'resource_grant', 'revoked', 'grant:revoke', "
+            "'SUCCEEDED', '2026-10-02')"
+        )
+        # 模拟已有库的版本表和 DDL 执行中断，不依赖新模型替代冻结迁移。
+        conn.exec_driver_sql("ALTER TABLE creativity_alembic_version DROP COLUMN is_deleted")
+        conn.exec_driver_sql(
+            "ALTER TABLE prompts ADD COLUMN is_deleted BOOL COMMENT '是否已逻辑删除'"
+        )
+        conn.exec_driver_sql("UPDATE prompts SET is_deleted=true WHERE id='existing'")
+        conn.commit()
+        command.upgrade(config, "head")
+        command.upgrade(config, "head")
+        assert dict(conn.exec_driver_sql("SELECT id, is_deleted FROM prompts").all()) == {
+            "gone": 1,
+            "disabled": 0,
+            "existing": 1,
+        }
+        assert dict(conn.exec_driver_sql("SELECT id, is_deleted FROM conversations").all()) == {
+            "pending": 1,
+            "archived": 0,
+        }
+        assert set(conn.exec_driver_sql("SELECT channel_id, id, is_deleted FROM memories")) == {
+            ("a", "forgotten", 1),
+            ("a", "revoked", 0),
+            ("b", "forgotten", 0),
+        }
+        assert dict(
+            conn.exec_driver_sql("SELECT id, is_deleted FROM channel_memberships").all()
+        ) == {
+            "removed": 1,
+            "disabled": 0,
+            "readded": 0,
+        }
+        assert dict(conn.exec_driver_sql("SELECT id, is_deleted FROM resource_grants").all()) == {
+            "revoked": 1,
+            "empty": 0,
+        }
+        assert audit_database(conn, env.name) == []
+        with pytest.raises(RuntimeError, match="存在逻辑删除记录"):
+            command.downgrade(config, "0048_mysql_milvus")

@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import ToolResult
 from creativity_service.core.database import Repository, UnitOfWork, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.core.security.keys import scoped_key
@@ -280,10 +281,12 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
                 refs: list[MemoryRef] = []
                 if policy.read_enabled and (await self.preference(uow, context, [])).enabled:
                     table = metadata.tables["memories"]
-                    statement = select(table).where(
-                        Repository(table, context.scope).predicate(),
-                        table.c.status == "ACTIVE",
-                        table.c.key.not_in(current_keys),
+                    statement = active_rows(
+                        select(table).where(
+                            Repository(table, context.scope).predicate(),
+                            table.c.status == "ACTIVE",
+                            table.c.key.not_in(current_keys),
+                        )
                     )
                     if keys:
                         statement = statement.where(table.c.key.in_(keys))
@@ -487,19 +490,20 @@ class MemoryRuntime(MemoryWrites, MemoryQueries):
         """批量复核重新开启与遗忘水位，仅查询最新屏障，不展开历史删除任务。"""
         preference = await repo.one(uow.connection, "memory_preferences", context.scope)
         jobs, memories = metadata.tables["memory_deletion_jobs"], metadata.tables["memories"]
-        matching_key = (
-            select(memories.c.id)
-            .where(
+        matching_key = active_rows(
+            select(memories.c.id).where(
                 Repository(memories, context.scope).predicate(),
                 memories.c.key == key,
                 func.json_contains(jobs.c.memory_ids, func.json_quote(memories.c.id)) == 1,
-            )
-            .exists()
-        )
+            ),
+            include_deleted=True,
+        ).exists()
         cutoff = await uow.connection.scalar(
-            select(func.max(jobs.c.created_at)).where(
-                Repository(jobs, context.scope).predicate(),
-                or_(jobs.c.kind == "CLEAR", matching_key),
+            active_rows(
+                select(func.max(jobs.c.created_at)).where(
+                    Repository(jobs, context.scope).predicate(),
+                    or_(jobs.c.kind == "CLEAR", matching_key),
+                )
             )
         )
         if preference:

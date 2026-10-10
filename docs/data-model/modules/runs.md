@@ -1,6 +1,6 @@
 # 运行受理与编排模型
 
-模型版本 2.0.0；负责方案 11/17；需求 [12-执行记录与任务运行.md](../../../../需求文档/12-执行记录与任务运行.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 11/17；需求 [12-执行记录与任务运行.md](../../../../需求文档/12-执行记录与任务运行.md)。总索引见 [README](../README.md)。
 
 ## runs
 
@@ -42,6 +42,7 @@
 | `event_sequence` | `bigint` | 最后事件序号 | 是 | 受信服务校验与事务写入 | 内部 |
 | `resources_released` | `boolean` | 终态占用已释放 | 是 | 受信服务校验与事务写入 | 内部 |
 | `recovery_count` | `integer` | 租约失效恢复次数 | 是 | 受信服务校验与事务写入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, state, created_at)`。
 
@@ -68,6 +69,7 @@
 | `identity_type` | `varchar(32)` | 稳定身份来源类型 | 是 | 受信服务校验与事务写入 | 内部 |
 | `identity_id` | `varchar(128)` | 稳定调用服务或管理操作者 | 是 | 受信服务校验与事务写入 | 内部 |
 | `scope_digest` | `varchar(64)` | 幂等范围摘要 | 是 | 受信服务校验与事务写入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id, client_id, agent_id, key)`；`(channel_id, scope_digest, key)`。
 
@@ -89,6 +91,7 @@
 | `next_attempt_at` | `datetime(6) UTC` | 下次补偿时间 | 是 | 服务层校验后的业务输入 | 内部 |
 | `last_error` | `varchar(64)` | 脱敏错误类别 | 否 | 服务层校验后的业务输入 | 内部 |
 | `delivery_version` | `bigint` | 本次投递声明代次 | 是 | 受信服务校验与事务写入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, state, next_attempt_at)`。
 
@@ -115,6 +118,7 @@
 | `sequence` | `bigint` | 步骤顺序 | 是 | 服务层校验后的业务输入 | 内部 |
 | `attempt_count` | `integer` | 实际尝试累计次数 | 是 | 受信服务校验与事务写入 | 内部 |
 | `lease_version` | `bigint` | 最近有效提交租约代次 | 是 | 受信服务校验与事务写入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id, sequence)`。
 
@@ -146,6 +150,7 @@
 | `lease_version` | `bigint` | 调用所属租约代次 | 是 | 受信服务校验与事务写入 | 内部 |
 | `sent_at` | `datetime(6) UTC` | 外部发送意图登记时间 | 否 | 受信服务校验与事务写入 | 内部 |
 | `retryable` | `boolean` | 明确失败是否允许有限重试 | 是 | 受信服务校验与事务写入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id)`；`(channel_id, step_id, created_at)`。
 
@@ -168,6 +173,7 @@
 | `event_type` | `varchar(64)` | 事件类别 | 是 | 服务层校验后的业务输入 | 内部 |
 | `payload_ref` | `varchar(64)` | 事件内容引用 | 否 | 服务层校验后的业务输入 | 内部 |
 | `expires_at` | `datetime(6) UTC` | 事件失效时间 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id, sequence)`。
 
@@ -188,6 +194,7 @@
 | `lease_version` | `bigint` | 租约代次 | 是 | 服务层校验后的业务输入 | 内部 |
 | `heartbeat_at` | `datetime(6) UTC` | 最近续租时间 | 是 | 服务层校验后的业务输入 | 内部 |
 | `expires_at` | `datetime(6) UTC` | 租约到期时间 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id)`。
 
@@ -213,6 +220,7 @@
 | `release_snapshot_id` | `varchar(64)` | 固定依赖快照 | 是 | 服务层校验后的业务输入 | 内部 |
 | `state_ref` | `varchar(64)` | 状态内容引用 | 是 | 服务层校验后的业务输入 | 内部 |
 | `metadata` | `json` | 无原文恢复元数据 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id, namespace, checkpoint_key)`。
 
@@ -234,6 +242,7 @@
 | `task_id` | `varchar(128)` | 节点任务标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `sequence` | `bigint` | 节点写入序号 | 是 | 服务层校验后的业务输入 | 内部 |
 | `payload_ref` | `varchar(64)` | 写入内容引用 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, checkpoint_id, task_id, sequence)`。
 
@@ -254,6 +263,7 @@
 | `run_id` | `varchar(64)` | 所属运行 | 是 | 受信服务校验与事务写入 | 内部 |
 | `kind` | `varchar(32)` | 内容用途 | 是 | 受信服务校验与事务写入 | 内部 |
 | `payload` | `json` | 受控内容正文 | 否 | 受信服务校验与事务写入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id)`。
 
@@ -275,6 +285,7 @@
 | `lease_version` | `bigint` | 失效租约代次 | 是 | 受信服务校验与事务写入 | 内部 |
 | `decision` | `varchar(32)` | 恢复判断结果 | 是 | 受信服务校验与事务写入 | 内部 |
 | `reason` | `varchar(64)` | 脱敏原因类别 | 是 | 受信服务校验与事务写入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id, lease_version)`。
 
@@ -295,5 +306,6 @@
 | `conversation_id` | `varchar(64)` | 占用会话 | 是 | 受信服务校验与事务写入 | 内部 |
 | `run_id` | `varchar(64)` | 占用运行 | 是 | 受信服务校验与事务写入 | 内部 |
 | `state` | `varchar(32)` | 占用状态 | 是 | 受信服务校验与事务写入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, conversation_id)`。

@@ -8,6 +8,7 @@ from sqlalchemy import and_, select
 from creativity_service.core.auth.types import GrantState, MembershipState, ServiceIdentity
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.locking import read_key
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.integrations.business.delegation import DelegationClaims
@@ -195,11 +196,13 @@ async def identity_rows(uow: UnitOfWork, context: AuthContext) -> dict[str, dict
     found = (
         (
             await uow.connection.execute(
-                select(*tables)
-                .select_from(joined)
-                .where(
-                    channel.c.channel_id == scope.channel_id,
-                    channel.c.id == scope.channel_id,
+                active_rows(
+                    select(*tables)
+                    .select_from(joined)
+                    .where(
+                        channel.c.channel_id == scope.channel_id,
+                        channel.c.id == scope.channel_id,
+                    )
                 )
             )
         )

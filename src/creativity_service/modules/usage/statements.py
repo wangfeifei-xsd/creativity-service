@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import (
@@ -157,10 +158,12 @@ class Statements:
             rows = (
                 (
                     await connection.execute(
-                        select(table)
-                        .where(repo.predicate(), table.c.owner_key == owner(context))
-                        .order_by(table.c.created_at.desc(), table.c.id.desc())
-                        .limit(100)
+                        active_rows(
+                            select(table)
+                            .where(repo.predicate(), table.c.owner_key == owner(context))
+                            .order_by(table.c.created_at.desc(), table.c.id.desc())
+                            .limit(100)
+                        )
                     )
                 )
                 .mappings()
@@ -204,23 +207,25 @@ class Statements:
                 dict(r)
                 for r in (
                     await uow.connection.execute(
-                        select(table)
-                        .where(
-                            table.c.channel_id == context.scope.channel_id,
-                            table.c.environment == context.scope.environment,
-                            *(
-                                [
-                                    table.c.subject_type == context.scope.subject_type,
-                                    table.c.subject_id == context.scope.subject_id,
-                                ]
-                                if context.scope.subject_id
-                                else []
-                            ),
-                            table.c.connection_id == statement["connection_id"],
-                            table.c.sent_at >= statement["start_at"],
-                            table.c.sent_at < statement["end_at"],
+                        active_rows(
+                            select(table)
+                            .where(
+                                table.c.channel_id == context.scope.channel_id,
+                                table.c.environment == context.scope.environment,
+                                *(
+                                    [
+                                        table.c.subject_type == context.scope.subject_type,
+                                        table.c.subject_id == context.scope.subject_id,
+                                    ]
+                                    if context.scope.subject_id
+                                    else []
+                                ),
+                                table.c.connection_id == statement["connection_id"],
+                                table.c.sent_at >= statement["start_at"],
+                                table.c.sent_at < statement["end_at"],
+                            )
+                            .limit(10001)
                         )
-                        .limit(10001)
                     )
                 ).mappings()
                 if visible(dict(r), scopes)

@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.primitives import (
     Contract,
@@ -105,7 +106,7 @@ class Alerts:
                 else "正常",
             }
             for row in rows
-            if row["state"] != "DELETED"
+            if not row["is_deleted"]
         ]
 
     async def save(
@@ -197,7 +198,9 @@ class Alerts:
         async with self.engine.connect() as connection:
             rows = [
                 dict(v)
-                for v in (await connection.execute(select(table).where(*conditions))).mappings()
+                for v in (
+                    await connection.execute(active_rows(select(table).where(*conditions)))
+                ).mappings()
             ]
         if name == "runs":
             count = 0
@@ -221,7 +224,9 @@ class Alerts:
                 dict(r)
                 for r in (
                     await connection.execute(
-                        select(table).where(table.c.channel_id == context.scope.channel_id)
+                        active_rows(
+                            select(table).where(table.c.channel_id == context.scope.channel_id)
+                        )
                     )
                 ).mappings()
             ]
@@ -328,8 +333,10 @@ class Alerts:
                 dict(r)
                 for r in (
                     await connection.execute(
-                        select(table).where(
-                            table.c.channel_id == channel_id, table.c.state == "ACTIVE"
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == channel_id, table.c.state == "ACTIVE"
+                            )
                         )
                     )
                 ).mappings()

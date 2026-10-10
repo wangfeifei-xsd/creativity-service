@@ -215,7 +215,7 @@ class ArtifactService:
         if ref.resource_type != "artifact":
             raise ValueError("文件清理只接受文件引用")
         scope = context.scope
-        repo = Repository(metadata.tables["artifacts"], scope)
+        repo = Repository(metadata.tables["artifacts"], scope, include_deleted=True)
         keys = [content_key(scope), record_key(scope.channel_id, "artifacts", ref.resource_id)]
         async with transaction(self.engine, scope, keys) as uow:
             row = await repo.get(uow.connection, ref.resource_id)
@@ -236,7 +236,9 @@ class ArtifactService:
                 else:
                     raise ServiceError("DELETION_MARKER_REQUIRED", "清理前必须登记删除标记")
             if row["state"] != "DELETING":
-                row = await repo.change(uow, row["id"], row["revision"], {"state": "DELETING"})
+                row = await repo.change(
+                    uow, row["id"], row["revision"], {"state": "DELETING", "is_deleted": True}
+                )
         await self.store.delete(row["object_key"])
         async with transaction(self.engine, scope, keys) as uow:
             current = await repo.get(uow.connection, ref.resource_id)
@@ -245,13 +247,13 @@ class ArtifactService:
                     uow,
                     current["id"],
                     current["revision"],
-                    {"state": "DELETED", "name": "已删除文件"},
+                    {"is_deleted": True, "state": "DELETED", "name": "已删除文件"},
                 )
 
     async def cleanup_orphans(self, context: AuthContext) -> int:
         assert_external_io_allowed()
         await self.authorization.require(context, "artifact:cleanup", "scope")
-        repo = Repository(metadata.tables["artifacts"], context.scope)
+        repo = Repository(metadata.tables["artifacts"], context.scope, include_deleted=True)
         async with self.engine.connect() as connection:
             rows = await repo.find(connection)
         cleaned = 0

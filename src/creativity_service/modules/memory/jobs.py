@@ -4,6 +4,7 @@ from sqlalchemy import select
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.modules.conversations.tables import metadata as conversations
 from creativity_service.modules.iam.reading import (
@@ -49,10 +50,12 @@ class MemoryJobs(MemoryKernel):
                 dict(v)
                 for v in (
                     await connection.execute(
-                        select(table)
-                        .where(*(table.c[k] == v for k, v in scope.items()))
-                        .order_by(table.c.created_at.desc())
-                        .limit(100)
+                        active_rows(
+                            select(table)
+                            .where(*(table.c[k] == v for k, v in scope.items()))
+                            .order_by(table.c.created_at.desc())
+                            .limit(100)
+                        )
                     )
                 ).mappings()
             ]
@@ -144,8 +147,11 @@ class MemoryJobs(MemoryKernel):
             row = (
                 (
                     await connection.execute(
-                        select(table).where(
-                            table.c.channel_id == context.scope.channel_id, table.c.id == identifier
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == context.scope.channel_id,
+                                table.c.id == identifier,
+                            )
                         )
                     )
                 )

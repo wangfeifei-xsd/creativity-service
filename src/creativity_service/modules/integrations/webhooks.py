@@ -11,6 +11,7 @@ from sqlalchemy import or_, select, tuple_
 
 from creativity_service.core.context import AuthContext, TaskEnvelope
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.primitives import ServiceError, canonical_json, digest, new_id, utcnow
 from creativity_service.core.security.credentials import CredentialService, KeyProvider
@@ -88,7 +89,7 @@ class WebhookService:
             values = await repo(context.scope, "webhook_endpoints").find(
                 connection, owner_key=owner(context)
             )
-        return [self.endpoint_view(r) for r in values if r["state"] != "DELETED"]
+        return [self.endpoint_view(r) for r in values if not r["is_deleted"]]
 
     async def create(self, context: AuthContext, body: WebhookCreate) -> dict[str, Any]:
         await self.automation.manage(context)
@@ -163,14 +164,16 @@ class WebhookService:
                 dict(row)
                 for row in (
                     await connection.execute(
-                        select(table)
-                        .where(
-                            repo(context.scope, "webhook_deliveries").predicate(),
-                            table.c.owner_key == owner(context),
-                            table.c.state != "DELETED",
+                        active_rows(
+                            select(table)
+                            .where(
+                                repo(context.scope, "webhook_deliveries").predicate(),
+                                table.c.owner_key == owner(context),
+                                table.c.is_deleted.is_(False),
+                            )
+                            .order_by(table.c.created_at.desc(), table.c.id)
+                            .limit(500)
                         )
-                        .order_by(table.c.created_at.desc(), table.c.id)
-                        .limit(500)
                     )
                 ).mappings()
             ]
@@ -307,23 +310,23 @@ class WebhookService:
         context = AuthContext.model_validate(endpoint["identity"])
         await self.automation.manage(context)
         table, deliveries = runs_metadata.tables["runs"], metadata.tables["webhook_deliveries"]
-        existing = (
-            select(deliveries.c.id)
-            .where(
+        existing = active_rows(
+            select(deliveries.c.id).where(
                 repo(context.scope, "webhook_deliveries").predicate(),
                 deliveries.c.endpoint_id == endpoint["id"],
                 deliveries.c.kind == "run.terminal",
                 deliveries.c.payload["run_id"].as_string() == table.c.id,
             )
-            .exists()
-        )
+        ).exists()
         after = None
         while True:
-            statement = select(table).where(
-                self.subscriptions.predicate(context, endpoint["client_ids"]),
-                table.c.state.in_(TERMINAL),
-                table.c.updated_at >= endpoint["created_at"],
-                ~existing,
+            statement = active_rows(
+                select(table).where(
+                    self.subscriptions.predicate(context, endpoint["client_ids"]),
+                    table.c.state.in_(TERMINAL),
+                    table.c.updated_at >= endpoint["created_at"],
+                    ~existing,
+                )
             )
             if after is not None:
                 statement = statement.where(tuple_(table.c.updated_at, table.c.id) > after)
@@ -393,10 +396,12 @@ class WebhookService:
                 dict(row)
                 for row in (
                     await uow.connection.execute(
-                        select(table).where(
-                            self.subscriptions.predicate(context, actual["client_ids"]),
-                            table.c.id.in_(events),
-                            table.c.state.in_(TERMINAL),
+                        active_rows(
+                            select(table).where(
+                                self.subscriptions.predicate(context, actual["client_ids"]),
+                                table.c.id.in_(events),
+                                table.c.state.in_(TERMINAL),
+                            )
                         )
                     )
                 ).mappings()
@@ -595,15 +600,17 @@ class WebhookService:
                     dict(row)
                     for row in (
                         await connection.execute(
-                            select(endpoints)
-                            .where(
-                                endpoints.c.channel_id == channel_id,
-                                endpoints.c.state == "ACTIVE",
-                                endpoints.c.events.contains(["run.terminal"]),
-                                endpoints.c.id > after,
+                            active_rows(
+                                select(endpoints)
+                                .where(
+                                    endpoints.c.channel_id == channel_id,
+                                    endpoints.c.state == "ACTIVE",
+                                    endpoints.c.events.contains(["run.terminal"]),
+                                    endpoints.c.id > after,
+                                )
+                                .order_by(endpoints.c.id)
+                                .limit(100)
                             )
-                            .order_by(endpoints.c.id)
-                            .limit(100)
                         )
                     ).mappings()
                 ]
@@ -623,19 +630,21 @@ class WebhookService:
                     dict(row)
                     for row in (
                         await connection.execute(
-                            select(deliveries)
-                            .where(
-                                deliveries.c.channel_id == channel_id,
-                                deliveries.c.state.in_(["PENDING", "RETRY", "SENDING"]),
-                                deliveries.c.next_at <= now,
-                                or_(
-                                    deliveries.c.lease_until.is_(None),
-                                    deliveries.c.lease_until <= now,
-                                ),
-                                deliveries.c.id > after,
+                            active_rows(
+                                select(deliveries)
+                                .where(
+                                    deliveries.c.channel_id == channel_id,
+                                    deliveries.c.state.in_(["PENDING", "RETRY", "SENDING"]),
+                                    deliveries.c.next_at <= now,
+                                    or_(
+                                        deliveries.c.lease_until.is_(None),
+                                        deliveries.c.lease_until <= now,
+                                    ),
+                                    deliveries.c.id > after,
+                                )
+                                .order_by(deliveries.c.id)
+                                .limit(100)
                             )
-                            .order_by(deliveries.c.id)
-                            .limit(100)
                         )
                     ).mappings()
                 ]
@@ -644,9 +653,11 @@ class WebhookService:
                         r["id"]: dict(r)
                         for r in (
                             await connection.execute(
-                                select(endpoints).where(
-                                    endpoints.c.channel_id == channel_id,
-                                    endpoints.c.id.in_([row["endpoint_id"] for row in batch]),
+                                active_rows(
+                                    select(endpoints).where(
+                                        endpoints.c.channel_id == channel_id,
+                                        endpoints.c.id.in_([row["endpoint_id"] for row in batch]),
+                                    )
                                 )
                             )
                         ).mappings()

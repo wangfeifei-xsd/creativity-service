@@ -1,6 +1,6 @@
 # 远程工具连接模型
 
-模型版本 2.0.0；负责方案 14；需求 [09-MCP配置.md](../../../../需求文档/09-MCP配置.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 14；需求 [09-MCP配置.md](../../../../需求文档/09-MCP配置.md)。总索引见 [README](../README.md)。
 
 ## mcp_connections
 
@@ -32,6 +32,7 @@
 | `health_actor_id` | `varchar(64)` | 健康检查授权成员 | 是 | 受信服务上下文 | 内部 |
 | `next_check_at` | `datetime(6) UTC` | 下次健康检查时间 | 是 | 受信服务上下文 | 内部 |
 | `authentication` | `json` | 鉴权方式、令牌地址与应用标识；凭据单独保存 | 否 | 管理员鉴权配置 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, status)`；`(channel_id, environment, next_check_at)`。
 
@@ -56,6 +57,7 @@
 | `error_category` | `varchar(64)` | 错误类别 | 否 | 服务层校验后的业务输入 | 内部 |
 | `connection_revision` | `bigint` | 检查时连接配置修订 | 是 | 服务层校验后的业务输入 | 内部 |
 | `operation` | `varchar(32)` | 检查操作类型 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, connection_id, created_at)`。
 
@@ -77,6 +79,7 @@
 | `schema_hashes` | `json` | 定义摘要 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `negotiated_version` | `varchar(64)` | 发现协商协议版本 | 是 | 服务层校验后的业务输入 | 内部 |
 | `credential_revision` | `bigint` | 发现时凭据版本 | 否 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, connection_id, created_at)`。
 
@@ -102,6 +105,7 @@
 | `name` | `varchar(128)` | 本地工具显示名称 | 是 | 服务层校验后的业务输入 | 内部 |
 | `input_schema` | `json` | 固定本地输入契约 | 是 | 服务层校验后的业务输入 | 内部 |
 | `contract_status` | `varchar(32)` | 固定契约可用状态 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, connection_id, remote_tool_name)`；`(channel_id, environment, connection_id, discovery_id, remote_tool_name)`。
 
@@ -128,6 +132,7 @@ MCP 一次性授权流程。状态：已实现；归属：主体；归档修订�
 | `state` | `varchar(16)` | 授权流程状态 | 是 | 受信授权流程 | 内部 |
 | `verifier_ref` | `varchar(64)` | PKCE 验证凭据引用 | 是 | 受信授权流程 | 内部 |
 | `expires_at` | `datetime(6) UTC` | 授权流程截止时间 | 是 | 受信授权流程 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, connection_id)`。
 
@@ -156,5 +161,6 @@ MCP 分身份委托凭据。状态：已实现；归属：主体；归档修订�
 | `refresh_until` | `datetime(6) UTC` | 刷新占用截止时间 | 否 | 受信授权流程 | 内部 |
 | `refresh_nonce` | `varchar(64)` | 刷新互斥代次 | 否 | 受信授权流程 | 内部 |
 | `authorized_at` | `datetime(6) UTC` | 授权发起时间 | 是 | 受信授权流程 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, connection_id)`。

@@ -15,6 +15,7 @@ from creativity_service.core.database import (
     transaction,
 )
 from creativity_service.core.database.inserts import InsertBatch
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata
 from creativity_service.core.deletion.ledger import (
     DeletionLedger,
@@ -90,9 +91,11 @@ class DeletionGuard:
         identifiers = [identifier for identifier in targets if identifier not in barriers]
         for start in range(0, len(identifiers), 500):
             records = await uow.connection.execute(
-                select(table).where(
-                    table.c.channel_id == self.scope.channel_id,
-                    table.c.id.in_(identifiers[start : start + 500]),
+                active_rows(
+                    select(table).where(
+                        table.c.channel_id == self.scope.channel_id,
+                        table.c.id.in_(identifiers[start : start + 500]),
+                    )
                 )
             )
             for record in records.mappings():
@@ -116,7 +119,9 @@ class DeletionGuard:
                 dict(row)
                 for row in (
                     await uow.connection.execute(
-                        select(table).where(table.c.channel_id == self.scope.channel_id)
+                        active_rows(
+                            select(table).where(table.c.channel_id == self.scope.channel_id)
+                        )
                     )
                 ).mappings()
             ]
@@ -166,11 +171,13 @@ class DeletionGuard:
                     if model is None or "environment" not in model.c:
                         continue
                     records = await uow.connection.execute(
-                        select(model).where(
-                            model.c.channel_id == self.scope.channel_id,
-                            model.c.id.in_(
-                                [r.resource_id for r in batch if r.resource_type == kind]
-                            ),
+                        active_rows(
+                            select(model).where(
+                                model.c.channel_id == self.scope.channel_id,
+                                model.c.id.in_(
+                                    [r.resource_id for r in batch if r.resource_type == kind]
+                                ),
+                            )
                         )
                     )
                     blocked.update(
@@ -183,11 +190,13 @@ class DeletionGuard:
                 dict(row)
                 for row in (
                     await uow.connection.execute(
-                        select(table).where(
-                            table.c.channel_id == self.scope.channel_id,
-                            tuple_(table.c.derived_type, table.c.derived_id).in_(
-                                [(r.resource_type, r.resource_id) for r in batch]
-                            ),
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == self.scope.channel_id,
+                                tuple_(table.c.derived_type, table.c.derived_id).in_(
+                                    [(r.resource_type, r.resource_id) for r in batch]
+                                ),
+                            )
                         )
                     )
                 ).mappings()
@@ -204,9 +213,11 @@ class DeletionGuard:
                     model = CONTENT_MODELS.get(kind)
                     if model is not None:
                         records = await uow.connection.execute(
-                            select(model.c.id, model.c.run_id).where(
-                                model.c.channel_id == self.scope.channel_id,
-                                model.c.run_id.in_(run_ids),
+                            active_rows(
+                                select(model.c.id, model.c.run_id).where(
+                                    model.c.channel_id == self.scope.channel_id,
+                                    model.c.run_id.in_(run_ids),
+                                )
                             )
                         )
                         for row in records.mappings():
@@ -376,7 +387,9 @@ class RecoveryService:
             "deletion_markers",
             "release_snapshots",
         ):
-            if await Repository(metadata.tables[table_name], scope).find(uow.connection):
+            if await Repository(metadata.tables[table_name], scope, include_deleted=True).find(
+                uow.connection
+            ):
                 raise ServiceError("RECOVERY_PROOF_REQUIRED", "已有数据须核对外部删除账本", 503)
         await repo.add(
             uow,

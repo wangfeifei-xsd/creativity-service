@@ -146,7 +146,7 @@ def validate_initial_models(tables: dict[str, Any], tenants: dict[str, Any], adm
             }
     for name, expected_rows in (("resource_references", references), ("source_links", links)):
         actual = {
-            row["id"]: {k: v for k, v in row.items() if k not in {"id", "revision"}}
+            row["id"]: {k: v for k, v in row.items() if k not in {"id", "revision", "is_deleted"}}
             for row in tables[name]
         }
         if actual != expected_rows:

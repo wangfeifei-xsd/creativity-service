@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import DisplayStatus
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.primitives import ServiceError, new_id, utcnow
 from creativity_service.modules.agents.access import locked_require
@@ -857,9 +858,11 @@ class EvaluationService(DatasetService):
                 dict(r)
                 for r in (
                     await connection.execute(
-                        select(table).where(
-                            table.c.channel_id == channel_id,
-                            table.c.state.in_(["RUNNING", "PAUSED", "CANCELLING"]),
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == channel_id,
+                                table.c.state.in_(["RUNNING", "PAUSED", "CANCELLING"]),
+                            )
                         )
                     )
                 ).mappings()

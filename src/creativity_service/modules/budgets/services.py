@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.contracts import Admission, BudgetReservation, UsageEvent
 from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.locking import ResourceKey
 from creativity_service.core.primitives import Money, ServiceError, digest, new_id, utcnow
 from creativity_service.modules.budgets.platform import current_limits, occupancy_counts
@@ -106,7 +107,7 @@ async def active_prices(
     if not model_ids:
         return {}
     table = metadata.tables["price_versions"]
-    current = (
+    current = active_rows(
         select(
             table,
             func.row_number()
@@ -119,17 +120,15 @@ async def active_prices(
                 ),
             )
             .label("position"),
-        )
-        .where(
+        ).where(
             table.c.channel_id == uow.scope.channel_id,
             table.c.model_id.in_(model_ids),
             table.c.effective_at <= at,
         )
-        .subquery()
-    )
+    ).subquery()
     result = {}
     for row in (
-        await uow.connection.execute(select(current).where(current.c.position == 1))
+        await uow.connection.execute(active_rows(select(current).where(current.c.position == 1)))
     ).mappings():
         price = dict(row)
         price.pop("position")
@@ -233,8 +232,10 @@ class BudgetService:
                 dict(r)
                 for r in (
                     await uow.connection.execute(
-                        select(table).where(
-                            table.c.channel_id == uow.scope.channel_id, or_(*predicates)
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == uow.scope.channel_id, or_(*predicates)
+                            )
                         )
                     )
                 ).mappings()
@@ -657,10 +658,12 @@ class BudgetService:
                 dict(r)
                 for r in (
                     await uow.connection.execute(
-                        select(table).where(
-                            table.c.channel_id == uow.scope.channel_id,
-                            table.c.rule_id.in_([p["id"] for p in policies]),
-                            table.c.period_start >= min(starts),
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == uow.scope.channel_id,
+                                table.c.rule_id.in_([p["id"] for p in policies]),
+                                table.c.period_start >= min(starts),
+                            )
                         )
                     )
                 ).mappings()

@@ -233,7 +233,12 @@ async def test_queued_business_notifications_recheck_access_and_deletion(busines
                     "resource_grants",
                     grant["id"],
                     {
-                        "allowed_actions": [a for a in grant["allowed_actions"] if a != "run:read"],
+                        # 渠道管理也包含运行读取，撤销测试须同时收回这条授权路径。
+                        "allowed_actions": [
+                            a
+                            for a in grant["allowed_actions"]
+                            if a not in {"run:read", "channel:manage"}
+                        ],
                     },
                     grant["revision"],
                 )

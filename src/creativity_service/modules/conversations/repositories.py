@@ -7,46 +7,72 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.context import Scope
 from creativity_service.core.database import UnitOfWork, scope_values, validate_row
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.modules.conversations.tables import metadata
 from creativity_service.modules.runs.repositories import conversation_key, verify_scope
 
 
 async def rows(
-    connection: AsyncConnection, name: str, scope: Scope, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    scope: Scope,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> list[dict[str, Any]]:
     table = metadata.tables[name]
-    query = select(table).where(
-        *(table.c[k] == v for k, v in {**scope_values(table, scope), **filters}.items())
+    query = active_rows(
+        select(table).where(
+            *(table.c[k] == v for k, v in {**scope_values(table, scope), **filters}.items())
+        ),
+        include_deleted=include_deleted,
     )
     return [dict(row) for row in (await connection.execute(query)).mappings()]
 
 
 async def one(
-    connection: AsyncConnection, name: str, scope: Scope, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    scope: Scope,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> dict[str, Any] | None:
-    found = await rows(connection, name, scope, **filters)
+    found = await rows(connection, name, scope, include_deleted=include_deleted, **filters)
     if len(found) > 1:
         raise ServiceError("STORAGE_INVARIANT_BROKEN", "会话记录重复，请核查", 503)
     return found[0] if found else None
 
 
 async def required(
-    connection: AsyncConnection, name: str, scope: Scope, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    scope: Scope,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> dict[str, Any]:
-    row = await one(connection, name, scope, **filters)
+    row = await one(connection, name, scope, include_deleted=include_deleted, **filters)
     if row is None:
         raise ServiceError("NOT_FOUND", "会话记录不存在", 404)
     return row
 
 
 async def save(
-    uow: UnitOfWork, name: str, record_id: str, values: dict[str, Any]
+    uow: UnitOfWork,
+    name: str,
+    record_id: str,
+    values: dict[str, Any],
+    *,
+    include_deleted: bool = False,
 ) -> dict[str, Any]:
     if not isinstance(uow.scope, Scope):
         raise ServiceError("SCOPE_MISMATCH", "会话必须使用业务身份范围", 403)
     scope, table = uow.scope, metadata.tables[name]
-    current = await one(uow.connection, name, scope, id=record_id)
+    current = await one(uow.connection, name, scope, id=record_id, include_deleted=True)
+    if current and current["is_deleted"] and not include_deleted:
+        raise ServiceError("NOT_FOUND", "记录已删除", 404)
     conversation_id = (
         record_id
         if name == "conversations"
@@ -70,7 +96,8 @@ async def save(
     if current:
         verify_scope(current, scope)
     row = {
-        **{c.name: None for c in table.c},
+        "is_deleted": False,
+        **{c.name: None for c in table.c if c.name != "is_deleted"},
         **(current or {}),
         **values,
         **scope_values(table, scope),

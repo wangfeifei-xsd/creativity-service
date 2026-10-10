@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.auth.types import ResourceState, ResourceStateReader
 from creativity_service.core.context import AuthContext, Scope
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import CleanupRegistry
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.iam.authorization import IamAuthorization
@@ -32,9 +33,11 @@ class MemoryReader:
             row = (
                 (
                     await connection.execute(
-                        select(table).where(
-                            table.c.channel_id == context.scope.channel_id,
-                            table.c.id == resource_id,
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == context.scope.channel_id,
+                                table.c.id == resource_id,
+                            )
                         )
                     )
                 )

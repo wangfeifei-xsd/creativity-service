@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import DisplayStatus
 from creativity_service.core.database import transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import record_key
 from creativity_service.core.observability.audit import append_audit
@@ -59,7 +60,7 @@ class ResourceManagement:
             rows = {
                 i: r
                 for i, r in rows.items()
-                if r["status"] != "DELETED"
+                if not r["is_deleted"]
                 and self.permission(kind)
                 in policy.actions(kind, i, resource_state(context, kind, r))
             }
@@ -69,7 +70,9 @@ class ResourceManagement:
                 str(r[0]): int(r[1])
                 for r in (
                     await connection.execute(
-                        select(refs.c.target_id, func.count()).group_by(refs.c.target_id)
+                        active_rows(
+                            select(refs.c.target_id, func.count()).group_by(refs.c.target_id)
+                        )
                     )
                 ).all()
             }
@@ -81,13 +84,15 @@ class ResourceManagement:
                 str(r[0]): int(r[1])
                 for r in (
                     await connection.execute(
-                        select(uses.c.resource_id, func.count())
-                        .where(
-                            uses.c.channel_id == scope.channel_id,
-                            uses.c.resource_type == kind,
-                            uses.c.resource_id.in_(rows),
+                        active_rows(
+                            select(uses.c.resource_id, func.count())
+                            .where(
+                                uses.c.channel_id == scope.channel_id,
+                                uses.c.resource_type == kind,
+                                uses.c.resource_id.in_(rows),
+                            )
+                            .group_by(uses.c.resource_id)
                         )
-                        .group_by(uses.c.resource_id)
                     )
                 ).all()
             }
@@ -174,7 +179,10 @@ class ResourceManagement:
         async with self.engine.connect() as connection:
             statement = reference_statement(context.scope, [identifier])
             total = (
-                await connection.scalar(select(func.count()).select_from(statement.subquery())) or 0
+                await connection.scalar(
+                    active_rows(select(func.count()).select_from(statement.subquery()))
+                )
+                or 0
             )
             refs = list(
                 (
@@ -194,9 +202,11 @@ class ResourceManagement:
             mappings = repository("release_mappings", context.scope).table
             releases = (
                 await connection.execute(
-                    select(mappings.c.resource_id, mappings.c.environment).where(
-                        mappings.c.channel_id == context.scope.channel_id,
-                        mappings.c.resource_id.in_([r["resource_id"] for r in refs]),
+                    active_rows(
+                        select(mappings.c.resource_id, mappings.c.environment).where(
+                            mappings.c.channel_id == context.scope.channel_id,
+                            mappings.c.resource_id.in_([r["resource_id"] for r in refs]),
+                        )
                     )
                 )
             ).all()
@@ -241,16 +251,20 @@ class ResourceManagement:
         async with self.engine.connect() as connection:
             row = await repository(TABLES[kind], context.scope).get(connection, identifier)
             total = (
-                await connection.scalar(select(func.count()).select_from(table).where(predicate))
+                await connection.scalar(
+                    active_rows(select(func.count()).select_from(table).where(predicate))
+                )
                 or 0
             )
             uses = (
                 await connection.execute(
-                    select(table)
-                    .where(predicate)
-                    .order_by(table.c.created_at.desc(), table.c.id)
-                    .offset(offset)
-                    .limit(limit)
+                    active_rows(
+                        select(table)
+                        .where(predicate)
+                        .order_by(table.c.created_at.desc(), table.c.id)
+                        .offset(offset)
+                        .limit(limit)
+                    )
                 )
             ).mappings()
             items = [
@@ -262,7 +276,7 @@ class ResourceManagement:
                     environment=r["environment"],
                     purpose=r["purpose"],
                     used_at=r["created_at"],
-                    deleted=not row or row["status"] == "DELETED",
+                    deleted=not row or row["is_deleted"],
                 )
                 for r in uses
             ]
@@ -302,7 +316,7 @@ class ResourceManagement:
             )
             row = await resources.get(uow.connection, identifier)
             config = await configs.get(uow.connection, identifier)
-            if row is None or row["status"] == "DELETED":
+            if row is None or row["is_deleted"]:
                 raise ServiceError("NOT_FOUND", "资源不存在或已删除", 404)
             if (
                 row["revision"] != body.revision
@@ -311,7 +325,7 @@ class ResourceManagement:
                 raise ServiceError("REVISION_CONFLICT", "资源已修改，请刷新后重试", 409)
             await DeletionGuard(scope).check(uow, [ContentRef(kind, identifier)])
             if operation != "publish" and await uow.connection.scalar(
-                select(reference_statement(scope, [identifier]).exists())
+                active_rows(select(reference_statement(scope, [identifier]).exists()))
             ):
                 raise ServiceError("RESOURCE_REFERENCED", "资源仍被引用，请先解除全部关联", 409)
             if operation == "publish":
@@ -339,13 +353,15 @@ class ResourceManagement:
                 if operation == "delete":
                     uses = repository("resource_uses", scope).table
                     used = await uow.connection.scalar(
-                        select(uses.c.id)
-                        .where(
-                            uses.c.channel_id == scope.channel_id,
-                            uses.c.resource_type == kind,
-                            uses.c.resource_id == identifier,
+                        active_rows(
+                            select(uses.c.id)
+                            .where(
+                                uses.c.channel_id == scope.channel_id,
+                                uses.c.resource_type == kind,
+                                uses.c.resource_id == identifier,
+                            )
+                            .limit(1)
                         )
-                        .limit(1)
                     )
                     if used and not body.confirm_used:
                         raise ServiceError(
@@ -353,7 +369,9 @@ class ResourceManagement:
                             "该资源有历史使用记录，需要二次确认",
                             409,
                         )
-                    await resources.change(uow, identifier, row["revision"], {"status": "DELETED"})
+                    await resources.change(
+                        uow, identifier, row["revision"], {"is_deleted": True, "status": "DELETED"}
+                    )
                 table = mappings.table
                 conditions = [
                     table.c.channel_id == scope.channel_id,
@@ -365,13 +383,15 @@ class ResourceManagement:
                 # 内容图锁与所有依赖保存互斥；整资源删除需同时清理各环境的发布映射。
                 await uow.connection.execute(delete(table).where(*conditions))
                 remaining = await uow.connection.scalar(
-                    select(table.c.id)
-                    .where(
-                        table.c.channel_id == scope.channel_id,
-                        table.c.resource_type == kind,
-                        table.c.resource_id == identifier,
+                    active_rows(
+                        select(table.c.id)
+                        .where(
+                            table.c.channel_id == scope.channel_id,
+                            table.c.resource_type == kind,
+                            table.c.resource_id == identifier,
+                        )
+                        .limit(1)
                     )
-                    .limit(1)
                 )
                 if config:
                     await configs.change(

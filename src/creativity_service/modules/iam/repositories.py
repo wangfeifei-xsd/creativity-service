@@ -11,6 +11,7 @@ from creativity_service.core.context import ControlScope, Scope
 from creativity_service.core.database import UnitOfWork, validate_row
 from creativity_service.core.database.queries import scoped_select
 from creativity_service.core.database.reading import read_connection
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import Contract, ServiceError, digest, utcnow
@@ -39,20 +40,32 @@ def to_state[T: Contract](model: type[T], row: dict[str, Any]) -> T:
 
 
 async def rows(
-    connection: AsyncConnection, name: str, channel_id: str, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    channel_id: str,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> list[dict[str, Any]]:
     if not channel_id:
         raise ValueError("必须指定渠道")
     table = TABLES[name]
-    statement, parameters = scoped_select(table, {"channel_id": channel_id}, filters)
+    statement, parameters = scoped_select(
+        table, {"channel_id": channel_id}, filters, include_deleted=include_deleted
+    )
     result = await connection.execute(statement, parameters)
     return [dict(row) for row in result.mappings()]
 
 
 async def one(
-    connection: AsyncConnection, name: str, channel_id: str, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    channel_id: str,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> dict[str, Any] | None:
-    result = await rows(connection, name, channel_id, **filters)
+    result = await rows(connection, name, channel_id, include_deleted=include_deleted, **filters)
     if len(result) > 1:
         raise ServiceError("STORAGE_INVARIANT_BROKEN", "身份记录重复，请联系管理员", 503)
     return result[0] if result else None
@@ -64,6 +77,8 @@ async def save(
     record_id: str,
     values: dict[str, Any],
     expected_revision: int | None = None,
+    *,
+    restore_deleted: bool = False,
 ) -> dict[str, Any]:
     channel_id = uow.scope.channel_id
     uow.require_lock(record_key(channel_id, name, record_id))
@@ -79,14 +94,22 @@ async def save(
     current = (
         uow.read_cache[cache_key]
         if cache_key in uow.read_cache
-        else await one(uow.connection, name, channel_id, id=record_id)
+        else await one(uow.connection, name, channel_id, id=record_id, include_deleted=True)
     )
+    if restore_deleted and (
+        name not in {"channel_memberships", "resource_grants"}
+        or values.get("is_deleted") is not False
+    ):
+        raise ServiceError("RESTORE_INVALID", "只能通过重新授权恢复成员或资源授权", 422)
+    if current and current["is_deleted"] and not restore_deleted:
+        raise ServiceError("NOT_FOUND", "记录已删除", 404)
     if (current is None and expected_revision is not None) or (
         current is not None and current["revision"] != expected_revision
     ):
         raise ServiceError("REVISION_CONFLICT", "数据已变更，请刷新后重试", 409)
     now = utcnow()
     value = {
+        "is_deleted": False,
         **(current or {}),
         **values,
         "id": record_id,
@@ -117,7 +140,7 @@ async def role_catalog(
     custom = TABLES["custom_roles"]
     found = (
         await connection.execute(
-            select(custom).where(custom.c.channel_id.in_({"system", channel_id}))
+            active_rows(select(custom).where(custom.c.channel_id.in_({"system", channel_id})))
         )
     ).mappings()
     return role_catalog_rows(
@@ -263,9 +286,11 @@ class IdentityRepository:
             for start in range(0, len(identifiers), 500):
                 found = (
                     await connection.execute(
-                        select(table).where(
-                            table.c.channel_id == "system",
-                            table.c.id.in_(identifiers[start : start + 500]),
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == "system",
+                                table.c.id.in_(identifiers[start : start + 500]),
+                            )
                         )
                     )
                 ).mappings()
@@ -302,10 +327,12 @@ class IdentityRepository:
         table = TABLES["iam_revocations"]
         async with self.engine.connect() as connection:
             result = await connection.execute(
-                select(table)
-                .where(table.c.completed_at.is_(None))
-                .order_by(table.c.created_at, table.c.id)
-                .limit(limit)
+                active_rows(
+                    select(table)
+                    .where(table.c.completed_at.is_(None))
+                    .order_by(table.c.created_at, table.c.id)
+                    .limit(limit)
+                )
             )
             return [to_state(Revocation, dict(row)) for row in result.mappings()]
 
@@ -327,9 +354,11 @@ class IdentityRepository:
             )
         async with self.engine.connect() as connection:
             result = await connection.execute(
-                select(table)
-                .where(predicate)
-                .order_by(table.c.created_at.desc(), table.c.id.desc())
-                .limit(limit)
+                active_rows(
+                    select(table)
+                    .where(predicate)
+                    .order_by(table.c.created_at.desc(), table.c.id.desc())
+                    .limit(limit)
+                )
             )
             return [dict(row) for row in result.mappings()]

@@ -1,6 +1,6 @@
 # 工具定义与证据模型
 
-模型版本 2.0.0；负责方案 10；需求 [10-工具管理.md](../../../../需求文档/10-工具管理.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 10；需求 [10-工具管理.md](../../../../需求文档/10-工具管理.md)。总索引见 [README](../README.md)。
 
 ## tools
 
@@ -19,6 +19,7 @@
 | `source_type` | `varchar(32)` | 来源类型 | 是 | 服务层校验后的业务输入 | 内部 |
 | `owner` | `varchar(128)` | 负责人 | 是 | 服务层校验后的业务输入 | 内部 |
 | `status` | `varchar(32)` | 启用状态 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, tool_code)`。
 
@@ -51,6 +52,7 @@
 | `result_summary` | `json` | 结果结构摘要 | 否 | 服务层校验后的业务输入 | 内部 |
 | `evidence_ids` | `json` | 有效证据标识集合 | 是 | 服务层校验后的业务输入 | 内部 |
 | `attempt` | `json` | 独立尝试状态 | 否 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id)`；`(channel_id, attempt_id)`。
 
@@ -76,6 +78,7 @@
 | `title` | `varchar(255)` | 授权范围内的来源名称 | 否 | 服务层校验后的业务输入 | 内部 |
 | `artifact_id` | `varchar(64)` | 内容产物标识 | 否 | 服务层校验后的业务输入 | 内部 |
 | `authorization_scope` | `json` | 授权范围摘要 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, source_type, source_id)`。
 

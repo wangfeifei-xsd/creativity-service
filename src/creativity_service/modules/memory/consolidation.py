@@ -8,6 +8,7 @@ from sqlalchemy import cast, func, select
 
 from creativity_service.core.context import AuthContext, TaskEnvelope
 from creativity_service.core.database import Repository, UnitOfWork, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.types import DocumentJSON
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.primitives import ServiceError, digest, utcnow
@@ -137,15 +138,17 @@ class MemoryConsolidation:
             source = (
                 (
                     await connection.execute(
-                        select(runs)
-                        .where(
-                            Repository(runs, scope).predicate(),
-                            runs.c.conversation_id == conversation["id"],
-                            runs.c.state == "SUCCEEDED",
-                            runs.c.purpose == "production",
+                        active_rows(
+                            select(runs)
+                            .where(
+                                Repository(runs, scope).predicate(),
+                                runs.c.conversation_id == conversation["id"],
+                                runs.c.state == "SUCCEEDED",
+                                runs.c.purpose == "production",
+                            )
+                            .order_by(runs.c.created_at.desc(), runs.c.id)
+                            .limit(1)
                         )
-                        .order_by(runs.c.created_at.desc(), runs.c.id)
-                        .limit(1)
                     )
                 )
                 .mappings()
@@ -164,13 +167,15 @@ class MemoryConsolidation:
         await self.authorize(context, conversation["id"], source_run["id"])
         async with transaction(self.engine, context.scope, repo.keys(context.scope)) as uow:
             if await uow.connection.scalar(
-                select(jobs.c.id)
-                .where(
-                    Repository(jobs, context.scope).predicate(),
-                    jobs.c.conversation_id == conversation["id"],
-                    jobs.c.state.in_(["PENDING", "ADMITTED"]),
+                active_rows(
+                    select(jobs.c.id)
+                    .where(
+                        Repository(jobs, context.scope).predicate(),
+                        jobs.c.conversation_id == conversation["id"],
+                        jobs.c.state.in_(["PENDING", "ADMITTED"]),
+                    )
+                    .limit(1)
                 )
-                .limit(1)
             ):
                 return
             settings = await self.memory.consolidation_settings(uow, context)
@@ -189,31 +194,30 @@ class MemoryConsolidation:
                 return
             deletions = metadata.tables["memory_deletion_jobs"]
             cutoff = await uow.connection.scalar(
-                select(func.max(deletions.c.created_at)).where(
-                    Repository(deletions, context.scope).predicate(),
-                    deletions.c.kind == "CLEAR",
+                active_rows(
+                    select(func.max(deletions.c.created_at)).where(
+                        Repository(deletions, context.scope).predicate(),
+                        deletions.c.kind == "CLEAR",
+                    )
                 )
             )
             if preference:
                 cutoff = (
                     max(cutoff, preference["updated_at"]) if cutoff else preference["updated_at"]
                 )
-            used = (
-                select(jobs.c.id)
-                .where(
+            used = active_rows(
+                select(jobs.c.id).where(
                     Repository(jobs, context.scope).predicate(),
                     jobs.c.conversation_id == conversation["id"],
                     func.json_contains(jobs.c.source_message_ids, func.json_quote(table.c.id)) == 1,
                 )
-                .exists()
-            )
+            ).exists()
             frozen_policy = cast(contents.c.payload["payload_json"].as_string(), DocumentJSON)[
                 "definition"
             ]["context"]["memory_policy"]
             peer = table.alias("turn_peer")
-            complete_turn = (
-                select(peer.c.id)
-                .where(
+            complete_turn = active_rows(
+                select(peer.c.id).where(
                     *(peer.c[key] == value for key, value in context.scope.model_dump().items()),
                     peer.c.conversation_id == conversation["id"],
                     peer.c.turn_id == table.c.turn_id,
@@ -222,9 +226,8 @@ class MemoryConsolidation:
                     peer.c.role.in_(["user", "assistant"]),
                     peer.c.role != table.c.role,
                 )
-                .exists()
-            )
-            statement = (
+            ).exists()
+            statement = active_rows(
                 select(table)
                 .select_from(
                     table.join(runs, runs.c.id == table.c.run_id).join(
@@ -403,16 +406,18 @@ class MemoryConsolidation:
                     dict(v)
                     for v in (
                         await connection.execute(
-                            select(table)
-                            .where(
-                                table.c.channel_id == channel_id,
-                                table.c.subject_id.is_not(None),
-                                table.c.status.in_(["ACTIVE", "ARCHIVED"]),
-                                table.c.expires_at > utcnow(),
-                                table.c.id > after,
+                            active_rows(
+                                select(table)
+                                .where(
+                                    table.c.channel_id == channel_id,
+                                    table.c.subject_id.is_not(None),
+                                    table.c.status.in_(["ACTIVE", "ARCHIVED"]),
+                                    table.c.expires_at > utcnow(),
+                                    table.c.id > after,
+                                )
+                                .order_by(table.c.id)
+                                .limit(100)
                             )
-                            .order_by(table.c.id)
-                            .limit(100)
                         )
                     ).mappings()
                 ]
@@ -437,14 +442,16 @@ class MemoryConsolidation:
                 dict(v)
                 for v in (
                     await connection.execute(
-                        select(table)
-                        .where(
-                            table.c.channel_id == channel_id,
-                            table.c.state.in_(["PENDING", "ADMITTED"]),
-                            table.c.next_attempt_at <= utcnow(),
+                        active_rows(
+                            select(table)
+                            .where(
+                                table.c.channel_id == channel_id,
+                                table.c.state.in_(["PENDING", "ADMITTED"]),
+                                table.c.next_attempt_at <= utcnow(),
+                            )
+                            .order_by(table.c.next_attempt_at)
+                            .limit(100)
                         )
-                        .order_by(table.c.next_attempt_at)
-                        .limit(100)
                     )
                 ).mappings()
             ]

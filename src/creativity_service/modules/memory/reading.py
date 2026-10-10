@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.database import Repository, UnitOfWork
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.modules.conversations.tables import metadata as conversations
@@ -38,9 +39,11 @@ async def scoped_rows(
     result: list[dict[str, Any]] = []
     values = list(predicates.values())
     for start in range(0, len(values), 200):
-        statement = select(table).where(
-            or_(*values[start : start + 200]),
-            *(table.c[k] == value for k, value in filters.items()),
+        statement = active_rows(
+            select(table).where(
+                or_(*values[start : start + 200]),
+                *(table.c[k] == value for k, value in filters.items()),
+            )
         )
         result.extend(dict(r) for r in (await connection.execute(statement)).mappings())
     return result
@@ -118,8 +121,10 @@ class MemoryReadData:
                 dict(r)
                 for r in (
                     await uow.connection.execute(
-                        select(call_table).where(
-                            call_table.c.state == "SUCCEEDED", or_(*predicates)
+                        active_rows(
+                            select(call_table).where(
+                                call_table.c.state == "SUCCEEDED", or_(*predicates)
+                            )
                         )
                     )
                 ).mappings()

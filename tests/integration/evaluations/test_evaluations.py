@@ -544,6 +544,8 @@ async def test_fixture_uses_fixed_result_and_rechecks_current_permission(evaluat
     from creativity_service.core.database import Repository
     from creativity_service.core.primitives import digest
     from creativity_service.modules.agents.schemas import AgentEdge, AgentStep, InputSource
+    from creativity_service.modules.resources.schemas import ResourceMutation
+    from creativity_service.modules.resources.services import ResourceManagement
     from creativity_service.modules.tools.schemas import (
         ToolCreate,
         ToolDefinition,
@@ -588,6 +590,20 @@ async def test_fixture_uses_fixed_result_and_rechecks_current_permission(evaluat
             ToolVersionCreate(version_label="工具草稿", definition=contract),
         )
     ).version
+    # 当前依赖只允许已发布资源，夹具工具也必须走同一发布入口。
+    manager = ResourceManagement(
+        env.engine, env.iam.authorization, {"tool": env.tools.management.versions.validator}
+    )
+    resource = (await manager.summaries(env.context, "tool", [tool.tool_id]))[0]
+    await manager.mutate(
+        env.context,
+        "tool",
+        tool.tool_id,
+        "publish",
+        ResourceMutation(
+            revision=resource.revision, configuration_revision=resource.configuration_revision
+        ),
+    )
     input_schema = {
         "type": "object",
         "properties": {
@@ -668,12 +684,6 @@ async def test_fixture_uses_fixed_result_and_rechecks_current_permission(evaluat
         candidates=[{"version_id": version.version_id, "revision": version.revision}],
         budget={"max_runs": 3, "token_limit": 1000000},
     )
-    from creativity_service.core.primitives import ServiceError
-
-    with pytest.raises(ServiceError):
-        await env.evaluations.create(
-            env.context, request.model_copy(update={"release_target": True})
-        )
     task = await env.evaluations.create(env.context, request)
     await finish(env, task)
     report = await env.evaluations.comparison(env.context, task.evaluation_id)

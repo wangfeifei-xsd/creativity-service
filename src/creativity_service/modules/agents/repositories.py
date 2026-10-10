@@ -39,8 +39,8 @@ RESOURCE_TABLES = {
 }
 
 
-def repository(name: str, scope: Scope) -> Repository:
-    return Repository(TABLES[name], scope)
+def repository(name: str, scope: Scope, *, include_deleted: bool = False) -> Repository:
+    return Repository(TABLES[name], scope, include_deleted=include_deleted)
 
 
 async def required(

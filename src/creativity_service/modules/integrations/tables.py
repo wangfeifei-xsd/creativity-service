@@ -3,8 +3,9 @@
 import json
 from pathlib import Path
 
-from sqlalchemy import Column, Index, MetaData, Table
+from sqlalchemy import Column, Index, MetaData
 
+from creativity_service.core.database.soft_delete import soft_delete_table
 from creativity_service.core.database.tables import column_type
 from creativity_service.modules.integrations.review_tables import build_metadata as review_metadata
 
@@ -14,7 +15,7 @@ BASELINE = json.loads(Path(__file__).with_name("tables_v0045_0.json").read_text(
 def build_metadata() -> MetaData:
     result = MetaData()
     for definition in BASELINE:
-        table = Table(
+        table = soft_delete_table(
             definition["name"],
             result,
             *(

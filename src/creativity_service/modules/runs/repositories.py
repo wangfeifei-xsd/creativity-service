@@ -29,28 +29,45 @@ def conversation_key(scope: Scope, conversation_id: str) -> ResourceKey:
 
 
 async def rows(
-    connection: AsyncConnection, name: str, channel_id: str, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    channel_id: str,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> list[dict[str, Any]]:
     if not channel_id or channel_id == "system":
         raise ServiceError("SCOPE_MISMATCH", "运行必须属于业务渠道", 403)
     table = metadata.tables[name]
-    statement, parameters = scoped_select(table, {"channel_id": channel_id}, filters)
+    statement, parameters = scoped_select(
+        table, {"channel_id": channel_id}, filters, include_deleted=include_deleted
+    )
     return [dict(r) for r in (await connection.execute(statement, parameters)).mappings()]
 
 
 async def one(
-    connection: AsyncConnection, name: str, channel_id: str, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    channel_id: str,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> dict[str, Any] | None:
-    found = await rows(connection, name, channel_id, **filters)
+    found = await rows(connection, name, channel_id, include_deleted=include_deleted, **filters)
     if len(found) > 1:
         raise ServiceError("STORAGE_INVARIANT_BROKEN", "运行记录重复，请核查", 503)
     return found[0] if found else None
 
 
 async def required(
-    connection: AsyncConnection, name: str, channel_id: str, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    channel_id: str,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> dict[str, Any]:
-    row = await one(connection, name, channel_id, **filters)
+    row = await one(connection, name, channel_id, include_deleted=include_deleted, **filters)
     if row is None:
         raise ServiceError("NOT_FOUND", "运行记录不存在", 404)
     return row
@@ -90,7 +107,8 @@ def prepare_row(
     } & values.keys():
         raise ServiceError("CONTEXT_OVERRIDE", "不能覆盖运行归属", 422)
     row = {
-        **{c.name: None for c in table.c},
+        "is_deleted": False,
+        **{c.name: None for c in table.c if c.name != "is_deleted"},
         **(current or {}),
         **values,
         **scope_values(table, scope),
@@ -111,7 +129,9 @@ async def save(
     uow: UnitOfWork, name: str, record_id: str, values: dict[str, Any]
 ) -> dict[str, Any]:
     table, scope = metadata.tables[name], uow.scope
-    current = await one(uow.connection, name, scope.channel_id, id=record_id)
+    current = await one(uow.connection, name, scope.channel_id, id=record_id, include_deleted=True)
+    if current and current["is_deleted"]:
+        raise ServiceError("NOT_FOUND", "记录已删除", 404)
     row = prepare_row(uow, name, record_id, values, current)
     if current:
         await uow.connection.execute(

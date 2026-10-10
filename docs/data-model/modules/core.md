@@ -1,6 +1,6 @@
 # 公共设施模型
 
-模型版本 2.0.0；负责方案 03；需求 [00-需求总纲.md](../../../../需求文档/00-需求总纲.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 03；需求 [00-需求总纲.md](../../../../需求文档/00-需求总纲.md)。总索引见 [README](../README.md)。
 
 ## resource_versions
 
@@ -23,6 +23,7 @@
 | `dependencies_digest` | `varchar(64)` | 依赖摘要 | 是 | 服务层校验后的业务输入 | 内部 |
 | `output_schema` | `json` | 输出结构定义 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `created_by` | `varchar(128)` | 创建主体标识 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, resource_type, resource_id, state)`。
 
@@ -43,6 +44,7 @@
 | `version_id` | `varchar(64)` | 生效版本标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `published_by` | `varchar(128)` | 发布主体标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `release_note` | `varchar(1024)` | 发布说明 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, resource_type, resource_id)`。
 
@@ -65,6 +67,7 @@
 | `versions` | `json` | 具体版本及草稿内容快照 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `dependencies_digest` | `varchar(64)` | 全量依赖摘要 | 是 | 服务层校验后的业务输入 | 内部 |
 | `output_schema` | `json` | 固定输出结构 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, run_id)`。
 
@@ -82,6 +85,7 @@
 | `source_version_id` | `varchar(64)` | 引用方版本标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `target_version_id` | `varchar(64)` | 被引用版本标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `target_resource_type` | `varchar(64)` | 被引用资源类型 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, target_version_id)`；`(channel_id, source_version_id)`。
 
@@ -106,6 +110,7 @@
 | `request_id` | `varchar(64)` | 请求标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `outcome` | `varchar(32)` | 操作结果 | 是 | 服务层校验后的业务输入 | 内部 |
 | `summary` | `json` | 脱敏变更摘要 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, created_at)`；`(channel_id, target_type, target_id)`；`(channel_id, created_at, id)`。
 
@@ -128,6 +133,7 @@
 | `key_version` | `varchar(64)` | 加密密钥版本 | 否 | 服务层校验后的业务输入 | 内部 |
 | `state` | `varchar(32)` | 凭据状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `secret_value` | `longtext` | MCP 凭据原文 | 否 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, purpose, state)`。
 
@@ -154,6 +160,7 @@
 | `expires_at` | `datetime(6) UTC` | 保存到期时间 | 是 | 服务层校验后的业务输入 | 内部 |
 | `upload_expires_at` | `datetime(6) UTC` | 暂存到期时间 | 是 | 服务层校验后的业务输入 | 内部 |
 | `registered_at` | `datetime(6) UTC` | 登记完成时间 | 否 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, state, upload_expires_at)`。
 
@@ -176,6 +183,7 @@
 | `derived_type` | `varchar(64)` | 派生类型 | 是 | 服务层校验后的业务输入 | 内部 |
 | `derived_id` | `varchar(128)` | 派生标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `source_version` | `varchar(128)` | 来源版本 | 否 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, source_type, source_id)`；`(channel_id, environment, derived_type, derived_id)`。
 
@@ -197,6 +205,7 @@
 | `target_id` | `varchar(128)` | 删除对象标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `reason_code` | `varchar(64)` | 删除原因类别 | 是 | 服务层校验后的业务输入 | 内部 |
 | `requested_by` | `varchar(128)` | 删除申请主体 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, target_type, target_id)`。
 
@@ -218,6 +227,7 @@
 | `recovery_id` | `varchar(64)` | 本次恢复标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `marker_digest` | `varchar(64)` | 已校验删除账本摘要 | 是 | 服务层校验后的业务输入 | 内部 |
 | `verified_at` | `datetime(6) UTC` | 删除账本核对时间 | 否 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`。
 
@@ -229,6 +239,7 @@
 | --- | --- | --- | --- | --- | --- |
 | `version_num` | `varchar(64)` | 当前数据库迁移修订编号 | 是 | Alembic 修订 | 内部 |
 | `channel_id` | `varchar(64)` | 迁移记录所属系统渠道 | 是 | 系统渠道 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：无。
 
@@ -253,6 +264,7 @@
 | `agent_name` | `varchar(128)` | 使用时智能体名称 | 否 | 受信执行上下文 | 内部 |
 | `caller_name` | `varchar(128)` | 使用时调用方名称 | 否 | 受信执行上下文 | 内部 |
 | `purpose` | `varchar(32)` | 运行用途 | 是 | 受信执行上下文 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, resource_type, resource_id)`；`(channel_id, run_id)`。
 
@@ -264,6 +276,7 @@
 | --- | --- | --- | --- | --- | --- |
 | `channel_id` | `varchar(64)` | 锁目录所属系统渠道 | 是 | 服务端固定值 | 内部 |
 | `slot` | `integer` | 包含锁顺序分组的固定槽位 | 是 | 服务端哈希映射 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, slot)`。
 

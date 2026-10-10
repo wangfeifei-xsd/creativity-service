@@ -295,6 +295,7 @@ async def test_more_than_two_hundred_rows_are_searchable_and_paginated(channel_e
             [
                 {
                     "id": f"index_{i:03}",
+                    "is_deleted": False,
                     "channel_id": "system",
                     "channel_code": f"page-{i:03}",
                     "target_channel_id": f"page_channel_{i:03}",
@@ -310,6 +311,7 @@ async def test_more_than_two_hundred_rows_are_searchable_and_paginated(channel_e
             [
                 {
                     "id": f"page_audit_{i:03}",
+                    "is_deleted": False,
                     "channel_id": "system",
                     "environment": "control",
                     "subject_type": None,

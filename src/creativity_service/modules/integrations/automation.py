@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.database import Repository, UnitOfWork, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import RunInput, ServiceError, digest, new_id, utcnow
@@ -64,8 +65,8 @@ def scope_of(row: dict[str, Any]) -> Scope:
     return Scope.model_validate({k: row[k] for k in Scope.model_fields})
 
 
-def repo(scope: Scope, name: str) -> Repository:
-    return Repository(metadata.tables[name], scope)
+def repo(scope: Scope, name: str, *, include_deleted: bool = False) -> Repository:
+    return Repository(metadata.tables[name], scope, include_deleted=include_deleted)
 
 
 def keys(context: AuthContext, *records: tuple[str, str]) -> list[ResourceKey]:
@@ -100,7 +101,13 @@ async def audit_configuration(
 async def add(
     uow: UnitOfWork, context: AuthContext, name: str, identifier: str, values: dict[str, Any]
 ) -> dict[str, Any]:
-    protected = set(Scope.model_fields) | {"id", "created_at", "updated_at", "revision"}
+    protected = set(Scope.model_fields) | {
+        "id",
+        "created_at",
+        "updated_at",
+        "revision",
+        "is_deleted",
+    }
     return await repo(context.scope, name).add(
         uow,
         identifier,
@@ -133,7 +140,9 @@ class AutomationService:
             return [
                 dict(r)
                 for r in (
-                    await connection.execute(select(table).where(table.c.channel_id == channel_id))
+                    await connection.execute(
+                        active_rows(select(table).where(table.c.channel_id == channel_id))
+                    )
                 ).mappings()
             ]
 
@@ -143,7 +152,7 @@ class AutomationService:
             records = await repo(context.scope, "automation_schedules").find(
                 connection, owner_key=owner(context)
             )
-        return [self.schedule_view(r) for r in records if r["state"] != "DELETED"]
+        return [self.schedule_view(r) for r in records if not r["is_deleted"]]
 
     @staticmethod
     def schedule_view(row: dict[str, Any]) -> dict[str, Any]:
@@ -216,7 +225,8 @@ class AutomationService:
         *,
         skip_deleted: bool = False,
     ) -> list[BatchView]:
-        items = await repo(context.scope, "automation_items").get_many(
+        # 批次历史保留已删除条目的占位，继续校验归属并隐藏运行及错误内容。
+        items = await repo(context.scope, "automation_items", include_deleted=True).get_many(
             uow.connection, [identifier for r in records for identifier in r["item_ids"]]
         )
         refs = [ContentRef("batch", r["id"]) for r in records]
@@ -237,11 +247,17 @@ class AutomationService:
                 if not item or item["owner_key"] != owner(context):
                     raise ServiceError("NOT_FOUND", "当前身份与范围没有此条目", 404)
                 if (
-                    item["state"] == "DELETED"
+                    item["is_deleted"]
                     or ContentRef("batch_item", identifier) in blocked
                     or (item["run_id"] and ContentRef("run", item["run_id"]) in blocked)
                 ):
-                    item = {**item, "state": "DELETED", "run_id": None, "error": None}
+                    item = {
+                        **item,
+                        "is_deleted": True,
+                        "state": "DELETED",
+                        "run_id": None,
+                        "error": None,
+                    }
                 views.append(self.item_view(item))
             result.append(
                 BatchView(
@@ -280,7 +296,7 @@ class AutomationService:
                 predicates = [
                     repo(context.scope, "automation_batches").predicate(),
                     table.c.owner_key == owner(context),
-                    table.c.state != "DELETED",
+                    table.c.is_deleted.is_(False),
                 ]
                 if after:
                     predicates.append(tuple_(table.c.created_at, table.c.id) < after)
@@ -288,10 +304,12 @@ class AutomationService:
                     dict(r)
                     for r in (
                         await uow.connection.execute(
-                            select(table)
-                            .where(*predicates)
-                            .order_by(table.c.created_at.desc(), table.c.id.desc())
-                            .limit(100 - len(result))
+                            active_rows(
+                                select(table)
+                                .where(*predicates)
+                                .order_by(table.c.created_at.desc(), table.c.id.desc())
+                                .limit(100 - len(result))
+                            )
                         )
                     ).mappings()
                 ]
@@ -313,7 +331,7 @@ class AutomationService:
             if exc.code != "CONTENT_DELETED":
                 raise
             return True
-        return bool(row["state"] == "DELETED")
+        return bool(row["is_deleted"])
 
     @staticmethod
     def item_view(row: dict[str, Any]) -> ItemView:
@@ -572,7 +590,7 @@ class AutomationService:
         cancel = False
         async with transaction(self.engine, context.scope, lock) as uow:
             current = await item_repo.get(uow.connection, row["id"])
-            if not current or current["state"] in {"CANCELLED", "DELETED"}:
+            if not current or (current["is_deleted"] or current["state"] == "CANCELLED"):
                 cancel = bool(receipt)
             elif current["lease_nonce"] != nonce:
                 return

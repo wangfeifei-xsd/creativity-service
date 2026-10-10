@@ -1,6 +1,6 @@
 # 账号与授权模型
 
-模型版本 2.0.0；负责方案 04；需求 [02-账号与权限管理.md](../../../../需求文档/02-账号与权限管理.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 04；需求 [02-账号与权限管理.md](../../../../需求文档/02-账号与权限管理.md)。总索引见 [README](../README.md)。
 
 ## platform_accounts
 
@@ -23,6 +23,7 @@
 | `credential_version` | `bigint` | 凭据撤销代次 | 是 | 受信服务上下文与服务层校验 | 内部 |
 | `role_id` | `varchar(64)` | 账号选择的管理角色 | 否 | 受信上下文与服务层校验 | 内部 |
 | `role_ids` | `json` | 账号选择的管理角色清单，空值兼容旧单角色 | 否 | 受信上下文与服务层校验 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, login_name)`；`(channel_id, status, login_name, id)`。
 
@@ -45,6 +46,7 @@
 | `grant_scope` | `varchar(32)` | 授权类别 | 是 | 服务层校验后的业务输入 | 内部 |
 | `account_assignable` | `boolean` | 可用于账号管理 | 是 | 受信上下文与服务层校验 | 内部 |
 | `menu_ids` | `json` | 可见菜单节点清单，空值沿用按动作生成 | 否 | 受信上下文与服务层校验 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, role_code)`。
 
@@ -66,6 +68,7 @@
 | `environments` | `json` | 授权环境 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `status` | `varchar(32)` | 成员状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `granted_by` | `varchar(128)` | 授权人标识 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, user_id)`。
 
@@ -86,6 +89,7 @@
 | `resource_id` | `varchar(64)` | 资源标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `allowed_actions` | `json` | 允许动作 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `environments` | `json` | 授权环境 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, grantee_type, grantee_id)`；`(channel_id, resource_type, resource_id)`。
 
@@ -104,6 +108,7 @@
 | `target_id` | `varchar(128)` | 撤销对象标识或令牌摘要 | 是 | 受信服务上下文与服务层校验 | 内部 |
 | `cutoff_at` | `datetime(6) UTC` | 撤销签发时间上界 | 是 | 受信服务上下文与服务层校验 | 内部 |
 | `completed_at` | `datetime(6) UTC` | 缓存补偿完成时间 | 否 | 受信服务上下文与服务层校验 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, kind, target_id)`；`(completed_at)`。
 
@@ -123,6 +128,7 @@
 | `state` | `varchar(32)` | 启停状态 | 是 | 受信上下文与服务层校验 | 内部 |
 | `menu_ids` | `json` | 可见菜单节点清单，空值沿用按动作生成 | 否 | 受信上下文与服务层校验 | 内部 |
 | `grant_scope` | `varchar(32)` | 授权类别 | 是 | 受信上下文与服务层校验 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`。
 
@@ -146,6 +152,7 @@
 | `sort_order` | `integer` | 显示顺序 | 是 | 受信上下文与服务层校验 | 内部 |
 | `visible` | `boolean` | 菜单可见标记 | 是 | 受信上下文与服务层校验 | 内部 |
 | `active` | `boolean` | 启用标记 | 是 | 受信上下文与服务层校验 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, parent_id, sort_order)`。
 

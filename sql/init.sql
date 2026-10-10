@@ -1,7 +1,7 @@
 -- Creativity 表结构初始化归档，适用于 MySQL 8.0 空数据库。
--- 模型版本：2.0.0；配套数据归档迁移基线：0048_mysql_milvus。
+-- 模型版本：2.1.0；配套数据归档迁移基线：0049_soft_delete。
 -- 初始建库基线：alembic/mysql_versions/0048_mysql_milvus.py；后续修订在其上追加。
--- 包含 111 张表、1613 个字段、249 个普通索引及全部中文注释。
+-- 包含 111 张表、1724 个字段、249 个普通索引及全部中文注释。
 -- 本文件不写初始化数据；完成后必须执行 sql/init_data.sql，再启动服务或迁移。
 -- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。
 -- 执行方式见 sql/README.md；表创建在连接的当前 schema。
@@ -15,7 +15,8 @@ SELECT GET_LOCK(SHA2(CONCAT('creativity:migrate:', DATABASE()), 256), -1);
 -- creativity_alembic_version：平台数据库迁移版本记录。
 CREATE TABLE creativity_alembic_version (
 	version_num VARCHAR(64) COMMENT '当前数据库迁移修订编号',
-	channel_id VARCHAR(64) COMMENT '迁移记录所属系统渠道'
+	channel_id VARCHAR(64) COMMENT '迁移记录所属系统渠道',
+	is_deleted BOOL COMMENT '是否已逻辑删除'
 )COMMENT='平台数据库迁移版本记录';
 
 -- admissions：运行准入配额占用。
@@ -33,6 +34,7 @@ CREATE TABLE admissions (
 	status VARCHAR(32) COMMENT '占用状态',
 	expires_at DATETIME(6) COMMENT '核查时间',
 	snapshot JSON COMMENT '运行来源及候选模型快照',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_admissions_0 (channel_id, id),
 	INDEX ix_admissions_1 (channel_id, run_id),
 	INDEX ix_admissions_active (channel_id, status, created_at)
@@ -56,6 +58,7 @@ CREATE TABLE agent_candidates (
 	dependencies_digest VARCHAR(64) COMMENT '完整依赖摘要',
 	candidate_digest VARCHAR(64) COMMENT '候选组合摘要',
 	spec JSON COMMENT '不可变执行定义',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_agent_candidates_0 (channel_id, id),
 	INDEX ix_agent_candidates_1 (channel_id, agent_id, created_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='冻结智能体候选快照' COLLATE utf8mb4_0900_bin;
@@ -71,6 +74,7 @@ CREATE TABLE agent_environment_states (
 	agent_id VARCHAR(64) COMMENT '智能体标识',
 	status VARCHAR(32) COMMENT '当前环境启用状态',
 	reason VARCHAR(1024) COMMENT '状态变更原因',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_agent_environment_states_0 (channel_id, id),
 	INDEX ix_agent_environment_states_1 (channel_id, environment, agent_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='智能体各环境停用状态' COLLATE utf8mb4_0900_bin;
@@ -96,6 +100,7 @@ CREATE TABLE agent_release_records (
 	dependencies_digest VARCHAR(64) COMMENT '完整依赖摘要',
 	evidence_refs JSON COMMENT '评测报告引用',
 	checks JSON COMMENT '发布检查证据',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_agent_release_records_0 (channel_id, id),
 	INDEX ix_agent_release_records_1 (channel_id, environment, agent_id, created_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='智能体发布检查与操作记录' COLLATE utf8mb4_0900_bin;
@@ -112,6 +117,7 @@ CREATE TABLE agents (
 	description LONGTEXT COMMENT '用途说明',
 	owner VARCHAR(128) COMMENT '负责人标识',
 	status VARCHAR(32) COMMENT '启用状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_agents_0 (channel_id, id),
 	INDEX ix_agents_1 (channel_id, agent_code)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='智能体资源' COLLATE utf8mb4_0900_bin;
@@ -138,6 +144,7 @@ CREATE TABLE alert_rules (
 	generation BIGINT COMMENT '触发周期序号',
 	`last_value` BIGINT COMMENT '最近观察次数',
 	pending_events JSON COMMENT '待生成投递事件',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	client_ids JSON COMMENT '订阅的调用服务列表；空列表仅包含配置者运行',
 	INDEX ix_alert_rules_0 (channel_id, id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='外部告警规则' COLLATE utf8mb4_0900_bin;
@@ -161,6 +168,7 @@ CREATE TABLE artifacts (
 	expires_at DATETIME(6) COMMENT '保存到期时间',
 	upload_expires_at DATETIME(6) COMMENT '暂存到期时间',
 	registered_at DATETIME(6) COMMENT '登记完成时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_artifacts_0 (channel_id, id),
 	INDEX ix_artifacts_1 (channel_id, environment, state, upload_expires_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='受控文件与产物元数据' COLLATE utf8mb4_0900_bin;
@@ -189,6 +197,7 @@ CREATE TABLE attempts (
 	lease_version BIGINT COMMENT '调用所属租约代次',
 	sent_at DATETIME(6) COMMENT '外部发送意图登记时间',
 	retryable BOOL COMMENT '明确失败是否允许有限重试',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_attempts_0 (channel_id, id),
 	INDEX ix_attempts_1 (channel_id, run_id),
 	INDEX ix_attempts_2 (channel_id, step_id, created_at)
@@ -211,6 +220,7 @@ CREATE TABLE audit_events (
 	request_id VARCHAR(64) COMMENT '请求标识',
 	outcome VARCHAR(32) COMMENT '操作结果',
 	summary JSON COMMENT '脱敏变更摘要',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_audit_events_0 (channel_id, id),
 	INDEX ix_audit_events_1 (channel_id, created_at),
 	INDEX ix_audit_events_2 (channel_id, target_type, target_id),
@@ -233,6 +243,7 @@ CREATE TABLE automation_batches (
 	owner_key VARCHAR(64) COMMENT '执行身份摘要',
 	identity JSON COMMENT '原执行身份快照',
 	state VARCHAR(32) COMMENT '当前处理状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_automation_batches_0 (channel_id, id),
 	INDEX ix_automation_batches_1 (channel_id, environment, subject_type, subject_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='批量运行受理批次' COLLATE utf8mb4_0900_bin;
@@ -260,6 +271,7 @@ CREATE TABLE automation_items (
 	attempts BIGINT COMMENT '受理尝试次数',
 	run_id VARCHAR(64) COMMENT '关联运行标识',
 	error JSON COMMENT '最近受理错误',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_automation_items_0 (channel_id, id),
 	INDEX ix_automation_items_1 (channel_id, environment, subject_type, subject_id),
 	INDEX ix_automation_items_2 (channel_id, state, lease_until)
@@ -282,6 +294,7 @@ CREATE TABLE automation_schedules (
 	state VARCHAR(32) COMMENT '当前处理状态',
 	next_at DATETIME(6) COMMENT '下次触发时间',
 	last_error JSON COMMENT '最近派发错误',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_automation_schedules_0 (channel_id, id),
 	INDEX ix_automation_schedules_1 (channel_id, environment, subject_type, subject_id),
 	INDEX ix_automation_schedules_2 (channel_id, state, next_at)
@@ -302,6 +315,7 @@ CREATE TABLE budget_alerts (
 	first_triggered_at DATETIME(6) COMMENT '首次触发时间',
 	resolved_at DATETIME(6) COMMENT '解除时间',
 	transitions JSON COMMENT '解除及再次触发轨迹',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_budget_alerts_0 (channel_id, id),
 	INDEX ix_budget_alerts_1 (channel_id, rule_id, period_start, threshold, scope_key)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='预算阈值提醒' COLLATE utf8mb4_0900_bin;
@@ -325,6 +339,7 @@ CREATE TABLE budget_policies (
 	status VARCHAR(32) COMMENT '策略状态',
 	name VARCHAR(128) COMMENT '预算名称',
 	version_id VARCHAR(64) COMMENT '当前不可变策略版本',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_budget_policies_0 (channel_id, id),
 	INDEX ix_budget_policies_1 (channel_id, scope_type, scope_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='预算策略' COLLATE utf8mb4_0900_bin;
@@ -349,6 +364,7 @@ CREATE TABLE budget_reservations (
 	policy_version_id VARCHAR(64) COMMENT '预占时固定的预算策略版本',
 	unit VARCHAR(32) COMMENT '占用计量单位',
 	scope_snapshot JSON COMMENT '预算命中对象与周期快照',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_budget_reservations_0 (channel_id, id),
 	INDEX ix_budget_reservations_1 (channel_id, policy_id, period_start),
 	INDEX ix_budget_reservations_2 (channel_id, attempt_id)
@@ -365,6 +381,7 @@ CREATE TABLE builtin_roles (
 	name VARCHAR(128) COMMENT '角色名称',
 	allowed_actions JSON COMMENT '允许动作',
 	grant_scope VARCHAR(32) COMMENT '授权类别',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	account_assignable BOOL COMMENT '可用于账号管理',
 	menu_ids JSON COMMENT '可见菜单节点清单，空值沿用按动作生成',
 	INDEX ix_builtin_roles_0 (channel_id, id),
@@ -380,6 +397,7 @@ CREATE TABLE channel_code_index (
 	revision BIGINT COMMENT '并发修订号',
 	channel_code VARCHAR(64) COMMENT '规范化渠道编码',
 	target_channel_id VARCHAR(64) COMMENT '实际业务渠道标识',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_channel_code_index_0 (channel_id, id),
 	INDEX ix_channel_code_index_1 (channel_id, channel_code)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='系统渠道的渠道编码定位索引' COLLATE utf8mb4_0900_bin;
@@ -396,6 +414,7 @@ CREATE TABLE channel_environments (
 	status VARCHAR(32) COMMENT '环境状态',
 	release_policy JSON COMMENT '发布策略',
 	retention_policy JSON COMMENT '保存策略',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_channel_environments_0 (channel_id, id),
 	INDEX ix_channel_environments_1 (channel_id, environment)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='渠道环境' COLLATE utf8mb4_0900_bin;
@@ -417,6 +436,7 @@ CREATE TABLE channel_keys (
 	status VARCHAR(32) COMMENT '密钥状态',
 	expires_at DATETIME(6) COMMENT '失效时间',
 	last_used_at DATETIME(6) COMMENT '最近使用时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_channel_keys_0 (channel_id, id),
 	INDEX ix_channel_keys_1 (channel_id, client_id, status)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='渠道接入密钥' COLLATE utf8mb4_0900_bin;
@@ -434,6 +454,7 @@ CREATE TABLE channel_lifecycle_events (
 	environment VARCHAR(16) COMMENT '受影响环境',
 	payload JSON COMMENT '变更事实与原始归属',
 	acknowledgements JSON COMMENT '已处理模块及时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_channel_lifecycle_events_0 (channel_id, id),
 	INDEX ix_channel_lifecycle_events_1 (channel_id, created_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='渠道生命周期交接事件' COLLATE utf8mb4_0900_bin;
@@ -450,6 +471,7 @@ CREATE TABLE channel_memberships (
 	environments JSON COMMENT '授权环境',
 	status VARCHAR(32) COMMENT '成员状态',
 	granted_by VARCHAR(128) COMMENT '授权人标识',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_channel_memberships_0 (channel_id, id),
 	INDEX ix_channel_memberships_1 (channel_id, user_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='渠道成员关系' COLLATE utf8mb4_0900_bin;
@@ -469,6 +491,7 @@ CREATE TABLE channels (
 	retention_policy JSON COMMENT '保存策略',
 	budget_policy_refs JSON COMMENT '预算策略引用',
 	rate_limit_policy_refs JSON COMMENT '限流策略引用',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_channels_0 (channel_id, id),
 	INDEX ix_channels_1 (channel_id, channel_code)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='渠道主档' COLLATE utf8mb4_0900_bin;
@@ -491,6 +514,7 @@ CREATE TABLE checkpoints (
 	release_snapshot_id VARCHAR(64) COMMENT '固定依赖快照',
 	state_ref VARCHAR(64) COMMENT '状态内容引用',
 	metadata JSON COMMENT '无原文恢复元数据',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_checkpoints_0 (channel_id, id),
 	INDEX ix_checkpoints_1 (channel_id, run_id, namespace, checkpoint_key)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='自有流程恢复点' COLLATE utf8mb4_0900_bin;
@@ -515,6 +539,7 @@ CREATE TABLE context_snapshots (
 	summary_source_ids JSON COMMENT '摘要来源消息集合',
 	policy_version VARCHAR(32) COMMENT '上下文选择策略版本',
 	required_characters BIGINT COMMENT '必要指令和当前任务字符数',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_context_snapshots_0 (channel_id, id),
 	INDEX ix_context_snapshots_1 (channel_id, run_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='实际模型上下文快照' COLLATE utf8mb4_0900_bin;
@@ -536,6 +561,7 @@ CREATE TABLE conversation_summaries (
 	status VARCHAR(32) COMMENT '摘要有效状态',
 	truncation JSON COMMENT '摘要删减记录',
 	generation_run_id VARCHAR(64) COMMENT '受控摘要生成运行',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_conversation_summaries_0 (channel_id, id),
 	INDEX ix_conversation_summaries_1 (channel_id, conversation_id, version)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='可溯源会话摘要' COLLATE utf8mb4_0900_bin;
@@ -564,6 +590,7 @@ CREATE TABLE conversation_turns (
 	output_schema JSON COMMENT '本轮输出契约',
 	source_run_id VARCHAR(64) COMMENT '普通追问来源运行',
 	confirmed_conditions JSON COMMENT '上一轮已确认条件',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_conversation_turns_0 (channel_id, id),
 	INDEX ix_conversation_turns_1 (channel_id, conversation_id, client_message_id),
 	INDEX ix_conversation_turns_2 (channel_id, conversation_id, sequence)
@@ -590,6 +617,7 @@ CREATE TABLE conversations (
 	input_schema JSON COMMENT '已接受的输入契约',
 	next_sequence BIGINT COMMENT '下一条消息顺序',
 	next_turn_sequence BIGINT COMMENT '下一轮顺序',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_conversations_0 (channel_id, id),
 	INDEX ix_conversations_1 (channel_id, environment, subject_type, subject_id, updated_at),
 	INDEX ix_conversations_2 (channel_id, environment, created_at, id)
@@ -608,6 +636,7 @@ CREATE TABLE credentials (
 	key_version VARCHAR(64) COMMENT '加密密钥版本',
 	state VARCHAR(32) COMMENT '凭据状态',
 	secret_value LONGTEXT COMMENT 'MCP 凭据原文',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_credentials_0 (channel_id, id),
 	INDEX ix_credentials_1 (channel_id, environment, purpose, state)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='加密服务凭据' COLLATE utf8mb4_0900_bin;
@@ -622,6 +651,7 @@ CREATE TABLE custom_roles (
 	name VARCHAR(128) COMMENT '角色名称',
 	allowed_actions JSON COMMENT '角色动作上限',
 	state VARCHAR(32) COMMENT '启停状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	menu_ids JSON COMMENT '可见菜单节点清单，空值沿用按动作生成',
 	grant_scope VARCHAR(32) COMMENT '授权类别',
 	INDEX ix_custom_roles_0 (channel_id, id)
@@ -646,6 +676,7 @@ CREATE TABLE delegation_keys (
 	not_before DATETIME(6) COMMENT '密钥生效时间',
 	expires_at DATETIME(6) COMMENT '密钥到期时间',
 	rotated_from VARCHAR(64) COMMENT '轮换前密钥编号',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_delegation_keys_0 (channel_id, id),
 	INDEX ix_delegation_keys_1 (channel_id, environment, client_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='委托签名验证密钥' COLLATE utf8mb4_0900_bin;
@@ -667,6 +698,7 @@ CREATE TABLE delegation_nonces (
 	resolved_scope JSON COMMENT '验签后渠道环境主体',
 	expires_at DATETIME(6) COMMENT '防重放声明有效时间',
 	retain_until DATETIME(6) COMMENT '防重放记录最早清理时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_delegation_nonces_0 (channel_id, id),
 	INDEX ix_delegation_nonces_1 (channel_id, environment, client_id, nonce_digest),
 	INDEX ix_delegation_nonces_2 (channel_id, environment, retain_until)
@@ -688,6 +720,7 @@ CREATE TABLE deletion_jobs (
 	state VARCHAR(32) COMMENT '清理状态',
 	completed_at DATETIME(6) COMMENT '完成时间',
 	conversation_id VARCHAR(64) COMMENT '删除目标会话',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_deletion_jobs_0 (channel_id, id),
 	INDEX ix_deletion_jobs_1 (channel_id, state, created_at),
 	INDEX ix_deletion_jobs_2 (channel_id, conversation_id)
@@ -707,6 +740,7 @@ CREATE TABLE deletion_markers (
 	target_id VARCHAR(128) COMMENT '删除对象标识',
 	reason_code VARCHAR(64) COMMENT '删除原因类别',
 	requested_by VARCHAR(128) COMMENT '删除申请主体',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_deletion_markers_0 (channel_id, id),
 	INDEX ix_deletion_markers_1 (channel_id, environment, target_type, target_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='不可恢复使用的删除标记' COLLATE utf8mb4_0900_bin;
@@ -726,6 +760,7 @@ CREATE TABLE deletion_receipts (
 	counts JSON COMMENT '各类已完成数量',
 	proof_digest VARCHAR(64) COMMENT '完成证明摘要',
 	completed_at DATETIME(6) COMMENT '完成时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_deletion_receipts_0 (channel_id, id),
 	INDEX ix_deletion_receipts_1 (channel_id, job_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='删除清理完成证明' COLLATE utf8mb4_0900_bin;
@@ -751,6 +786,7 @@ CREATE TABLE deletion_work_items (
 	lease_token VARCHAR(64) COMMENT '执行租约令牌',
 	lease_until DATETIME(6) COMMENT '执行租约到期时间',
 	completed_at DATETIME(6) COMMENT '完成时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_deletion_work_items_0 (channel_id, id),
 	INDEX ix_deletion_work_items_1 (channel_id, job_id, handler_key, target_id),
 	INDEX ix_deletion_work_items_2 (channel_id, state, next_attempt_at)
@@ -770,6 +806,7 @@ CREATE TABLE dispatch_outbox (
 	next_attempt_at DATETIME(6) COMMENT '下次补偿时间',
 	last_error VARCHAR(64) COMMENT '脱敏错误类别',
 	delivery_version BIGINT COMMENT '本次投递声明代次',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_dispatch_outbox_0 (channel_id, id),
 	INDEX ix_dispatch_outbox_1 (channel_id, state, next_attempt_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='可靠调度投递意图' COLLATE utf8mb4_0900_bin;
@@ -791,6 +828,7 @@ CREATE TABLE evaluation_cases (
 	fixture_id VARCHAR(64) COMMENT '固定工具数据引用',
 	previous_case_id VARCHAR(64) COMMENT '修改前样本引用',
 	invalidated BOOL COMMENT '来源已失效',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_evaluation_cases_0 (channel_id, id),
 	INDEX ix_evaluation_cases_1 (channel_id, dataset_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='不可变评测样本' COLLATE utf8mb4_0900_bin;
@@ -812,6 +850,7 @@ CREATE TABLE evaluation_dataset_versions (
 	reference_versions JSON COMMENT '参考资料版本',
 	captured_at DATETIME(6) COMMENT '固定数据时间',
 	reference_digests JSON COMMENT '参考资料版本内容摘要',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_evaluation_dataset_versions_0 (channel_id, id),
 	INDEX ix_evaluation_dataset_versions_1 (channel_id, dataset_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='不可变评测样本及标签版本' COLLATE utf8mb4_0900_bin;
@@ -831,6 +870,7 @@ CREATE TABLE evaluation_datasets (
 	owner VARCHAR(128) COMMENT '负责人',
 	applicability LONGTEXT COMMENT '适用范围',
 	current_version_id VARCHAR(64) COMMENT '当前样本版本',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_evaluation_datasets_0 (channel_id, id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='评测样本集' COLLATE utf8mb4_0900_bin;
 
@@ -847,6 +887,7 @@ CREATE TABLE evaluation_fixtures (
 	payload JSON COMMENT '按工具版本及参数匹配的固定结果',
 	captured_at DATETIME(6) COMMENT '夹具采集时间',
 	invalidated BOOL COMMENT '夹具来源已失效',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_evaluation_fixtures_0 (channel_id, id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='评测工具夹具' COLLATE utf8mb4_0900_bin;
 
@@ -864,6 +905,7 @@ CREATE TABLE evaluation_reports (
 	report_digest VARCHAR(64) COMMENT '报告证据摘要',
 	payload JSON COMMENT '覆盖、差异、阻断、用量与耗时',
 	reproducible BOOL COMMENT '来源和固定数据可复现',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_evaluation_reports_0 (channel_id, id),
 	INDEX ix_evaluation_reports_1 (channel_id, evaluation_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='可追溯评测报告' COLLATE utf8mb4_0900_bin;
@@ -887,6 +929,7 @@ CREATE TABLE evaluation_results (
 	judgment JSON COMMENT '确定性与语义判定',
 	human_label JSON COMMENT '独立人工结论',
 	claimed_at DATETIME(6) COMMENT '派发占位时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_evaluation_results_0 (channel_id, id),
 	INDEX ix_evaluation_results_1 (channel_id, evaluation_id),
 	INDEX ix_evaluation_results_2 (channel_id, run_id)
@@ -914,6 +957,7 @@ CREATE TABLE evaluations (
 	state VARCHAR(32) COMMENT '调度状态',
 	human_review JSON COMMENT '独立报告人工审阅',
 	expires_at DATETIME(6) COMMENT '发布证据有效期',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_evaluations_0 (channel_id, id),
 	INDEX ix_evaluations_1 (channel_id, state)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='批量评测调度任务' COLLATE utf8mb4_0900_bin;
@@ -936,6 +980,7 @@ CREATE TABLE evidence_refs (
 	title VARCHAR(255) COMMENT '授权范围内的来源名称',
 	artifact_id VARCHAR(64) COMMENT '内容产物标识',
 	authorization_scope JSON COMMENT '授权范围摘要',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_evidence_refs_0 (channel_id, id),
 	INDEX ix_evidence_refs_1 (channel_id, source_type, source_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='证据定位与授权范围' COLLATE utf8mb4_0900_bin;
@@ -956,6 +1001,7 @@ CREATE TABLE iam_menus (
 	sort_order INTEGER COMMENT '显示顺序',
 	visible BOOL COMMENT '菜单可见标记',
 	active BOOL COMMENT '启用标记',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_iam_menus_0 (channel_id, id),
 	INDEX ix_iam_menus_1 (channel_id, parent_id, sort_order)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='平台菜单目录' COLLATE utf8mb4_0900_bin;
@@ -971,6 +1017,7 @@ CREATE TABLE iam_revocations (
 	target_id VARCHAR(128) COMMENT '撤销对象标识或令牌摘要',
 	cutoff_at DATETIME(6) COMMENT '撤销签发时间上界',
 	completed_at DATETIME(6) COMMENT '缓存补偿完成时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_iam_revocations_0 (channel_id, id),
 	INDEX ix_iam_revocations_1 (channel_id, kind, target_id),
 	INDEX ix_iam_revocations_2 (completed_at)
@@ -986,6 +1033,7 @@ CREATE TABLE key_identity_index (
 	key_lookup_digest VARCHAR(64) COMMENT '完整密钥不可逆摘要',
 	key_id VARCHAR(64) COMMENT '目标密钥标识',
 	target_channel_id VARCHAR(64) COMMENT '目标渠道标识',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_key_identity_index_0 (channel_id, id),
 	INDEX ix_key_identity_index_1 (channel_id, key_lookup_digest)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='系统渠道密钥身份索引' COLLATE utf8mb4_0900_bin;
@@ -1001,6 +1049,7 @@ CREATE TABLE key_rotations (
 	new_key_id VARCHAR(64) COMMENT '新密钥标识',
 	overlap_until DATETIME(6) COMMENT '重叠截止时间',
 	operator_id VARCHAR(128) COMMENT '操作人标识',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_key_rotations_0 (channel_id, id),
 	INDEX ix_key_rotations_1 (channel_id, old_key_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='密钥轮换记录' COLLATE utf8mb4_0900_bin;
@@ -1022,6 +1071,7 @@ CREATE TABLE mcp_checks (
 	error_category VARCHAR(64) COMMENT '错误类别',
 	connection_revision BIGINT COMMENT '检查时连接配置修订',
 	operation VARCHAR(32) COMMENT '检查操作类型',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_mcp_checks_0 (channel_id, id),
 	INDEX ix_mcp_checks_1 (channel_id, connection_id, created_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='握手与健康检查' COLLATE utf8mb4_0900_bin;
@@ -1052,6 +1102,7 @@ CREATE TABLE mcp_connections (
 	health_actor_id VARCHAR(64) COMMENT '健康检查授权成员',
 	next_check_at DATETIME(6) COMMENT '下次健康检查时间',
 	authentication JSON COMMENT '鉴权方式、令牌地址与应用标识；凭据单独保存',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_mcp_connections_0 (channel_id, id),
 	INDEX ix_mcp_connections_1 (channel_id, environment, status),
 	INDEX ix_mcp_connections_2 (channel_id, environment, next_check_at)
@@ -1071,6 +1122,7 @@ CREATE TABLE mcp_discoveries (
 	schema_hashes JSON COMMENT '定义摘要',
 	negotiated_version VARCHAR(64) COMMENT '发现协商协议版本',
 	credential_revision BIGINT COMMENT '发现时凭据版本',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_mcp_discoveries_0 (channel_id, id),
 	INDEX ix_mcp_discoveries_1 (channel_id, connection_id, created_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='远端工具发现快照' COLLATE utf8mb4_0900_bin;
@@ -1093,6 +1145,7 @@ CREATE TABLE mcp_imports (
 	name VARCHAR(128) COMMENT '本地工具显示名称',
 	input_schema JSON COMMENT '固定本地输入契约',
 	contract_status VARCHAR(32) COMMENT '固定契约可用状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_mcp_imports_0 (channel_id, id),
 	INDEX ix_mcp_imports_1 (channel_id, connection_id, remote_tool_name),
 	INDEX ix_mcp_imports_2 (channel_id, environment, connection_id, discovery_id, remote_tool_name)
@@ -1117,6 +1170,7 @@ CREATE TABLE mcp_oauth_flows (
 	state VARCHAR(16) COMMENT '授权流程状态',
 	verifier_ref VARCHAR(64) COMMENT 'PKCE 验证凭据引用',
 	expires_at DATETIME(6) COMMENT '授权流程截止时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_mcp_oauth_flows_0 (channel_id, id),
 	INDEX ix_mcp_oauth_flows_1 (channel_id, environment, connection_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='MCP 一次性授权流程' COLLATE utf8mb4_0900_bin;
@@ -1142,6 +1196,7 @@ CREATE TABLE mcp_oauth_tokens (
 	refresh_until DATETIME(6) COMMENT '刷新占用截止时间',
 	refresh_nonce VARCHAR(64) COMMENT '刷新互斥代次',
 	authorized_at DATETIME(6) COMMENT '授权发起时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_mcp_oauth_tokens_0 (channel_id, id),
 	INDEX ix_mcp_oauth_tokens_1 (channel_id, environment, connection_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='MCP 分身份委托凭据' COLLATE utf8mb4_0900_bin;
@@ -1168,6 +1223,7 @@ CREATE TABLE memories (
 	trust_level INTEGER COMMENT '有效来源可信等级',
 	usage_count BIGINT COMMENT '实际使用次数',
 	subject_name VARCHAR(255) COMMENT '主体可读名称',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	source_mode VARCHAR(16) COMMENT '来源有效性模式：独立依据或全部依赖',
 	INDEX ix_memories_0 (channel_id, id),
 	INDEX ix_memories_1 (channel_id, environment, subject_type, subject_id, `key`, status)
@@ -1194,6 +1250,7 @@ CREATE TABLE memory_consolidations (
 	error_code VARCHAR(128) COMMENT '最后失败原因编码',
 	settings JSON COMMENT '冻结策略与属性，不包含会话原文',
 	preference_revision INTEGER COMMENT '受理时主体偏好修订',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_memory_consolidations_0 (channel_id, id),
 	INDEX ix_memory_consolidations_1 (channel_id, state, next_attempt_at),
 	INDEX ix_memory_consolidations_2 (channel_id, conversation_id)
@@ -1213,6 +1270,7 @@ CREATE TABLE memory_deletion_jobs (
 	state VARCHAR(32) COMMENT '清理进度',
 	completed_at DATETIME(6) COMMENT '完成时间',
 	kind VARCHAR(16) COMMENT '单项遗忘或主体清空',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_memory_deletion_jobs_0 (channel_id, id),
 	INDEX ix_memory_deletion_jobs_1 (channel_id, environment, subject_type, subject_id, state)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='主体记忆删除清理意图' COLLATE utf8mb4_0900_bin;
@@ -1233,6 +1291,7 @@ CREATE TABLE memory_embeddings (
 	run_id VARCHAR(64) COMMENT '生成向量的运行',
 	dimensions INTEGER COMMENT '向量维度',
 	embedding JSON COMMENT '记忆向量',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_memory_embeddings_0 (channel_id, id),
 	INDEX ix_memory_embeddings_1 (channel_id, environment, subject_type, subject_id, model_version_id),
 	INDEX ix_memory_embeddings_2 (channel_id, memory_id)
@@ -1255,6 +1314,7 @@ CREATE TABLE memory_index_tasks (
 	lease_until DATETIME(6) COMMENT '租约失效时间',
 	next_attempt_at DATETIME(6) COMMENT '下次同步时间',
 	attempts INTEGER COMMENT '连续失败次数',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_memory_index_tasks_0 (channel_id, id),
 	INDEX ix_memory_index_tasks_1 (channel_id, next_attempt_at, state),
 	INDEX ix_memory_index_tasks_2 (channel_id, environment, subject_type, subject_id)
@@ -1276,6 +1336,7 @@ CREATE TABLE memory_policies (
 	read_enabled BOOL COMMENT '是否允许读取',
 	suggest_enabled BOOL COMMENT '是否允许建议写入',
 	failure_mode VARCHAR(16) COMMENT '读取故障处理方式',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	attributes JSON COMMENT '渠道可配置的画像属性定义',
 	consolidation JSON COMMENT '后台归档与画像整理策略',
 	INDEX ix_memory_policies_0 (channel_id, id),
@@ -1294,6 +1355,7 @@ CREATE TABLE memory_preferences (
 	subject_id VARCHAR(128) COMMENT '业务主体编号',
 	enabled BOOL COMMENT '是否启用',
 	changed_by VARCHAR(128) COMMENT '变更主体',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_memory_preferences_0 (channel_id, id),
 	INDEX ix_memory_preferences_1 (channel_id, environment, subject_type, subject_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='主体长期记忆开关' COLLATE utf8mb4_0900_bin;
@@ -1313,6 +1375,7 @@ CREATE TABLE memory_retrievals (
 	selection_reason JSON COMMENT '选择依据',
 	warnings JSON COMMENT '脱敏降级提示',
 	agent_id VARCHAR(64) COMMENT '使用记忆的智能体',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_memory_retrievals_0 (channel_id, id),
 	INDEX ix_memory_retrievals_1 (channel_id, run_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='运行记忆召回记录' COLLATE utf8mb4_0900_bin;
@@ -1336,6 +1399,7 @@ CREATE TABLE memory_sources (
 	status VARCHAR(32) COMMENT '来源状态',
 	authority VARCHAR(32) COMMENT '来源权限类型',
 	trust_level INTEGER COMMENT '来源可信等级',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_memory_sources_0 (channel_id, id),
 	INDEX ix_memory_sources_1 (channel_id, memory_id),
 	INDEX ix_memory_sources_2 (channel_id, environment, subject_type, subject_id, source_type, source_id)
@@ -1359,6 +1423,7 @@ CREATE TABLE memory_versions (
 	version_number INTEGER COMMENT '版本序号',
 	status VARCHAR(32) COMMENT '变更后状态',
 	source_ids JSON COMMENT '有效来源记录集合',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_memory_versions_0 (channel_id, id),
 	INDEX ix_memory_versions_1 (channel_id, memory_id, created_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='记忆变更版本' COLLATE utf8mb4_0900_bin;
@@ -1381,6 +1446,7 @@ CREATE TABLE messages (
 	sequence BIGINT COMMENT '会话消息顺序',
 	turn_id VARCHAR(64) COMMENT '关联轮次',
 	event_sequence BIGINT COMMENT '已投影运行事件顺序',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_messages_0 (channel_id, id),
 	INDEX ix_messages_1 (channel_id, conversation_id, created_at, id),
 	INDEX ix_messages_2 (channel_id, conversation_id, sequence)
@@ -1406,6 +1472,7 @@ CREATE TABLE model_connections (
 	health_reason VARCHAR(512) COMMENT '最近健康异常原因',
 	health_checked_at DATETIME(6) COMMENT '最近健康检查时间',
 	validation_revision BIGINT COMMENT '能力验证语义修订号',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_model_connections_0 (channel_id, id),
 	INDEX ix_model_connections_1 (channel_id, environment, status)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='模型供应商连接' COLLATE utf8mb4_0900_bin;
@@ -1420,6 +1487,7 @@ CREATE TABLE model_routes (
 	code VARCHAR(64) COMMENT '路由编码',
 	name VARCHAR(128) COMMENT '路由名称',
 	status VARCHAR(32) COMMENT '启用状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_model_routes_0 (channel_id, id),
 	INDEX ix_model_routes_1 (channel_id, code)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='模型路由资源' COLLATE utf8mb4_0900_bin;
@@ -1444,6 +1512,7 @@ CREATE TABLE model_tests (
 	run_id VARCHAR(64) COMMENT '统一调试运行标识',
 	error_code VARCHAR(64) COMMENT '验证失败类别',
 	reason VARCHAR(512) COMMENT '验证失败原因',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_model_tests_0 (channel_id, id),
 	INDEX ix_model_tests_1 (channel_id, model_id, created_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='模型验证记录' COLLATE utf8mb4_0900_bin;
@@ -1467,6 +1536,7 @@ CREATE TABLE models (
 	parameters JSON COMMENT '模型默认参数',
 	parameter_allowlist JSON COMMENT '模型允许的参数清单',
 	validation_revision BIGINT COMMENT '能力验证语义修订号',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_models_0 (channel_id, id),
 	INDEX ix_models_1 (channel_id, model_code)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='模型映射' COLLATE utf8mb4_0900_bin;
@@ -1486,6 +1556,7 @@ CREATE TABLE platform_accounts (
 	must_change_password BOOL COMMENT '首次修改密码标记',
 	credential_updated_at DATETIME(6) COMMENT '凭据更新时间',
 	credential_version BIGINT COMMENT '凭据撤销代次',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	role_id VARCHAR(64) COMMENT '账号选择的管理角色',
 	role_ids JSON COMMENT '账号选择的管理角色清单，空值兼容旧单角色',
 	INDEX ix_platform_accounts_0 (channel_id, id),
@@ -1510,6 +1581,7 @@ CREATE TABLE platform_limits (
 	status VARCHAR(32) COMMENT '限额启用状态',
 	replaces_id VARCHAR(64) COMMENT '前一个限额版本标识',
 	effective_at DATETIME(6) COMMENT '该限额版本生效时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_platform_limits_0 (channel_id, id),
 	INDEX ix_platform_limits_1 (channel_id, limit_code),
 	INDEX ix_platform_limits_current (channel_id, limit_code, created_at)
@@ -1529,6 +1601,7 @@ CREATE TABLE platform_quota_occupancies (
 	period_start DATETIME(6) COMMENT '计数周期起点',
 	unit VARCHAR(32) COMMENT '请求量或并发单位',
 	status VARCHAR(32) COMMENT '占用状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_platform_quota_held (channel_id, limit_code, status),
 	INDEX ix_platform_quota_occupancies_0 (channel_id, id),
 	INDEX ix_platform_quota_occupancies_1 (channel_id, limit_code, period_start),
@@ -1551,6 +1624,7 @@ CREATE TABLE price_versions (
 	source VARCHAR(1024) COMMENT '价格来源',
 	name VARCHAR(128) COMMENT '价格版本名称',
 	subset_relations JSON COMMENT '适配器计量子集关系',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_price_versions_0 (channel_id, id),
 	INDEX ix_price_versions_1 (channel_id, model_id, effective_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='模型价格版本' COLLATE utf8mb4_0900_bin;
@@ -1569,6 +1643,7 @@ CREATE TABLE prompt_samples (
 	title VARCHAR(128) COMMENT '样例名称',
 	input JSON COMMENT '样例输入',
 	expected_constraints JSON COMMENT '预期断言',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_prompt_samples_0 (channel_id, id),
 	INDEX ix_prompt_samples_1 (channel_id, prompt_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='提示词调试样例' COLLATE utf8mb4_0900_bin;
@@ -1596,6 +1671,7 @@ CREATE TABLE prompt_tests (
 	sample_id VARCHAR(64) COMMENT '调试样例标识',
 	model_route_name VARCHAR(128) COMMENT '调试时的模型路由名称',
 	status VARCHAR(32) COMMENT '调试受理状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_prompt_tests_0 (channel_id, id),
 	INDEX ix_prompt_tests_1 (channel_id, version_id),
 	INDEX ix_prompt_tests_2 (channel_id, environment, version_id, descriptor_digest)
@@ -1613,6 +1689,7 @@ CREATE TABLE prompts (
 	purpose VARCHAR(512) COMMENT '使用用途',
 	owner VARCHAR(128) COMMENT '负责人标识',
 	status VARCHAR(32) COMMENT '资源状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_prompts_0 (channel_id, id),
 	INDEX ix_prompts_1 (channel_id, prompt_code)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='提示词资源' COLLATE utf8mb4_0900_bin;
@@ -1628,6 +1705,7 @@ CREATE TABLE provider_catalog (
 	name VARCHAR(128) COMMENT '供应商名称',
 	protocols JSON COMMENT '支持协议族',
 	template_content JSON COMMENT '无凭据连接模板',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_provider_catalog_0 (channel_id, id),
 	INDEX ix_provider_catalog_1 (channel_id, code)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='供应商字典' COLLATE utf8mb4_0900_bin;
@@ -1651,6 +1729,7 @@ CREATE TABLE provider_statements (
 	end_at DATETIME(6) COMMENT '核查结束时间',
 	`lines` JSON COMMENT '规范化供应商记录',
 	owner_key VARCHAR(64) COMMENT '创建身份摘要',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_provider_statements_0 (channel_id, id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='供应商账单核查批次' COLLATE utf8mb4_0900_bin;
 
@@ -1668,6 +1747,7 @@ CREATE TABLE recovery_barriers (
 	recovery_id VARCHAR(64) COMMENT '本次恢复标识',
 	marker_digest VARCHAR(64) COMMENT '已校验删除账本摘要',
 	verified_at DATETIME(6) COMMENT '删除账本核对时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_recovery_barriers_0 (channel_id, id),
 	INDEX ix_recovery_barriers_1 (channel_id, environment, subject_type, subject_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='内容恢复屏障' COLLATE utf8mb4_0900_bin;
@@ -1685,6 +1765,7 @@ CREATE TABLE release_mappings (
 	version_id VARCHAR(64) COMMENT '生效版本标识',
 	published_by VARCHAR(128) COMMENT '发布主体标识',
 	release_note VARCHAR(1024) COMMENT '发布说明',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_release_mappings_0 (channel_id, id),
 	INDEX ix_release_mappings_1 (channel_id, environment, resource_type, resource_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='环境生效版本映射' COLLATE utf8mb4_0900_bin;
@@ -1704,6 +1785,7 @@ CREATE TABLE release_snapshots (
 	versions JSON COMMENT '具体版本及草稿内容快照',
 	dependencies_digest VARCHAR(64) COMMENT '全量依赖摘要',
 	output_schema JSON COMMENT '固定输出结构',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_release_snapshots_0 (channel_id, id),
 	INDEX ix_release_snapshots_1 (channel_id, environment, run_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='执行依赖冻结快照' COLLATE utf8mb4_0900_bin;
@@ -1721,6 +1803,7 @@ CREATE TABLE resource_grants (
 	resource_id VARCHAR(64) COMMENT '资源标识',
 	allowed_actions JSON COMMENT '允许动作',
 	environments JSON COMMENT '授权环境',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_resource_grants_0 (channel_id, id),
 	INDEX ix_resource_grants_1 (channel_id, grantee_type, grantee_id),
 	INDEX ix_resource_grants_2 (channel_id, resource_type, resource_id)
@@ -1736,6 +1819,7 @@ CREATE TABLE resource_references (
 	source_version_id VARCHAR(64) COMMENT '引用方版本标识',
 	target_version_id VARCHAR(64) COMMENT '被引用版本标识',
 	target_resource_type VARCHAR(64) COMMENT '被引用资源类型',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_resource_references_0 (channel_id, id),
 	INDEX ix_resource_references_1 (channel_id, target_version_id),
 	INDEX ix_resource_references_2 (channel_id, source_version_id)
@@ -1756,6 +1840,7 @@ CREATE TABLE resource_uses (
 	agent_name VARCHAR(128) COMMENT '使用时智能体名称',
 	caller_name VARCHAR(128) COMMENT '使用时调用方名称',
 	purpose VARCHAR(32) COMMENT '运行用途',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_resource_uses_0 (channel_id, id),
 	INDEX ix_resource_uses_1 (channel_id, resource_type, resource_id),
 	INDEX ix_resource_uses_2 (channel_id, run_id)
@@ -1778,6 +1863,7 @@ CREATE TABLE resource_versions (
 	dependencies_digest VARCHAR(64) COMMENT '依赖摘要',
 	output_schema JSON COMMENT '输出结构定义',
 	created_by VARCHAR(128) COMMENT '创建主体标识',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_resource_versions_0 (channel_id, id),
 	INDEX ix_resource_versions_1 (channel_id, resource_type, resource_id, state)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='资源版本与草稿' COLLATE utf8mb4_0900_bin;
@@ -1795,6 +1881,7 @@ CREATE TABLE run_contents (
 	run_id VARCHAR(64) COMMENT '所属运行',
 	kind VARCHAR(32) COMMENT '内容用途',
 	payload JSON COMMENT '受控内容正文',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_run_contents_0 (channel_id, id),
 	INDEX ix_run_contents_1 (channel_id, run_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='运行敏感内容引用' COLLATE utf8mb4_0900_bin;
@@ -1814,6 +1901,7 @@ CREATE TABLE run_events (
 	event_type VARCHAR(64) COMMENT '事件类别',
 	payload_ref VARCHAR(64) COMMENT '事件内容引用',
 	expires_at DATETIME(6) COMMENT '事件失效时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_run_events_0 (channel_id, id),
 	INDEX ix_run_events_1 (channel_id, run_id, sequence)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='可补发运行事件' COLLATE utf8mb4_0900_bin;
@@ -1837,6 +1925,7 @@ CREATE TABLE run_idempotency (
 	identity_type VARCHAR(32) COMMENT '稳定身份来源类型',
 	identity_id VARCHAR(128) COMMENT '稳定调用服务或管理操作者',
 	scope_digest VARCHAR(64) COMMENT '幂等范围摘要',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_run_idempotency_0 (channel_id, id),
 	INDEX ix_run_idempotency_1 (channel_id, environment, subject_type, subject_id, client_id, agent_id, `key`),
 	INDEX ix_run_idempotency_2 (channel_id, scope_digest, `key`)
@@ -1855,6 +1944,7 @@ CREATE TABLE run_leases (
 	lease_version BIGINT COMMENT '租约代次',
 	heartbeat_at DATETIME(6) COMMENT '最近续租时间',
 	expires_at DATETIME(6) COMMENT '租约到期时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_run_leases_0 (channel_id, id),
 	INDEX ix_run_leases_1 (channel_id, run_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='工作进程执行租约' COLLATE utf8mb4_0900_bin;
@@ -1872,6 +1962,7 @@ CREATE TABLE run_occupancies (
 	conversation_id VARCHAR(64) COMMENT '占用会话',
 	run_id VARCHAR(64) COMMENT '占用运行',
 	state VARCHAR(32) COMMENT '占用状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_run_occupancies_0 (channel_id, id),
 	INDEX ix_run_occupancies_1 (channel_id, environment, conversation_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='运行会话执行占用' COLLATE utf8mb4_0900_bin;
@@ -1890,6 +1981,7 @@ CREATE TABLE run_recoveries (
 	lease_version BIGINT COMMENT '失效租约代次',
 	decision VARCHAR(32) COMMENT '恢复判断结果',
 	reason VARCHAR(64) COMMENT '脱敏原因类别',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_run_recoveries_0 (channel_id, id),
 	INDEX ix_run_recoveries_1 (channel_id, run_id, lease_version)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='执行租约恢复判断记录' COLLATE utf8mb4_0900_bin;
@@ -1913,6 +2005,7 @@ CREATE TABLE run_steps (
 	sequence BIGINT COMMENT '步骤顺序',
 	attempt_count INTEGER COMMENT '实际尝试累计次数',
 	lease_version BIGINT COMMENT '最近有效提交租约代次',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_run_steps_0 (channel_id, id),
 	INDEX ix_run_steps_1 (channel_id, run_id, sequence)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='执行步骤' COLLATE utf8mb4_0900_bin;
@@ -1953,6 +2046,7 @@ CREATE TABLE runs (
 	event_sequence BIGINT COMMENT '最后事件序号',
 	resources_released BOOL COMMENT '终态占用已释放',
 	recovery_count INTEGER COMMENT '租约失效恢复次数',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_runs_0 (channel_id, id),
 	INDEX ix_runs_1 (channel_id, environment, state, created_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='逻辑执行任务' COLLATE utf8mb4_0900_bin;
@@ -1968,6 +2062,7 @@ CREATE TABLE service_clients (
 	name VARCHAR(128) COMMENT '服务名称',
 	scopes JSON COMMENT '权限上限',
 	status VARCHAR(32) COMMENT '服务状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_service_clients_0 (channel_id, id),
 	INDEX ix_service_clients_1 (channel_id, environment, status)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='业务接入服务' COLLATE utf8mb4_0900_bin;
@@ -1987,6 +2082,7 @@ CREATE TABLE skill_files (
 	artifact_id VARCHAR(64) COMMENT '受控内容引用',
 	loadable BOOL COMMENT '当前是否可加载',
 	unavailable_reason LONGTEXT COMMENT '不可加载原因',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_skill_files_0 (channel_id, id),
 	INDEX ix_skill_files_1 (channel_id, version_id, relative_path(512))
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='技能版本文件清单' COLLATE utf8mb4_0900_bin;
@@ -2007,6 +2103,7 @@ CREATE TABLE skill_tests (
 	run_id VARCHAR(64) COMMENT '运行标识',
 	result JSON COMMENT '测试结果',
 	context_snapshot JSON COMMENT '加载输入与版本冻结快照',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_skill_tests_0 (channel_id, id),
 	INDEX ix_skill_tests_1 (channel_id, version_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='技能加载测试' COLLATE utf8mb4_0900_bin;
@@ -2024,6 +2121,7 @@ CREATE TABLE skills (
 	owner VARCHAR(128) COMMENT '负责人',
 	tags JSON COMMENT '发现标签',
 	status VARCHAR(32) COMMENT '启用状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_skills_0 (channel_id, id),
 	INDEX ix_skills_1 (channel_id, skill_code)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='技能资源' COLLATE utf8mb4_0900_bin;
@@ -2043,6 +2141,7 @@ CREATE TABLE source_links (
 	derived_type VARCHAR(64) COMMENT '派生类型',
 	derived_id VARCHAR(128) COMMENT '派生标识',
 	source_version VARCHAR(128) COMMENT '来源版本',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_source_links_0 (channel_id, id),
 	INDEX ix_source_links_1 (channel_id, environment, source_type, source_id),
 	INDEX ix_source_links_2 (channel_id, environment, derived_type, derived_id)
@@ -2065,6 +2164,7 @@ CREATE TABLE subject_review_bindings (
 	schema_hash VARCHAR(128) COMMENT '授权时身份工具契约摘要',
 	timeout_seconds INTEGER COMMENT '身份复核超时秒数',
 	enabled BOOL COMMENT '是否允许身份复核',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_subject_review_bindings_0 (channel_id, id),
 	INDEX ix_subject_review_bindings_1 (channel_id, environment, client_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='当前主体复核的固定 MCP 绑定' COLLATE utf8mb4_0900_bin;
@@ -2094,6 +2194,7 @@ CREATE TABLE tool_calls (
 	result_summary JSON COMMENT '结果结构摘要',
 	evidence_ids JSON COMMENT '有效证据标识集合',
 	attempt JSON COMMENT '独立尝试状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_tool_calls_0 (channel_id, id),
 	INDEX ix_tool_calls_1 (channel_id, run_id),
 	INDEX ix_tool_calls_2 (channel_id, attempt_id)
@@ -2112,6 +2213,7 @@ CREATE TABLE tools (
 	source_type VARCHAR(32) COMMENT '来源类型',
 	owner VARCHAR(128) COMMENT '负责人',
 	status VARCHAR(32) COMMENT '启用状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_tools_0 (channel_id, id),
 	INDEX ix_tools_1 (channel_id, tool_code)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='工具资源' COLLATE utf8mb4_0900_bin;
@@ -2120,6 +2222,7 @@ CREATE TABLE tools (
 CREATE TABLE transaction_lock_slots (
 	channel_id VARCHAR(64) COMMENT '锁目录所属系统渠道',
 	slot INTEGER COMMENT '包含锁顺序分组的固定槽位',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_transaction_lock_slots_0 (channel_id, slot)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='服务层事务互斥固定锁槽' COLLATE utf8mb4_0900_bin;
 
@@ -2137,6 +2240,7 @@ CREATE TABLE usage_adjustments (
 	currency VARCHAR(3) COMMENT '币种',
 	reason VARCHAR(512) COMMENT '修正原因',
 	calculation JSON COMMENT '核算依据',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_usage_adjustments_0 (channel_id, id),
 	INDEX ix_usage_adjustments_1 (channel_id, usage_id, created_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='用量计价修正轨迹' COLLATE utf8mb4_0900_bin;
@@ -2154,6 +2258,7 @@ CREATE TABLE usage_aggregates (
 	currency VARCHAR(3) COMMENT '币种',
 	totals JSON COMMENT '数量及完整性分组',
 	ledger_watermark DATETIME(6) COMMENT '账本处理水位',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_usage_aggregates_0 (channel_id, id),
 	INDEX ix_usage_aggregates_1 (channel_id, dimensions_digest, period_start, currency)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='可重算用量聚合' COLLATE utf8mb4_0900_bin;
@@ -2175,6 +2280,7 @@ CREATE TABLE usage_events (
 	event_payload JSON COMMENT '经契约验证的完整计量事件',
 	payload_digest VARCHAR(64) COMMENT '事件内容摘要',
 	applied BOOL COMMENT '是否成为当前有效计量',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_usage_events_0 (channel_id, id),
 	INDEX ix_usage_events_1 (channel_id, connection_id, source_request_id, event_version)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='供应商用量来源事件' COLLATE utf8mb4_0900_bin;
@@ -2191,6 +2297,7 @@ CREATE TABLE usage_exchange_rates (
 	rate NUMERIC(24, 8) COMMENT '折算汇率',
 	effective_at DATETIME(6) COMMENT '汇率日期',
 	source VARCHAR(1024) COMMENT '汇率来源',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_usage_exchange_rates_0 (channel_id, id),
 	INDEX ix_usage_exchange_rates_1 (channel_id, base_currency, quote_currency, effective_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='核算展示汇率版本' COLLATE utf8mb4_0900_bin;
@@ -2216,6 +2323,7 @@ CREATE TABLE usage_exports (
 	metadata JSON COMMENT '计量口径及价格完整性',
 	error_message VARCHAR(512) COMMENT '导出失败原因',
 	expires_at DATETIME(6) COMMENT '导出失效时间',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_usage_exports_0 (channel_id, id),
 	INDEX ix_usage_exports_1 (channel_id, created_at)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='用量导出请求' COLLATE utf8mb4_0900_bin;
@@ -2263,6 +2371,7 @@ CREATE TABLE usage_records (
 	latest_event_id VARCHAR(64) COMMENT '当前有效来源事件',
 	final_reported BOOL COMMENT '是否收到供应商最终用量',
 	source_request_id VARCHAR(256) COMMENT '固定供应商请求标识',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_usage_records_0 (channel_id, id),
 	INDEX ix_usage_records_1 (channel_id, attempt_id),
 	INDEX ix_usage_records_2 (channel_id, created_at)
@@ -2291,6 +2400,7 @@ CREATE TABLE webhook_deliveries (
 	error JSON COMMENT '最近投递错误',
 	http_status BIGINT COMMENT '最近响应状态',
 	cycle_attempts BIGINT COMMENT '本轮自动投递次数，人工重投重新计数',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_webhook_deliveries_0 (channel_id, id),
 	INDEX ix_webhook_deliveries_1 (channel_id, environment, subject_type, subject_id),
 	INDEX ix_webhook_deliveries_2 (channel_id, state, next_at)
@@ -2313,6 +2423,7 @@ CREATE TABLE webhook_endpoints (
 	owner_key VARCHAR(64) COMMENT '执行身份摘要',
 	identity JSON COMMENT '原执行身份快照',
 	state VARCHAR(32) COMMENT '当前处理状态',
+	is_deleted BOOL COMMENT '是否已逻辑删除',
 	client_ids JSON COMMENT '订阅的调用服务列表；空列表仅包含配置者运行',
 	INDEX ix_webhook_endpoints_0 (channel_id, id),
 	INDEX ix_webhook_endpoints_1 (channel_id, environment, subject_type, subject_id)

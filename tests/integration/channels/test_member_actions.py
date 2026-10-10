@@ -74,12 +74,9 @@ async def test_member_actions_distinguish_edit_and_remove_and_recheck_writes(cha
             body.model_copy(update={"revision": edited.revision}),
         )
     await access.remove_member(tenant.manager, channel_id, member.user_id, edited.revision)
-    removed = next(
-        row
-        for row in await access.list_members(tenant.manager, channel_id)
-        if row.user_id == member.user_id
-    )
-    assert removed.status == "DISABLED"
+    assert member.user_id not in {
+        row.user_id for row in await access.list_members(tenant.manager, channel_id)
+    }
     # 操作者的权限收回后，已显示可操作的旧页面也不能继续写入。
     initial = next(
         row
@@ -103,7 +100,7 @@ async def test_member_actions_distinguish_edit_and_remove_and_recheck_writes(cha
         for action in row.actions
     )
     with pytest.raises(ServiceError) as denied:
-        await access.remove_member(tenant.manager, channel_id, member.user_id, removed.revision)
+        await access.remove_member(tenant.manager, channel_id, member.user_id, edited.revision + 1)
     assert denied.value.status == 403
 
 

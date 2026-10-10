@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import Scope
 from creativity_service.core.database import transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError, new_id, unavailable, utcnow
 from creativity_service.modules.channels.ports import TaskLifecycleGuard
@@ -147,12 +148,15 @@ class LifecycleService:
         table = metadata.tables["channel_lifecycle_events"]
         async with self.repository.engine.connect() as connection:
             result = await connection.execute(
-                select(table)
-                .where(
-                    table.c.channel_id == channel_id, ~table.c.acknowledgements.has_key(consumer)
+                active_rows(
+                    select(table)
+                    .where(
+                        table.c.channel_id == channel_id,
+                        ~table.c.acknowledgements.has_key(consumer),
+                    )
+                    .order_by(table.c.created_at, table.c.id)
+                    .limit(limit)
                 )
-                .order_by(table.c.created_at, table.c.id)
-                .limit(limit)
             )
             return [
                 LifecycleEvent(

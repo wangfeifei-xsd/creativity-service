@@ -8,6 +8,7 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import Repository, UnitOfWork, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.channels.tables import metadata as channel_metadata
@@ -24,9 +25,11 @@ class RunSubscriptions:
         self, connection: AsyncConnection, context: AuthContext, client_ids: list[str] | None = None
     ) -> dict[str, dict[str, Any]]:
         table = channel_metadata.tables["service_clients"]
-        statement = select(table).where(
-            table.c.channel_id == context.scope.channel_id,
-            table.c.environment == context.scope.environment,
+        statement = active_rows(
+            select(table).where(
+                table.c.channel_id == context.scope.channel_id,
+                table.c.environment == context.scope.environment,
+            )
         )
         if client_ids is not None:
             statement = statement.where(table.c.id.in_(client_ids))

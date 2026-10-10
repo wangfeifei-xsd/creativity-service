@@ -1,6 +1,6 @@
 # 删除传播与保留模型
 
-模型版本 2.0.0；负责方案 25；需求 [00-需求总纲.md](../../../../需求文档/00-需求总纲.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 25；需求 [00-需求总纲.md](../../../../需求文档/00-需求总纲.md)。总索引见 [README](../README.md)。
 
 ## deletion_jobs
 
@@ -22,6 +22,7 @@
 | `state` | `varchar(32)` | 清理状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `completed_at` | `datetime(6) UTC` | 完成时间 | 否 | 服务层校验后的业务输入 | 内部 |
 | `conversation_id` | `varchar(64)` | 删除目标会话 | 否 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, state, created_at)`；`(channel_id, conversation_id)`。
 
@@ -50,6 +51,7 @@
 | `lease_token` | `varchar(64)` | 执行租约令牌 | 否 | 服务层验证及清理状态 | 内部 |
 | `lease_until` | `datetime(6) UTC` | 执行租约到期时间 | 否 | 服务层验证及清理状态 | 内部 |
 | `completed_at` | `datetime(6) UTC` | 完成时间 | 否 | 服务层验证及清理状态 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, job_id, handler_key, target_id)`；`(channel_id, state, next_attempt_at)`。
 
@@ -72,5 +74,6 @@
 | `counts` | `json` | 各类已完成数量 | 是 | 服务层验证及清理状态 | 内部 |
 | `proof_digest` | `varchar(64)` | 完成证明摘要 | 是 | 服务层验证及清理状态 | 内部 |
 | `completed_at` | `datetime(6) UTC` | 完成时间 | 是 | 服务层验证及清理状态 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, job_id)`。

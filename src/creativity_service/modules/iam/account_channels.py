@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from creativity_service.core.auth.types import AccountState
 from creativity_service.core.context import Scope
 from creativity_service.core.database import UnitOfWork
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import ServiceError, digest, utcnow
 from creativity_service.modules.channels.tables import metadata as channel_metadata
@@ -33,8 +34,10 @@ async def extend_environment_assignments(uow: UnitOfWork, environment: str) -> i
     enabled = set(
         (
             await uow.connection.execute(
-                select(environments.c.environment).where(
-                    environments.c.channel_id == channel_id, environments.c.status == "ACTIVE"
+                active_rows(
+                    select(environments.c.environment).where(
+                        environments.c.channel_id == channel_id, environments.c.status == "ACTIVE"
+                    )
                 )
             )
         ).scalars()
@@ -54,7 +57,7 @@ async def extend_environment_assignments(uow: UnitOfWork, environment: str) -> i
             grants.c.resource_id == channel_id,
         ),
     ).join(accounts, and_(accounts.c.channel_id == "system", accounts.c.id == members.c.user_id))
-    statement = (
+    statement = active_rows(
         select(
             members,
             grants.c.id.label("grant_id"),
@@ -139,22 +142,24 @@ async def account_channels(
     channels = channel_metadata.tables["channels"]
     found = (
         await connection.execute(
-            select(members, channels.c.name.label("channel_name"))
-            .select_from(
-                members.outerjoin(
-                    channels,
-                    and_(
-                        channels.c.channel_id == members.c.channel_id,
-                        channels.c.id == members.c.channel_id,
-                    ),
+            active_rows(
+                select(members, channels.c.name.label("channel_name"))
+                .select_from(
+                    members.outerjoin(
+                        channels,
+                        and_(
+                            channels.c.channel_id == members.c.channel_id,
+                            channels.c.id == members.c.channel_id,
+                        ),
+                    )
                 )
+                .where(
+                    members.c.user_id.in_(user_ids),
+                    members.c.channel_id != "system",
+                    members.c.status == "ACTIVE",
+                )
+                .order_by(channels.c.name, members.c.channel_id)
             )
-            .where(
-                members.c.user_id.in_(user_ids),
-                members.c.channel_id != "system",
-                members.c.status == "ACTIVE",
-            )
-            .order_by(channels.c.name, members.c.channel_id)
         )
     ).mappings()
     result: dict[str, list[dict[str, Any]]] = {}
@@ -215,9 +220,12 @@ async def synchronize_channels(
         dict(row)
         for row in (
             await root.connection.execute(
-                select(memberships).where(
-                    memberships.c.channel_id.in_(units.keys()),
-                    memberships.c.user_id == user_id,
+                active_rows(
+                    select(memberships).where(
+                        memberships.c.channel_id.in_(units.keys()),
+                        memberships.c.user_id == user_id,
+                    ),
+                    include_deleted=True,
                 )
             )
         ).mappings()
@@ -230,9 +238,11 @@ async def synchronize_channels(
         row.channel_id: row.status
         for row in (
             await root.connection.execute(
-                select(channels.c.channel_id, channels.c.status).where(
-                    channels.c.channel_id.in_(selected),
-                    channels.c.id == channels.c.channel_id,
+                active_rows(
+                    select(channels.c.channel_id, channels.c.status).where(
+                        channels.c.channel_id.in_(selected),
+                        channels.c.id == channels.c.channel_id,
+                    )
                 )
             )
         ).all()
@@ -241,8 +251,10 @@ async def synchronize_channels(
     environments_by_channel: dict[str, set[str]] = {}
     configured = (
         await root.connection.execute(
-            select(environments.c.channel_id, environments.c.environment).where(
-                environments.c.channel_id.in_(selected), environments.c.status == "ACTIVE"
+            active_rows(
+                select(environments.c.channel_id, environments.c.environment).where(
+                    environments.c.channel_id.in_(selected), environments.c.status == "ACTIVE"
+                )
             )
         )
     ).all()
@@ -253,11 +265,14 @@ async def synchronize_channels(
         row["channel_id"]: dict(row)
         for row in (
             await root.connection.execute(
-                select(grants).where(
-                    grants.c.channel_id.in_(selected),
-                    grants.c.id.in_([administrator_grant_id(c, user_id) for c in selected]),
-                    grants.c.grantee_type == "account",
-                    grants.c.grantee_id == user_id,
+                active_rows(
+                    select(grants).where(
+                        grants.c.channel_id.in_(selected),
+                        grants.c.id.in_([administrator_grant_id(c, user_id) for c in selected]),
+                        grants.c.grantee_type == "account",
+                        grants.c.grantee_id == user_id,
+                    ),
+                    include_deleted=True,
                 )
             )
         ).mappings()
@@ -276,8 +291,8 @@ async def synchronize_channels(
         if channel_id not in selected_set:
             if previous is None:
                 continue
-            values = {"status": "DISABLED"}
-            if previous["status"] == "DISABLED":
+            values = {"status": "DISABLED", "is_deleted": True}
+            if previous["is_deleted"]:
                 continue
         else:
             channel = states.get(channel_id)
@@ -286,6 +301,7 @@ async def synchronize_channels(
             channel_environments = environments_by_channel.get(channel_id, set())
             # 尚无启用环境时可先登记渠道；空环境不能签发执行上下文。
             values = {
+                "is_deleted": False,
                 "user_id": user_id,
                 "roles": [role["id"] for role in channel_roles],
                 "environments": sorted(channel_environments),
@@ -295,6 +311,7 @@ async def synchronize_channels(
             grant_id = administrator_grant_id(channel_id, user_id)
             grant = loaded_grants.get(channel_id)
             grant_values = {
+                "is_deleted": False,
                 "grantee_type": "account",
                 "grantee_id": user_id,
                 "resource_type": "channel",
@@ -310,6 +327,7 @@ async def synchronize_channels(
                     grant_id,
                     grant_values,
                     grant["revision"] if grant else None,
+                    restore_deleted=bool(grant and grant["is_deleted"]),
                 )
                 changed = True
         if previous and all(previous.get(k) == v for k, v in values.items()):
@@ -320,6 +338,9 @@ async def synchronize_channels(
             membership_id(channel_id, user_id),
             values,
             previous["revision"] if previous else None,
+            restore_deleted=bool(
+                channel_id in selected_set and previous and previous["is_deleted"]
+            ),
         )
         changed = True
         ranges = values if channel_id in selected_set else previous

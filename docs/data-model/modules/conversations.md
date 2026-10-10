@@ -1,6 +1,6 @@
 # 会话模型
 
-模型版本 2.0.0；负责方案 12；需求 [07-会话管理.md](../../../../需求文档/07-会话管理.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 12；需求 [07-会话管理.md](../../../../需求文档/07-会话管理.md)。总索引见 [README](../README.md)。
 
 ## conversations
 
@@ -27,6 +27,7 @@
 | `input_schema` | `json` | 已接受的输入契约 | 是 | 服务层校验后的业务输入 | 内部 |
 | `next_sequence` | `bigint` | 下一条消息顺序 | 是 | 服务层校验后的业务输入 | 内部 |
 | `next_turn_sequence` | `bigint` | 下一轮顺序 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id, updated_at)`；`(channel_id, environment, created_at, id)`。
 
@@ -52,6 +53,7 @@
 | `sequence` | `bigint` | 会话消息顺序 | 是 | 服务层校验后的业务输入 | 内部 |
 | `turn_id` | `varchar(64)` | 关联轮次 | 否 | 服务层校验后的业务输入 | 内部 |
 | `event_sequence` | `bigint` | 已投影运行事件顺序 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, conversation_id, created_at, id)`；`(channel_id, conversation_id, sequence)`。
 
@@ -83,6 +85,7 @@
 | `output_schema` | `json` | 本轮输出契约 | 是 | 服务层校验后的业务输入 | 内部 |
 | `source_run_id` | `varchar(64)` | 普通追问来源运行 | 否 | 服务层校验后的业务输入 | 内部 |
 | `confirmed_conditions` | `json` | 上一轮已确认条件 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, conversation_id, client_message_id)`；`(channel_id, conversation_id, sequence)`。
 
@@ -107,6 +110,7 @@
 | `status` | `varchar(32)` | 摘要有效状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `truncation` | `json` | 摘要删减记录 | 是 | 服务层校验后的业务输入 | 内部 |
 | `generation_run_id` | `varchar(64)` | 受控摘要生成运行 | 否 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, conversation_id, version)`。
 
@@ -134,5 +138,6 @@
 | `summary_source_ids` | `json` | 摘要来源消息集合 | 是 | 服务层校验后的业务输入 | 内部 |
 | `policy_version` | `varchar(32)` | 上下文选择策略版本 | 是 | 服务层校验后的业务输入 | 内部 |
 | `required_characters` | `bigint` | 必要指令和当前任务字符数 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id)`。

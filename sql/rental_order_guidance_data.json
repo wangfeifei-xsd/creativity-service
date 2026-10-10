@@ -20,7 +20,8 @@
         "name": "订单协助助手",
         "description": "基于本单事实解释处境、阻塞、下一步和问题处理路径；不承担催办。",
         "owner": "租号运营",
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       }
     ],
     "artifacts": [
@@ -41,7 +42,8 @@
         "state": "AVAILABLE",
         "expires_at": "2126-09-15T03:15:38.301002+00:00",
         "upload_expires_at": "2026-10-09T04:15:38.301010+00:00",
-        "registered_at": "2026-10-09T03:15:38.405352+00:00"
+        "registered_at": "2026-10-09T03:15:38.405352+00:00",
+        "is_deleted": false
       }
     ],
     "automation_schedules": [
@@ -88,7 +90,8 @@
         },
         "state": "ACTIVE",
         "next_at": "2026-10-09T04:15:23.950549+00:00",
-        "last_error": null
+        "last_error": null,
+        "is_deleted": false
       }
     ],
     "credentials": [
@@ -103,7 +106,8 @@
         "ciphertext": null,
         "key_version": null,
         "state": "ACTIVE",
-        "secret_value": "K5AeVvucuvhoXTC897_LrViQqCyTHLrEVKg-JPzbVwM"
+        "secret_value": "K5AeVvucuvhoXTC897_LrViQqCyTHLrEVKg-JPzbVwM",
+        "is_deleted": false
       }
     ],
     "mcp_connections": [
@@ -141,7 +145,8 @@
           "mode": "client_credentials",
           "app_id": "mcp_6fdbf12abe384dad8d1fbef2b72cd8be",
           "token_endpoint": "http://127.0.0.1:32701/mcp/token"
-        }
+        },
+        "is_deleted": false
       }
     ],
     "mcp_discoveries": [
@@ -536,7 +541,8 @@
           "rental_assistant.list_pending_guidances": "a0929836ebe21b0060db2d057196ea7546e51fb7406a2fc07f561520fdf8fbeb"
         },
         "negotiated_version": "2025-11-25",
-        "credential_revision": 1
+        "credential_revision": 1,
+        "is_deleted": false
       }
     ],
     "mcp_imports": [
@@ -574,7 +580,8 @@
           },
           "additionalProperties": false
         },
-        "contract_status": "CURRENT"
+        "contract_status": "CURRENT",
+        "is_deleted": false
       },
       {
         "id": "mcp_iw_de87a8361e484a6be3681ba1ea62340a4e7050cab3e41813162b",
@@ -729,7 +736,8 @@
           },
           "additionalProperties": false
         },
-        "contract_status": "CURRENT"
+        "contract_status": "CURRENT",
+        "is_deleted": false
       },
       {
         "id": "mcp_iw_efd8cfc2a960f124ab72d8c87cd4957842a6c4a6e7c7693060e0",
@@ -765,7 +773,8 @@
           },
           "additionalProperties": false
         },
-        "contract_status": "CURRENT"
+        "contract_status": "CURRENT",
+        "is_deleted": false
       },
       {
         "id": "mcp_ro_9847dea41f943937614242968f2ad642ea5e1da50f056d4cd24d",
@@ -801,7 +810,8 @@
           },
           "additionalProperties": false
         },
-        "contract_status": "CURRENT"
+        "contract_status": "CURRENT",
+        "is_deleted": false
       },
       {
         "id": "mcp_ro_ad97dbc3716eb357594818892802659f8d05890b617b3f759324",
@@ -832,7 +842,8 @@
           },
           "additionalProperties": false
         },
-        "contract_status": "CURRENT"
+        "contract_status": "CURRENT",
+        "is_deleted": false
       },
       {
         "id": "mcp_ro_ff6618389297686927c98939dacb52157cdb83beedae34ee2c75",
@@ -863,7 +874,8 @@
           },
           "additionalProperties": false
         },
-        "contract_status": "CURRENT"
+        "contract_status": "CURRENT",
+        "is_deleted": false
       }
     ],
     "model_connections": [
@@ -885,7 +897,8 @@
         "current_version_id": "version_90734e0e8b794bc5851101ab2bdfcb0f",
         "health_reason": null,
         "health_checked_at": "2026-10-08T11:40:17.574591+00:00",
-        "validation_revision": 3
+        "validation_revision": 3,
+        "is_deleted": false
       }
     ],
     "model_routes": [
@@ -897,7 +910,8 @@
         "revision": 4,
         "code": "daily_weather_route",
         "name": "通用模型路由",
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       }
     ],
     "models": [
@@ -951,7 +965,8 @@
         "parameter_allowlist": [
           "max_tokens"
         ],
-        "validation_revision": 1
+        "validation_revision": 1,
+        "is_deleted": false
       }
     ],
     "prompts": [
@@ -965,7 +980,8 @@
         "name": "订单协助提示词",
         "purpose": "基于本单正式事实分析用户的问题、阻塞与下一步，不催办、不代办；没有额外帮助则不发消息。",
         "owner": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       }
     ],
     "release_mappings": [
@@ -980,7 +996,8 @@
         "resource_id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
         "version_id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "发布资源"
+        "release_note": "发布资源",
+        "is_deleted": false
       },
       {
         "id": "59d9ba060e576f58a702c3fca277380b81641db344d3e67a2f0442044afb2674",
@@ -993,7 +1010,8 @@
         "resource_id": "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1",
         "version_id": "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "发布资源"
+        "release_note": "发布资源",
+        "is_deleted": false
       },
       {
         "id": "8bee89621e6337108a347dfe29f0188aac90f13378693be7080b5015558eaaeb",
@@ -1006,7 +1024,8 @@
         "resource_id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
         "version_id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "发布资源"
+        "release_note": "发布资源",
+        "is_deleted": false
       },
       {
         "id": "9adb0ff4b600410452681e2805013d5d570a21f62e9d134a45f847c3b6f35dee",
@@ -1019,7 +1038,8 @@
         "resource_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "按真实订单事实量调整上下文额度；单次模型分析、零重试及源端去重策略保持不变。"
+        "release_note": "按真实订单事实量调整上下文额度；单次模型分析、零重试及源端去重策略保持不变。",
+        "is_deleted": false
       },
       {
         "id": "a60002eea39ea85739ec6d4370912727afaa85ffc6783bb17696c0755350a5b5",
@@ -1032,7 +1052,8 @@
         "resource_id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
         "version_id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "发布资源"
+        "release_note": "发布资源",
+        "is_deleted": false
       },
       {
         "id": "ac59e6318e1b8e82f5e12db6b3dfa274b21ffdb1a9ac2754af45efe8fa23181d",
@@ -1045,7 +1066,8 @@
         "resource_id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
         "version_id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "发布资源"
+        "release_note": "发布资源",
+        "is_deleted": false
       },
       {
         "id": "b77c8671f1b83d12c4186ce3e74545cae2e749f665638dd2e3170e7c2c065295",
@@ -1058,7 +1080,8 @@
         "resource_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
         "version_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "发布资源"
+        "release_note": "发布资源",
+        "is_deleted": false
       },
       {
         "id": "bcbba0f296819eb2a7bb5d53244a2a2241b810945b23d7bdd65dca5998698a01",
@@ -1071,7 +1094,8 @@
         "resource_id": "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
         "version_id": "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "发布资源"
+        "release_note": "发布资源",
+        "is_deleted": false
       },
       {
         "id": "e0e5769436eac061f01867956c9312a28e28f9fa142d198762db6540dddb7733",
@@ -1084,7 +1108,8 @@
         "resource_id": "prompt_d79b922127524951ada73866d62abf5a",
         "version_id": "prompt_d79b922127524951ada73866d62abf5a",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "发布资源"
+        "release_note": "发布资源",
+        "is_deleted": false
       }
     ],
     "resource_references": [
@@ -1096,7 +1121,8 @@
         "revision": 1,
         "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "target_version_id": "prompt_d79b922127524951ada73866d62abf5a",
-        "target_resource_type": "prompt"
+        "target_resource_type": "prompt",
+        "is_deleted": false
       },
       {
         "id": "06d19012d049c9589e91cf6e6f91b570967ad5afe8900885d299abcbf4a27bfb",
@@ -1106,7 +1132,8 @@
         "revision": 1,
         "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "target_version_id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
-        "target_resource_type": "model"
+        "target_resource_type": "model",
+        "is_deleted": false
       },
       {
         "id": "1e2e059f48e6ddd859984553f61d8be2ee6a76b0e2dc088710e8255b945fe232",
@@ -1116,7 +1143,8 @@
         "revision": 1,
         "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "target_version_id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
-        "target_resource_type": "tool"
+        "target_resource_type": "tool",
+        "is_deleted": false
       },
       {
         "id": "4b59814e445c56205d1ee8d18da28d05a18b9b8c740958aa25f1963638d5414e",
@@ -1126,7 +1154,8 @@
         "revision": 1,
         "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "target_version_id": "version_90734e0e8b794bc5851101ab2bdfcb0f",
-        "target_resource_type": "model_connection"
+        "target_resource_type": "model_connection",
+        "is_deleted": false
       },
       {
         "id": "717586d1d0b64d9aa414e1e6410eb2b4ed913e0396db7a9163e4af72686fab07",
@@ -1136,7 +1165,8 @@
         "revision": 1,
         "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "target_version_id": "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
-        "target_resource_type": "tool"
+        "target_resource_type": "tool",
+        "is_deleted": false
       },
       {
         "id": "8ee4f1ae6f9ba14fefb36b5e0f98a4a1856075c9491f2cca0f2277e143dcc043",
@@ -1146,7 +1176,8 @@
         "revision": 1,
         "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "target_version_id": "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1",
-        "target_resource_type": "skill"
+        "target_resource_type": "skill",
+        "is_deleted": false
       },
       {
         "id": "93bcd4b127ee25ecc3db9d07f2f58feeeb3896d86c37a887d0004b66ee4a5b22",
@@ -1156,7 +1187,8 @@
         "revision": 1,
         "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "target_version_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
-        "target_resource_type": "tool"
+        "target_resource_type": "tool",
+        "is_deleted": false
       },
       {
         "id": "bbf7d94490fe10a31be1d717f5570ff041a5309ab710739a7376ed413e662b03",
@@ -1166,7 +1198,8 @@
         "revision": 1,
         "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "target_version_id": "version_0e0ebbfa8c804ad29d8255ff33032d93",
-        "target_resource_type": "model_connection"
+        "target_resource_type": "model_connection",
+        "is_deleted": false
       },
       {
         "id": "d23e5ad0a0d86a777ae371d980219bc5909ccaa97c5ce2de6a39af33f80266f2",
@@ -1176,7 +1209,8 @@
         "revision": 1,
         "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "target_version_id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
-        "target_resource_type": "tool"
+        "target_resource_type": "tool",
+        "is_deleted": false
       },
       {
         "id": "e4b60e5d8a8eb091c70e75819d45489544a70bb201b82f045b1c5a8a9a30d77d",
@@ -1186,7 +1220,8 @@
         "revision": 1,
         "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "target_version_id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
-        "target_resource_type": "tool"
+        "target_resource_type": "tool",
+        "is_deleted": false
       },
       {
         "id": "ecadc37cfed76f4fbac0694d1aaa5a553d9786cc53f77d4965d1352a440e5059",
@@ -1196,7 +1231,8 @@
         "revision": 1,
         "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "target_version_id": "route_0595b357c65e4c879af695163ee5d129",
-        "target_resource_type": "model_route"
+        "target_resource_type": "model_route",
+        "is_deleted": false
       },
       {
         "id": "f012fadaebd29c5940e08d320731ad491a53342c21e8d19703bb14d3f061d53f",
@@ -1206,7 +1242,8 @@
         "revision": 1,
         "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "target_version_id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
-        "target_resource_type": "tool"
+        "target_resource_type": "tool",
+        "is_deleted": false
       }
     ],
     "resource_versions": [
@@ -1377,7 +1414,8 @@
             }
           }
         },
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
@@ -1492,7 +1530,8 @@
             }
           }
         },
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
@@ -1568,7 +1607,8 @@
         "output_schema": {
           "type": "object"
         },
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
@@ -1639,7 +1679,8 @@
         "output_schema": {
           "type": "object"
         },
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
@@ -1986,7 +2027,8 @@
         "output_schema": {
           "type": "object"
         },
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
@@ -2095,7 +2137,8 @@
         "output_schema": {
           "type": "object"
         },
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "prompt_d79b922127524951ada73866d62abf5a",
@@ -2120,7 +2163,8 @@
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {},
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "route_0595b357c65e4c879af695163ee5d129",
@@ -2185,7 +2229,8 @@
         ],
         "dependencies_digest": "7c924e8899530f36a7a61081a9f9d208e03b23c8a052d00befed10fa6756c55f",
         "output_schema": {},
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1",
@@ -2231,7 +2276,8 @@
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {},
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "version_63e6f4a4e24f4f32b208ca72de0ca6cd",
@@ -3045,7 +3091,8 @@
           },
           "additionalProperties": false
         },
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "version_90734e0e8b794bc5851101ab2bdfcb0f",
@@ -3075,7 +3122,8 @@
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {},
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "version_f903618a98c244b1a42b5df0c13fe877",
@@ -3892,7 +3940,8 @@
           },
           "additionalProperties": false
         },
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       }
     ],
     "skill_files": [
@@ -3909,7 +3958,8 @@
         "sha256": "ca4f1f8419afce8fc10779451b9edf5c8cf4d916abc6ec342c12cc6a818bba9d",
         "artifact_id": "artifact_5f618adff0f0462ab939277bcafe24fa",
         "loadable": true,
-        "unavailable_reason": null
+        "unavailable_reason": null,
+        "is_deleted": false
       }
     ],
     "skills": [
@@ -3924,7 +3974,8 @@
         "description": "根据本单事实解释用户处境、阻塞和下一步，提供有依据的协助。",
         "owner": "租号运营",
         "tags": [],
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       }
     ],
     "source_links": [
@@ -3941,7 +3992,8 @@
         "source_id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
         "derived_type": "version",
         "derived_id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "19a08aced2eadb3f99703952a8efbe9a2fb84664ce080bf8d9b2749323a52ffc",
@@ -3956,7 +4008,8 @@
         "source_id": "route_0595b357c65e4c879af695163ee5d129",
         "derived_type": "version",
         "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "212a34542acdab379b812457c643ab8277200dd5cb94475e099dbf154a98c51f",
@@ -3971,7 +4024,8 @@
         "source_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
         "derived_type": "version",
         "derived_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "3ecae22b4c1f040ea769e80e429e8c250d599a6e1a915abffe994a2832c1a70b",
@@ -3986,7 +4040,8 @@
         "source_id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
         "derived_type": "version",
         "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "408adcc5f6ecb4948ad22d7190a638264fdd7fe4752573e806c6ae484c4388cb",
@@ -4001,7 +4056,8 @@
         "source_id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
         "derived_type": "version",
         "derived_id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "44868fcbb89cede99fa198de867d03ec655c581eb32ffed7d41b8dd3ae967e2e",
@@ -4016,7 +4072,8 @@
         "source_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "derived_type": "version",
         "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "61f1fb606eeee3029b81f42d949a26e7ad64c4594d83d878e71c6cf4373c6b33",
@@ -4031,7 +4088,8 @@
         "source_id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
         "derived_type": "version",
         "derived_id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "6990175d82aab4f341b9d1a4ccec2a442f952a8c2e8ad9dac08fe9545c95d23c",
@@ -4046,7 +4104,8 @@
         "source_id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
         "derived_type": "version",
         "derived_id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "6fef2ffb174d2584ed6f09534e666cd9240c66f72e2fd4071a75c2dd66b98150",
@@ -4061,7 +4120,8 @@
         "source_id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
         "derived_type": "version",
         "derived_id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "71ef30ac9dade561eff4b38c53886d0f7bbf5e37ae776356ace9373ff8f6676a",
@@ -4076,7 +4136,8 @@
         "source_id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
         "derived_type": "version",
         "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "79df1096f14b7c52b2b06eeb2a3f728c24625b4dd8b1855a5f2840f5d4ade718",
@@ -4091,7 +4152,8 @@
         "source_id": "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
         "derived_type": "version",
         "derived_id": "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "8752355648124542aa44d62fa5cb5b0267bd1fb3665b161d9bfef58be21aba61",
@@ -4106,7 +4168,8 @@
         "source_id": "connection_3c0b1670eba5422184aa8bf86ebc2417",
         "derived_type": "version",
         "derived_id": "version_90734e0e8b794bc5851101ab2bdfcb0f",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "8acc2f0a96834091faf4805b0a507a35f094947baddafaad423269c68e29eddf",
@@ -4121,7 +4184,8 @@
         "source_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "derived_type": "version",
         "derived_id": "version_63e6f4a4e24f4f32b208ca72de0ca6cd",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "8e7f9d8d1c35d427551b4ebb333b7f7934e5c42de3f8eb042df40d1307ecd952",
@@ -4136,7 +4200,8 @@
         "source_id": "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
         "derived_type": "version",
         "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "8f3e4e603d502b3477c7efeac1b21aa22d1c686d88c4c1fc564481d5061fde8a",
@@ -4151,7 +4216,8 @@
         "source_id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
         "derived_type": "version",
         "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "8f52caa130fcae1830e7c4aa1e1d964088a4a17d0dff28fe3daf7e144f8d155b",
@@ -4166,7 +4232,8 @@
         "source_id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
         "derived_type": "version",
         "derived_id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "90026f36eacf0ab79a52e86607f4e9b197610a244c1a80b667017ff9f8016e7e",
@@ -4181,7 +4248,8 @@
         "source_id": "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1",
         "derived_type": "version",
         "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "943aa1436cbbde9199bc9130023f1680bcf30b472477dbe99a4404ce43695590",
@@ -4196,7 +4264,8 @@
         "source_id": "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1",
         "derived_type": "version",
         "derived_id": "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "979b231dc5de90720e3b0f6ae251077f4a2435e4379a86847167c5a527d91e98",
@@ -4211,7 +4280,8 @@
         "source_id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
         "derived_type": "version",
         "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "a9eb8516039c051b0bc88c3b4449dce5240168bc918766666c8716d2582675ae",
@@ -4226,7 +4296,8 @@
         "source_id": "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
         "derived_type": "version",
         "derived_id": "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "abf5f32ab0d35d02ea2880e645e654d674b2d3bc1627da508e192e9568691bd9",
@@ -4241,7 +4312,8 @@
         "source_id": "version_0e0ebbfa8c804ad29d8255ff33032d93",
         "derived_type": "version",
         "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "adf7c699628a971f7e40cd9cf9b8f286651f37cc2044311e8dfed46a826381ab",
@@ -4256,7 +4328,8 @@
         "source_id": "version_90734e0e8b794bc5851101ab2bdfcb0f",
         "derived_type": "version",
         "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "b281134748e3d080e2c087d6b0075e9e47e42933f04b7cf67aba11fc08705b58",
@@ -4271,7 +4344,8 @@
         "source_id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
         "derived_type": "version",
         "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "b53a91ebc8c470bdbeea58161f9a2dcc4156a5faa513e1ab565ea230aa732bbe",
@@ -4286,7 +4360,8 @@
         "source_id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
         "derived_type": "version",
         "derived_id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "be340f0f9d2b7a6b8a573b2a9d6a0ed6ac2a4a72ffedc7aaf99c9f0aec13026f",
@@ -4301,7 +4376,8 @@
         "source_id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
         "derived_type": "version",
         "derived_id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "c22f77560ed855b97e0baf6ae4277a8f91a6a9d0a11c0a44e0ef3605c40642e8",
@@ -4316,7 +4392,8 @@
         "source_id": "prompt_d79b922127524951ada73866d62abf5a",
         "derived_type": "version",
         "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "fc837d2cb5ea1a4405d4e1f430410509591eb9b03228725245f529ec9b78e6cf",
@@ -4331,7 +4408,8 @@
         "source_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
         "derived_type": "version",
         "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "ff73361baa938f9b17a4951e8cc3d30a3e291d63221f3517f8fb3467b064af04",
@@ -4346,7 +4424,8 @@
         "source_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
         "derived_type": "version",
         "derived_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "source_02a5f7a191944bfeb57a824b7f51b400",
@@ -4361,7 +4440,8 @@
         "source_id": "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1",
         "derived_type": "artifact",
         "derived_id": "artifact_5f618adff0f0462ab939277bcafe24fa",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "source_623a586bc7d74d56b19eb0f5bc22d629",
@@ -4376,7 +4456,8 @@
         "source_id": "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1",
         "derived_type": "artifact",
         "derived_id": "artifact_5f618adff0f0462ab939277bcafe24fa",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "source_822d98c8a55344218a18cd75e50842ea",
@@ -4391,7 +4472,8 @@
         "source_id": "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1",
         "derived_type": "skill_file",
         "derived_id": "skill_file_83d20880ca5b46a98e0f901762424661",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       }
     ],
     "tools": [
@@ -4406,7 +4488,8 @@
         "description": "领取一次分析资格或恢复已保存结果。仅使用已授权应用与平台注入身份；AI协助不改变订单状态。",
         "source_type": "mcp",
         "owner": "租号运营",
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       },
       {
         "id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
@@ -4419,7 +4502,8 @@
         "description": "查询本单待协助场景。仅使用已授权应用与平台注入身份；AI协助不改变订单状态。",
         "source_type": "mcp",
         "owner": "1",
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       },
       {
         "id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
@@ -4432,7 +4516,8 @@
         "description": "核查原分析上下文及已保存结果。仅使用已授权应用与平台注入身份；AI协助不改变订单状态。",
         "source_type": "mcp",
         "owner": "租号运营",
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       },
       {
         "id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
@@ -4445,7 +4530,8 @@
         "description": "核查原幂等操作的执行回执。仅使用已授权应用与平台注入身份；AI协助不改变订单状态。",
         "source_type": "mcp",
         "owner": "租号运营",
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       },
       {
         "id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
@@ -4458,7 +4544,8 @@
         "description": "保存本单 LLM 分析或无额外帮助的评估。仅使用已授权应用与平台注入身份；AI协助不改变订单状态。",
         "source_type": "mcp",
         "owner": "租号运营",
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       },
       {
         "id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
@@ -4471,7 +4558,8 @@
         "description": "复核事实并发布已保存协助。仅使用已授权应用与平台注入身份；AI协助不改变订单状态。",
         "source_type": "mcp",
         "owner": "租号运营",
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       }
     ]
   },

@@ -9,6 +9,7 @@ from sqlalchemy import select, tuple_
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import Artifact, BusinessResult, ResultEnvelope, RunEvent
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.primitives import ServiceError, utcnow
@@ -51,15 +52,17 @@ class QueryService(RunKernel):
                 dict(r)
                 for r in (
                     await connection.execute(
-                        select(
-                            table.c.agent_id,
-                            table.c.agent_name,
-                            table.c.key_id,
-                            table.c.error["code"].as_string().label("error_code"),
-                            table.c.error["message"].as_string().label("error_message"),
+                        active_rows(
+                            select(
+                                table.c.agent_id,
+                                table.c.agent_name,
+                                table.c.key_id,
+                                table.c.error["code"].as_string().label("error_code"),
+                                table.c.error["message"].as_string().label("error_message"),
+                            )
+                            .where(*predicates)
+                            .distinct()
                         )
-                        .where(*predicates)
-                        .distinct()
                     )
                 ).mappings()
             ]
@@ -447,8 +450,10 @@ class QueryService(RunKernel):
             if after_id:
                 cursors = (
                     await connection.execute(
-                        select(table.c.created_at, table.c.id).where(
-                            *predicates, table.c.id == after_id
+                        active_rows(
+                            select(table.c.created_at, table.c.id).where(
+                                *predicates, table.c.id == after_id
+                            )
                         )
                     )
                 ).all()
@@ -461,10 +466,12 @@ class QueryService(RunKernel):
                     dict(r)
                     for r in (
                         await connection.execute(
-                            select(table)
-                            .where(*predicates)
-                            .order_by(table.c.created_at, table.c.id)
-                            .limit(limit + 1)
+                            active_rows(
+                                select(table)
+                                .where(*predicates)
+                                .order_by(table.c.created_at, table.c.id)
+                                .limit(limit + 1)
+                            )
                         )
                     ).mappings()
                 ]
@@ -525,14 +532,18 @@ class QueryService(RunKernel):
                 table.c.sequence > after_sequence,
             ]
             if await uow.connection.scalar(
-                select(table.c.id).where(*predicates, table.c.expires_at <= utcnow()).limit(1)
+                active_rows(
+                    select(table.c.id).where(*predicates, table.c.expires_at <= utcnow()).limit(1)
+                )
             ):
                 raise ServiceError("EVENTS_EXPIRED", "事件已过期，请查询运行结果", 410)
             remaining = [
                 dict(r)
                 for r in (
                     await uow.connection.execute(
-                        select(table).where(*predicates).order_by(table.c.sequence).limit(limit)
+                        active_rows(
+                            select(table).where(*predicates).order_by(table.c.sequence).limit(limit)
+                        )
                     )
                 ).mappings()
             ]
@@ -577,14 +588,16 @@ class QueryService(RunKernel):
                 dict(r)
                 for r in (
                     await uow.connection.execute(
-                        select(table)
-                        .where(
-                            Repository(table, context.scope).predicate(),
-                            table.c.run_id == run_id,
-                            table.c.sequence > after_sequence,
+                        active_rows(
+                            select(table)
+                            .where(
+                                Repository(table, context.scope).predicate(),
+                                table.c.run_id == run_id,
+                                table.c.sequence > after_sequence,
+                            )
+                            .order_by(table.c.sequence)
+                            .limit(limit + 1)
                         )
-                        .order_by(table.c.sequence)
-                        .limit(limit + 1)
                     )
                 ).mappings()
             ]

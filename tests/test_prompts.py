@@ -187,6 +187,8 @@ def test_prompt_model_archive_matches_frozen_migration():
     from creativity_service.modules.prompts.tables import BASELINE
 
     catalog = json.loads(Path("docs/data-model/catalog.json").read_text())
+    for table in catalog["tables"]:
+        table["columns"] = [c for c in table["columns"] if c["name"] != "is_deleted"]
     assert [table for table in catalog["tables"] if table["module"] == "prompts"] == BASELINE
 
 

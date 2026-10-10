@@ -11,6 +11,7 @@ from creativity_service.core.context import AuthContext, Authorization
 from creativity_service.core.contracts import Artifact, ResourceVersion, VisibleAction
 from creativity_service.core.contracts.display import display_status
 from creativity_service.core.database import assert_external_io_allowed, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.observability.audit import append_audit
@@ -137,7 +138,7 @@ class PromptService:
     async def _resource(self, context: AuthContext, prompt_id: str) -> dict[str, Any]:
         async with self.engine.connect() as connection:
             row = await repository("prompts", context.scope).get(connection, prompt_id)
-        if row is None or row["status"] == "DELETED":
+        if row is None or row["is_deleted"]:
             raise ServiceError("NOT_FOUND", "提示词不存在", 404)
         return row
 
@@ -227,7 +228,7 @@ class PromptService:
             rows = await repository("prompts", context.scope).find(connection)
         visible = []
         for row in sorted(rows, key=lambda r: r["created_at"], reverse=True):
-            if row["status"] == "DELETED":
+            if row["is_deleted"]:
                 continue
             permissions = await read_actions(
                 self.authorization,
@@ -698,11 +699,14 @@ class PromptService:
 
             mappings = metadata.tables["release_mappings"]
             mapped = await uow.connection.scalar(
-                select(mappings.c.id)
-                .where(
-                    mappings.c.channel_id == scope.channel_id, mappings.c.version_id == version_id
+                active_rows(
+                    select(mappings.c.id)
+                    .where(
+                        mappings.c.channel_id == scope.channel_id,
+                        mappings.c.version_id == version_id,
+                    )
+                    .limit(1)
                 )
-                .limit(1)
             )
             if mapped:
                 raise ServiceError("VERSION_REFERENCED", "版本仍被环境发布映射使用，请先切换映射")

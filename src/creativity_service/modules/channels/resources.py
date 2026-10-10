@@ -9,6 +9,7 @@ from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.auth.types import ResourceState
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.contracts import VisibleAction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.primitives import Contract, ServiceError
 from creativity_service.modules.channels.schemas import ResourceReference
 from creativity_service.modules.iam.authorization import (
@@ -65,9 +66,11 @@ class ResourceCatalog:
                 connections = metadata.tables["model_connections"]
                 predicates.append(
                     table.c.connection_id.in_(
-                        select(connections.c.id).where(
-                            connections.c.channel_id == channel_id,
-                            connections.c.environment == scope.environment,
+                        active_rows(
+                            select(connections.c.id).where(
+                                connections.c.channel_id == channel_id,
+                                connections.c.environment == scope.environment,
+                            )
                         )
                     )
                 )
@@ -83,9 +86,14 @@ class ResourceCatalog:
             if search.strip():
                 predicates.append(table.c.name.icontains(search.strip(), autoescape=True))
             statements.append(
-                select(
-                    literal(resource_type).label("kind"), table.c.id, table.c.name, table.c.status
-                ).where(*predicates)
+                active_rows(
+                    select(
+                        literal(resource_type).label("kind"),
+                        table.c.id,
+                        table.c.name,
+                        table.c.status,
+                    ).where(*predicates)
+                )
             )
         return union_all(*statements).subquery() if statements else None
 
@@ -121,14 +129,16 @@ class ResourceCatalog:
         if query is None:
             return DirectoryPage(items=[], total=0, offset=offset, limit=limit)
         async with self.engine.connect() as connection:
-            total = await connection.scalar(select(func.count()).select_from(query))
+            total = await connection.scalar(active_rows(select(func.count()).select_from(query)))
             records = (
                 (
                     await connection.execute(
-                        select(query)
-                        .order_by(query.c.name, query.c.kind, query.c.id)
-                        .offset(offset)
-                        .limit(limit)
+                        active_rows(
+                            select(query)
+                            .order_by(query.c.name, query.c.kind, query.c.id)
+                            .offset(offset)
+                            .limit(limit)
+                        )
                     )
                 )
                 .mappings()
@@ -185,7 +195,9 @@ class ResourceCatalog:
             return []
         async with self.engine.connect() as connection:
             records = (
-                await connection.execute(select(query.c.kind, func.count()).group_by(query.c.kind))
+                await connection.execute(
+                    active_rows(select(query.c.kind, func.count()).group_by(query.c.kind))
+                )
             ).all()
         return [
             ResourceReference(

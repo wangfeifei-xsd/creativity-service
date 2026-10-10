@@ -6,12 +6,13 @@ from typing import Any
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.modules.usage.tables import metadata
 
 
 async def current_limits(connection: AsyncConnection, now: datetime) -> list[dict[str, Any]]:
     table = metadata.tables["platform_limits"]
-    latest = (
+    latest = active_rows(
         select(
             table,
             func.row_number()
@@ -21,12 +22,12 @@ async def current_limits(connection: AsyncConnection, now: datetime) -> list[dic
             )
             .label("position"),
             func.count().over(partition_by=table.c.limit_code).label("versions"),
-        )
-        .where(table.c.channel_id == "system", table.c.effective_at <= now)
-        .subquery()
-    )
+        ).where(table.c.channel_id == "system", table.c.effective_at <= now)
+    ).subquery()
     result = []
-    for row in (await connection.execute(select(latest).where(latest.c.position == 1))).mappings():
+    for row in (
+        await connection.execute(active_rows(select(latest).where(latest.c.position == 1)))
+    ).mappings():
         item = dict(row)
         item.pop("position")
         item["revision"] = item.pop("versions")
@@ -51,8 +52,10 @@ async def occupancy_counts(
     if not predicates:
         return {}
     result = await connection.execute(
-        select(table.c.limit_code, func.count())
-        .where(table.c.channel_id == "system", or_(*predicates))
-        .group_by(table.c.limit_code)
+        active_rows(
+            select(table.c.limit_code, func.count())
+            .where(table.c.channel_id == "system", or_(*predicates))
+            .group_by(table.c.limit_code)
+        )
     )
     return {code: int(count) for code, count in result}

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.context import Scope
 from creativity_service.core.database import Repository, UnitOfWork, transaction, validate_row
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.primitives import ServiceError, new_id, utcnow
 from creativity_service.modules.memory.embedding_tables import metadata
@@ -68,6 +69,7 @@ async def enqueue(uow: UnitOfWork, rows: list[dict[str, Any]], *, delete: bool =
             )
         else:
             task = {
+                "is_deleted": False,
                 "id": row["id"],
                 **uow.scope.model_dump(),
                 "dimensions": row["dimensions"],
@@ -95,14 +97,16 @@ class VectorSync:
     async def sync(self, scope: Scope, ids: list[str] | None = None) -> None:
         token, now = new_id("vector_lease"), utcnow()
         async with transaction(self.engine, scope, [content_key(scope)]) as uow:
-            statement = select(TASKS).where(
-                Repository(TASKS, scope).predicate(),
-                TASKS.c.next_attempt_at <= now,
-                or_(
-                    TASKS.c.state == "PENDING",
-                    TASKS.c.lease_until <= now,
-                    (TASKS.c.state == "SYNCED") & (TASKS.c.operation == "DELETE"),
-                ),
+            statement = active_rows(
+                select(TASKS).where(
+                    Repository(TASKS, scope).predicate(),
+                    TASKS.c.next_attempt_at <= now,
+                    or_(
+                        TASKS.c.state == "PENDING",
+                        TASKS.c.lease_until <= now,
+                        (TASKS.c.state == "SYNCED") & (TASKS.c.operation == "DELETE"),
+                    ),
+                )
             )
             if ids is not None:
                 statement = statement.where(TASKS.c.id.in_(ids))
@@ -204,18 +208,20 @@ class VectorSync:
             rows = (
                 (
                     await connection.execute(
-                        select(TASKS)
-                        .where(
-                            TASKS.c.channel_id == channel_id,
-                            TASKS.c.next_attempt_at <= utcnow(),
-                            or_(
-                                TASKS.c.state == "PENDING",
-                                TASKS.c.lease_until <= utcnow(),
-                                (TASKS.c.state == "SYNCED") & (TASKS.c.operation == "DELETE"),
-                            ),
+                        active_rows(
+                            select(TASKS)
+                            .where(
+                                TASKS.c.channel_id == channel_id,
+                                TASKS.c.next_attempt_at <= utcnow(),
+                                or_(
+                                    TASKS.c.state == "PENDING",
+                                    TASKS.c.lease_until <= utcnow(),
+                                    (TASKS.c.state == "SYNCED") & (TASKS.c.operation == "DELETE"),
+                                ),
+                            )
+                            .order_by(TASKS.c.next_attempt_at, TASKS.c.id)
+                            .limit(100)
                         )
-                        .order_by(TASKS.c.next_attempt_at, TASKS.c.id)
-                        .limit(100)
                     )
                 )
                 .mappings()

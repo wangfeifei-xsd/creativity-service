@@ -1,6 +1,6 @@
 # 用量与预算模型
 
-模型版本 2.0.0；负责方案 08；需求 [04-用量监控与预算.md](../../../../需求文档/04-用量监控与预算.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 08；需求 [04-用量监控与预算.md](../../../../需求文档/04-用量监控与预算.md)。总索引见 [README](../README.md)。
 
 ## price_versions
 
@@ -21,6 +21,7 @@
 | `source` | `varchar(1024)` | 价格来源 | 是 | 服务层校验后的业务输入 | 内部 |
 | `name` | `varchar(128)` | 价格版本名称 | 是 | 服务层校验后的业务输入 | 内部 |
 | `subset_relations` | `json` | 适配器计量子集关系 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, model_id, effective_at)`。
 
@@ -71,6 +72,7 @@
 | `latest_event_id` | `varchar(64)` | 当前有效来源事件 | 否 | 服务层校验后的业务输入 | 内部 |
 | `final_reported` | `boolean` | 是否收到供应商最终用量 | 是 | 服务层校验后的业务输入 | 内部 |
 | `source_request_id` | `varchar(256)` | 固定供应商请求标识 | 否 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, attempt_id)`；`(channel_id, created_at)`。
 
@@ -95,6 +97,7 @@
 | `event_payload` | `json` | 经契约验证的完整计量事件 | 是 | 服务层校验后的业务输入 | 内部 |
 | `payload_digest` | `varchar(64)` | 事件内容摘要 | 是 | 服务层校验后的业务输入 | 内部 |
 | `applied` | `boolean` | 是否成为当前有效计量 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, connection_id, source_request_id, event_version)`。
 
@@ -116,6 +119,7 @@
 | `currency` | `varchar(3)` | 币种 | 否 | 服务层校验后的业务输入 | 内部 |
 | `reason` | `varchar(512)` | 修正原因 | 是 | 服务层校验后的业务输入 | 内部 |
 | `calculation` | `json` | 核算依据 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, usage_id, created_at)`。
 
@@ -142,6 +146,7 @@
 | `status` | `varchar(32)` | 策略状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `name` | `varchar(128)` | 预算名称 | 是 | 服务层校验后的业务输入 | 内部 |
 | `version_id` | `varchar(64)` | 当前不可变策略版本 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, scope_type, scope_id)`。
 
@@ -169,6 +174,7 @@
 | `policy_version_id` | `varchar(64)` | 预占时固定的预算策略版本 | 是 | 受限控制面服务校验后的输入 | 内部 |
 | `unit` | `varchar(32)` | 占用计量单位 | 是 | 服务层校验后的业务输入 | 内部 |
 | `scope_snapshot` | `json` | 预算命中对象与周期快照 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, policy_id, period_start)`；`(channel_id, attempt_id)`。
 
@@ -191,6 +197,7 @@
 | `status` | `varchar(32)` | 占用状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `expires_at` | `datetime(6) UTC` | 核查时间 | 是 | 服务层校验后的业务输入 | 内部 |
 | `snapshot` | `json` | 运行来源及候选模型快照 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id)`。
 
@@ -213,6 +220,7 @@
 | `first_triggered_at` | `datetime(6) UTC` | 首次触发时间 | 是 | 服务层校验后的业务输入 | 内部 |
 | `resolved_at` | `datetime(6) UTC` | 解除时间 | 否 | 服务层校验后的业务输入 | 内部 |
 | `transitions` | `json` | 解除及再次触发轨迹 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, rule_id, period_start, threshold, scope_key)`。
 
@@ -233,6 +241,7 @@
 | `currency` | `varchar(3)` | 币种 | 否 | 服务层校验后的业务输入 | 内部 |
 | `totals` | `json` | 数量及完整性分组 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `ledger_watermark` | `datetime(6) UTC` | 账本处理水位 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, dimensions_digest, period_start, currency)`。
 
@@ -261,6 +270,7 @@
 | `metadata` | `json` | 计量口径及价格完整性 | 是 | 服务层校验后的业务输入 | 内部 |
 | `error_message` | `varchar(512)` | 导出失败原因 | 否 | 服务层校验后的业务输入 | 内部 |
 | `expires_at` | `datetime(6) UTC` | 导出失效时间 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, created_at)`。
 
@@ -285,6 +295,7 @@
 | `status` | `varchar(32)` | 限额启用状态 | 是 | 受限控制面服务校验后的输入 | 内部 |
 | `replaces_id` | `varchar(64)` | 前一个限额版本标识 | 否 | 受限控制面服务校验后的输入 | 内部 |
 | `effective_at` | `datetime(6) UTC` | 该限额版本生效时间 | 是 | 受限控制面服务校验后的输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, limit_code)`。
 
@@ -308,6 +319,7 @@
 | `period_start` | `datetime(6) UTC` | 计数周期起点 | 是 | 服务层校验后的业务输入 | 内部 |
 | `unit` | `varchar(32)` | 请求量或并发单位 | 是 | 服务层校验后的业务输入 | 内部 |
 | `status` | `varchar(32)` | 占用状态 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, limit_code, period_start)`；`(channel_id, target_channel_id, run_id)`。
 
@@ -329,6 +341,7 @@
 | `rate` | `decimal(24,8)` | 折算汇率 | 是 | 服务层校验后的业务输入 | 内部 |
 | `effective_at` | `datetime(6) UTC` | 汇率日期 | 是 | 服务层校验后的业务输入 | 内部 |
 | `source` | `varchar(1024)` | 汇率来源 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, base_currency, quote_currency, effective_at)`。
 
@@ -355,6 +368,7 @@
 | `end_at` | `datetime(6) UTC` | 核查结束时间 | 是 | 受信上下文与服务层校验 | 内部 |
 | `lines` | `json` | 规范化供应商记录 | 是 | 受信上下文与服务层校验 | 内部 |
 | `owner_key` | `varchar(64)` | 创建身份摘要 | 是 | 受信上下文与服务层校验 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`。
 

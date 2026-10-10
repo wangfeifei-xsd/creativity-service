@@ -1,7 +1,7 @@
 {
-  "model_version": "2.0.0",
+  "model_version": "2.1.0",
   "requirements_version": "v0.7",
-  "date": "2026-10-08",
+  "date": "2026-10-10",
   "modules": {
     "core": {
       "title": "公共设施",
@@ -209,6 +209,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -321,6 +329,14 @@
           "comment": "发布说明",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -450,6 +466,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -537,6 +561,14 @@
           "comment": "被引用资源类型",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -684,6 +716,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -804,6 +844,14 @@
           "required": false,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -964,6 +1012,14 @@
           "required": false,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -1093,6 +1149,14 @@
           "required": false,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -1219,6 +1283,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -1338,6 +1410,14 @@
           "comment": "删除账本核对时间",
           "required": false,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -1467,6 +1547,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -1569,6 +1657,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -1662,6 +1758,14 @@
           "comment": "服务状态",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -1806,6 +1910,14 @@
           "required": false,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -1892,6 +2004,14 @@
           "comment": "目标渠道标识",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -1986,6 +2106,14 @@
           "comment": "操作人标识",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -2129,6 +2257,14 @@
           "required": false,
           "source": "受信上下文与服务层校验",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -2245,6 +2381,14 @@
           "required": false,
           "source": "受信上下文与服务层校验",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -2346,6 +2490,14 @@
           "comment": "授权人标识",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -2457,6 +2609,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -2557,6 +2717,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -2723,6 +2891,14 @@
           "required": true,
           "source": "关键配置改变时由模型服务递增",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -2882,6 +3058,14 @@
           "required": true,
           "source": "关键配置改变时由模型服务递增",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -2967,6 +3151,14 @@
           "comment": "启用状态",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -3134,6 +3326,14 @@
           "required": false,
           "source": "模型服务显式赋值",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -3261,6 +3461,14 @@
           "comment": "适配器计量子集关系",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -3613,6 +3821,14 @@
           "required": false,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -3759,6 +3975,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -3879,6 +4103,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -4037,6 +4269,14 @@
           "comment": "当前不可变策略版本",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -4205,6 +4445,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -4336,6 +4584,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -4462,6 +4718,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -4574,6 +4838,14 @@
           "comment": "账本处理水位",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -4751,6 +5023,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -4853,6 +5133,14 @@
           "comment": "资源状态",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -4972,6 +5260,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -5163,6 +5459,14 @@
           "required": true,
           "source": "服务层状态机",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -5272,6 +5576,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -5373,6 +5685,14 @@
           "comment": "模板版本",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -5548,6 +5868,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -5706,6 +6034,14 @@
           "comment": "已投影运行事件顺序",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -5912,6 +6248,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -6059,6 +6403,14 @@
           "comment": "受控摘要生成运行",
           "required": false,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -6226,6 +6578,14 @@
           "comment": "必要指令和当前任务字符数",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -6417,6 +6777,14 @@
           "required": true,
           "source": "记忆服务",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -6579,6 +6947,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -6737,6 +7113,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -6839,6 +7223,14 @@
           "comment": "变更主体",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -6992,6 +7384,14 @@
           "required": true,
           "source": "渠道配置",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -7117,6 +7517,14 @@
           "comment": "使用记忆的智能体",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -7332,6 +7740,14 @@
           "required": false,
           "source": "管理员鉴权配置",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -7480,6 +7896,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -7598,6 +8022,14 @@
           "comment": "发现时凭据版本",
           "required": false,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -7750,6 +8182,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -7867,6 +8307,14 @@
           "comment": "启用状态",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -8074,6 +8522,14 @@
           "required": false,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -8229,6 +8685,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -8340,6 +8804,14 @@
           "comment": "启用状态",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -8466,6 +8938,14 @@
           "comment": "不可加载原因",
           "required": false,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -8603,6 +9083,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -8898,6 +9386,14 @@
           "required": true,
           "source": "受信服务校验与事务写入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -9059,6 +9555,14 @@
           "required": true,
           "source": "受信服务校验与事务写入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -9186,6 +9690,14 @@
           "comment": "本次投递声明代次",
           "required": true,
           "source": "受信服务校验与事务写入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -9345,6 +9857,14 @@
           "comment": "最近有效提交租约代次",
           "required": true,
           "source": "受信服务校验与事务写入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -9546,6 +10066,14 @@
           "required": true,
           "source": "受信服务校验与事务写入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -9677,6 +10205,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -9788,6 +10324,14 @@
           "comment": "租约到期时间",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -9939,6 +10483,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -10059,6 +10611,14 @@
           "comment": "写入内容引用",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -10187,6 +10747,14 @@
           "comment": "当前样本版本",
           "required": false,
           "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -10324,6 +10892,14 @@
           "comment": "参考资料版本内容摘要",
           "required": true,
           "source": "受信已发布版本",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -10466,6 +11042,14 @@
           "required": true,
           "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -10574,6 +11158,14 @@
           "comment": "夹具来源已失效",
           "required": true,
           "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -10752,6 +11344,14 @@
           "required": true,
           "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -10909,6 +11509,14 @@
           "required": false,
           "source": "服务层校验及受信上下文",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -11029,6 +11637,14 @@
           "comment": "来源和固定数据可复现",
           "required": true,
           "source": "服务层校验及受信上下文",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -11162,6 +11778,14 @@
           "comment": "删除目标会话",
           "required": false,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -11348,6 +11972,14 @@
           "required": false,
           "source": "服务层验证及清理状态",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -11387,6 +12019,14 @@
           "comment": "迁移记录所属系统渠道",
           "required": true,
           "source": "系统渠道",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -11456,6 +12096,14 @@
           "comment": "实际业务渠道标识",
           "required": true,
           "source": "受限控制面服务校验后的输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -11599,6 +12247,14 @@
           "required": true,
           "source": "受限控制面服务校验后的输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -11712,6 +12368,14 @@
           "required": false,
           "source": "受信服务上下文与服务层校验",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ]
     },
@@ -11806,6 +12470,14 @@
           "comment": "已处理模块及时间",
           "required": true,
           "source": "受信服务上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -11925,6 +12597,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -12032,6 +12712,14 @@
           "comment": "汇率来源",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -12145,6 +12833,14 @@
           "required": false,
           "source": "受信服务校验与事务写入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -12264,6 +12960,14 @@
           "required": true,
           "source": "受信服务校验与事务写入",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -12374,6 +13078,14 @@
           "comment": "占用状态",
           "required": true,
           "source": "受信服务校验与事务写入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -12538,6 +13250,14 @@
           "required": false,
           "source": "服务层校验与受信上下文",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -12680,6 +13400,14 @@
           "required": true,
           "source": "服务层校验与受信上下文",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -12803,6 +13531,14 @@
           "comment": "单项遗忘或主体清空",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -12952,6 +13688,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -13127,6 +13871,14 @@
           "required": true,
           "source": "服务层校验后的业务输入",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -13222,6 +13974,14 @@
           "comment": "状态变更原因",
           "required": true,
           "source": "服务层校验后的业务输入",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -13370,6 +14130,14 @@
           "required": true,
           "source": "服务层校验后的受信配置",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -13498,6 +14266,14 @@
           "comment": "完成时间",
           "required": true,
           "source": "服务层验证及清理状态",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -13628,6 +14404,14 @@
           "required": true,
           "source": "服务端校验后的向量结果",
           "sensitivity": "敏感内容"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -13793,6 +14577,14 @@
           "comment": "授权流程截止时间",
           "required": true,
           "source": "受信授权流程",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -13970,6 +14762,14 @@
           "required": true,
           "source": "受信授权流程",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -14114,6 +14914,14 @@
           "required": false,
           "source": "受信上下文与服务层校验",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -14255,6 +15063,14 @@
           "comment": "当前处理状态",
           "required": true,
           "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -14449,6 +15265,14 @@
           "required": false,
           "source": "受信上下文与服务层校验",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -14606,6 +15430,14 @@
           "comment": "订阅的调用服务列表；空列表仅包含配置者运行",
           "required": true,
           "source": "管理配置",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -14800,6 +15632,14 @@
           "required": true,
           "source": "受信上下文与服务层校验",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -14920,6 +15760,14 @@
           "comment": "授权类别",
           "required": true,
           "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ]
@@ -15075,6 +15923,14 @@
           "comment": "创建身份摘要",
           "required": true,
           "source": "受信上下文与服务层校验",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ]
@@ -15263,6 +16119,14 @@
           "required": true,
           "source": "管理配置",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ]
     },
@@ -15422,6 +16286,14 @@
           "required": true,
           "source": "后台整理",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -15577,6 +16449,14 @@
           "required": true,
           "source": "受信上下文与服务层校验",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ]
     },
@@ -15688,6 +16568,14 @@
           "required": true,
           "source": "受信执行上下文",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -15731,6 +16619,14 @@
           "comment": "包含锁顺序分组的固定槽位",
           "required": true,
           "source": "服务端哈希映射",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],
@@ -15870,6 +16766,14 @@
           "comment": "连续失败次数",
           "required": true,
           "source": "服务层同步协议",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "comment": "是否已逻辑删除",
+          "required": true,
+          "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
         }
       ],

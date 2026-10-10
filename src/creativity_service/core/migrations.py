@@ -6,6 +6,8 @@ from alembic.ddl.mysql import MySQLImpl
 from sqlalchemy import Column, MetaData, String, Table
 from sqlalchemy.sql.dml import Insert
 
+from creativity_service.core.database.soft_delete import deletion_column
+
 SYSTEM_CHANNEL_ID = "system"
 MIGRATION_LOCK_KEY = 71977002001
 
@@ -13,7 +15,7 @@ MIGRATION_LOCK_KEY = 71977002001
 class MigrationVersionTable(Table):
     def insert(self) -> Insert:
         # 迁移版本属于平台控制数据，由服务端显式写入系统渠道。
-        return super().insert().values(channel_id=SYSTEM_CHANNEL_ID)
+        return super().insert().values(channel_id=SYSTEM_CHANNEL_ID, is_deleted=False)
 
 
 class ChannelMySQLImpl(MySQLImpl):
@@ -32,6 +34,7 @@ class ChannelMySQLImpl(MySQLImpl):
             MetaData(),
             Column("version_num", String(64), comment="当前数据库迁移修订编号"),
             Column("channel_id", String(64), comment="迁移记录所属系统渠道"),
+            deletion_column(),
             schema=version_table_schema,
             comment="平台数据库迁移版本记录",
         )

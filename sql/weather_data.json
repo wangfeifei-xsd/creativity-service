@@ -18,7 +18,8 @@
         "name": "每日天气助手",
         "description": "根据每日天气 Skill 查询真实天气，默认北京明天，支持指定城市和日期。",
         "owner": "管理员",
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       }
     ],
     "artifacts": [
@@ -39,7 +40,8 @@
         "state": "AVAILABLE",
         "expires_at": "2126-09-12T19:31:39.037843+00:00",
         "upload_expires_at": "2026-10-06T20:31:39.037851+00:00",
-        "registered_at": "2026-10-06T19:31:39.092396+00:00"
+        "registered_at": "2026-10-06T19:31:39.092396+00:00",
+        "is_deleted": false
       }
     ],
     "channel_environments": [
@@ -62,7 +64,8 @@
           "retention_days": 90,
           "temporary_hours": 1,
           "run_content_days": 30
-        }
+        },
+        "is_deleted": false
       }
     ],
     "channel_memberships": [
@@ -80,7 +83,8 @@
         "status": "ACTIVE",
         "granted_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
         "created_at": "2026-10-07T03:58:03.305617+08:00",
-        "updated_at": "2026-10-07T03:58:03.305623+08:00"
+        "updated_at": "2026-10-07T03:58:03.305623+08:00",
+        "is_deleted": false
       }
     ],
     "credentials": [
@@ -95,7 +99,8 @@
         "ciphertext": "04c8a864ef061cb96a27f44866cc3c81bb44c81a85cf579f663da58edc4ead4ee10ab315f7227f895d952c24ed93473cf2e02dcf5290948d1e2904b456ac05",
         "key_version": "local-model-v1",
         "state": "ACTIVE",
-        "secret_value": null
+        "secret_value": null,
+        "is_deleted": false
       }
     ],
     "mcp_connections": [
@@ -129,7 +134,8 @@
         "auth_failed": false,
         "health_actor_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
         "next_check_at": "2026-10-06T19:59:54.695203+00:00",
-        "authentication": null
+        "authentication": null,
+        "is_deleted": false
       }
     ],
     "mcp_discoveries": [
@@ -303,7 +309,8 @@
           "daily_weather": "6afc934e0d299e0345719db7c26fbab20fb6d86eb263e65fb61d15d14e708355"
         },
         "negotiated_version": "2025-11-25",
-        "credential_revision": null
+        "credential_revision": null,
+        "is_deleted": false
       }
     ],
     "mcp_imports": [
@@ -343,7 +350,8 @@
           },
           "additionalProperties": false
         },
-        "contract_status": "CURRENT"
+        "contract_status": "CURRENT",
+        "is_deleted": false
       }
     ],
     "model_connections": [
@@ -365,7 +373,8 @@
         "current_version_id": "version_1dffe1ef7ed944d1a3a0840daf09efe8",
         "health_reason": null,
         "health_checked_at": "2026-10-06T19:18:23.056004+00:00",
-        "validation_revision": 2
+        "validation_revision": 2,
+        "is_deleted": false
       }
     ],
     "model_routes": [
@@ -377,7 +386,8 @@
         "revision": 2,
         "code": "daily_weather_route",
         "name": "通用模型路由",
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       }
     ],
     "models": [
@@ -431,7 +441,8 @@
         "parameter_allowlist": [
           "max_tokens"
         ],
-        "validation_revision": 1
+        "validation_revision": 1,
+        "is_deleted": false
       }
     ],
     "prompt_samples": [
@@ -450,7 +461,8 @@
         "expected_constraints": [
           "包含：INSUFFICIENT_DATA",
           "不包含：\"business_status\": \"COMPLETED\""
-        ]
+        ],
+        "is_deleted": false
       }
     ],
     "prompts": [
@@ -464,7 +476,8 @@
         "name": "天气助手提示词",
         "purpose": "引导模型按每日天气技能调用工具，并忠实输出中文天气结果",
         "owner": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       }
     ],
     "release_mappings": [
@@ -479,7 +492,8 @@
         "resource_id": "prompt_e343f97fa3e049caafc0394ac9deaa77",
         "version_id": "prompt_e343f97fa3e049caafc0394ac9deaa77",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "发布资源"
+        "release_note": "发布资源",
+        "is_deleted": false
       },
       {
         "id": "400750c8dc64553c680b8a88317f76106b8b17a220ae8ff9c7fe5f9d357a5209",
@@ -492,7 +506,8 @@
         "resource_id": "cca859fa7606fe627a7a090a4d0704bf375895e597bc841e8165e2e5dbcd995b",
         "version_id": "cca859fa7606fe627a7a090a4d0704bf375895e597bc841e8165e2e5dbcd995b",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "发布资源"
+        "release_note": "发布资源",
+        "is_deleted": false
       },
       {
         "id": "5fd2195dbc9b6a691efe506e42c7cf0eb8dac905f4f6436b723898b7f5d6b98b",
@@ -505,7 +520,8 @@
         "resource_id": "agent_3f36b464ec9c4545b886f593745c85f4",
         "version_id": "version_41a8a92fd03f413baabbf65017748edd",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "已通过南京今天天气与默认北京明天两组真实全链路调试，Skill 始终加载，输出证据结构校验通过。"
+        "release_note": "已通过南京今天天气与默认北京明天两组真实全链路调试，Skill 始终加载，输出证据结构校验通过。",
+        "is_deleted": false
       },
       {
         "id": "bcfb3fe346878a00b4bf498d897789045d9cf7c4d0bd59c6e0b77ecd009d8828",
@@ -518,7 +534,8 @@
         "resource_id": "route_0595b357c65e4c879af695163ee5d129",
         "version_id": "route_0595b357c65e4c879af695163ee5d129",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "发布资源"
+        "release_note": "发布资源",
+        "is_deleted": false
       },
       {
         "id": "c9b1667f9cb5d86821e42675add2f8e58dfc7c6c6349884a4e0bce76874e26f3",
@@ -531,7 +548,8 @@
         "resource_id": "skill_639b50caa6a549d4bf2abdf23d2660c8",
         "version_id": "skill_639b50caa6a549d4bf2abdf23d2660c8",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "发布资源"
+        "release_note": "发布资源",
+        "is_deleted": false
       }
     ],
     "resource_grants": [
@@ -600,7 +618,8 @@
           "dev"
         ],
         "created_at": "2026-10-07T03:58:03.305628+08:00",
-        "updated_at": "2026-10-07T03:58:03.305630+08:00"
+        "updated_at": "2026-10-07T03:58:03.305630+08:00",
+        "is_deleted": false
       },
       {
         "id": "initial_content_3df0ed85e6f013f92c934573cfdd43f910c92d0f",
@@ -617,7 +636,8 @@
         ],
         "allowed_actions": [
           "data:read_sensitive"
-        ]
+        ],
+        "is_deleted": false
       },
       {
         "id": "initial_content_7fcc18ad5e093f5307b8874b5ed9237158431eea",
@@ -634,7 +654,8 @@
         ],
         "allowed_actions": [
           "data:read_sensitive"
-        ]
+        ],
+        "is_deleted": false
       }
     ],
     "resource_references": [
@@ -646,7 +667,8 @@
         "revision": 1,
         "source_version_id": "version_41a8a92fd03f413baabbf65017748edd",
         "target_version_id": "skill_639b50caa6a549d4bf2abdf23d2660c8",
-        "target_resource_type": "skill"
+        "target_resource_type": "skill",
+        "is_deleted": false
       },
       {
         "id": "21d521c75193f4a703430ce918d009447023a3f1bd97a2c540625fa0a0a01f42",
@@ -656,7 +678,8 @@
         "revision": 1,
         "source_version_id": "version_41a8a92fd03f413baabbf65017748edd",
         "target_version_id": "prompt_e343f97fa3e049caafc0394ac9deaa77",
-        "target_resource_type": "prompt"
+        "target_resource_type": "prompt",
+        "is_deleted": false
       },
       {
         "id": "35bb017f8f3f40bd8b193b84aa81b5d325a9e2e543809dde8879f2b167871d50",
@@ -666,7 +689,8 @@
         "revision": 1,
         "source_version_id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
         "target_version_id": "version_0e0ebbfa8c804ad29d8255ff33032d93",
-        "target_resource_type": "model_connection"
+        "target_resource_type": "model_connection",
+        "is_deleted": false
       },
       {
         "id": "3f7e9232505dc86265e7e4a4e425a7603cae9a6f568f0fc0b9d9e7721f3433f9",
@@ -676,7 +700,8 @@
         "revision": 1,
         "source_version_id": "version_41a8a92fd03f413baabbf65017748edd",
         "target_version_id": "route_0595b357c65e4c879af695163ee5d129",
-        "target_resource_type": "model_route"
+        "target_resource_type": "model_route",
+        "is_deleted": false
       },
       {
         "id": "48d50128df377d043947a3994fb075afb4b6636cb47d11fcb4ee53e0a7a4feca",
@@ -686,7 +711,8 @@
         "revision": 1,
         "source_version_id": "version_41a8a92fd03f413baabbf65017748edd",
         "target_version_id": "version_1dffe1ef7ed944d1a3a0840daf09efe8",
-        "target_resource_type": "model_connection"
+        "target_resource_type": "model_connection",
+        "is_deleted": false
       },
       {
         "id": "84ae024abca0e90c15327c9055818d13ce07abac30f4a8612d17358a95e2202d",
@@ -696,7 +722,8 @@
         "revision": 1,
         "source_version_id": "version_41a8a92fd03f413baabbf65017748edd",
         "target_version_id": "cca859fa7606fe627a7a090a4d0704bf375895e597bc841e8165e2e5dbcd995b",
-        "target_resource_type": "tool"
+        "target_resource_type": "tool",
+        "is_deleted": false
       },
       {
         "id": "c3a77f40288205fc1eeb54e272ed4d9c120b23b55f08ca56d649ad1bdd2b58e7",
@@ -706,7 +733,8 @@
         "revision": 1,
         "source_version_id": "version_41a8a92fd03f413baabbf65017748edd",
         "target_version_id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
-        "target_resource_type": "model"
+        "target_resource_type": "model",
+        "is_deleted": false
       },
       {
         "id": "cf344f027d0f969b0d014ece537e05cc468af068545f7262815db5a4c2f6bd49",
@@ -716,7 +744,8 @@
         "revision": 1,
         "source_version_id": "version_41a8a92fd03f413baabbf65017748edd",
         "target_version_id": "version_0e0ebbfa8c804ad29d8255ff33032d93",
-        "target_resource_type": "model_connection"
+        "target_resource_type": "model_connection",
+        "is_deleted": false
       }
     ],
     "resource_versions": [
@@ -1037,7 +1066,8 @@
           },
           "description": "单日天气及来源，数值缺失保留为空。"
         },
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "prompt_e343f97fa3e049caafc0394ac9deaa77",
@@ -1062,7 +1092,8 @@
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {},
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "route_0595b357c65e4c879af695163ee5d129",
@@ -1127,7 +1158,8 @@
         ],
         "dependencies_digest": "6d1fd2e6ef39e39d30894e6da6f94ba9d540ba0498808cf4621a1823af7096d3",
         "output_schema": {},
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "skill_639b50caa6a549d4bf2abdf23d2660c8",
@@ -1329,7 +1361,8 @@
         ],
         "dependencies_digest": "d60eaa2aa6f68c5736ffad3b2d93a9f00763a60c2886072b69d9abef64127786",
         "output_schema": {},
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "version_0e0ebbfa8c804ad29d8255ff33032d93",
@@ -1359,7 +1392,8 @@
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {},
-        "created_by": "user_eb44134f64394ffb8ea3ab72edc893a2"
+        "created_by": "user_eb44134f64394ffb8ea3ab72edc893a2",
+        "is_deleted": false
       },
       {
         "id": "version_1dffe1ef7ed944d1a3a0840daf09efe8",
@@ -1389,7 +1423,8 @@
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {},
-        "created_by": "user_eb44134f64394ffb8ea3ab72edc893a2"
+        "created_by": "user_eb44134f64394ffb8ea3ab72edc893a2",
+        "is_deleted": false
       },
       {
         "id": "version_41a8a92fd03f413baabbf65017748edd",
@@ -2005,7 +2040,8 @@
           },
           "additionalProperties": false
         },
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       },
       {
         "id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
@@ -2040,7 +2076,8 @@
         ],
         "dependencies_digest": "9ea95c0e3e7d89d12349af8adbc61fbfb8a99abb9dce2797bae57930d5076400",
         "output_schema": {},
-        "created_by": "user_eb44134f64394ffb8ea3ab72edc893a2"
+        "created_by": "user_eb44134f64394ffb8ea3ab72edc893a2",
+        "is_deleted": false
       },
       {
         "id": "version_d38afbb11d2f44f3a8333b559a42b7c5",
@@ -2653,7 +2690,8 @@
           },
           "additionalProperties": false
         },
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78"
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
       }
     ],
     "skill_files": [
@@ -2670,7 +2708,8 @@
         "sha256": "815756a6a857a0d984df2c81a629c0a9e37875af4e145ba566069fee2aa573c9",
         "artifact_id": "artifact_4377912cc3ad44d3891ef7e69b324796",
         "loadable": true,
-        "unavailable_reason": null
+        "unavailable_reason": null,
+        "is_deleted": false
       }
     ],
     "skills": [
@@ -2685,7 +2724,8 @@
         "description": "查询城市一天的天气，默认北京明天，支持明确指定城市和日期。",
         "owner": "管理员",
         "tags": [],
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       }
     ],
     "source_links": [
@@ -2702,7 +2742,8 @@
         "source_id": "skill_639b50caa6a549d4bf2abdf23d2660c8",
         "derived_type": "version",
         "derived_id": "version_41a8a92fd03f413baabbf65017748edd",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "1ac078b3c15fa68b7a1b06b3a9402564f02a8f2cd4c04d75ba6f9c1f989610a2",
@@ -2717,7 +2758,8 @@
         "source_id": "version_1dffe1ef7ed944d1a3a0840daf09efe8",
         "derived_type": "version",
         "derived_id": "version_41a8a92fd03f413baabbf65017748edd",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "2ba421cce0f87e30e546c291d2b5b9467cd5bc27c3a050925083eb8f7a812af4",
@@ -2732,7 +2774,8 @@
         "source_id": "route_0595b357c65e4c879af695163ee5d129",
         "derived_type": "version",
         "derived_id": "version_41a8a92fd03f413baabbf65017748edd",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "2fa3058e6ccf7df1c109a1202b33c20c46286e564265b3b917025f8e6ca537ca",
@@ -2747,7 +2790,8 @@
         "source_id": "agent_3f36b464ec9c4545b886f593745c85f4",
         "derived_type": "version",
         "derived_id": "version_41a8a92fd03f413baabbf65017748edd",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "42fe68bfbd9cf13815561bfaf8fc2afdac717f516751c0b46136775c13fd0ab6",
@@ -2762,7 +2806,8 @@
         "source_id": "connection_3c0b1670eba5422184aa8bf86ebc2417",
         "derived_type": "version",
         "derived_id": "version_0e0ebbfa8c804ad29d8255ff33032d93",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "49845acdcdc9f32ef7a007d800f2d7b055f810db0c79398df4bdb113e04a834f",
@@ -2777,7 +2822,8 @@
         "source_id": "prompt_e343f97fa3e049caafc0394ac9deaa77",
         "derived_type": "prompt_sample",
         "derived_id": "prompt_sample_413d27dc0a744095a08f40fb9f503380",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "6da78d476045641d7cbe774efee589980630388166fa7c741f0c3072222ab79d",
@@ -2792,7 +2838,8 @@
         "source_id": "cca859fa7606fe627a7a090a4d0704bf375895e597bc841e8165e2e5dbcd995b",
         "derived_type": "version",
         "derived_id": "cca859fa7606fe627a7a090a4d0704bf375895e597bc841e8165e2e5dbcd995b",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "6f29e47f73e9eb94640404066ba8831fcf838bc72b73d94f6c9ea04d72677a8a",
@@ -2807,7 +2854,8 @@
         "source_id": "model_03391c4c5e2847ab99a320ac17bbb79e",
         "derived_type": "version",
         "derived_id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "745f218e588a787011f6518c197d2d28f17308da6c1ea68b1ca85407bcff1c94",
@@ -2822,7 +2870,8 @@
         "source_id": "cca859fa7606fe627a7a090a4d0704bf375895e597bc841e8165e2e5dbcd995b",
         "derived_type": "version",
         "derived_id": "version_41a8a92fd03f413baabbf65017748edd",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "75ceaaefa87fd8dfcacd2288031428187a370cef9e9be4b485100c628cfd06a7",
@@ -2837,7 +2886,8 @@
         "source_id": "version_0e0ebbfa8c804ad29d8255ff33032d93",
         "derived_type": "version",
         "derived_id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "75d72f27e052772fd084103ba784c749cc17a04391f4212fa163d5c3ef788b57",
@@ -2852,7 +2902,8 @@
         "source_id": "agent_3f36b464ec9c4545b886f593745c85f4",
         "derived_type": "version",
         "derived_id": "version_d38afbb11d2f44f3a8333b559a42b7c5",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "7ffde1ecfd0b1ba583e1447f0bb7f532d5a038300cc983ca8ce90d92abfe5582",
@@ -2867,7 +2918,8 @@
         "source_id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
         "derived_type": "version",
         "derived_id": "version_41a8a92fd03f413baabbf65017748edd",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "86b11acf9536c277e2d34a4faf6b91a61133141f9bcf56980b9260ea979d5b28",
@@ -2882,7 +2934,8 @@
         "source_id": "version_0e0ebbfa8c804ad29d8255ff33032d93",
         "derived_type": "version",
         "derived_id": "version_41a8a92fd03f413baabbf65017748edd",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "a4584f8a5c16e4a9f6337248aec335ebbd844dab2a30d04d48bd470a06eaace2",
@@ -2897,7 +2950,8 @@
         "source_id": "prompt_e343f97fa3e049caafc0394ac9deaa77",
         "derived_type": "version",
         "derived_id": "version_41a8a92fd03f413baabbf65017748edd",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "b7ffcee954ec44dfbca03aa770d8cf5909e44c87c60fbc629b4c63d03998b6e1",
@@ -2912,7 +2966,8 @@
         "source_id": "skill_639b50caa6a549d4bf2abdf23d2660c8",
         "derived_type": "version",
         "derived_id": "skill_639b50caa6a549d4bf2abdf23d2660c8",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "da532db8fb8a7fe06f7e0faa2c56b63e947e74a0e92dd8d54d4d50924f3f4639",
@@ -2927,7 +2982,8 @@
         "source_id": "connection_3c0b1670eba5422184aa8bf86ebc2417",
         "derived_type": "version",
         "derived_id": "version_1dffe1ef7ed944d1a3a0840daf09efe8",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "source_7dc38eb832204f47bca0170a4c09d320",
@@ -2942,7 +2998,8 @@
         "source_id": "skill_639b50caa6a549d4bf2abdf23d2660c8",
         "derived_type": "skill_file",
         "derived_id": "skill_file_4aa5d66fdc2046f79fd490eae3328f13",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "source_b6d00f1553ae4e55b1b2e1acb99485b5",
@@ -2957,7 +3014,8 @@
         "source_id": "skill_639b50caa6a549d4bf2abdf23d2660c8",
         "derived_type": "artifact",
         "derived_id": "artifact_4377912cc3ad44d3891ef7e69b324796",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       },
       {
         "id": "source_ecc2f6a5306d4ba6baeb517e5b39a713",
@@ -2972,7 +3030,8 @@
         "source_id": "skill_639b50caa6a549d4bf2abdf23d2660c8",
         "derived_type": "artifact",
         "derived_id": "artifact_4377912cc3ad44d3891ef7e69b324796",
-        "source_version": null
+        "source_version": null,
+        "is_deleted": false
       }
     ],
     "tools": [
@@ -2987,7 +3046,8 @@
         "description": "查询城市一天的真实天气预报。未指定城市默认北京，未指定日期默认明天。",
         "source_type": "mcp",
         "owner": "管理员",
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "is_deleted": false
       }
     ],
     "recovery_barriers": [
@@ -3003,7 +3063,8 @@
         "state": "READY",
         "recovery_id": "init_sql_46bf8e4cf552b3ca93baac12148e7ccf567f0f1f",
         "marker_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-        "verified_at": "2026-10-07T03:58:03.309760+08:00"
+        "verified_at": "2026-10-07T03:58:03.309760+08:00",
+        "is_deleted": false
       }
     ]
   },

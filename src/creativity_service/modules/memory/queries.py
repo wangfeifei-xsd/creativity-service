@@ -8,6 +8,7 @@ from sqlalchemy import and_, or_, select
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.primitives import ServiceError, digest, utcnow
 from creativity_service.modules.conversations.queries import decode_cursor, encode_cursor
 from creativity_service.modules.conversations.tables import metadata as conversations
@@ -177,13 +178,15 @@ class MemoryQueries(MemoryKernel):
                 rows = (
                     (
                         await connection.execute(
-                            select(table)
-                            .where(
-                                *(table.c[k] == v for k, v in scope.items()),
-                                table.c.subject_id.is_not(None),
+                            active_rows(
+                                select(table)
+                                .where(
+                                    *(table.c[k] == v for k, v in scope.items()),
+                                    table.c.subject_id.is_not(None),
+                                )
+                                .order_by(table.c.created_at.desc())
+                                .limit(500)
                             )
-                            .order_by(table.c.created_at.desc())
-                            .limit(500)
                         )
                     )
                     .mappings()
@@ -289,10 +292,12 @@ class MemoryQueries(MemoryKernel):
                 rows = (
                     (
                         await connection.execute(
-                            select(table)
-                            .where(*predicates)
-                            .order_by(table.c.created_at.desc(), table.c.id.desc())
-                            .limit(limit + 1)
+                            active_rows(
+                                select(table)
+                                .where(*predicates)
+                                .order_by(table.c.created_at.desc(), table.c.id.desc())
+                                .limit(limit + 1)
+                            )
                         )
                     )
                     .mappings()

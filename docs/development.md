@@ -28,6 +28,8 @@ Python 3.12、uv 0.10.12；基础设施为 MySQL 8、Milvus、Redis 和 S3 兼�
 
 模型变更同步维护 [catalog.json](data-model/catalog.json)、Alembic 修订与 [初始化 SQL](../sql/README.md)。字段文档通过 `uv run python scripts/render_data_model.py` 生成。接口变更执行 `make contracts`，然后按 [前端说明](../../creativity-web/README.md#接口类型生成) 更新生成类型。
 
+MySQL 逻辑删除的实现入口是 [soft_delete.py](../src/creativity_service/core/database/soft_delete.py)。范围仓储默认筛选有效记录；直接 SQLAlchemy 查询须在构造完整查询后调用 `active_rows()`，保证计数、分页和外连接使用同一条件。`Repository.remove()` 执行逻辑删除，内容清理使用明确的物理删除入口。需要处理删除记录的后台任务和历史查询显式传入 `include_deleted=True`，不改变原有渠道与授权边界。规范统一见项目规则。
+
 <a id="iam"></a>
 
 ## 账号与权限

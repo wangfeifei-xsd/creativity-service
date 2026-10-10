@@ -3,13 +3,14 @@
 from typing import Any, Literal
 
 from pydantic import Field
-from sqlalchemy import delete, select, union_all
+from sqlalchemy import select, union_all
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import AuthContext, ControlScope
 from creativity_service.core.contracts import NavigationGroup, NavigationItem
 from creativity_service.core.database import transaction
+from creativity_service.core.database.soft_delete import active_rows, soft_delete
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import Contract, Identifier, Revision, ServiceError, new_id
 from creativity_service.modules.iam.accounts import current_actor
@@ -41,10 +42,12 @@ async def menu_rows(connection: AsyncConnection) -> list[dict[str, Any]]:
     table = TABLES["iam_menus"]
     result = (
         await connection.execute(
-            select(table)
-            .where(table.c.channel_id == "system")
-            .order_by(table.c.sort_order, table.c.id)
-            .limit(1001)
+            active_rows(
+                select(table)
+                .where(table.c.channel_id == "system")
+                .order_by(table.c.sort_order, table.c.id)
+                .limit(1001)
+            )
         )
     ).mappings()
     values = [dict(row) for row in result]
@@ -226,12 +229,16 @@ class MenuService:
             # 平台菜单治理只核查引用是否存在，不读取其他渠道的业务内容。
             referenced = await uow.connection.scalar(
                 union_all(
-                    select(TABLES["custom_roles"].c.id).where(
-                        TABLES["custom_roles"].c.menu_ids.contains([identifier])
+                    active_rows(
+                        select(TABLES["custom_roles"].c.id).where(
+                            TABLES["custom_roles"].c.menu_ids.contains([identifier])
+                        )
                     ),
-                    select(TABLES["builtin_roles"].c.id).where(
-                        TABLES["builtin_roles"].c.channel_id == "system",
-                        TABLES["builtin_roles"].c.menu_ids.contains([identifier]),
+                    active_rows(
+                        select(TABLES["builtin_roles"].c.id).where(
+                            TABLES["builtin_roles"].c.channel_id == "system",
+                            TABLES["builtin_roles"].c.menu_ids.contains([identifier]),
+                        )
                     ),
                 ).limit(1)
             )
@@ -239,7 +246,7 @@ class MenuService:
                 raise ServiceError("MENU_REFERENCED", "菜单仍有子节点或关联角色，请先处理引用", 409)
             table = TABLES["iam_menus"]
             await uow.connection.execute(
-                delete(table).where(table.c.channel_id == "system", table.c.id == identifier)
+                soft_delete(table).where(table.c.channel_id == "system", table.c.id == identifier)
             )
             await append_event(
                 uow,

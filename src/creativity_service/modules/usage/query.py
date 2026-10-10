@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from creativity_service.core.context import Scope
 from creativity_service.core.database import transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.primitives import Money, ServiceError, digest, utcnow
 from creativity_service.modules.channels.repositories import required as channel_required
 from creativity_service.modules.channels.schemas import UsageQuery, UsageView
@@ -206,7 +207,7 @@ class UsageQueries:
                 definition.c[key] if key in definition.c else definition.c.snapshot[key].as_string()
             )
             predicates.append(column == value)
-        result = await connection.execute(select(definition).where(*predicates))
+        result = await connection.execute(active_rows(select(definition).where(*predicates)))
         return [dict(row) for row in result.mappings()]
 
     async def summary(

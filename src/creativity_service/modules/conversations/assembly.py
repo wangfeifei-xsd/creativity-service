@@ -7,6 +7,7 @@ from creativity_service.core.artifacts import ArtifactService, ObjectStore
 from creativity_service.core.auth.types import ResourceState, ResourceStateReader
 from creativity_service.core.context import AuthContext, Authorization, Scope
 from creativity_service.core.database import Repository, UnitOfWork
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import CleanupRegistry
 from creativity_service.core.locking import ResourceKey
@@ -48,9 +49,11 @@ class ConversationReader:
                 row = (
                     (
                         await connection.execute(
-                            select(table).where(
-                                table.c.channel_id == context.scope.channel_id,
-                                table.c.id == resource_id,
+                            active_rows(
+                                select(table).where(
+                                    table.c.channel_id == context.scope.channel_id,
+                                    table.c.id == resource_id,
+                                )
                             )
                         )
                     )

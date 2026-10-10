@@ -14,6 +14,7 @@ from creativity_service.core.auth.types import (
 )
 from creativity_service.core.context import AuthContext, ChannelState, Scope
 from creativity_service.core.database.reading import read_connection
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.modules.channels.repositories import (
     ChannelRepository,
@@ -150,10 +151,12 @@ class ChannelDirectory:
                 dict(r)
                 for r in (
                     await connection.execute(
-                        select(members).where(
-                            members.c.channel_id.in_(located),
-                            members.c.user_id == user_id,
-                            members.c.status == "ACTIVE",
+                        active_rows(
+                            select(members).where(
+                                members.c.channel_id.in_(located),
+                                members.c.user_id == user_id,
+                                members.c.status == "ACTIVE",
+                            )
                         )
                     )
                 ).mappings()
@@ -177,7 +180,9 @@ class ChannelDirectory:
                         dict(r)
                         for r in (
                             await connection.execute(
-                                select(table).where(table.c.channel_id.in_(identifiers))
+                                active_rows(
+                                    select(table).where(table.c.channel_id.in_(identifiers))
+                                )
                             )
                         ).mappings()
                     ]
@@ -210,7 +215,9 @@ class ChannelDirectory:
         async with read_connection(self.repository.engine) as connection:
             for name in ("channels", "channel_environments"):
                 table = metadata.tables[name]
-                statement = select(table).where(table.c.channel_id == member.channel_id)
+                statement = active_rows(
+                    select(table).where(table.c.channel_id == member.channel_id)
+                )
                 if name != "channels":
                     statement = statement.where(table.c.environment.in_(member.environments))
                 data[name] = [dict(row) for row in (await connection.execute(statement)).mappings()]

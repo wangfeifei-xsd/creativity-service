@@ -12,6 +12,7 @@ from sqlalchemy import Connection, create_engine, inspect, text
 from sqlalchemy.dialects import mysql
 from sqlalchemy.schema import CreateIndex, CreateTable
 
+from creativity_service.core.database.soft_delete import FIELD
 from creativity_service.core.database.tables import BASELINE
 from creativity_service.modules.agents.tables import BASELINE as AGENT_BASELINE
 from creativity_service.modules.channels.tables import CURRENT as CHANNEL_BASELINE
@@ -48,6 +49,8 @@ def check_sql(sql: str) -> list[str]:
 def audit_definitions() -> list[str]:
     failures = []
     for table in metadata.tables.values():
+        if "is_deleted" not in table.c or table.c.is_deleted.info != FIELD:
+            failures.append(f"{table.name} 缺少统一逻辑删除定义")
         if "channel_id" not in table.c or not CHINESE.search(table.comment or ""):
             failures.append(f"{table.name} 缺少渠道或中文表注释")
         for column in table.c:
@@ -122,6 +125,11 @@ def audit_sources(root: Path) -> list[str]:
 def audit_catalog(root: Path) -> list[str]:
     catalog = json.loads((root / "docs/data-model/catalog.json").read_text(encoding="utf-8"))
     failures = []
+    for table in catalog["tables"]:
+        if [c for c in table["columns"] if c["name"] == "is_deleted"] != [FIELD]:
+            failures.append(f"{table['name']} 缺少统一逻辑删除字段归档")
+        # 原始修订保持冻结；公共增量字段单独核对，再比较历史模块定义。
+        table["columns"] = [c for c in table["columns"] if c["name"] != "is_deleted"]
     names = [table["name"] for table in catalog["tables"]]
     if len(names) != len(set(names)):
         failures.append("模型清单存在重复表归属")
@@ -231,6 +239,18 @@ def audit_database(
         if not CHINESE.search(inspector.get_table_comment(name, schema=schema).get("text") or ""):
             failures.append(f"{name} 缺少中文表注释")
         columns = inspector.get_columns(name, schema=schema)
+        if "is_deleted" not in {c["name"] for c in columns}:
+            failures.append(f"{name} 缺少逻辑删除字段")
+        else:
+            quoting = connection.dialect.identifier_preparer
+            qualified = f"{quoting.quote_schema(schema)}.{quoting.quote(name)}"
+            if connection.scalar(
+                text(
+                    f"SELECT EXISTS (SELECT 1 FROM {qualified} "
+                    "WHERE is_deleted IS NULL OR is_deleted NOT IN (0, 1))"
+                )
+            ):
+                failures.append(f"{name} 存在未显式初始化的逻辑删除标记")
         if "channel_id" not in {c["name"] for c in columns}:
             failures.append(f"{name} 缺少渠道字段")
         else:

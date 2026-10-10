@@ -80,7 +80,7 @@ async def test_http_real_iam_current_domain_revision_subject_and_token_revocatio
         assert (await client.get(base.replace("/admin/", "/api/"))).status_code == 401
         deleted = await client.delete(base)
         assert deleted.status_code == 202, deleted.text
-        assert (await client.get(base)).json()["memory"]["value"] is None
+        assert (await client.get(base)).status_code == 404
         await cleanup.clean(subject, ContentRef("memory", saved.memory_id))
         progress = f"/admin/v1/memory-deletions/{deleted.json()['deletion_id']}"
         assert (await client.get(progress)).json()["status"] == "WAITING_PROPAGATION"
@@ -212,4 +212,5 @@ async def test_business_delegation_controls_own_memory_without_subject_filters(c
     ).status_code == 200
     assert (await request("GET", path)).json()["memory"]["value"] == "休闲"
     assert (await request("POST", "/api/v1/memories/clear")).status_code == 202
-    assert (await request("GET", path)).json()["memory"]["value"] is None
+    assert (await request("GET", path)).status_code == 404
+    assert not (await request("GET", "/api/v1/memories")).json()["items"]

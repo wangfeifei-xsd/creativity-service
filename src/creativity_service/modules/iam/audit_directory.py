@@ -6,6 +6,7 @@ from sqlalchemy import and_, func, or_, select
 
 from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import AuthContext
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.iam.audit import AUDIT_NAMES, FIELD_NAMES, AuditService
 from creativity_service.modules.iam.authorization import require_platform
@@ -57,12 +58,14 @@ async def audit_page(
     if query.search.strip():
         text = query.search.strip()
         account_table = TABLES["platform_accounts"]
-        actor_ids = select(account_table.c.id).where(
-            account_table.c.channel_id == "system",
-            or_(
-                account_table.c.display_name.icontains(text, autoescape=True),
-                account_table.c.login_name.icontains(text, autoescape=True),
-            ),
+        actor_ids = active_rows(
+            select(account_table.c.id).where(
+                account_table.c.channel_id == "system",
+                or_(
+                    account_table.c.display_name.icontains(text, autoescape=True),
+                    account_table.c.login_name.icontains(text, autoescape=True),
+                ),
+            )
         )
         actions = [key for key, value in AUDIT_NAMES.items() if text in value]
         conditions.append(
@@ -73,16 +76,20 @@ async def audit_page(
             )
         )
     async with service.repository.engine.connect() as connection:
-        total = await connection.scalar(select(func.count()).select_from(table).where(*conditions))
+        total = await connection.scalar(
+            active_rows(select(func.count()).select_from(table).where(*conditions))
+        )
         records = [
             dict(row)
             for row in (
                 await connection.execute(
-                    select(table)
-                    .where(*conditions)
-                    .order_by(table.c.created_at.desc(), table.c.id.desc())
-                    .offset(query.offset)
-                    .limit(query.limit)
+                    active_rows(
+                        select(table)
+                        .where(*conditions)
+                        .order_by(table.c.created_at.desc(), table.c.id.desc())
+                        .offset(query.offset)
+                        .limit(query.limit)
+                    )
                 )
             ).mappings()
         ]
@@ -149,7 +156,9 @@ async def audit_page(
                 {
                     (kind, row.id): row.display_name
                     for row in await connection.execute(
-                        select(source.c.id, display.label("display_name")).where(*predicates)
+                        active_rows(
+                            select(source.c.id, display.label("display_name")).where(*predicates)
+                        )
                     )
                 }
             )

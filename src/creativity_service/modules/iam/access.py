@@ -16,6 +16,7 @@ from creativity_service.core.auth.types import (
 from creativity_service.core.context import AuthContext, Scope, require_channel_state
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import ServiceError, new_id, unavailable
 from creativity_service.modules.iam.accounts import current_actor
@@ -238,7 +239,16 @@ class AccessService:
             target = await one(uow.connection, "platform_accounts", "system", id=user_id)
             if target is None or target["status"] != "ACTIVE":
                 raise ServiceError("NOT_FOUND", "可用账号不存在", 404)
-            existing = await one(uow.connection, "channel_memberships", channel_id, user_id=user_id)
+            existing = await one(
+                uow.connection,
+                "channel_memberships",
+                channel_id,
+                user_id=user_id,
+                include_deleted=True,
+            )
+            restoring = bool(existing and existing["is_deleted"])
+            if restoring and body.revision is not None:
+                raise ServiceError("NOT_FOUND", "成员已移除，请重新添加", 404)
             if existing and existing["id"] != member_id:
                 raise ServiceError("STORAGE_INVARIANT_BROKEN", "成员记录标识不一致", 503)
             if existing:
@@ -265,13 +275,15 @@ class AccessService:
                 "channel_memberships",
                 member_id,
                 {
+                    "is_deleted": False,
                     "user_id": user_id,
                     "roles": list(body.roles),
                     "environments": list(body.environments),
                     "status": body.status,
                     "granted_by": session.account.id,
                 },
-                body.revision,
+                existing["revision"] if restoring and existing else body.revision,
+                restore_deleted=restoring,
             )
             item = await enqueue(uow, revoke_id, "member", user_id)
             await append_event(
@@ -349,7 +361,13 @@ class AccessService:
                 channel_id,
                 known_environments,
             )
-            await save(uow, "channel_memberships", row["id"], {"status": "DISABLED"}, revision)
+            await save(
+                uow,
+                "channel_memberships",
+                row["id"],
+                {"is_deleted": True, "status": "DISABLED"},
+                revision,
+            )
             item = await enqueue(uow, revoke_id, "member", user_id)
             await append_event(
                 uow,
@@ -656,7 +674,13 @@ class AccessService:
                     row["resource_id"],
                     known_environments,
                 )
-            await save(uow, "resource_grants", grant_id, {"allowed_actions": []}, revision)
+            await save(
+                uow,
+                "resource_grants",
+                grant_id,
+                {"is_deleted": True, "allowed_actions": []},
+                revision,
+            )
             await append_event(
                 uow,
                 event_id,
@@ -875,7 +899,7 @@ class AccessService:
         if not independent <= INDEPENDENT_ACTIONS:
             raise ServiceError("VALIDATION_ERROR", "初始独立授权动作不正确", 422)
         uow.require_lock(policy_key(channel_id))
-        if await rows(uow.connection, "channel_memberships", channel_id):
+        if await rows(uow.connection, "channel_memberships", channel_id, include_deleted=True):
             raise ServiceError("MEMBER_ALREADY_INITIALIZED", "渠道成员已初始化", 409)
         account = await one(uow.connection, "platform_accounts", "system", id=user_id)
         if not account or account["status"] != "ACTIVE":
@@ -947,19 +971,21 @@ class AccessService:
         found = (
             (
                 await connection.execute(
-                    select(
-                        members.c.user_id,
-                        members.c.environments,
-                        grants.c.environments.label("initial_environments"),
-                        accounts.c.display_name,
+                    active_rows(
+                        select(
+                            members.c.user_id,
+                            members.c.environments,
+                            grants.c.environments.label("initial_environments"),
+                            accounts.c.display_name,
+                        )
+                        .select_from(source)
+                        .where(
+                            members.c.channel_id == channel_id,
+                            members.c.status == "ACTIVE",
+                            members.c.roles.contains(["channel_admin"]),
+                        )
+                        .limit(2)
                     )
-                    .select_from(source)
-                    .where(
-                        members.c.channel_id == channel_id,
-                        members.c.status == "ACTIVE",
-                        members.c.roles.contains(["channel_admin"]),
-                    )
-                    .limit(2)
                 )
             )
             .mappings()

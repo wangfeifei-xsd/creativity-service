@@ -1,6 +1,6 @@
 # 结构化记忆模型
 
-模型版本 2.0.0；负责方案 13；需求 [08-记忆管理.md](../../../../需求文档/08-记忆管理.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 13；需求 [08-记忆管理.md](../../../../需求文档/08-记忆管理.md)。总索引见 [README](../README.md)。
 
 ## memories
 
@@ -29,6 +29,7 @@
 | `usage_count` | `bigint` | 实际使用次数 | 是 | 服务层校验后的业务输入 | 内部 |
 | `subject_name` | `varchar(255)` | 主体可读名称 | 否 | 服务层校验后的业务输入 | 个人 |
 | `source_mode` | `varchar(16)` | 来源有效性模式：独立依据或全部依赖 | 是 | 记忆服务 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id, key, status)`。
 
@@ -55,6 +56,7 @@
 | `status` | `varchar(32)` | 来源状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `authority` | `varchar(32)` | 来源权限类型 | 是 | 服务层校验后的业务输入 | 内部 |
 | `trust_level` | `integer` | 来源可信等级 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, memory_id)`；`(channel_id, environment, subject_type, subject_id, source_type, source_id)`。
 
@@ -80,6 +82,7 @@
 | `version_number` | `integer` | 版本序号 | 是 | 服务层校验后的业务输入 | 内部 |
 | `status` | `varchar(32)` | 变更后状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `source_ids` | `json` | 有效来源记录集合 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, memory_id, created_at)`。
 
@@ -99,6 +102,7 @@
 | `subject_id` | `varchar(128)` | 业务主体编号 | 是 | 受信服务上下文 | 个人 |
 | `enabled` | `boolean` | 是否启用 | 是 | 服务层校验后的业务输入 | 内部 |
 | `changed_by` | `varchar(128)` | 变更主体 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`。
 
@@ -124,6 +128,7 @@
 | `failure_mode` | `varchar(16)` | 读取故障处理方式 | 是 | 服务层校验后的业务输入 | 内部 |
 | `attributes` | `json` | 渠道可配置的画像属性定义 | 是 | 渠道配置 | 内部 |
 | `consolidation` | `json` | 后台归档与画像整理策略 | 是 | 渠道配置 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, agent_id)`。
 
@@ -146,6 +151,7 @@
 | `selection_reason` | `json` | 选择依据 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `warnings` | `json` | 脱敏降级提示 | 是 | 服务层校验后的业务输入 | 内部 |
 | `agent_id` | `varchar(64)` | 使用记忆的智能体 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, run_id)`。
 
@@ -167,6 +173,7 @@
 | `state` | `varchar(32)` | 清理进度 | 是 | 服务层校验后的业务输入 | 内部 |
 | `completed_at` | `datetime(6) UTC` | 完成时间 | 否 | 服务层校验后的业务输入 | 内部 |
 | `kind` | `varchar(16)` | 单项遗忘或主体清空 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id, state)`。
 
@@ -190,6 +197,7 @@
 | `run_id` | `varchar(64)` | 生成向量的运行 | 是 | 服务端校验后的向量结果 | 内部 |
 | `dimensions` | `integer` | 向量维度 | 是 | 服务端校验后的向量结果 | 内部 |
 | `embedding` | `json` | 记忆向量 | 是 | 服务端校验后的向量结果 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id, model_version_id)`；`(channel_id, memory_id)`。
 
@@ -218,6 +226,7 @@
 | `error_code` | `varchar(128)` | 最后失败原因编码 | 否 | 后台整理 | 内部 |
 | `settings` | `json` | 冻结策略与属性，不包含会话原文 | 是 | 后台整理 | 内部 |
 | `preference_revision` | `integer` | 受理时主体偏好修订 | 是 | 后台整理 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, state, next_attempt_at)`；`(channel_id, conversation_id)`。
 
@@ -242,5 +251,6 @@ Milvus 向量同步与删除持久化任务。状态：已实现；归属：主�
 | `lease_until` | `datetime(6) UTC` | 租约失效时间 | 否 | 服务层同步协议 | 内部 |
 | `next_attempt_at` | `datetime(6) UTC` | 下次同步时间 | 是 | 服务层同步协议 | 内部 |
 | `attempts` | `integer` | 连续失败次数 | 是 | 服务层同步协议 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, next_attempt_at, state)`；`(channel_id, environment, subject_type, subject_id)`。

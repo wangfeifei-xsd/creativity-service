@@ -1,6 +1,6 @@
 # Creativity P0 数据模型索引
 
-模型版本 **2.0.0**；需求基线 **v0.7**；技术基线 **v1.6**。
+模型版本 **2.1.0**；需求基线 **v0.7**；技术基线 **v1.6**。
 
 本档案覆盖全部 P0 持久化对象。机器清单为 [catalog.json](catalog.json)，字段文档由 `scripts/render_data_model.py` 生成。共享基础的代码定义位于 `core/database/baseline_v0001.json`；各模块归档中的 `revision` 保留原始修订来源，供模型归属与一致性检查使用。[MySQL 8 初始基线](../../alembic/mysql_versions/0048_mysql_milvus.py) 冻结至 `0048_mysql_milvus`；原 PostgreSQL 修订仅保留作历史来源。开发规范引用 [rule.md](../../../rule.md)。
 

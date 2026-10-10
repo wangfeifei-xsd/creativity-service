@@ -13,7 +13,7 @@ from creativity_service.modules.evaluations.tables import metadata
 from creativity_service.modules.iam.repositories import policy_key
 
 
-def repository(name: str, scope: Scope) -> Repository:
+def repository(name: str, scope: Scope, *, include_deleted: bool = False) -> Repository:
     return Repository(metadata.tables[name], scope)
 
 

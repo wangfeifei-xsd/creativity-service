@@ -1,6 +1,6 @@
 # 模型配置模型
 
-模型版本 2.0.0；负责方案 07；需求 [03-模型配置.md](../../../../需求文档/03-模型配置.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 07；需求 [03-模型配置.md](../../../../需求文档/03-模型配置.md)。总索引见 [README](../README.md)。
 
 ## provider_catalog
 
@@ -17,6 +17,7 @@
 | `name` | `varchar(128)` | 供应商名称 | 是 | 服务层校验后的业务输入 | 内部 |
 | `protocols` | `json` | 支持协议族 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `template_content` | `json` | 无凭据连接模板 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, code)`。
 
@@ -46,6 +47,7 @@
 | `health_reason` | `varchar(512)` | 最近健康异常原因 | 否 | 模型服务显式赋值 | 内部 |
 | `health_checked_at` | `datetime(6) UTC` | 最近健康检查时间 | 否 | 模型服务显式赋值 | 内部 |
 | `validation_revision` | `bigint` | 能力验证语义修订号 | 是 | 关键配置改变时由模型服务递增 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, status)`。
 
@@ -72,6 +74,7 @@
 | `parameters` | `json` | 模型默认参数 | 是 | 模型服务显式赋值 | 敏感内容 |
 | `parameter_allowlist` | `json` | 模型允许的参数清单 | 是 | 模型服务显式赋值 | 敏感内容 |
 | `validation_revision` | `bigint` | 能力验证语义修订号 | 是 | 关键配置改变时由模型服务递增 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, model_code)`。
 
@@ -89,6 +92,7 @@
 | `code` | `varchar(64)` | 路由编码 | 是 | 服务层校验后的业务输入 | 内部 |
 | `name` | `varchar(128)` | 路由名称 | 是 | 服务层校验后的业务输入 | 内部 |
 | `status` | `varchar(32)` | 启用状态 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, code)`。
 
@@ -116,6 +120,7 @@
 | `run_id` | `varchar(64)` | 统一调试运行标识 | 否 | 模型服务显式赋值 | 内部 |
 | `error_code` | `varchar(64)` | 验证失败类别 | 否 | 模型服务显式赋值 | 内部 |
 | `reason` | `varchar(512)` | 验证失败原因 | 否 | 模型服务显式赋值 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, model_id, created_at)`。
 

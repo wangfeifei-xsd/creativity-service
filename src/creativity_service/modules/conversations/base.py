@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from creativity_service.core.artifacts import ArtifactService
 from creativity_service.core.context import AuthContext, Authorization, Scope
 from creativity_service.core.contracts import VisibleAction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.conversations.hooks import ConversationHooks
 from creativity_service.modules.conversations.ports import (
@@ -78,21 +79,37 @@ class ConversationKernel:
     async def access(
         self, context: AuthContext, conversation_id: str, action: str = "conversation:read"
     ) -> AuthContext:
-        context, _ = await self.locate(context, conversation_id)
-        await self.authorization.require(context, action, conversation_id)
+        context, row = await self.locate(
+            context,
+            conversation_id,
+            include_deleted=action in {"content:cleanup", "content:delete"},
+        )
+        policy = await read_policy(self.authorization, context)
+        if policy is None:
+            await self.authorization.require(context, action, conversation_id)
+        else:
+            require_action(
+                policy.actions(
+                    "conversation", conversation_id, resource_state(context, "conversation", row)
+                ),
+                action,
+            )
         return context
 
     async def locate(
-        self, context: AuthContext, conversation_id: str
+        self, context: AuthContext, conversation_id: str, *, include_deleted: bool = False
     ) -> tuple[AuthContext, dict[str, Any]]:
         table = metadata.tables["conversations"]
         async with self.engine.connect() as connection:
             rows = (
                 (
                     await connection.execute(
-                        select(table).where(
-                            table.c.channel_id == context.scope.channel_id,
-                            table.c.id == conversation_id,
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == context.scope.channel_id,
+                                table.c.id == conversation_id,
+                            ),
+                            include_deleted=include_deleted,
                         )
                     )
                 )

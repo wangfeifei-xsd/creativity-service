@@ -7,9 +7,13 @@ from typing import Any
 from sqlalchemy import Select, Table, bindparam, select
 from sqlalchemy.sql.elements import BindParameter, ColumnElement
 
+from creativity_service.core.database.soft_delete import active_rows
+
 
 @lru_cache(maxsize=512)
-def _select(table: Table, shape: tuple[tuple[str, str, str], ...]) -> Select[Any]:
+def _select(
+    table: Table, shape: tuple[tuple[str, str, str], ...], include_deleted: bool
+) -> Select[Any]:
     predicates: list[ColumnElement[bool]] = []
     for group, name, mode in shape:
         column = table.c[name]
@@ -18,7 +22,7 @@ def _select(table: Table, shape: tuple[tuple[str, str, str], ...]) -> Select[Any
         else:
             parameter: BindParameter[Any] = bindparam(f"{group}_{name}", expanding=mode == "many")
             predicates.append(column.in_(parameter) if mode == "many" else column == parameter)
-    return select(table).where(*predicates)
+    return active_rows(select(table).where(*predicates), include_deleted=include_deleted)
 
 
 def scoped_select(
@@ -26,6 +30,8 @@ def scoped_select(
     scope: Mapping[str, Any],
     filters: Mapping[str, Any],
     batches: Mapping[str, Any] | None = None,
+    *,
+    include_deleted: bool = False,
 ) -> tuple[Select[Any], dict[str, Any]]:
     """范围条件与业务条件分别绑定，相同字段的业务筛选不能覆盖范围。"""
     shape = []
@@ -39,14 +45,14 @@ def scoped_select(
             shape.append((group, name, mode))
             if mode != "null":
                 parameters[f"{group}_{name}"] = value
-    return _select(table, tuple(shape)), parameters
+    return _select(table, tuple(shape), include_deleted), parameters
 
 
 def latest_per_group(table: Table, group: str, *predicates: ColumnElement[bool]) -> Select[Any]:
     """按业务组批量读取最新记录；MySQL 使用窗口函数保持确定顺序。"""
     from sqlalchemy import func
 
-    ranked = (
+    ranked = active_rows(
         select(
             table,
             func.row_number()
@@ -54,8 +60,8 @@ def latest_per_group(table: Table, group: str, *predicates: ColumnElement[bool])
                 partition_by=table.c[group], order_by=(table.c.created_at.desc(), table.c.id.desc())
             )
             .label("row_position"),
-        )
-        .where(*predicates)
-        .subquery()
+        ).where(*predicates)
+    ).subquery()
+    return active_rows(
+        select(*(ranked.c[column.name] for column in table.c)).where(ranked.c.row_position == 1)
     )
-    return select(*(ranked.c[column.name] for column in table.c)).where(ranked.c.row_position == 1)

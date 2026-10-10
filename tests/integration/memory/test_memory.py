@@ -105,7 +105,9 @@ async def test_mem_a03_a08_identical_subjects_do_not_cross_scopes_or_clear(env):
             await env.memory.detail(foreign, saved.memory_id)
         assert error.value.status == 404
         await env.memory.clear(foreign)
-        assert (await env.memory.detail(foreign, own.memory_id)).memory.value is None
+        with pytest.raises(ServiceError) as removed:
+            await env.memory.detail(foreign, own.memory_id)
+        assert removed.value.status == 404
         assert (await env.memory.detail(env.context, saved.memory_id)).memory.value == budget()
 
 
@@ -115,8 +117,11 @@ async def test_mem_a04_forget_blocks_queued_refs_and_history_and_tracks_cleanup(
     job = await env.memory.forget(env.context, saved.memory_id)
     assert (await env.memory.forget(env.context, saved.memory_id)).deletion_id == job.deletion_id
     assert not (await load(env, selected)).items
-    detail = await env.memory.detail(env.context, saved.memory_id)
-    assert detail.memory.value is None and detail.memory.sources == []
+    with pytest.raises(ServiceError) as removed:
+        await env.memory.detail(env.context, saved.memory_id)
+    assert removed.value.status == 404
+    tombstone = (await rows(env, "memories", id=saved.memory_id, include_deleted=True))[0]
+    assert tombstone["is_deleted"] and tombstone["value"] is None
     assert all(v["value"] is None for v in await rows(env, "memory_versions"))
     await env.memory.clean(env.context, ContentRef("memory", saved.memory_id))
     assert (await env.memory.deletion(env.context, job.deletion_id)).status == "WAITING_PROPAGATION"
@@ -380,7 +385,11 @@ async def test_actual_conversation_deletion_preserves_independent_memory(env):
     await env.memory.clean(env.context, ContentRef("memory", sourced.memory_id))
     await env.memory.clean(env.context, ContentRef("memory", proposed.memory_id))
     assert (await env.memory.detail(env.context, sourced.memory_id)).memory.status == "ACTIVE"
-    assert (await env.memory.detail(env.context, proposed.memory_id)).memory.value is None
+    with pytest.raises(ServiceError) as removed:
+        await env.memory.detail(env.context, proposed.memory_id)
+    assert removed.value.status == 404
+    tombstone = (await rows(env, "memories", id=proposed.memory_id, include_deleted=True))[0]
+    assert tombstone["is_deleted"] and tombstone["value"] is None
     assert (await env.memory.detail(env.context, sourced.memory_id)).memory.sources[
         0
     ].name == "人工修正"

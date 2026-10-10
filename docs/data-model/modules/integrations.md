@@ -1,6 +1,6 @@
 # 业务接入与身份委托模型
 
-模型版本 2.0.0；负责方案 18/19/20；需求 [14-业务接入与适配.md](../../../../需求文档/14-业务接入与适配.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 18/19/20；需求 [14-业务接入与适配.md](../../../../需求文档/14-业务接入与适配.md)。总索引见 [README](../README.md)。
 
 ## delegation_keys
 
@@ -25,6 +25,7 @@
 | `not_before` | `datetime(6) UTC` | 密钥生效时间 | 是 | 服务层校验与受信上下文 | 内部 |
 | `expires_at` | `datetime(6) UTC` | 密钥到期时间 | 是 | 服务层校验与受信上下文 | 内部 |
 | `rotated_from` | `varchar(64)` | 轮换前密钥编号 | 否 | 服务层校验与受信上下文 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, client_id)`。
 
@@ -49,6 +50,7 @@
 | `resolved_scope` | `json` | 验签后渠道环境主体 | 是 | 服务层校验与受信上下文 | 内部 |
 | `expires_at` | `datetime(6) UTC` | 防重放声明有效时间 | 是 | 服务层校验与受信上下文 | 内部 |
 | `retain_until` | `datetime(6) UTC` | 防重放记录最早清理时间 | 是 | 服务层校验与受信上下文 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, client_id, nonce_digest)`；`(channel_id, environment, retain_until)`。
 
@@ -73,6 +75,7 @@
 | `schema_hash` | `varchar(128)` | 授权时身份工具契约摘要 | 是 | 服务层校验后的受信配置 | 内部 |
 | `timeout_seconds` | `integer` | 身份复核超时秒数 | 是 | 服务层校验后的受信配置 | 内部 |
 | `enabled` | `boolean` | 是否允许身份复核 | 是 | 服务层校验后的受信配置 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, client_id)`。
 
@@ -97,6 +100,7 @@
 | `state` | `varchar(32)` | 当前处理状态 | 是 | 受信上下文与服务层校验 | 内部 |
 | `next_at` | `datetime(6) UTC` | 下次触发时间 | 是 | 受信上下文与服务层校验 | 内部 |
 | `last_error` | `json` | 最近派发错误 | 否 | 受信上下文与服务层校验 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`；`(channel_id, state, next_at)`。
 
@@ -120,6 +124,7 @@
 | `owner_key` | `varchar(64)` | 执行身份摘要 | 是 | 受信上下文与服务层校验 | 内部 |
 | `identity` | `json` | 原执行身份快照 | 是 | 受信上下文与服务层校验 | 内部 |
 | `state` | `varchar(32)` | 当前处理状态 | 是 | 受信上下文与服务层校验 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`。
 
@@ -150,6 +155,7 @@
 | `attempts` | `bigint` | 受理尝试次数 | 是 | 受信上下文与服务层校验 | 内部 |
 | `run_id` | `varchar(64)` | 关联运行标识 | 否 | 受信上下文与服务层校验 | 内部 |
 | `error` | `json` | 最近受理错误 | 否 | 受信上下文与服务层校验 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`；`(channel_id, state, lease_until)`。
 
@@ -175,6 +181,7 @@
 | `identity` | `json` | 原执行身份快照 | 是 | 受信上下文与服务层校验 | 内部 |
 | `state` | `varchar(32)` | 当前处理状态 | 是 | 受信上下文与服务层校验 | 内部 |
 | `client_ids` | `json` | 订阅的调用服务列表；空列表仅包含配置者运行 | 是 | 管理配置 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`。
 
@@ -205,6 +212,7 @@
 | `error` | `json` | 最近投递错误 | 否 | 受信上下文与服务层校验 | 内部 |
 | `http_status` | `bigint` | 最近响应状态 | 否 | 受信上下文与服务层校验 | 内部 |
 | `cycle_attempts` | `bigint` | 本轮自动投递次数，人工重投重新计数 | 是 | 受信上下文与服务层校验 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`；`(channel_id, state, next_at)`。
 
@@ -235,5 +243,6 @@
 | `last_value` | `bigint` | 最近观察次数 | 是 | 受信上下文与服务层校验 | 内部 |
 | `pending_events` | `json` | 待生成投递事件 | 是 | 受信上下文与服务层校验 | 内部 |
 | `client_ids` | `json` | 订阅的调用服务列表；空列表仅包含配置者运行 | 是 | 管理配置 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`。

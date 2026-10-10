@@ -305,18 +305,24 @@ class UsageExports:
             else:
                 raise ServiceError("DELETION_MARKER_REQUIRED", "清理前必须登记删除标记", 409)
             row = await required(
-                uow.connection, "usage_exports", context.scope.channel_id, id=ref.resource_id
+                uow.connection,
+                "usage_exports",
+                context.scope.channel_id,
+                id=ref.resource_id,
+                include_deleted=True,
             )
             await save(
                 uow,
                 "usage_exports",
                 row["id"],
                 {
+                    "is_deleted": True,
                     "state": "DELETED",
                     "filters": {},
                     "metadata": {},
                     "scope_snapshot": {"scopes": []},
                 },
+                include_deleted=True,
             )
         if row["object_key"] and self.store:
             await self.store.delete(row["object_key"])

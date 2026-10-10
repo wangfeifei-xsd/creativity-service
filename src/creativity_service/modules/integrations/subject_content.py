@@ -28,6 +28,8 @@ async def initialize_subject_content(engine: AsyncEngine, context: AuthContext) 
 
         # 有历史任务、证据或内容时，缺失屏障只能走恢复核对，不能被重新委托洗成新主体。
         for table in all_metadata.tables.values():
-            if "subject_id" in table.c and await Repository(table, scope).find(uow.connection):
+            if "subject_id" in table.c and await Repository(
+                table, scope, include_deleted=True
+            ).find(uow.connection):
                 raise ServiceError("RECOVERY_PROOF_REQUIRED", "主体已有内容，须先完成恢复核对", 503)
         await RecoveryService.initialize_fresh_in(uow, scope)

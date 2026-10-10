@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Table, insert, select, union_all
 
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.primitives import ServiceError
 
 if TYPE_CHECKING:
@@ -38,9 +39,12 @@ class InsertBatch:
             for table, row in batch:
                 grouped.setdefault(table, []).append(row)
             checks = [
-                select(table.c.id).where(
-                    table.c.channel_id == self.uow.scope.channel_id,
-                    table.c.id.in_([row["id"] for row in records]),
+                active_rows(
+                    select(table.c.id).where(
+                        table.c.channel_id == self.uow.scope.channel_id,
+                        table.c.id.in_([row["id"] for row in records]),
+                    ),
+                    include_deleted=True,
                 )
                 for table, records in grouped.items()
             ]

@@ -160,7 +160,9 @@ async def locate(uow: UnitOfWork, scope: Scope, kind: str, identifier: str) -> d
     name = TARGETS.get(kind)
     if name is None:
         raise ServiceError("VALIDATION_ERROR", "不支持此类内容删除", 422)
-    row = await Repository(metadata.tables[name], scope).get(uow.connection, identifier)
+    row = await Repository(metadata.tables[name], scope, include_deleted=True).get(
+        uow.connection, identifier
+    )
     if row is None:
         raise ServiceError("NOT_FOUND", "当前范围没有此内容", 404)
     return row

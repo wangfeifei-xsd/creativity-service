@@ -247,7 +247,15 @@ async def test_two_account_roles_multichannel_default_and_revocation(channel_env
             a.channel.channel_id,
             user_id=account.user_id,
         )
-    assert members[0]["status"] == "DISABLED"
+        assert members == []
+        deleted = await rows(
+            connection,
+            "channel_memberships",
+            a.channel.channel_id,
+            user_id=account.user_id,
+            include_deleted=True,
+        )
+    assert deleted[0]["is_deleted"] is True and deleted[0]["status"] == "DISABLED"
 
 
 async def test_multichannel_validation_and_revision_conflict_roll_back_all_channels(channel_env):
@@ -549,6 +557,7 @@ async def test_channel_multiselect_does_not_leave_hidden_legacy_memberships(chan
                 "channel_memberships",
                 b.channel.channel_id,
                 user_id=account.user_id,
+                include_deleted=True,
             )
         )[0]
-    assert member["status"] == "DISABLED"
+    assert member["is_deleted"] is True and member["status"] == "DISABLED"

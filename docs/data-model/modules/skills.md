@@ -1,6 +1,6 @@
 # 技能包模型
 
-模型版本 2.0.0；负责方案 15；需求 [11-Skills管理.md](../../../../需求文档/11-Skills管理.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 15；需求 [11-Skills管理.md](../../../../需求文档/11-Skills管理.md)。总索引见 [README](../README.md)。
 
 ## skills
 
@@ -19,6 +19,7 @@
 | `owner` | `varchar(128)` | 负责人 | 是 | 服务层校验后的业务输入 | 内部 |
 | `tags` | `json` | 发现标签 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `status` | `varchar(32)` | 启用状态 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, skill_code)`。
 
@@ -41,6 +42,7 @@
 | `artifact_id` | `varchar(64)` | 受控内容引用 | 是 | 服务层校验后的业务输入 | 内部 |
 | `loadable` | `boolean` | 当前是否可加载 | 是 | 服务层校验后的业务输入 | 内部 |
 | `unavailable_reason` | `longtext` | 不可加载原因 | 否 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, version_id, relative_path)`。
 
@@ -64,6 +66,7 @@
 | `run_id` | `varchar(64)` | 运行标识 | 否 | 服务层校验后的业务输入 | 内部 |
 | `result` | `json` | 测试结果 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `context_snapshot` | `json` | 加载输入与版本冻结快照 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, version_id)`。
 

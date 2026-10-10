@@ -3,8 +3,9 @@
 import json
 from pathlib import Path
 
-from sqlalchemy import Column, Index, MetaData, Table
+from sqlalchemy import Column, Index, MetaData
 
+from creativity_service.core.database.soft_delete import soft_delete_table
 from creativity_service.core.database.tables import column_type
 from creativity_service.core.database.tables import metadata as core
 from creativity_service.core.database.types import DocumentJSON
@@ -13,7 +14,7 @@ from creativity_service.modules.iam.tables import metadata as identity
 
 metadata = MetaData()
 for definition in json.loads(Path(__file__).with_name("baseline_v0035.json").read_text()):
-    table = Table(
+    table = soft_delete_table(
         definition["name"],
         metadata,
         *(

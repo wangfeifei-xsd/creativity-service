@@ -12,10 +12,17 @@ from creativity_service.core.database import (
     transaction,
     validate_row,
 )
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.deletion.ledger import DeletionLedger
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
+from creativity_service.modules.iam.reading import (
+    read_actions,
+    read_policy,
+    require_action,
+    resource_state,
+)
 from creativity_service.modules.memory import repositories as repo
 from creativity_service.modules.memory.base import MemoryKernel
 from creativity_service.modules.memory.schemas import MemoryDeletion
@@ -63,6 +70,7 @@ class MemoryDeletions(MemoryKernel):
             marker_id = digest([context.scope.model_dump(), "memory", row["id"]])
             if not await Repository(table, context.scope).get(uow.connection, marker_id):
                 marker = {
+                    "is_deleted": False,
                     **scope_values(table, context.scope),
                     "id": marker_id,
                     "created_at": utcnow(),
@@ -76,7 +84,14 @@ class MemoryDeletions(MemoryKernel):
                 validate_row(table, marker)
                 await uow.connection.execute(insert(table).values(**marker))
             await self.version(
-                uow, context, row, "FORGOTTEN", status="REVOKED", value=None, subject_name=None
+                uow,
+                context,
+                row,
+                "FORGOTTEN",
+                status="REVOKED",
+                value=None,
+                subject_name=None,
+                is_deleted=True,
             )
             await self.scrub_versions(uow, context, row["id"])
         job = await repo.save(
@@ -93,13 +108,28 @@ class MemoryDeletions(MemoryKernel):
         return self.deletion_view(job)
 
     async def forget(self, context: AuthContext, memory_id: str) -> MemoryDeletion:
-        context = await self.locate(context, memory_id)
-        await self.authorization.require(context, "memory:delete", memory_id)
+        context = await self.locate(context, memory_id, include_deleted=True)
+        async with self.engine.connect() as connection:
+            current = await repo.required(
+                connection, "memories", context.scope, id=memory_id, include_deleted=True
+            )
+        permissions = await read_actions(
+            self.authorization,
+            context,
+            "memory",
+            memory_id,
+            ["memory:delete"],
+            policy=await read_policy(self.authorization, context),
+            state=resource_state(context, "memory", current),
+        )
+        require_action(permissions, "memory:delete")
         await DeletionLedger().record(
             context.scope, "memory", memory_id, "MEMORY_FORGOTTEN", context.principal_id
         )
         async with transaction(self.engine, context.scope, repo.keys(context.scope)) as uow:
-            row = await repo.required(uow.connection, "memories", context.scope, id=memory_id)
+            row = await repo.required(
+                uow.connection, "memories", context.scope, id=memory_id, include_deleted=True
+            )
             return await self.forget_in(uow, context, [row])
 
     async def clear(self, context: AuthContext, anchor_id: str | None = None) -> MemoryDeletion:
@@ -125,9 +155,11 @@ class MemoryDeletions(MemoryKernel):
             row = (
                 (
                     await connection.execute(
-                        select(table).where(
-                            table.c.channel_id == context.scope.channel_id,
-                            table.c.id == deletion_id,
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == context.scope.channel_id,
+                                table.c.id == deletion_id,
+                            )
                         )
                     )
                 )
@@ -143,11 +175,32 @@ class MemoryDeletions(MemoryKernel):
     async def clean(self, context: AuthContext, ref: ContentRef) -> None:
         if ref.resource_type != "memory":
             raise ValueError("记忆处理器仅接受记忆引用")
-        context = await self.locate(context, ref.resource_id)
-        await self.authorization.require(context, "content:cleanup", ref.resource_id)
+        context = await self.locate(context, ref.resource_id, include_deleted=True)
+        policy = await read_policy(self.authorization, context)
+        if policy is None:
+            await self.authorization.require(context, "content:cleanup", ref.resource_id)
+        else:
+            async with self.engine.connect() as connection:
+                current = await repo.required(
+                    connection,
+                    "memories",
+                    context.scope,
+                    id=ref.resource_id,
+                    include_deleted=True,
+                )
+            # 清理使用已定位的历史归属复核权限，普通详情仍不能读取删除记录。
+            require_action(
+                policy.actions(
+                    "memory", ref.resource_id, resource_state(context, "memory", current)
+                ),
+                "content:cleanup",
+            )
         async with transaction(self.engine, context.scope, repo.keys(context.scope)) as uow:
-            row = await repo.required(uow.connection, "memories", context.scope, id=ref.resource_id)
-            row = await self.refresh(uow, context, row)
+            row = await repo.required(
+                uow.connection, "memories", context.scope, id=ref.resource_id, include_deleted=True
+            )
+            if not row["is_deleted"]:
+                row = await self.refresh(uow, context, row)
             if row["status"] != "REVOKED":
                 # 来源传播也经过此入口；独立依据仍有效时仅重算，不删除有效记忆。
                 return

@@ -15,11 +15,11 @@ from sqlalchemy import (
     MetaData,
     Numeric,
     String,
-    Table,
 )
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.types import TypeEngine
 
+from creativity_service.core.database.soft_delete import soft_delete_table
 from creativity_service.core.database.types import DocumentJSON, UTCDateTime
 
 BASELINE = json.loads(Path(__file__).with_name("tables_v0046_0.json").read_text(encoding="utf-8"))
@@ -44,7 +44,7 @@ def column_type(name: str) -> TypeEngine[Any]:
 def build_metadata() -> MetaData:
     metadata = MetaData()
     for definition in BASELINE:
-        table = Table(
+        table = soft_delete_table(
             definition["name"],
             metadata,
             *(

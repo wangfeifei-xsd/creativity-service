@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import read_key, record_key
 from creativity_service.core.primitives import digest
@@ -49,8 +50,10 @@ async def record_use(
 
             accounts = iam_metadata.tables["platform_accounts"]
             caller_name = await uow.connection.scalar(
-                select(accounts.c.display_name).where(
-                    accounts.c.channel_id == "system", accounts.c.id == actor
+                active_rows(
+                    select(accounts.c.display_name).where(
+                        accounts.c.channel_id == "system", accounts.c.id == actor
+                    )
                 )
             )
         if not caller_name and context.client_id:

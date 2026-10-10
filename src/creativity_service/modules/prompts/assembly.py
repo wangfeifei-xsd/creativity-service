@@ -60,6 +60,7 @@ def register_prompt_cleanup(
                         "frozen_version": {},
                         "sample_snapshot": {},
                         "rendered_input": {},
+                        "is_deleted": True,
                         "status": "DELETED",
                     }
                 )

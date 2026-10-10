@@ -17,9 +17,9 @@ from creativity_service.modules.models.schemas import (
     CaseResult,
     ConnectionInput,
     CredentialInput,
+    FrozenModel,
     ModelInput,
     ProviderInput,
-    ReleaseInput,
     RouteInput,
     RouteVersionInput,
 )
@@ -79,6 +79,38 @@ async def test_provider_initial_collision_is_serialized(channel_env):
     )
     assert sum(not isinstance(result, Exception) for result in results) == 1
     assert [result.status for result in results if isinstance(result, ServiceError)] == [409]
+
+
+async def test_deleted_provider_identifier_cannot_be_recreated_or_edited(channel_env):
+    from sqlalchemy import select, update
+
+    from creativity_service.modules.models.tables import metadata
+
+    env = channel_env
+    _, services, *_ = await setup(env)
+    body = ProviderInput(name="删除目录测试", protocols=["chat_completions"])
+    provider = await services.configuration.save_provider(env.admin, body)
+    table = metadata.tables["provider_catalog"]
+    async with env.engine.begin() as connection:
+        await connection.execute(
+            update(table)
+            .where(table.c.channel_id == "system", table.c.id == provider.id)
+            .values(is_deleted=True)
+        )
+    for request in (
+        body,
+        body.model_copy(update={"id": provider.id, "revision": provider.revision}),
+    ):
+        with pytest.raises(ServiceError) as deleted:
+            await services.configuration.save_provider(env.admin, request)
+        assert deleted.value.status == 404
+    async with env.engine.connect() as connection:
+        rows = (
+            (await connection.execute(select(table).where(table.c.id == provider.id)))
+            .mappings()
+            .all()
+        )
+        assert len(rows) == 1 and rows[0]["is_deleted"] is True
 
 
 class Keys:
@@ -238,8 +270,14 @@ async def test_config_history_stale_capabilities_and_no_test_bypass(channel_env)
         route.id,
         RouteVersionInput(label="v1", primary_model=model.id, required_capabilities=["tools"]),
     )
-    with pytest.raises(ServiceError, match="尚未通过"):
+    with pytest.raises(ServiceError, match="路由版本不可用"):
         await services.routing.resolve_route(tenant.manager.context, version.version_id)
+    with pytest.raises(ServiceError, match="尚未通过"):
+        await services.routing.prepare_attempt(
+            tenant.manager.context,
+            FrozenModel.model_validate(version.content["models"][0]),
+            ["tools"],
+        )
     versions = await services.configuration.history(
         tenant.manager, "model_connection", connection.id
     )
@@ -348,6 +386,9 @@ async def test_revoked_connection_blocks_attempt_but_keeps_history(channel_env):
 
 
 async def test_route_release_hard_price_gate_and_stale_revision(channel_env):
+    from creativity_service.modules.resources.schemas import ResourceMutation
+    from creativity_service.modules.resources.services import ResourceManagement
+
     tenant, services, _, _, model_input, model = await setup(channel_env, publish=True)
     await complete(services, tenant, model)
     route = await services.routing.create(
@@ -364,25 +405,38 @@ async def test_route_release_hard_price_gate_and_stale_revision(channel_env):
         ),
     )
     assert version.content["models"][0]["parameters"]["max_tokens"] == 80
-    published = await services.routing.release(
-        tenant.manager, route.id, ReleaseInput(version_id=version.version_id)
+    manager = ResourceManagement(
+        channel_env.engine, channel_env.iam.authorization, {"model_route": services.routing}
     )
-    assert published.version_id == version.version_id
-    with pytest.raises(ServiceError) as conflict:
-        await services.routing.release(
-            tenant.manager, route.id, ReleaseInput(version_id=version.version_id)
+
+    async def mutation(identifier):
+        current = (await manager.summaries(tenant.manager.context, "model_route", [identifier]))[0]
+        return ResourceMutation(
+            revision=current.revision, configuration_revision=current.configuration_revision
         )
+
+    body = await mutation(route.id)
+    await manager.mutate(tenant.manager.context, "model_route", route.id, "publish", body)
+    resolved, _ = await services.routing.resolve_route(tenant.manager.context, route.id)
+    assert resolved[0].parameters["max_tokens"] == 80
+    with pytest.raises(ServiceError) as conflict:
+        await manager.mutate(tenant.manager.context, "model_route", route.id, "publish", body)
     assert conflict.value.code == "REVISION_CONFLICT"
+    hard_route = await services.routing.create(
+        tenant.manager, RouteInput(code="hard-release", name="硬预算路由")
+    )
     hard = await services.routing.create_version(
         tenant.manager,
-        route.id,
+        hard_route.id,
         RouteVersionInput(label="hard", primary_model=model.id, hard_amount_budget=True),
     )
     with pytest.raises(ServiceError) as missing:
-        await services.routing.release(
-            tenant.manager,
-            route.id,
-            ReleaseInput(version_id=hard.version_id, expected_version_id=version.version_id),
+        await manager.mutate(
+            tenant.manager.context,
+            "model_route",
+            hard.version_id,
+            "publish",
+            await mutation(hard_route.id),
         )
     assert missing.value.code == "DEPENDENCY_UNAVAILABLE"
     current = await services.configuration.detail(tenant.manager, model.id)
@@ -394,10 +448,12 @@ async def test_route_release_hard_price_gate_and_stale_revision(channel_env):
         model.id,
     )
     with pytest.raises(ServiceError) as stale:
-        await services.routing.release(
-            tenant.manager,
+        await manager.mutate(
+            tenant.manager.context,
+            "model_route",
             route.id,
-            ReleaseInput(version_id=version.version_id, expected_version_id=version.version_id),
+            "publish",
+            await mutation(route.id),
         )
     assert stale.value.code == "MODEL_CONFIGURATION_STALE"
 

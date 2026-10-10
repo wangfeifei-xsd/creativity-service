@@ -15,6 +15,7 @@ from creativity_service.core.contracts import (
     VisibleAction,
 )
 from creativity_service.core.database import Repository, UnitOfWork, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, DeletionService, content_key
 from creativity_service.core.locking import ResourceKey, record_key
@@ -142,9 +143,11 @@ class SkillVersionValidator:
             dict(row)
             for row in (
                 await uow.connection.execute(
-                    select(artifacts).where(
-                        artifacts.c.channel_id == scope.channel_id,
-                        artifacts.c.id.in_([d.artifact_id for d in definitions]),
+                    active_rows(
+                        select(artifacts).where(
+                            artifacts.c.channel_id == scope.channel_id,
+                            artifacts.c.id.in_([d.artifact_id for d in definitions]),
+                        )
                     )
                 )
             ).mappings()
@@ -184,13 +187,15 @@ class SkillVersionValidator:
         known_agents = (
             set(
                 await uow.connection.scalars(
-                    select(version_repo.table.c.resource_id)
-                    .where(
-                        version_repo.predicate(),
-                        version_repo.table.c.resource_type == "agent",
-                        version_repo.table.c.resource_id.in_(agent_ids),
+                    active_rows(
+                        select(version_repo.table.c.resource_id)
+                        .where(
+                            version_repo.predicate(),
+                            version_repo.table.c.resource_type == "agent",
+                            version_repo.table.c.resource_id.in_(agent_ids),
+                        )
+                        .distinct()
                     )
-                    .distinct()
                 )
             )
             if agent_ids
@@ -339,9 +344,11 @@ class SkillService:
             rows = (
                 (
                     await connection.execute(
-                        select(table).where(
-                            table.c.channel_id == context.scope.channel_id,
-                            table.c.id == artifact_id,
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == context.scope.channel_id,
+                                table.c.id == artifact_id,
+                            )
                         )
                     )
                 )
@@ -397,9 +404,11 @@ class SkillService:
             stored = (
                 (
                     await connection.execute(
-                        select(artifacts).where(
-                            artifacts.c.channel_id == context.scope.channel_id,
-                            artifacts.c.id == artifact_id,
+                        active_rows(
+                            select(artifacts).where(
+                                artifacts.c.channel_id == context.scope.channel_id,
+                                artifacts.c.id == artifact_id,
+                            )
                         )
                     )
                 )
@@ -426,8 +435,10 @@ class SkillService:
             tests = (
                 (
                     await uow.connection.execute(
-                        select(table.c.context_snapshot).where(
-                            table.c.channel_id == context.scope.channel_id
+                        active_rows(
+                            select(table.c.context_snapshot).where(
+                                table.c.channel_id == context.scope.channel_id
+                            )
                         )
                     )
                 )
@@ -440,12 +451,14 @@ class SkillService:
                 return
             snapshots = core_metadata.tables["release_snapshots"]
             if await uow.connection.scalar(
-                select(snapshots.c.id)
-                .where(
-                    snapshots.c.channel_id == context.scope.channel_id,
-                    snapshots.c.versions.contains([{"content": {"artifact_id": artifact_id}}]),
+                active_rows(
+                    select(snapshots.c.id)
+                    .where(
+                        snapshots.c.channel_id == context.scope.channel_id,
+                        snapshots.c.versions.contains([{"content": {"artifact_id": artifact_id}}]),
+                    )
+                    .limit(1)
                 )
-                .limit(1)
             ):
                 return
             repo = repository("artifacts", storage_scope)
@@ -752,7 +765,7 @@ class SkillService:
             rows = [
                 row
                 for row in rows
-                if row["status"] != "DELETED"
+                if not row["is_deleted"]
                 and (
                     not search or search.casefold() in (row["name"] + row["description"]).casefold()
                 )
@@ -812,7 +825,7 @@ class SkillService:
         policy = await self.authorization.read_policy(context)
         async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
             row = await repository("skills", context.scope).get(uow.connection, skill_id)
-            if not row or row["status"] == "DELETED":
+            if not row or row["is_deleted"]:
                 raise ServiceError("NOT_FOUND", "技能不存在", 404)
             permissions = policy.actions("skill", skill_id, resource_state(context, "skill", row))
             require_action(permissions, "skill:manage")

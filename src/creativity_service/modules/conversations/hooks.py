@@ -182,6 +182,7 @@ class ConversationHooks:
         links = Repository(table, context.scope)
         if await links.get(uow.connection, link_id) is None:
             row = {
+                "is_deleted": False,
                 **scope_values(table, context.scope),
                 "id": link_id,
                 "created_at": utcnow(),
@@ -385,9 +386,13 @@ class ConversationHooks:
         if run["state"] not in TERMINAL:
             raise ServiceError("RUN_NOT_FINISHED", "运行尚未有效终结", 409)
         row = await repo.required(
-            uow.connection, "conversations", context.scope, id=run["conversation_id"]
+            uow.connection,
+            "conversations",
+            context.scope,
+            id=run["conversation_id"],
+            include_deleted=True,
         )
-        if row["status"] not in {"DELETING", "DELETED"}:
+        if not row["is_deleted"]:
             result = (
                 await run_repo.one(
                     uow.connection, "run_contents", context.scope.channel_id, id=run["result_ref"]
@@ -415,4 +420,6 @@ class ConversationHooks:
                 if message["status"] != status or "content_parts" in values:
                     await repo.save(uow, "messages", message["id"], values)
         if row["active_run_id"] == run["id"]:
-            await repo.save(uow, "conversations", row["id"], {"active_run_id": None})
+            await repo.save(
+                uow, "conversations", row["id"], {"active_run_id": None}, include_deleted=True
+            )

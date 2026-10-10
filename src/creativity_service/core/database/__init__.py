@@ -13,6 +13,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from creativity_service.core.context import ControlScope, Scope
 from creativity_service.core.database.inserts import InsertBatch
 from creativity_service.core.database.queries import scoped_select
+from creativity_service.core.database.soft_delete import active_rows, soft_delete
 from creativity_service.core.locking import (
     ResourceKey,
     acquire_locks,
@@ -107,7 +108,11 @@ async def transaction(
             barriers = metadata.tables["recovery_barriers"]
             async with engine.connect() as connection:
                 existing = await connection.scalar(
-                    select(barriers.c.id).where(barriers.c.channel_id == scope.channel_id).limit(1)
+                    active_rows(
+                        select(barriers.c.id)
+                        .where(barriers.c.channel_id == scope.channel_id)
+                        .limit(1)
+                    )
                 )
             if existing is not None:
                 raise ServiceError("DELETION_LEDGER_UNAVAILABLE", "无法确认最新删除清单", 503)
@@ -204,7 +209,7 @@ def validate_row(table: Table, values: Mapping[str, Any]) -> None:
 
 
 class Repository:
-    def __init__(self, table: Table, scope: Scope) -> None:
+    def __init__(self, table: Table, scope: Scope, *, include_deleted: bool = False) -> None:
         if not isinstance(scope, Scope):
             raise ServiceError("CONTEXT_REQUIRED", "业务仓储必须显式接收业务范围", 403)
         if not {"id", "channel_id"} <= set(table.c.keys()):
@@ -212,6 +217,7 @@ class Repository:
         if table.info.get("control_purpose") not in (None, "audit"):
             raise ServiceError("CONTROL_TABLE", "业务仓储不能访问平台控制表", 403)
         self.table, self.scope = table, scope
+        self.include_deleted = include_deleted
 
     def predicate(self) -> ColumnElement[bool]:
         return and_(
@@ -223,7 +229,10 @@ class Repository:
 
     async def get(self, connection: AsyncConnection, record_id: str) -> dict[str, Any] | None:
         statement, parameters = scoped_select(
-            self.table, scope_values(self.table, self.scope), {"id": record_id}
+            self.table,
+            scope_values(self.table, self.scope),
+            {"id": record_id},
+            include_deleted=self.include_deleted,
         )
         rows = (await connection.execute(statement, parameters)).mappings().all()
         if len(rows) > 1:
@@ -234,7 +243,10 @@ class Repository:
         if set(filters) - set(self.table.c.keys()):
             raise ValueError("筛选字段不存在")
         statement, parameters = scoped_select(
-            self.table, scope_values(self.table, self.scope), filters
+            self.table,
+            scope_values(self.table, self.scope),
+            filters,
+            include_deleted=self.include_deleted,
         )
         return [dict(row) for row in (await connection.execute(statement, parameters)).mappings()]
 
@@ -252,6 +264,7 @@ class Repository:
                 scope_values(self.table, self.scope),
                 filters,
                 {field: identifiers[start : start + 500]},
+                include_deleted=self.include_deleted,
             )
             result.extend(
                 dict(row) for row in (await connection.execute(statement, parameters)).mappings()
@@ -294,16 +307,21 @@ class Repository:
             raise ServiceError("CONTEXT_OVERRIDE", "不能通过正文覆盖归属或服务元数据", 422)
         if pending is None:
             existing = await uow.connection.scalar(
-                select(self.table.c.id)
-                .where(
-                    self.table.c.channel_id == self.scope.channel_id, self.table.c.id == record_id
+                active_rows(
+                    select(self.table.c.id)
+                    .where(
+                        self.table.c.channel_id == self.scope.channel_id,
+                        self.table.c.id == record_id,
+                    )
+                    .limit(1),
+                    include_deleted=True,
                 )
-                .limit(1)
             )
             if existing is not None:
                 raise ServiceError("DUPLICATE_ID", "记录标识已存在")
         now = utcnow()
         row = {
+            "is_deleted": False,
             **values,
             **scope_values(self.table, self.scope),
             "id": record_id,
@@ -350,6 +368,7 @@ class Repository:
             if set(values) & protected:
                 raise ServiceError("CONTEXT_OVERRIDE", "不能通过正文覆盖归属或服务元数据", 422)
             row = {
+                "is_deleted": False,
                 **values,
                 **scope_values(self.table, self.scope),
                 "id": identifier,
@@ -371,12 +390,15 @@ class Repository:
         identifiers = list(prepared)
         for start in range(0, len(identifiers), 500):
             existing = await uow.connection.scalar(
-                select(self.table.c.id)
-                .where(
-                    self.table.c.channel_id == self.scope.channel_id,
-                    self.table.c.id.in_(identifiers[start : start + 500]),
+                active_rows(
+                    select(self.table.c.id)
+                    .where(
+                        self.table.c.channel_id == self.scope.channel_id,
+                        self.table.c.id.in_(identifiers[start : start + 500]),
+                    )
+                    .limit(1),
+                    include_deleted=True,
                 )
-                .limit(1)
             )
             if existing is not None:
                 raise ServiceError("DUPLICATE_ID", "记录标识已存在")
@@ -417,6 +439,15 @@ class Repository:
         return changed
 
     async def remove(self, uow: UnitOfWork, record_id: str) -> None:
+        """管理删除统一保留记录；敏感内容清理须显式使用 purge。"""
+        uow.require_scope(self.scope)
+        uow.require_lock(record_key(self.scope.channel_id, self.table.name, record_id))
+        await uow.connection.execute(
+            soft_delete(self.table).where(self.predicate(), self.table.c.id == record_id)
+        )
+
+    async def purge(self, uow: UnitOfWork, record_id: str) -> None:
+        """只用于已授权的敏感内容和到期数据清理。"""
         uow.require_scope(self.scope)
         uow.require_lock(record_key(self.scope.channel_id, self.table.name, record_id))
         await uow.connection.execute(
@@ -443,8 +474,10 @@ class ControlRepository:
         rows = (
             (
                 await connection.execute(
-                    select(self.table).where(
-                        self.table.c.channel_id == "system", self.table.c[column] == value
+                    active_rows(
+                        select(self.table).where(
+                            self.table.c.channel_id == "system", self.table.c[column] == value
+                        )
                     )
                 )
             )

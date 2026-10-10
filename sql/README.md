@@ -76,6 +76,8 @@ SQL 已封存天气和订单协助两份技能对象。导入空库后，按下�
 
 ## MySQL 迁移基线
 
+当前最新修订为 `0049_soft_delete`，模型版本为 2.1.0。110 张应用表和迁移版本表均包含 `is_deleted`，初始化数据显式写入 `false`。已有库执行迁移时回填原 `DELETED`、`DELETING` 状态以及具有删除标记的记忆；成员移除、资源授权删除通过最后一次写入后的成功审计识别，避免误删后来重新授权的数据。停用、归档和普通撤销保持未删除。迁移支持 DDL 中断后继续补齐，存在逻辑删除记录时拒绝移除该字段的回退，防止重新暴露数据。
+
 当前迁移链从 [0048_mysql_milvus.py](../alembic/mysql_versions/0048_mysql_milvus.py) 开始，结构冻结在同目录的 `0048_schema.json`，菜单和角色种子冻结在 `0048_seed.json`。基线不读取运行时模型；Alembic 仅扫描 `mysql_versions`。原 `alembic/versions` 保留 PostgreSQL 历史来源，不对 MySQL 执行，也不能将旧库直接 stamp 为新基线。
 
 空库可使用本目录两份 SQL，或者 `make migrate` 后初始化系统渠道与管理员。两种方式互斥：迁移路径只写系统锁槽、菜单和角色，需要再执行 `make channels-init` 与 `uv run creativity-iam init-admin --login-name admin --display-name 管理员`；不会自动导入业务配置归档。后续变更新增 MySQL 迁移并同步更新初始化归档，不修改本次冻结基线。

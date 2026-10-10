@@ -13,6 +13,7 @@ from creativity_service.core.auth.types import AccountState
 from creativity_service.core.context import ControlScope, Scope
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.database import UnitOfWork, control_transaction, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import ServiceError, new_id, utcnow
 from creativity_service.modules.iam.account_channels import (
@@ -210,15 +211,17 @@ class AccountService:
         async with self.repository.engine.connect() as connection:
             catalog = await role_catalog(connection, "system", all_scopes=True)
             total = await connection.scalar(
-                select(func.count()).select_from(table).where(*predicates)
+                active_rows(select(func.count()).select_from(table).where(*predicates))
             )
             found = (
                 await connection.execute(
-                    select(table)
-                    .where(*predicates)
-                    .order_by(table.c.login_name, table.c.id)
-                    .offset(offset)
-                    .limit(limit)
+                    active_rows(
+                        select(table)
+                        .where(*predicates)
+                        .order_by(table.c.login_name, table.c.id)
+                        .offset(offset)
+                        .limit(limit)
+                    )
                 )
             ).mappings()
             page_rows = [dict(row) for row in found]
@@ -334,13 +337,15 @@ class AccountService:
             # 兼容没有账号级角色标记的旧成员，不能通过密码重置接管其渠道权限。
             members = TABLES["channel_memberships"]
             member = await uow.connection.scalar(
-                select(members.c.id)
-                .where(
-                    members.c.channel_id != "system",
-                    members.c.user_id == row["id"],
-                    members.c.status == "ACTIVE",
+                active_rows(
+                    select(members.c.id)
+                    .where(
+                        members.c.channel_id != "system",
+                        members.c.user_id == row["id"],
+                        members.c.status == "ACTIVE",
+                    )
+                    .limit(1)
                 )
-                .limit(1)
             )
             if member:
                 raise ServiceError("FORBIDDEN", "无权维护具有渠道授权的账号", 403)
@@ -357,14 +362,16 @@ class AccountService:
             return
         table = TABLES["platform_accounts"]
         other = await uow.connection.scalar(
-            select(table.c.id)
-            .where(
-                table.c.channel_id == "system",
-                table.c.id != row["id"],
-                table.c.status == "ACTIVE",
-                table.c.platform_roles.contains(["platform_admin"]),
+            active_rows(
+                select(table.c.id)
+                .where(
+                    table.c.channel_id == "system",
+                    table.c.id != row["id"],
+                    table.c.status == "ACTIVE",
+                    table.c.platform_roles.contains(["platform_admin"]),
+                )
+                .limit(1)
             )
-            .limit(1)
         )
         if not other:
             raise ServiceError("LAST_PLATFORM_ADMIN", "至少保留一个启用的平台管理员", 409)

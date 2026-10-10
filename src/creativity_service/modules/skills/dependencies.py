@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import Repository
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.models.policy import configuration_digest
 from creativity_service.modules.models.tables import metadata as model_metadata
@@ -168,13 +169,15 @@ async def resolve_dependencies(
         known_agents = (
             set(
                 await connection.scalars(
-                    select(table.table.c.resource_id)
-                    .where(
-                        table.predicate(),
-                        table.table.c.resource_type == "agent",
-                        table.table.c.resource_id.in_(settings.allowed_agents),
+                    active_rows(
+                        select(table.table.c.resource_id)
+                        .where(
+                            table.predicate(),
+                            table.table.c.resource_type == "agent",
+                            table.table.c.resource_id.in_(settings.allowed_agents),
+                        )
+                        .distinct()
                     )
-                    .distinct()
                 )
             )
             if settings.allowed_agents

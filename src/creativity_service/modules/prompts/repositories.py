@@ -6,6 +6,6 @@ from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.modules.prompts.tables import metadata
 
 
-def repository(name: str, scope: Scope) -> Repository:
+def repository(name: str, scope: Scope, *, include_deleted: bool = False) -> Repository:
     table = metadata.tables[name] if name in metadata.tables else core_metadata.tables[name]
-    return Repository(table, scope)
+    return Repository(table, scope, include_deleted=include_deleted)

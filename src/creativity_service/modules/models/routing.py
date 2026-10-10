@@ -75,8 +75,7 @@ class ModelRouting:
             result = [
                 self.view(row, mappings.get(row["id"]))
                 for row in rows
-                if row["status"] != "DELETED"
-                and ContentRef("model_route", row["id"]) not in blocked
+                if not row["is_deleted"] and ContentRef("model_route", row["id"]) not in blocked
             ]
         return RouteList(items=result, actions=[action("create", "新增路由")])
 
@@ -95,7 +94,7 @@ class ModelRouting:
         async with transaction(service.engine, scope, [content_key(scope)]) as uow:
             route, rows = await history_rows(uow, context, "model_route", identifier)
             rows = [row for row in rows if row["id"] == identifier]
-            if route["status"] == "DELETED":
+            if route["is_deleted"]:
                 raise ServiceError("NOT_FOUND", "路由已删除", 404)
             releases = await repository(scope, "release_mappings").find(
                 uow.connection, resource_type="model_route", resource_id=identifier

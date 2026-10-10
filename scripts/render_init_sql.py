@@ -431,7 +431,8 @@ def render_data() -> str:
         append(
             lines,
             insert(metadata.tables["transaction_lock_slots"]).from_select(
-                ["channel_id", "slot"], select(literal("system"), source.c.value).where(pending)
+                ["channel_id", "slot", "is_deleted"],
+                select(literal("system"), source.c.value, literal(False)).where(pending),
             ),
         )
 
@@ -512,8 +513,8 @@ def render_data() -> str:
     append(
         lines,
         insert(version).from_select(
-            ["version_num", "channel_id"],
-            select(literal(revision), literal(SYSTEM_CHANNEL_ID)).where(pending),
+            ["version_num", "channel_id", "is_deleted"],
+            select(literal(revision), literal(SYSTEM_CHANNEL_ID), literal(False)).where(pending),
         ),
     )
     return finish(lines)

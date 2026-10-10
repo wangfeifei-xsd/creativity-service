@@ -123,6 +123,7 @@ class DataLifecycleService:
                         continue
                     now = utcnow()
                     row = {
+                        "is_deleted": False,
                         **scope_values(table, scope),
                         "id": entry["id"],
                         "created_at": now,
@@ -190,9 +191,9 @@ class DataLifecycleService:
                 inner = UnitOfWork(uow.connection, own, uow.keys)
                 if ref["mode"] == "DELETE":
                     mid = digest([own.model_dump(), ref["resource_type"], ref["resource_id"]])
-                    if not await Repository(metadata.tables["deletion_markers"], own).get(
-                        uow.connection, mid
-                    ):
+                    if not await Repository(
+                        metadata.tables["deletion_markers"], own, include_deleted=True
+                    ).get(uow.connection, mid):
                         await put(
                             inner,
                             "deletion_markers",
@@ -260,7 +261,7 @@ class DataLifecycleService:
         scope = scope_of(item)
         token = new_id("cleanup")
         async with transaction(self.engine, scope, [content_key(scope)]) as uow:
-            repo = Repository(metadata.tables["deletion_work_items"], scope)
+            repo = Repository(metadata.tables["deletion_work_items"], scope, include_deleted=True)
             current = await repo.get(uow.connection, item["id"])
             if (
                 not current
@@ -291,9 +292,9 @@ class DataLifecycleService:
         except Exception as exc:
             error = exc.code if isinstance(exc, ServiceError) else "CLEANUP_FAILED"
         async with transaction(self.engine, scope, [content_key(scope)]) as uow:
-            current = await Repository(metadata.tables["deletion_work_items"], scope).get(
-                uow.connection, item["id"]
-            )
+            current = await Repository(
+                metadata.tables["deletion_work_items"], scope, include_deleted=True
+            ).get(uow.connection, item["id"])
             if current and current["lease_token"] == token:
                 await put(
                     uow,
@@ -357,7 +358,10 @@ class DataLifecycleService:
                     )
                     if job["conversation_id"]:
                         await put(
-                            uow, "conversations", job["conversation_id"], {"status": "DELETED"}
+                            uow,
+                            "conversations",
+                            job["conversation_id"],
+                            {"is_deleted": True, "status": "DELETED"},
                         )
         await self.finish_memory_jobs(channel_id)
 

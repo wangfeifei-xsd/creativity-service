@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.database import UnitOfWork, validate_row
 from creativity_service.core.database.queries import scoped_select
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.locking import ResourceKey
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.modules.usage.tables import metadata
@@ -27,30 +28,47 @@ def platform_key() -> ResourceKey:
 
 
 async def rows(
-    connection: AsyncConnection, name: str, channel_id: str, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    channel_id: str,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> list[dict[str, Any]]:
     if not channel_id or (name in SYSTEM_TABLES) != (channel_id == "system"):
         if not (name == "usage_exports" and channel_id == "system"):
             raise ServiceError("SCOPE_MISMATCH", "用量数据范围不正确", 403)
     table = metadata.tables[name]
-    statement, parameters = scoped_select(table, {"channel_id": channel_id}, filters)
+    statement, parameters = scoped_select(
+        table, {"channel_id": channel_id}, filters, include_deleted=include_deleted
+    )
     result = await connection.execute(statement, parameters)
     return [dict(row) for row in result.mappings()]
 
 
 async def one(
-    connection: AsyncConnection, name: str, channel_id: str, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    channel_id: str,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> dict[str, Any] | None:
-    found = await rows(connection, name, channel_id, **filters)
+    found = await rows(connection, name, channel_id, include_deleted=include_deleted, **filters)
     if len(found) > 1:
         raise ServiceError("STORAGE_INVARIANT_BROKEN", "用量记录重复，请核查账本", 503)
     return found[0] if found else None
 
 
 async def required(
-    connection: AsyncConnection, name: str, channel_id: str, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    channel_id: str,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> dict[str, Any]:
-    result = await one(connection, name, channel_id, **filters)
+    result = await one(connection, name, channel_id, include_deleted=include_deleted, **filters)
     if result is None:
         raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
     return result
@@ -63,6 +81,7 @@ async def save(
     values: dict[str, Any],
     *,
     system: bool = False,
+    include_deleted: bool = False,
 ) -> dict[str, Any]:
     channel_id = "system" if system else uow.scope.channel_id
     if system and name not in SYSTEM_TABLES:
@@ -73,9 +92,12 @@ async def save(
     if {"id", "channel_id", "created_at", "updated_at", "revision"} & values.keys():
         raise ServiceError("CONTEXT_OVERRIDE", "不能覆盖用量归属或修订", 422)
     table = metadata.tables[name]
-    current = await one(uow.connection, name, channel_id, id=record_id)
+    current = await one(uow.connection, name, channel_id, id=record_id, include_deleted=True)
+    if current and current["is_deleted"] and not include_deleted:
+        raise ServiceError("NOT_FOUND", "记录已删除", 404)
     now = utcnow()
     row = {
+        "is_deleted": False,
         **(current or {}),
         **values,
         "id": record_id,
@@ -115,6 +137,7 @@ async def add_platform_occupancies(uow: UnitOfWork, records: dict[str, dict[str,
         if values.get("target_channel_id") != uow.scope.channel_id:
             raise ServiceError("SCOPE_MISMATCH", "占用必须属于当前业务渠道", 403)
         row = {
+            "is_deleted": False,
             **values,
             "id": identifier,
             "channel_id": "system",
@@ -128,9 +151,13 @@ async def add_platform_occupancies(uow: UnitOfWork, records: dict[str, dict[str,
         batch = prepared[start : start + 100]
         if (
             await uow.connection.scalar(
-                select(table.c.id)
-                .where(table.c.channel_id == "system", table.c.id.in_([row["id"] for row in batch]))
-                .limit(1)
+                active_rows(
+                    select(table.c.id)
+                    .where(
+                        table.c.channel_id == "system", table.c.id.in_([row["id"] for row in batch])
+                    )
+                    .limit(1)
+                )
             )
             is not None
         ):

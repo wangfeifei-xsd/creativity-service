@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import DisplayStatus, VisibleAction
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.observability.audit import append_audit
@@ -152,7 +153,7 @@ class McpService:
         async with self.engine.connect() as conn:
             repo = repository(context.scope, table)
             source = repo.table
-            statement = (
+            statement = active_rows(
                 select(source)
                 .where(repo.predicate(), *(source.c[k] == v for k, v in filters.items()))
                 .order_by(source.c.created_at.desc(), source.c.id.desc())
@@ -740,19 +741,22 @@ class McpService:
             previous = (
                 (
                     await connection.execute(
-                        select(table)
-                        .where(
-                            repo.predicate(),
-                            table.c.connection_id == connection_id,
-                            or_(
-                                table.c.created_at < row["created_at"],
-                                and_(
-                                    table.c.created_at == row["created_at"], table.c.id < row["id"]
+                        active_rows(
+                            select(table)
+                            .where(
+                                repo.predicate(),
+                                table.c.connection_id == connection_id,
+                                or_(
+                                    table.c.created_at < row["created_at"],
+                                    and_(
+                                        table.c.created_at == row["created_at"],
+                                        table.c.id < row["id"],
+                                    ),
                                 ),
-                            ),
+                            )
+                            .order_by(table.c.created_at.desc(), table.c.id.desc())
+                            .limit(1)
                         )
-                        .order_by(table.c.created_at.desc(), table.c.id.desc())
-                        .limit(1)
                     )
                 )
                 .mappings()

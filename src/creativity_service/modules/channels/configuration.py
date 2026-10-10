@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.context import Scope
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.modules.channels.schemas import ChannelConfigurationStatus
 from creativity_service.modules.channels.tables import metadata
 
@@ -24,12 +25,12 @@ async def configuration_counts(
     filters = [environments.c.channel_id.in_(channel_ids), environments.c.status == "ACTIVE"]
     if scope:
         filters.append(environments.c.environment == scope.environment)
-    enabled = (
-        select(environments.c.channel_id, environments.c.environment)
-        .where(*filters)
-        .cte("configured_environments")
+    enabled = active_rows(
+        select(environments.c.channel_id, environments.c.environment).where(*filters)
+    ).cte("configured_environments")
+    statement = active_rows(
+        select(enabled.c.channel_id, func.count()).group_by(enabled.c.channel_id)
     )
-    statement = select(enabled.c.channel_id, func.count()).group_by(enabled.c.channel_id)
     for channel_id, count in (await connection.execute(statement)).all():
         result[channel_id]["environments"] = count
     return result

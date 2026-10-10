@@ -6,6 +6,7 @@ from sqlalchemy import delete, select
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.deletion.ledger import DeletionLedger
@@ -15,6 +16,12 @@ from creativity_service.modules.conversations import repositories as repo
 from creativity_service.modules.conversations.base import ConversationKernel
 from creativity_service.modules.conversations.schemas import DeletionImpact, DeletionView
 from creativity_service.modules.conversations.tables import metadata
+from creativity_service.modules.iam.reading import (
+    read_actions,
+    read_policy,
+    require_action,
+    resource_state,
+)
 from creativity_service.modules.runs import repositories as run_repo
 from creativity_service.modules.runs.schemas import TERMINAL
 
@@ -63,9 +70,11 @@ class DeletionOperations(ConversationKernel):
             row = (
                 (
                     await connection.execute(
-                        select(table).where(
-                            table.c.channel_id == context.scope.channel_id,
-                            table.c.id == ref.resource_id,
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == context.scope.channel_id,
+                                table.c.id == ref.resource_id,
+                            )
                         )
                     )
                 )
@@ -157,7 +166,7 @@ class DeletionOperations(ConversationKernel):
                 keys.extend(self.runs.keys(context, run["id"], conversation_id))
             async with transaction(self.engine, scope, keys) as uow:
                 row = await repo.required(
-                    uow.connection, "conversations", scope, id=conversation_id
+                    uow.connection, "conversations", scope, id=conversation_id, include_deleted=True
                 )
                 existing = await repo.one(uow.connection, "deletion_jobs", scope, id=job_id)
                 if existing:
@@ -186,7 +195,9 @@ class DeletionOperations(ConversationKernel):
                             "requested_by": context.principal_id,
                         },
                     )
-                await repo.save(uow, "conversations", row["id"], {"status": "DELETING"})
+                await repo.save(
+                    uow, "conversations", row["id"], {"is_deleted": True, "status": "DELETING"}
+                )
                 # 标记与取消请求同事务生效，不依赖另一次授权或队列连接才能阻断后续步骤。
                 for run in current_runs:
                     if run["state"] == "QUEUED":
@@ -222,9 +233,11 @@ class DeletionOperations(ConversationKernel):
             row = (
                 (
                     await connection.execute(
-                        select(table).where(
-                            table.c.channel_id == context.scope.channel_id,
-                            table.c.id == deletion_id,
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == context.scope.channel_id,
+                                table.c.id == deletion_id,
+                            )
                         )
                     )
                 )
@@ -234,7 +247,20 @@ class DeletionOperations(ConversationKernel):
         if row is None:
             raise ServiceError("NOT_FOUND", "删除任务不存在", 404)
         scoped = self.row_context(context, dict(row))
-        await self.authorization.require(scoped, "content:delete", row["conversation_id"])
+        # 进度读取复核当前授权，但其归属来自删除任务及历史会话，不走普通详情入口。
+        scoped, conversation = await self.locate(
+            scoped, row["conversation_id"], include_deleted=True
+        )
+        permissions = await read_actions(
+            self.authorization,
+            scoped,
+            "conversation",
+            row["conversation_id"],
+            ["content:delete"],
+            policy=await read_policy(self.authorization, scoped),
+            state=resource_state(scoped, "conversation", conversation),
+        )
+        require_action(permissions, "content:delete")
         return self.deletion_view(dict(row))
 
     async def clean(self, context: AuthContext, ref: ContentRef) -> None:
@@ -279,6 +305,7 @@ class DeletionOperations(ConversationKernel):
                     "active_run_id": None,
                     "input_schema": {},
                 },
+                include_deleted=True,
             )
             for job in await repo.rows(
                 uow.connection, "deletion_jobs", context.scope, conversation_id=ref.resource_id

@@ -4,13 +4,14 @@ from collections.abc import Sequence
 from typing import Any, Literal
 
 from pydantic import Field
-from sqlalchemy import delete, func, select, true
+from sqlalchemy import func, select, true
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.sql import CompoundSelect, Select
 
 from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import AuthContext, ControlScope
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.soft_delete import active_rows, soft_delete
 from creativity_service.core.database.types import json_array_rows
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import Contract, Revision, ServiceError, new_id
@@ -86,25 +87,34 @@ class CustomRoles:
     @staticmethod
     async def member_count(connection: AsyncConnection, channel_id: str, identifier: str) -> int:
         accounts, members = TABLES["platform_accounts"], TABLES["channel_memberships"]
-        member_bindings = select(members.c.user_id.label("user_id")).where(
-            members.c.status == "ACTIVE",
-            members.c.roles.contains([identifier]),
-            members.c.channel_id != "system"
-            if channel_id == "system"
-            else members.c.channel_id == channel_id,
+        member_bindings = active_rows(
+            select(members.c.user_id.label("user_id")).where(
+                members.c.status == "ACTIVE",
+                members.c.roles.contains([identifier]),
+                members.c.channel_id != "system"
+                if channel_id == "system"
+                else members.c.channel_id == channel_id,
+            )
         )
         selected: Select[Any] | CompoundSelect[Any] = member_bindings
         if channel_id == "system":
             selected = member_bindings.union(
-                select(accounts.c.id.label("user_id")).where(
-                    accounts.c.channel_id == "system",
-                    accounts.c.status == "ACTIVE",
-                    accounts.c.platform_roles.contains([identifier])
-                    | accounts.c.role_ids.contains([identifier])
-                    | (accounts.c.role_id == identifier),
+                active_rows(
+                    select(accounts.c.id.label("user_id")).where(
+                        accounts.c.channel_id == "system",
+                        accounts.c.status == "ACTIVE",
+                        accounts.c.platform_roles.contains([identifier])
+                        | accounts.c.role_ids.contains([identifier])
+                        | (accounts.c.role_id == identifier),
+                    )
                 )
             )
-        return await connection.scalar(select(func.count()).select_from(selected.subquery())) or 0
+        return (
+            await connection.scalar(
+                active_rows(select(func.count()).select_from(selected.subquery()))
+            )
+            or 0
+        )
 
     async def context(self, session: AdminSession) -> AuthContext:
         if not isinstance(session.context, AuthContext):
@@ -137,7 +147,7 @@ class CustomRoles:
             table = TABLES["platform_accounts" if channel_id == "system" else "channel_memberships"]
             field = table.c.platform_roles if channel_id == "system" else table.c.roles
             role_values = json_array_rows(field)
-            account_bindings = (
+            account_bindings = active_rows(
                 select(role_values.c.value.label("role_id"), table.c.id.label("user_id"))
                 .select_from(table.join(role_values, true()))
                 .where(table.c.channel_id == channel_id, table.c.status == "ACTIVE")
@@ -148,28 +158,36 @@ class CustomRoles:
                 account_roles = json_array_rows(table.c.role_ids)
                 member_roles = json_array_rows(members.c.roles)
                 bindings = account_bindings.union(
-                    select(account_roles.c.value, table.c.id)
-                    .select_from(table.join(account_roles, true()))
-                    .where(
-                        table.c.channel_id == "system",
-                        table.c.status == "ACTIVE",
-                        func.json_type(table.c.role_ids) == "ARRAY",
+                    active_rows(
+                        select(account_roles.c.value, table.c.id)
+                        .select_from(table.join(account_roles, true()))
+                        .where(
+                            table.c.channel_id == "system",
+                            table.c.status == "ACTIVE",
+                            func.json_type(table.c.role_ids) == "ARRAY",
+                        )
                     ),
-                    select(table.c.role_id, table.c.id).where(
-                        table.c.channel_id == "system",
-                        table.c.status == "ACTIVE",
-                        table.c.role_id.is_not(None),
+                    active_rows(
+                        select(table.c.role_id, table.c.id).where(
+                            table.c.channel_id == "system",
+                            table.c.status == "ACTIVE",
+                            table.c.role_id.is_not(None),
+                        )
                     ),
-                    select(member_roles.c.value, members.c.user_id)
-                    .select_from(members.join(member_roles, true()))
-                    .where(members.c.channel_id != "system", members.c.status == "ACTIVE"),
+                    active_rows(
+                        select(member_roles.c.value, members.c.user_id)
+                        .select_from(members.join(member_roles, true()))
+                        .where(members.c.channel_id != "system", members.c.status == "ACTIVE")
+                    ),
                 )
             linked = bindings.subquery()
             count_rows = (
                 await connection.execute(
-                    select(linked.c.role_id, func.count(func.distinct(linked.c.user_id)))
-                    .where(linked.c.role_id.in_(catalog))
-                    .group_by(linked.c.role_id)
+                    active_rows(
+                        select(linked.c.role_id, func.count(func.distinct(linked.c.user_id)))
+                        .where(linked.c.role_id.in_(catalog))
+                        .group_by(linked.c.role_id)
+                    )
                 )
             ).all()
             counts = {str(r[0]): int(r[1]) for r in count_rows}
@@ -489,41 +507,47 @@ class CustomRoles:
             table = TABLES["platform_accounts" if channel_id == "system" else "channel_memberships"]
             field = table.c.platform_roles if channel_id == "system" else table.c.roles
             bound = await uow.connection.scalar(
-                select(table.c.id)
-                .where(
-                    table.c.channel_id == channel_id,
-                    field.contains([identifier])
-                    | table.c.role_ids.contains([identifier])
-                    | (table.c.role_id == identifier)
-                    if channel_id == "system"
-                    else field.contains([identifier]),
+                active_rows(
+                    select(table.c.id)
+                    .where(
+                        table.c.channel_id == channel_id,
+                        field.contains([identifier])
+                        | table.c.role_ids.contains([identifier])
+                        | (table.c.role_id == identifier)
+                        if channel_id == "system"
+                        else field.contains([identifier]),
+                    )
+                    .limit(1)
                 )
-                .limit(1)
             )
             grants_table = TABLES["resource_grants"]
             members_table = TABLES["channel_memberships"]
             shared_member = (
                 await uow.connection.scalar(
-                    select(members_table.c.id)
-                    .where(
-                        members_table.c.channel_id != "system",
-                        members_table.c.roles.contains([identifier]),
+                    active_rows(
+                        select(members_table.c.id)
+                        .where(
+                            members_table.c.channel_id != "system",
+                            members_table.c.roles.contains([identifier]),
+                        )
+                        .limit(1)
                     )
-                    .limit(1)
                 )
                 if channel_id == "system" and role["grant_scope"] == "channel"
                 else None
             )
             grant = await uow.connection.scalar(
-                select(grants_table.c.id)
-                .where(
-                    grants_table.c.channel_id != "system"
-                    if channel_id == "system" and role["grant_scope"] == "channel"
-                    else grants_table.c.channel_id == channel_id,
-                    grants_table.c.grantee_type == "role",
-                    grants_table.c.grantee_id == identifier,
+                active_rows(
+                    select(grants_table.c.id)
+                    .where(
+                        grants_table.c.channel_id != "system"
+                        if channel_id == "system" and role["grant_scope"] == "channel"
+                        else grants_table.c.channel_id == channel_id,
+                        grants_table.c.grantee_type == "role",
+                        grants_table.c.grantee_id == identifier,
+                    )
+                    .limit(1)
                 )
-                .limit(1)
             )
             if bound or grant or shared_member:
                 raise ServiceError(
@@ -531,7 +555,7 @@ class CustomRoles:
                 )
             table = TABLES["custom_roles"]
             await uow.connection.execute(
-                delete(table).where(table.c.channel_id == channel_id, table.c.id == identifier)
+                soft_delete(table).where(table.c.channel_id == channel_id, table.c.id == identifier)
             )
             await append_event(
                 uow,

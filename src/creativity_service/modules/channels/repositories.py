@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from creativity_service.core.context import ControlScope, Scope
 from creativity_service.core.database import ControlRepository, UnitOfWork, validate_row
 from creativity_service.core.database.queries import scoped_select
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import ServiceError, digest, utcnow
 from creativity_service.modules.channels.tables import metadata
@@ -23,14 +24,21 @@ def environment_id(channel_id: str, environment: str) -> str:
 
 
 async def rows(
-    connection: AsyncConnection, name: str, channel_id: str, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    channel_id: str,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> list[dict[str, Any]]:
     if not channel_id or (name in SYSTEM_TABLES and channel_id != "system"):
         raise ServiceError("CONTEXT_REQUIRED", "缺少有效渠道范围", 403)
     if name == "key_identity_index":
         raise ServiceError("CONTROL_TABLE", "密钥身份索引只允许按完整摘要精确查找", 403)
     table = metadata.tables[name]
-    statement, parameters = scoped_select(table, {"channel_id": channel_id}, filters)
+    statement, parameters = scoped_select(
+        table, {"channel_id": channel_id}, filters, include_deleted=include_deleted
+    )
     result = await connection.execute(statement, parameters)
     return [dict(row) for row in result.mappings()]
 
@@ -45,7 +53,7 @@ def _scope_statement() -> Select[Any]:
             environment.c.environment == bindparam("environment"),
         ),
     )
-    return (
+    return active_rows(
         select(channel, environment)
         .select_from(joined)
         .where(
@@ -80,18 +88,28 @@ async def scope_rows(connection: AsyncConnection, scope: Scope) -> dict[str, dic
 
 
 async def one(
-    connection: AsyncConnection, name: str, channel_id: str, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    channel_id: str,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> dict[str, Any] | None:
-    values = await rows(connection, name, channel_id, **filters)
+    values = await rows(connection, name, channel_id, include_deleted=include_deleted, **filters)
     if len(values) > 1:
         raise ServiceError("STORAGE_INVARIANT_BROKEN", "渠道记录重复，请联系管理员", 503)
     return values[0] if values else None
 
 
 async def required(
-    connection: AsyncConnection, name: str, channel_id: str, **filters: Any
+    connection: AsyncConnection,
+    name: str,
+    channel_id: str,
+    *,
+    include_deleted: bool = False,
+    **filters: Any,
 ) -> dict[str, Any]:
-    value = await one(connection, name, channel_id, **filters)
+    value = await one(connection, name, channel_id, include_deleted=include_deleted, **filters)
     if value is None:
         raise ServiceError("NOT_FOUND", "请求资源不存在", 404)
     return value
@@ -110,7 +128,9 @@ async def save(
     uow.require_lock(policy_key(channel_id))
     uow.require_lock(record_key(channel_id, name, record_id))
     table = metadata.tables[name]
-    current = await one(uow.connection, name, channel_id, id=record_id)
+    current = await one(uow.connection, name, channel_id, id=record_id, include_deleted=True)
+    if current and current["is_deleted"]:
+        raise ServiceError("NOT_FOUND", "记录已删除", 404)
     if (current is None and revision is not None) or (
         current is not None and current["revision"] != revision
     ):
@@ -130,6 +150,7 @@ async def save(
         raise ServiceError("SCOPE_MISMATCH", "渠道主档须归自身", 403)
     now = utcnow()
     row = {
+        "is_deleted": False,
         **(current or {}),
         **values,
         "id": record_id,
@@ -189,17 +210,21 @@ class ChannelRepository:
             )
         if status:
             predicates.append(channel.c.status == status)
-        total = await connection.scalar(select(func.count()).select_from(source).where(*predicates))
+        total = await connection.scalar(
+            active_rows(select(func.count()).select_from(source).where(*predicates))
+        )
         records = [
             dict(row)
             for row in (
                 await connection.execute(
-                    select(channel)
-                    .select_from(source)
-                    .where(*predicates)
-                    .order_by(channel.c.name, channel.c.id)
-                    .offset(offset)
-                    .limit(limit)
+                    active_rows(
+                        select(channel)
+                        .select_from(source)
+                        .where(*predicates)
+                        .order_by(channel.c.name, channel.c.id)
+                        .offset(offset)
+                        .limit(limit)
+                    )
                 )
             ).mappings()
         ]
@@ -256,11 +281,13 @@ class ChannelRepository:
             existing = (
                 (
                     await uow.connection.execute(
-                        select(table).where(
-                            table.c.channel_id == "system",
-                            table.c.channel_code.in_(
-                                {values[column].upper(), values[column].lower()}
-                            ),
+                        active_rows(
+                            select(table).where(
+                                table.c.channel_id == "system",
+                                table.c.channel_code.in_(
+                                    {values[column].upper(), values[column].lower()}
+                                ),
+                            )
                         )
                     )
                 )
@@ -282,6 +309,7 @@ class ChannelRepository:
         table = metadata.tables[name]
         now = utcnow()
         row = {
+            "is_deleted": False,
             **values,
             "id": record_id,
             "channel_id": "system",

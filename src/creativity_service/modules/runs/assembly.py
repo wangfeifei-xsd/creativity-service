@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from creativity_service.core.auth.types import ResourceState, ResourceStateReader
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.database import transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import CleanupRegistry, ContentRef
 from creativity_service.core.locking import ResourceKey
 from creativity_service.core.primitives import ServiceError
@@ -30,9 +31,11 @@ class RunLifecycleGuard:
     async def unfinished(self, connection: AsyncConnection, channel_id: str) -> int:
         table = metadata.tables["runs"]
         value = await connection.scalar(
-            select(func.count())
-            .select_from(table)
-            .where(table.c.channel_id == channel_id, table.c.state.not_in(TERMINAL))
+            active_rows(
+                select(func.count())
+                .select_from(table)
+                .where(table.c.channel_id == channel_id, table.c.state.not_in(TERMINAL))
+            )
         )
         return int(value or 0)
 

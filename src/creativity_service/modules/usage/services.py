@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from creativity_service.core.context import Scope
 from creativity_service.core.contracts import UsageEvent
 from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.primitives import ServiceError, canonical_json, digest, new_id, utcnow
 from creativity_service.modules.budgets.services import BudgetService, record_cost
 from creativity_service.modules.usage.pricing import calculate, normalize
@@ -425,23 +426,25 @@ class UsageService:
             records = list(
                 (
                     await uow.connection.execute(
-                        select(usage.c.id, attempts.c.state)
-                        .select_from(
-                            usage.join(
-                                attempts,
-                                (attempts.c.channel_id == usage.c.channel_id)
-                                & (attempts.c.run_id == usage.c.run_id)
-                                & (attempts.c.id == usage.c.attempt_id)
-                                & (attempts.c.usage_id == usage.c.id),
+                        active_rows(
+                            select(usage.c.id, attempts.c.state)
+                            .select_from(
+                                usage.join(
+                                    attempts,
+                                    (attempts.c.channel_id == usage.c.channel_id)
+                                    & (attempts.c.run_id == usage.c.run_id)
+                                    & (attempts.c.id == usage.c.attempt_id)
+                                    & (attempts.c.usage_id == usage.c.id),
+                                )
                             )
+                            .where(
+                                usage.c.channel_id == scope.channel_id,
+                                usage.c.outcome == "PENDING",
+                                attempts.c.state.in_(["SUCCEEDED", "FAILED", "UNKNOWN"]),
+                            )
+                            .order_by(usage.c.created_at, usage.c.id)
+                            .limit(limit)
                         )
-                        .where(
-                            usage.c.channel_id == scope.channel_id,
-                            usage.c.outcome == "PENDING",
-                            attempts.c.state.in_(["SUCCEEDED", "FAILED", "UNKNOWN"]),
-                        )
-                        .order_by(usage.c.created_at, usage.c.id)
-                        .limit(limit)
                     )
                 ).mappings()
             )

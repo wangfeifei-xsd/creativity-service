@@ -1,6 +1,6 @@
 # 提示词模型
 
-模型版本 2.0.0；负责方案 09；需求 [05-提示词管理.md](../../../../需求文档/05-提示词管理.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 09；需求 [05-提示词管理.md](../../../../需求文档/05-提示词管理.md)。总索引见 [README](../README.md)。
 
 ## prompts
 
@@ -18,6 +18,7 @@
 | `purpose` | `varchar(512)` | 使用用途 | 是 | 服务层校验后的业务输入 | 内部 |
 | `owner` | `varchar(128)` | 负责人标识 | 是 | 服务端当前操作人 | 内部 |
 | `status` | `varchar(32)` | 资源状态 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, prompt_code)`。
 
@@ -39,6 +40,7 @@
 | `title` | `varchar(128)` | 样例名称 | 是 | 服务层校验后的业务输入 | 内部 |
 | `input` | `json` | 样例输入 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `expected_constraints` | `json` | 预期断言 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, prompt_id)`。
 
@@ -69,6 +71,7 @@
 | `sample_id` | `varchar(64)` | 调试样例标识 | 是 | 服务层验证的样例引用 | 内部 |
 | `model_route_name` | `varchar(128)` | 调试时的模型路由名称 | 否 | 受信模型路由资源 | 内部 |
 | `status` | `varchar(32)` | 调试受理状态 | 是 | 服务层状态机 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, version_id)`；`(channel_id, environment, version_id, descriptor_digest)`。
 

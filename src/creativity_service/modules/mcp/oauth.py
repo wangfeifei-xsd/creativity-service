@@ -14,6 +14,7 @@ from sqlalchemy import delete, select
 
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import record_key
@@ -620,17 +621,19 @@ class OAuthService:
                     dict(r)
                     for r in (
                         await connection.execute(
-                            select(table)
-                            .where(
-                                table.c.channel_id == channel_id,
-                                table.c[field] <= utcnow(),
-                                table.c.state.in_(
-                                    {"PENDING", "EXCHANGING"}
-                                    if name == "mcp_oauth_flows"
-                                    else {"ACTIVE"}
-                                ),
+                            active_rows(
+                                select(table)
+                                .where(
+                                    table.c.channel_id == channel_id,
+                                    table.c[field] <= utcnow(),
+                                    table.c.state.in_(
+                                        {"PENDING", "EXCHANGING"}
+                                        if name == "mcp_oauth_flows"
+                                        else {"ACTIVE"}
+                                    ),
+                                )
+                                .limit(200)
                             )
-                            .limit(200)
                         )
                     ).mappings()
                 ]

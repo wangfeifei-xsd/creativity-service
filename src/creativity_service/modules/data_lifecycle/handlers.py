@@ -44,7 +44,7 @@ async def remove(uow: UnitOfWork, name: str, **filters: Any) -> None:
     table = metadata.tables[name]
     await uow.connection.execute(
         delete(table).where(
-            Repository(table, uow.scope).predicate(),
+            Repository(table, uow.scope, include_deleted=True).predicate(),
             *(table.c[k] == v for k, v in filters.items()),
         )
     )
@@ -113,9 +113,9 @@ class ContentHandlers:
                         raise
                 else:
                     raise ServiceError("DELETION_MARKER_REQUIRED", "清理前必须登记删除标记", 409)
-                row = await Repository(metadata.tables["memory_embeddings"], context.scope).get(
-                    uow.connection, ref.resource_id
-                )
+                row = await Repository(
+                    metadata.tables["memory_embeddings"], context.scope, include_deleted=True
+                ).get(uow.connection, ref.resource_id)
                 if row:
                     await enqueue(uow, [row], delete=True)
             sync = VectorSync(self.engine)
@@ -147,7 +147,7 @@ class ContentHandlers:
                 ):
                     raise ServiceError("DELETION_MARKER_REQUIRED", "清理前必须登记删除标记", 409)
             name = TARGETS[ref.resource_type]
-            row = await Repository(metadata.tables[name], context.scope).get(
+            row = await Repository(metadata.tables[name], context.scope, include_deleted=True).get(
                 uow.connection, ref.resource_id
             )
             if not row:
@@ -166,6 +166,7 @@ class ContentHandlers:
                     "subject_name": None,
                     "active_run_id": None,
                     "input_schema": {},
+                    "is_deleted": True,
                     "status": "DELETING",
                 }
             elif ref.resource_type in {
@@ -189,7 +190,7 @@ class ContentHandlers:
                 "webhook_delivery",
                 "alert_rule",
             }:
-                values = {"state": "DELETED"}
+                values = {"is_deleted": True, "state": "DELETED"}
                 for field, empty in (
                     ("spec", {}),
                     ("request", {}),
@@ -208,7 +209,10 @@ class ContentHandlers:
                 uses = metadata.tables["resource_uses"]
                 await uow.connection.execute(
                     update(uses)
-                    .where(Repository(uses, context.scope).predicate(), uses.c.run_id == row["id"])
+                    .where(
+                        Repository(uses, context.scope, include_deleted=True).predicate(),
+                        uses.c.run_id == row["id"],
+                    )
                     .values(resource_name="已清理资源", agent_name=None, caller_name=None)
                 )
                 for table in ("run_contents", "checkpoints", "run_events", "memory_retrievals"):
@@ -276,6 +280,7 @@ class ContentHandlers:
             elif ref.resource_type == "usage_export":
                 object_key = row["object_key"]
                 values = {
+                    "is_deleted": True,
                     "state": "DELETED",
                     "filters": {},
                     "metadata": {},
@@ -287,7 +292,7 @@ class ContentHandlers:
                 if ref.resource_type == "evaluation_case":
                     values.update(title="来源已删除的样本", case_key=row["id"])
                     direct = await Repository(
-                        metadata.tables["deletion_markers"], context.scope
+                        metadata.tables["deletion_markers"], context.scope, include_deleted=True
                     ).find(uow.connection, target_type="evaluation_case", target_id=row["id"])
                     links = await rows(
                         uow.connection,

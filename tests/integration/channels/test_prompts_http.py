@@ -53,12 +53,15 @@ async def test_prompt_http_permissions_export_and_channel_override(channel_env, 
         ],
         "message_templates": [{"source": "input", "template": "{{ text }}"}],
     }
-    draft = await env.client.post(
-        f"/admin/v1/prompts/{prompt_id}/versions",
-        headers=headers,
-        json={"version_label": "初版", "content": content},
+    configuration = await env.client.get(
+        f"/admin/v1/prompts/{prompt_id}/configuration", headers=headers
     )
-    assert draft.status_code == 201, draft.text
+    draft = await env.client.patch(
+        f"/admin/v1/prompts/{prompt_id}/configuration",
+        headers=headers,
+        json={"revision": configuration.json()["revision"], "content": content},
+    )
+    assert draft.status_code == 200, draft.text
     version_id = draft.json()["version"]["version_id"]
     invalid = await env.client.post(
         f"/admin/v1/prompt-versions/{version_id}/render", headers=headers, json={"input": {}}
@@ -76,13 +79,6 @@ async def test_prompt_http_permissions_export_and_channel_override(channel_env, 
             f"/admin/v1/prompt-versions/{version_id}/exports",
             headers=headers,
             json={"format": "json"},
-        )
-    ).status_code == 403
-    assert (
-        await env.client.post(
-            f"/admin/v1/prompts/{prompt_id}/releases",
-            headers=headers,
-            json={"version_id": version_id, "revision": 1, "note": "无独立发布权限"},
         )
     ).status_code == 403
     granted = await env.services.channels.create(
@@ -109,12 +105,16 @@ async def test_prompt_http_permissions_export_and_channel_override(channel_env, 
         **content,
         "variables": [{**content["variables"][0], "default": "不得导出的原文"}],
     }
-    draft = await env.client.post(
-        f"/admin/v1/prompts/{created.json()['prompt_id']}/versions",
-        headers=headers,
-        json={"version_label": "导出版", "content": secret_content},
+    exported_id = created.json()["prompt_id"]
+    configuration = await env.client.get(
+        f"/admin/v1/prompts/{exported_id}/configuration", headers=headers
     )
-    assert draft.status_code == 201, draft.text
+    draft = await env.client.patch(
+        f"/admin/v1/prompts/{exported_id}/configuration",
+        headers=headers,
+        json={"revision": configuration.json()["revision"], "content": secret_content},
+    )
+    assert draft.status_code == 200, draft.text
     version_id = draft.json()["version"]["version_id"]
     artifact = await env.client.post(
         f"/admin/v1/prompt-versions/{version_id}/exports", headers=headers, json={"format": "json"}
@@ -132,3 +132,25 @@ async def test_prompt_http_permissions_export_and_channel_override(channel_env, 
         headers={"Authorization": f"Bearer {other.token.access_token}"},
     )
     assert forbidden.status_code == 404
+    # 管理删除沿用统一资源接口；详情和配置都不能重新读取删除记录。
+    summary = await env.client.post(
+        "/admin/v1/resource-management/prompt/summaries",
+        headers=headers,
+        json={"resource_ids": [exported_id]},
+    )
+    resource = summary.json()[0]
+    removed = await env.client.post(
+        f"/admin/v1/resource-management/prompt/{exported_id}/delete",
+        headers=headers,
+        json={
+            "revision": resource["revision"],
+            "configuration_revision": resource["configuration_revision"],
+        },
+    )
+    assert removed.status_code == 204, removed.text
+    assert (
+        await env.client.get(f"/admin/v1/prompts/{exported_id}", headers=headers)
+    ).status_code == 404
+    assert (
+        await env.client.get(f"/admin/v1/prompts/{exported_id}/configuration", headers=headers)
+    ).status_code == 404

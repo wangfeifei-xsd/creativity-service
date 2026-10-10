@@ -1,6 +1,6 @@
 # 渠道管理模型
 
-模型版本 2.0.0；负责方案 05；需求 [01-渠道管理.md](../../../../需求文档/01-渠道管理.md)。总索引见 [README](../README.md)。
+模型版本 2.1.0；负责方案 05；需求 [01-渠道管理.md](../../../../需求文档/01-渠道管理.md)。总索引见 [README](../README.md)。
 
 ## channels
 
@@ -21,6 +21,7 @@
 | `retention_policy` | `json` | 保存策略 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `budget_policy_refs` | `json` | 预算策略引用 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `rate_limit_policy_refs` | `json` | 限流策略引用 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, channel_code)`。
 
@@ -40,6 +41,7 @@
 | `status` | `varchar(32)` | 环境状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `release_policy` | `json` | 发布策略 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `retention_policy` | `json` | 保存策略 | 是 | 服务层校验后的业务输入 | 敏感内容 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment)`。
 
@@ -58,6 +60,7 @@
 | `name` | `varchar(128)` | 服务名称 | 是 | 服务层校验后的业务输入 | 内部 |
 | `scopes` | `json` | 权限上限 | 是 | 服务层校验后的业务输入 | 敏感内容 |
 | `status` | `varchar(32)` | 服务状态 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, status)`。
 
@@ -82,6 +85,7 @@
 | `status` | `varchar(32)` | 密钥状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `expires_at` | `datetime(6) UTC` | 失效时间 | 是 | 服务层校验后的业务输入 | 内部 |
 | `last_used_at` | `datetime(6) UTC` | 最近使用时间 | 否 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, client_id, status)`。
 
@@ -99,6 +103,7 @@
 | `key_lookup_digest` | `varchar(64)` | 完整密钥不可逆摘要 | 是 | 服务层校验后的业务输入 | 内部 |
 | `key_id` | `varchar(64)` | 目标密钥标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `target_channel_id` | `varchar(64)` | 目标渠道标识 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, key_lookup_digest)`。
 
@@ -119,6 +124,7 @@
 | `new_key_id` | `varchar(64)` | 新密钥标识 | 是 | 服务层校验后的业务输入 | 内部 |
 | `overlap_until` | `datetime(6) UTC` | 重叠截止时间 | 是 | 服务层校验后的业务输入 | 内部 |
 | `operator_id` | `varchar(128)` | 操作人标识 | 是 | 服务层校验后的业务输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, old_key_id)`。
 
@@ -135,6 +141,7 @@
 | `revision` | `bigint` | 并发修订号 | 是 | 服务层递增 | 内部 |
 | `channel_code` | `varchar(64)` | 规范化渠道编码 | 是 | 受限控制面服务校验后的输入 | 内部 |
 | `target_channel_id` | `varchar(64)` | 实际业务渠道标识 | 是 | 受限控制面服务校验后的输入 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, channel_code)`。
 
@@ -157,5 +164,6 @@
 | `environment` | `varchar(16)` | 受影响环境 | 否 | 受信服务上下文与服务层校验 | 内部 |
 | `payload` | `json` | 变更事实与原始归属 | 是 | 受信服务上下文与服务层校验 | 内部 |
 | `acknowledgements` | `json` | 已处理模块及时间 | 是 | 受信服务上下文与服务层校验 | 内部 |
+| `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, created_at)`。

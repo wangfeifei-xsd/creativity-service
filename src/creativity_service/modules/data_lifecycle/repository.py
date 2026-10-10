@@ -70,10 +70,11 @@ async def put(
         raise ServiceError("SCOPE_MISMATCH", "清理必须指定业务渠道", 403)
     uow.require_lock(content_key(uow.scope))
     table = metadata.tables[name]
-    repo = Repository(table, uow.scope)
+    repo = Repository(table, uow.scope, include_deleted=True)
     old = await repo.get(uow.connection, identifier)
     row = {
-        **{c.name: None for c in table.c},
+        "is_deleted": False,
+        **{c.name: None for c in table.c if c.name != "is_deleted"},
         **(old or {}),
         **values,
         **scope_values(table, uow.scope),

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.contracts.display import display_status
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.modules.prompts.repositories import repository
 from creativity_service.modules.prompts.schemas import (
     PromptReference,
@@ -102,11 +103,14 @@ class PromptReadData:
             version_ids = list(indexed)
             for start in range(0, len(version_ids), 500):
                 result = await connection.execute(
-                    select(table.c.version_id, func.max(table.c.created_at).label("at"))
-                    .where(
-                        repo.predicate(), table.c.version_id.in_(version_ids[start : start + 500])
+                    active_rows(
+                        select(table.c.version_id, func.max(table.c.created_at).label("at"))
+                        .where(
+                            repo.predicate(),
+                            table.c.version_id.in_(version_ids[start : start + 500]),
+                        )
+                        .group_by(table.c.version_id)
                     )
-                    .group_by(table.c.version_id)
                 )
                 dates.update({row["version_id"]: row["at"] for row in result.mappings()})
         return cls(dict(versions), references, dict(releases), dates)

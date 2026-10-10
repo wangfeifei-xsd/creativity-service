@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import AuthContext, ControlScope, Scope
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import record_key
@@ -135,7 +136,11 @@ class UsageManagement:
         found = (
             (
                 await connection.execute(
-                    select(table).where(table.c.channel_id == channel_id, table.c.id == model_id)
+                    active_rows(
+                        select(table).where(
+                            table.c.channel_id == channel_id, table.c.id == model_id
+                        )
+                    )
                 )
             )
             .mappings()
@@ -166,11 +171,12 @@ class UsageManagement:
         async with self.engine.connect() as connection:
             if model_id:
                 await self.model(connection, context.scope.channel_id, model_id)
+            filters: dict[str, Any] = {"model_id": model_id} if model_id else {}
             result = await rows(
                 connection,
                 "price_versions",
                 context.scope.channel_id,
-                **({"model_id": model_id} if model_id else {}),
+                **filters,
             )
         return [
             self.price_view(r)
@@ -259,9 +265,11 @@ class UsageManagement:
                         dict(r)
                         for r in (
                             await uow.connection.execute(
-                                select(table.c.id, table.c.name).where(
-                                    table.c.channel_id == context.scope.channel_id,
-                                    table.c.id.in_(identifiers),
+                                active_rows(
+                                    select(table.c.id, table.c.name).where(
+                                        table.c.channel_id == context.scope.channel_id,
+                                        table.c.id.in_(identifiers),
+                                    )
                                 )
                             )
                         ).mappings()
@@ -523,8 +531,10 @@ class UsageManagement:
             models = (
                 (
                     await connection.execute(
-                        select(models_metadata.tables["models"]).where(
-                            models_metadata.tables["models"].c.channel_id == channel_id
+                        active_rows(
+                            select(models_metadata.tables["models"]).where(
+                                models_metadata.tables["models"].c.channel_id == channel_id
+                            )
                         )
                     )
                 )

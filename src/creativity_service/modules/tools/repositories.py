@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import Attempt, ToolResult
 from creativity_service.core.database import Repository, transaction
+from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import record_key
@@ -240,8 +241,10 @@ class ToolRepository:
         table = metadata.tables[table_name]
         repo = Repository(table, context.scope)
         async with self.engine.connect() as connection:
-            statement = select(table).where(
-                repo.predicate(), *(table.c[k] == v for k, v in filters.items())
+            statement = active_rows(
+                select(table).where(
+                    repo.predicate(), *(table.c[k] == v for k, v in filters.items())
+                )
             )
             return [
                 dict(row)
