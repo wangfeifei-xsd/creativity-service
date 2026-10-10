@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from typing import Any
+from typing import Any, cast
 
 from pydantic import ValidationError
 
@@ -11,6 +11,7 @@ from creativity_service.core.contracts import BusinessResult
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.agents.assistance_schemas import AssistanceOutput
 from creativity_service.modules.agents.schemas import FrozenExecutionSpec
+from creativity_service.modules.models.schemas import FrozenModel
 from creativity_service.modules.runs.schemas import Lease
 from creativity_service.modules.runtime.engine import RuntimeExecutor
 
@@ -35,6 +36,19 @@ async def execute_assistance(
         > spec.definition.context.context_limit * 4
     ):
         raise ServiceError("CONTEXT_LIMIT_EXCEEDED", "需求和资源目录超过所选模型的上下文容量", 422)
+    route = next(
+        v for v in spec.versions if v.version_id == spec.definition.bindings.model_route_version
+    )
+    models = [
+        FrozenModel.model_validate(value)
+        for value in cast(list[dict[str, Any]], route.content["models"])
+    ]
+    parameters = {}
+    # 完整方案重复包含步骤与最终输出结构，还需容纳推理 Token；仅覆盖本次请求，仍走预算预占。
+    if models and all("max_tokens" in model.parameter_allowlist for model in models):
+        parameters["max_tokens"] = max(
+            16384, *(int(model.parameters.get("max_tokens", 0)) for model in models)
+        )
     for attempt in range(2):
         await service.require(context, descriptor.get("agent_id"))
         async with asyncio.timeout(spec.definition.steps[0].timeout_seconds):
@@ -45,6 +59,7 @@ async def execute_assistance(
                 spec.definition.steps[0],
                 "generate" if attempt == 0 else "generate.i1",
                 messages,
+                parameters=parameters,
             )
         try:
             output = AssistanceOutput.model_validate(value["structured"])

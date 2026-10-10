@@ -2,7 +2,10 @@
 
 import asyncio
 import copy
+import json
+from dataclasses import replace
 
+import httpx
 import pytest
 
 from creativity_service.core.context import TaskEnvelope
@@ -10,7 +13,10 @@ from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.agents.assistance_schemas import AssistanceRequest
 from creativity_service.modules.agents.builtin import BUILTIN_CODE, BUILTIN_ID
 from creativity_service.modules.agents.schemas import AgentEdit
+from creativity_service.modules.models.repositories import repository
+from creativity_service.modules.models.schemas import RouteVersionInput
 from creativity_service.workers.executor import execute_message
+from tests.models.test_protocols import adapter as protocol_adapter
 
 pytestmark = pytest.mark.integration
 
@@ -66,8 +72,9 @@ async def generate(env, value=None, **kwargs):
 async def test_builtin_readonly_and_excluded_from_business_directory(runtime_env):
     env = runtime_env
     items = await env.agents.list_agents(env.context)
-    builtin = next(item for item in items.items if item.builtin)
-    assert builtin.agent_id == BUILTIN_ID and not builtin.actions
+    assert not items.items
+    assert {action.action_key for action in items.actions} == {"create", "assist"}
+    assert not (await env.agents.list_agents(env.context, search="智能体配置助手")).items
     assert not (await env.agents.list_agents(env.context, published_only=True)).items
     with pytest.raises(ServiceError, match="内置智能体"):
         await env.agents.create(
@@ -87,11 +94,14 @@ async def test_create_from_server_proposal_is_atomic_and_idempotent(runtime_env)
     value = proposal(env)
     receipt, turn = await generate(env, value)
     assert turn.reply.proposal.definition.instructions
-    assert len((await env.agents.list_agents(env.context)).items) == 1
+    assert not (await env.agents.list_agents(env.context)).items
     results = await asyncio.gather(
         *(env.runtime.assistance.apply(env.context, receipt.run_id) for _ in range(2))
     )
     assert results[0] == results[1]
+    assert [item.agent_id for item in (await env.agents.list_agents(env.context)).items] == [
+        results[0].agent_id
+    ]
     detail = await env.agents.detail(env.context, results[0].agent_id)
     assert detail.release_version_id is None
     assert len(detail.versions) == 1 and detail.versions[0].status.value == "DRAFT"
@@ -153,8 +163,69 @@ async def test_invalid_dependency_is_repaired_without_creating_resources(runtime
     receipt, turn = await generate(env, proposal(env))
     assert len(env.adapter.calls) == 2
     assert turn.reply.proposal.definition.bindings.model_route_version == env.route_id
-    assert len((await env.agents.list_agents(env.context)).items) == 1
+    assert not (await env.agents.list_agents(env.context)).items
     assert (await env.runs.get_run(env.context, receipt.run_id)).usage_summary["attempt_count"] == 2
+
+
+@pytest.mark.parametrize("configured_limit", [4096, 32768])
+async def test_full_proposal_has_its_own_output_budget(runtime_env, configured_limit):
+    env = runtime_env
+    async with env.engine.connect() as connection:
+        route = await repository(env.context.scope, "resource_versions").get(
+            connection, env.route_id
+        )
+    await env.models.routing.create_version(
+        env.tenant.manager,
+        env.route_id,
+        RouteVersionInput(
+            revision=route["revision"],
+            primary_model=env.model.id,
+            required_capabilities=["text"],
+            parameters={"max_tokens": configured_limit},
+        ),
+    )
+    calls = []
+
+    async def handler(request):
+        body = json.loads(request.content)
+        calls.append(body)
+        # 模拟完整方案和推理共需六千 Token，复现四千上限下的截断。
+        truncated = body["max_tokens"] < 6000
+        return httpx.Response(
+            200,
+            json={
+                "id": "assistance-output",
+                "object": "chat.completion",
+                "created": 1,
+                "model": "fixture",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": '{"business_status":'
+                            if truncated
+                            else json.dumps(output(proposal(env)), ensure_ascii=False),
+                        },
+                        "finish_reason": "length" if truncated else "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 100, "completion_tokens": 6000},
+            },
+        )
+
+    env.runtime.models.models = replace(env.models, adapter=protocol_adapter(handler))
+    receipt, turn = await generate(env, proposal(env))
+    assert turn.reply.proposal is not None
+    assert len(calls) == 1 and calls[0]["max_tokens"] == max(16384, configured_limit)
+    result = await env.runs.get_run(env.context, receipt.run_id)
+    assert result.usage_summary["attempt_count"] == 1
+    assert result.usage_summary["output_tokens"] == 6000
+    async with env.engine.connect() as connection:
+        unchanged = await repository(env.context.scope, "resource_versions").get(
+            connection, env.route_id
+        )
+    assert unchanged["content"]["parameters"]["max_tokens"] == configured_limit
 
 
 async def test_http_apply_rejects_client_proposal_and_other_identity(runtime_env):
@@ -178,7 +249,7 @@ async def test_http_apply_rejects_client_proposal_and_other_identity(runtime_env
         f"/admin/v1/agents/assistance/runs/{run_id}/apply", json={"agent_id": "other_agent"}
     )
     assert injected.status_code == 422
-    assert len((await env.agents.list_agents(env.context)).items) == 1
+    assert not (await env.agents.list_agents(env.context)).items
     other = env.context.model_copy(update={"principal_id": "another_manager"})
     with pytest.raises(ServiceError):
         await env.runtime.assistance.apply(other, run_id)

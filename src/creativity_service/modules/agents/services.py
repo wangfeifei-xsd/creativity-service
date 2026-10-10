@@ -239,21 +239,15 @@ class AgentService(AgentSnapshots):
             allowed = policy.actions("agent", row["id"], resource_state(context, "agent", row))
             if "agent:manage" in allowed and (not published_only or "run:create" in allowed):
                 result.append(
-                    self.agent_summary(row, states.get(self.mapping_id(context, row["id"])), [])
+                    self.agent_summary(
+                        row,
+                        states.get(self.mapping_id(context, row["id"])),
+                        visible_actions(allowed, [("assist", "智能修改", "agent:manage")])
+                        if not published_only
+                        else [],
+                    )
                 )
-        from creativity_service.modules.agents.builtin import builtin_view
-
         allowed_new = policy.actions("agent", "new")
-        assistant = builtin_view()
-        if (
-            not published_only
-            and "agent:manage" in allowed_new
-            and (
-                not search
-                or search.casefold() in (assistant.name + assistant.description).casefold()
-            )
-        ):
-            result.insert(0, assistant)
         return AgentList(
             items=result,
             actions=visible_actions(

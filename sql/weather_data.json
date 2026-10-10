@@ -406,17 +406,17 @@
         "capabilities": {
           "text": {
             "state": "SUPPORTED",
+            "config_digest": "88aed7bfa01573c08a4e7730f371b5b7482399763b94ab83b720a60ae428a9ee",
+            "verified_at": "2026-10-10T18:31:58.770967+00:00",
             "reason": null,
-            "evidence": "live",
-            "verified_at": "2026-10-06T19:02:59.061005+00:00",
-            "config_digest": "b7384c0d86047a165a0091bc8e39a33555f73f356ad48cf5be87ebcbbce71e45"
+            "evidence": "live"
           },
           "tools": {
             "state": "SUPPORTED",
+            "config_digest": "88aed7bfa01573c08a4e7730f371b5b7482399763b94ab83b720a60ae428a9ee",
+            "verified_at": "2026-10-10T18:31:58.770967+00:00",
             "reason": null,
-            "evidence": "live",
-            "verified_at": "2026-10-06T18:57:16.699800+00:00",
-            "config_digest": "b7384c0d86047a165a0091bc8e39a33555f73f356ad48cf5be87ebcbbce71e45"
+            "evidence": "live"
           },
           "streaming": {
             "state": "SUPPORTED",
@@ -433,10 +433,10 @@
             "config_digest": "b7384c0d86047a165a0091bc8e39a33555f73f356ad48cf5be87ebcbbce71e45"
           }
         },
-        "verified_at": "2026-10-06T19:02:59.061005+00:00",
+        "verified_at": "2026-10-10T18:31:58.770967+00:00",
         "current_version_id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
         "parameters": {
-          "max_tokens": 4096
+          "max_tokens": 16384
         },
         "parameter_allowlist": [
           "max_tokens"
@@ -1119,9 +1119,9 @@
               "protocol": "chat_completions",
               "model_name": "DeepSeek V4 Flash",
               "parameters": {
-                "max_tokens": 4096
+                "max_tokens": 16384
               },
-              "config_digest": "b7384c0d86047a165a0091bc8e39a33555f73f356ad48cf5be87ebcbbce71e45",
+              "config_digest": "88aed7bfa01573c08a4e7730f371b5b7482399763b94ab83b720a60ae428a9ee",
               "connection_id": "connection_3c0b1670eba5422184aa8bf86ebc2417",
               "model_revision": 4,
               "timeout_seconds": 60,
@@ -1151,7 +1151,7 @@
             "tools"
           ]
         },
-        "content_digest": "c5041a0d981488a7656416624b6a50abb3a310510c946e10b589cc012ee2a498",
+        "content_digest": "7ca9bf46591096adeaef45fdd01ab503d8271d878df3c2e22cc3edd15a22502d",
         "dependencies": [
           "version_1dffe1ef7ed944d1a3a0840daf09efe8",
           "version_ab199b3f3d1d4d62bde6f40d1362a959"
@@ -1646,7 +1646,7 @@
           ],
           "limits": {
             "cost_limit": null,
-            "token_limit": 16000,
+            "token_limit": 32768,
             "max_iterations": 4,
             "max_tool_calls": 3,
             "deadline_seconds": 180,
@@ -1864,7 +1864,7 @@
           },
           "workflow_type": "tool_loop"
         },
-        "content_digest": "545d6fe9692a0163d665cd3bb395612aa608ed9e6d01008328fb991ecdade516",
+        "content_digest": "6aa4073dfa812e2fccbb9cf980e6be44d9b25fc2deb540e6d2dc778230b89f1b",
         "dependencies": [
           "cca859fa7606fe627a7a090a4d0704bf375895e597bc841e8165e2e5dbcd995b",
           "prompt_e343f97fa3e049caafc0394ac9deaa77",
@@ -1874,7 +1874,7 @@
           "version_1dffe1ef7ed944d1a3a0840daf09efe8",
           "version_ab199b3f3d1d4d62bde6f40d1362a959"
         ],
-        "dependencies_digest": "47a5d6b8555469455a9652f719efc1d4fa49cf2a7232f12380bd9c5440175674",
+        "dependencies_digest": "5e06b3beaa7943e280b65a4cc58a64604941d4323a6fd71d7646d60764939235",
         "output_schema": {
           "type": "object",
           "required": [
@@ -2058,9 +2058,9 @@
           "status": "ACTIVE",
           "model_code": "deepseek-v4-flash",
           "parameters": {
-            "max_tokens": 4096
+            "max_tokens": 16384
           },
-          "config_digest": "3c4ebd3a0eef8673ea1de2e5b0f19d61b2b739cd8cd2cc10c27feb8fd6d32d43",
+          "config_digest": "b4874de58e4cf983673f9f61e390371e3da04722ca64df52ea858cf2f00e26a5",
           "connection_id": "connection_3c0b1670eba5422184aa8bf86ebc2417",
           "context_limit": null,
           "parameter_allowlist": [
@@ -2070,7 +2070,7 @@
           "validation_revision": 1,
           "connection_version_id": "version_0e0ebbfa8c804ad29d8255ff33032d93"
         },
-        "content_digest": "c2e79f995e1d6f822c15f1a79a42b2dda11cffca7120c49cd4e8bf1217283dc6",
+        "content_digest": "7816335eff4dde846badf13d49f1550813c974c89b9f705ac46138b69d643eff",
         "dependencies": [
           "version_0e0ebbfa8c804ad29d8255ff33032d93"
         ],
@@ -2299,7 +2299,7 @@
           ],
           "limits": {
             "cost_limit": null,
-            "token_limit": 16000,
+            "token_limit": 32768,
             "max_iterations": 4,
             "max_tool_calls": 3,
             "deadline_seconds": 180,
@@ -2517,7 +2517,7 @@
           },
           "workflow_type": "tool_loop"
         },
-        "content_digest": "545d6fe9692a0163d665cd3bb395612aa608ed9e6d01008328fb991ecdade516",
+        "content_digest": "6aa4073dfa812e2fccbb9cf980e6be44d9b25fc2deb540e6d2dc778230b89f1b",
         "dependencies": [
           "cca859fa7606fe627a7a090a4d0704bf375895e597bc841e8165e2e5dbcd995b",
           "prompt_e343f97fa3e049caafc0394ac9deaa77",

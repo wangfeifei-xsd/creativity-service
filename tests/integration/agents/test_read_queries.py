@@ -36,10 +36,10 @@ async def test_agent_list_has_constant_query_count_and_revalidates_next_request(
         )
     with statements(env.engine) as multiple:
         ten = await env.agents.list_agents(env.context)
-    assert len([item for item in one.items if not item.builtin]) == 1
-    assert len([item for item in ten.items if not item.builtin]) == 10
+    assert len(one.items) == 1
+    assert len(ten.items) == 10
     assert len(single) == len(multiple) <= 12
-    assert all(item.actions == [] for item in ten.items)
+    assert all([action.action_key for action in item.actions] == ["assist"] for item in ten.items)
     counts = Counter(
         table
         for statement in multiple

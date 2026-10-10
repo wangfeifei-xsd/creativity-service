@@ -2224,11 +2224,6 @@
             "title": "Agent Id",
             "type": "string"
           },
-          "builtin": {
-            "default": false,
-            "title": "Builtin",
-            "type": "boolean"
-          },
           "description": {
             "title": "Description",
             "type": "string"

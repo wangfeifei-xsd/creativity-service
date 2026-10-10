@@ -267,7 +267,6 @@ class AgentStateInput(Contract):
 
 
 class AgentView(Contract):
-    builtin: bool = False
     agent_id: str
     agent_code: str
     name: str

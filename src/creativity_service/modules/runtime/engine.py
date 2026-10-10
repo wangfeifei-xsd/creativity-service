@@ -145,6 +145,8 @@ class RuntimeExecutor:
         step: AgentStep,
         node_key: str,
         messages: list[dict[str, Any]],
+        *,
+        parameters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         route_id = step.dependency or spec.definition.bindings.model_route_version
         route = next(v for v in spec.versions if v.version_id == route_id)
@@ -195,6 +197,7 @@ class RuntimeExecutor:
             node_key,
             ModelRequest(
                 messages=messages,
+                parameters=parameters or {},
                 tools=tools,
                 output_schema=step.output_schema,
                 output_mode="native" if native_output else "prompt",

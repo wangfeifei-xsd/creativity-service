@@ -368,6 +368,61 @@ async def test_prompt_schema_uses_text_capability_and_validates_json():
     assert events[-1].kind == "completed"
 
 
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize("content", ["", '{"ok":', '{"ok":true}'])
+async def test_output_length_limit_is_not_schema_failure_or_success(stream, content):
+    config = fixture_config()
+    usage = {"prompt_tokens": 12, "completion_tokens": 100, "total_tokens": 112}
+
+    async def handler(request):
+        body = {
+            "id": "truncated-response",
+            "object": "chat.completion.chunk" if stream else "chat.completion",
+            "created": 1,
+            "model": "fixture-model",
+            "choices": [
+                {
+                    "index": 0,
+                    "delta" if stream else "message": {"role": "assistant", "content": content},
+                    "finish_reason": "length",
+                }
+            ],
+            "usage": usage,
+        }
+        if stream:
+
+            class Stream(httpx.AsyncByteStream):
+                async def __aiter__(self):
+                    yield f"data: {json.dumps(body)}\n\ndata: [DONE]\n\n".encode()
+
+            return httpx.Response(
+                200,
+                stream=Stream(),
+                headers={"content-type": "text/event-stream"},
+            )
+        return httpx.Response(200, json=body)
+
+    events = [
+        event
+        async for event in adapter(handler).events(
+            context(config),
+            config,
+            ModelRequest(
+                messages=[{"role": "user", "content": "返回完整结果"}],
+                output_schema={"type": "object", "required": ["ok"]},
+                output_mode="prompt",
+                stream=stream,
+            ),
+            fixture_attempt(config),
+            fixture_reservation(config),
+        )
+    ]
+    assert events[-1].error_code == "MODEL_OUTPUT_TRUNCATED"
+    assert "长度上限" in events[-1].message and not events[-1].retryable
+    assert not any(event.kind in {"structured", "completed"} for event in events)
+    assert next(event.usage for event in events if event.kind == "usage").raw_usage == usage
+
+
 async def test_cancellation_closes_inflight_request():
     config, started, closed = fixture_config(), asyncio.Event(), asyncio.Event()
 

@@ -35,6 +35,7 @@ ERRORS = {
     "MODEL_INPUT_INVALID": "模型请求参数不正确",
     "MODEL_PROVIDER_UNAVAILABLE": "模型服务暂不可用",
     "MODEL_OUTPUT_INVALID": "模型输出不符合结构契约",
+    "MODEL_OUTPUT_TRUNCATED": "模型输出达到长度上限，请提高模型的最大输出 Token 数后重试",
     "MODEL_CANCELLED": "模型调用已取消",
 }
 
@@ -326,6 +327,7 @@ class LiteLLMAdapter:
         result: Any = await cancellable(litellm.acompletion(**options), cancellation)
         parts: list[str] = []
         finished = False
+        truncated = False
         has_tool_calls = False
         if request.stream:
             iterator = result.__aiter__()
@@ -337,6 +339,7 @@ class LiteLLMAdapter:
                         break
                     for choice in chunk.choices:
                         finished = finished or bool(choice.finish_reason)
+                        truncated = truncated or choice.finish_reason in {"length", "max_tokens"}
                         delta = choice.delta
                         if delta.content:
                             parts.append(delta.content)
@@ -358,6 +361,7 @@ class LiteLLMAdapter:
             if not finished:
                 raise ServiceError("MODEL_PROVIDER_UNAVAILABLE", "模型流在结束事件前中断", 502)
         else:
+            truncated = result.choices[0].finish_reason in {"length", "max_tokens"}
             message = result.choices[0].message
             if message.content:
                 parts.append(message.content)
@@ -373,6 +377,9 @@ class LiteLLMAdapter:
                     arguments_delta=tool.function.arguments,
                 )
         if request.output_schema is not None and not has_tool_calls:
+            # 长度上限可能耗在推理或正文中；相同参数再次修复仍会截断，不能误报为契约问题。
+            if truncated:
+                raise ServiceError("MODEL_OUTPUT_TRUNCATED", ERRORS["MODEL_OUTPUT_TRUNCATED"], 422)
             try:
                 structured = json.loads("".join(parts))
                 Draft202012Validator(request.output_schema).validate(structured)

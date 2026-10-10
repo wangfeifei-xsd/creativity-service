@@ -1,6 +1,5 @@
 """随平台代码交付的只读智能体，不在渠道资源表建立可编辑副本。"""
 
-from creativity_service.core.contracts import DisplayStatus
 from creativity_service.modules.agents.assistance_schemas import AssistanceOutput
 from creativity_service.modules.agents.schemas import (
     AgentBindings,
@@ -9,7 +8,6 @@ from creativity_service.modules.agents.schemas import (
     AgentEdge,
     AgentLimits,
     AgentStep,
-    AgentView,
 )
 
 BUILTIN_ID = "builtin_agent_builder"
@@ -41,20 +39,6 @@ NEEDS_INPUT、NO_MATCH、INSUFFICIENT_DATA、PARTIAL 中适用的值。最后步
 新建默认 120 秒、16000 Token、8000 上下文、6 轮模型、10 次工具、1 次结构修复；
 按实际流程合理调整，遵循资源容量。不要把用户需求直接复制为无约束的执行指令。
 """
-
-
-def builtin_view() -> AgentView:
-    return AgentView(
-        builtin=True,
-        agent_id=BUILTIN_ID,
-        agent_code=BUILTIN_CODE,
-        name=BUILTIN_NAME,
-        description="根据需求创建、修改智能体",
-        owner="平台",
-        revision=1,
-        status=DisplayStatus(value="BUILTIN", label="内置 · 只读", tone="default"),
-        actions=[],
-    )
 
 
 def builtin_definition(route_id: str, context_limit: int = 32000) -> AgentDefinition:
