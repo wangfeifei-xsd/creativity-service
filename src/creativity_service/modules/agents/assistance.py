@@ -277,13 +277,13 @@ class AgentAssistance:
         ]
         if not all(named_fields(schema) for schema in schemas):
             raise ServiceError("FIELD_NAME_REQUIRED", "输入输出的全部字段需要显示名称", 422)
-        if not set(definition.bindings.ids()) <= set(descriptor["allowed_resources"]):
+        if not set(definition.dependency_ids()) <= set(descriptor["allowed_resources"]):
             raise ServiceError("DEPENDENCY_INVALID", "候选方案引用了资源目录之外的依赖", 422)
-        loaded = await dependency_rows(uow.connection, context.scope, definition.bindings.ids())
+        loaded = await dependency_rows(uow.connection, context.scope, definition.dependency_ids())
         if any(
             row["content_digest"] != descriptor["resource_digests"].get(row["id"])
             for row in loaded
-            if row["id"] in definition.bindings.ids()
+            if row["id"] in definition.dependency_ids()
         ):
             raise ServiceError("REVISION_CONFLICT", "方案依赖的资源已变更，请重新生成方案", 409)
         content = definition.model_dump(mode="json")

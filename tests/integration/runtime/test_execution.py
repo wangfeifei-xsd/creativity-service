@@ -1,6 +1,7 @@
 """RUN、AGT 与 IAM 边界在正式执行器中的组合验证，不算真实供应商验收。"""
 
 import asyncio
+import json
 from datetime import timedelta
 
 import pytest
@@ -252,3 +253,183 @@ async def test_saved_response_recovery_does_not_resend(runtime_env):
     recovered = await env.runs.get_run(env.context, receipt.run_id)
     assert recovered.state == "SUCCEEDED", recovered.error
     assert len(env.adapter.calls) == 1
+
+
+@pytest.mark.parametrize("use_defaults", [True, False])
+async def test_model_steps_freeze_distinct_routes_and_prompts(runtime_env, use_defaults):
+    from creativity_service.core.database import Repository
+    from creativity_service.core.deletion import content_key
+    from creativity_service.core.locking import record_key
+    from creativity_service.core.primitives import digest
+    from creativity_service.modules.agents.repositories import repository
+    from creativity_service.modules.agents.schemas import AgentBindings, AgentEdge, InputSource
+    from creativity_service.modules.models.schemas import RouteInput, RouteVersionInput
+    from creativity_service.modules.prompts.schemas import (
+        InstructionBlocks,
+        MessageTemplate,
+        PromptContent,
+        PromptCreate,
+        PromptDraftEdit,
+        PromptVariable,
+    )
+    from creativity_service.modules.resources.schemas import ResourceMutation
+    from creativity_service.modules.resources.services import ResourceManagement
+    from creativity_service.storage import metadata
+
+    env = runtime_env
+    first_prompt = await env.prompts.version_detail(env.context, env.prompt_id)
+    await env.prompts.edit_draft(
+        env.context,
+        env.prompt_id,
+        PromptDraftEdit(
+            revision=first_prompt.revision,
+            content=PromptContent(instruction_blocks=InstructionBlocks(system="先分析本单问题")),
+        ),
+    )
+    prompt = await env.prompts.create(
+        env.context,
+        PromptCreate(
+            prompt_code="review",
+            name="复核提示词",
+            purpose="使用前一步结果复核",
+        ),
+    )
+    prompt_version = await env.prompts.version_detail(env.context, prompt.prompt_id)
+    prompt_content = PromptContent(
+        instruction_blocks=InstructionBlocks(system="只复核分析结果"),
+        message_templates=[MessageTemplate(source="input", template="复核内容：{{summary}}")],
+        variables=[PromptVariable(name="summary", display_name="分析结果", type="string")],
+    )
+    prompt_version = await env.prompts.edit_draft(
+        env.context,
+        prompt.prompt_id,
+        PromptDraftEdit(
+            revision=prompt_version.revision,
+            content=prompt_content,
+        ),
+    )
+    # 夹具只提供已发布资源，不伪造供应商或提示词评测证据。
+    mapping_id = digest(
+        [env.context.scope.channel_id, env.context.scope.environment, "prompt", prompt.prompt_id]
+    )
+    async with transaction(
+        env.engine,
+        env.context.scope,
+        [
+            content_key(env.context.scope),
+            record_key(env.context.scope.channel_id, "resource_versions", prompt.prompt_id),
+            record_key(env.context.scope.channel_id, "release_mappings", mapping_id),
+        ],
+    ) as uow:
+        await repository("resource_versions", env.context.scope).change(
+            uow,
+            prompt.prompt_id,
+            prompt_version.revision,
+            {"state": "PUBLISHED"},
+        )
+        await repository("release_mappings", env.context.scope).add(
+            uow,
+            mapping_id,
+            {
+                "resource_type": "prompt",
+                "resource_id": prompt.prompt_id,
+                "version_id": prompt.prompt_id,
+                "published_by": env.context.principal_id,
+                "release_note": "已发布提示词夹具",
+            },
+        )
+    route = await env.models.routing.create(
+        env.tenant.manager, RouteInput(code="review", name="复核路由")
+    )
+    await env.models.routing.create_version(
+        env.tenant.manager,
+        route.id,
+        RouteVersionInput(
+            label="复核模型",
+            primary_model=env.model.id,
+            required_capabilities=["text"],
+        ),
+    )
+    resources = ResourceManagement(
+        env.engine, env.iam.authorization, {"model_route": env.models.routing}
+    )
+    await resources.mutate(
+        env.context,
+        "model_route",
+        route.id,
+        "publish",
+        ResourceMutation(
+            revision=route.revision,
+            configuration_revision=1,
+        ),
+    )
+    first_output = json.loads(json.dumps(env.definition.steps[0].output_schema))
+    first_output["properties"]["data"] = {
+        "type": "object",
+        "properties": {"answer": {"type": "string"}},
+        "required": ["answer"],
+    }
+    first = env.definition.steps[0].model_copy(update={"output_schema": first_output})
+    if not use_defaults:
+        first = first.model_copy(update={"dependency": env.route_id, "prompt_id": env.prompt_id})
+    review = first.model_copy(
+        update={
+            "key": "review",
+            "name": "复核分析",
+            "dependency": route.id,
+            "prompt_id": prompt.prompt_id,
+            "input_schema": {
+                "type": "object",
+                "properties": {"summary": {"type": "string"}},
+                "required": ["summary"],
+            },
+            "inputs": {"summary": InputSource(source="step", step=first.key, path="data.answer")},
+        }
+    )
+    definition = env.definition.model_copy(
+        update={
+            "workflow_type": "template",
+            "entrypoint": "workflow.v1",
+            "steps": (first, review),
+            "edges": (
+                AgentEdge(source=first.key, target="review"),
+                AgentEdge(source="review", target="END"),
+            ),
+            "bindings": env.definition.bindings if use_defaults else AgentBindings(),
+        }
+    )
+    receipt, message = await admitted(env, definition=definition, purpose="production")
+    # 受理后的提示词修改不能改变已经冻结的节点上下文。
+    current = await env.prompts.version_detail(env.context, prompt.prompt_id)
+    await env.prompts.edit_draft(
+        env.context,
+        prompt.prompt_id,
+        PromptDraftEdit(
+            revision=current.revision,
+            content=PromptContent(instruction_blocks=InstructionBlocks(system="后续版本的提示词")),
+        ),
+    )
+    await execute_message(env.runs, message, "worker", env.runtime)
+    result = await env.runs.get_run(env.context, receipt.run_id)
+    assert result.state == "SUCCEEDED", result.error
+    assert len(env.adapter.calls) == 2
+    first_request, second_request = [call[1] for call in env.adapter.calls]
+    assert first_request.output_mode == "native"
+    assert second_request.output_mode == "prompt"
+    assert "先分析本单问题" in first_request.messages[0]["content"]
+    assert "只复核分析结果" not in first_request.messages[0]["content"]
+    assert "只复核分析结果" in second_request.messages[0]["content"]
+    assert "先分析本单问题" not in second_request.messages[0]["content"]
+    assert any("复核内容：验证完成" in item["content"] for item in second_request.messages)
+    async with env.engine.connect() as connection:
+        usage = await Repository(metadata.tables["resource_uses"], env.context.scope).find(
+            connection, run_id=receipt.run_id
+        )
+    assert {item["resource_id"] for item in usage if item["resource_type"] == "model_route"} == {
+        env.route_id,
+        route.id,
+    }
+    assert {item["resource_id"] for item in usage if item["resource_type"] == "prompt"} == {
+        env.prompt_id,
+        prompt.prompt_id,
+    }

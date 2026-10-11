@@ -854,3 +854,104 @@ async def test_amount_budget_requires_prices_and_scope_overrides_fail(agent_env)
         },
     )
     assert response.status_code == 422
+
+
+async def test_node_dependencies_check_publication_type_and_capabilities(agent_env):
+    from creativity_service.core.deletion import content_key
+    from creativity_service.core.locking import record_key
+
+    env = agent_env
+    for index, overrides in enumerate(
+        [
+            {"dependency": env.prompt_id},
+            {"prompt_id": env.route_id},
+        ]
+    ):
+        config = env.definition.model_copy(
+            update={
+                "steps": (env.definition.steps[0].model_copy(update=overrides),),
+            }
+        )
+        detail = await env.agents.create(
+            env.context,
+            env.body.model_copy(
+                update={
+                    "agent_code": f"wrong_type_{index}",
+                    "definition": config,
+                }
+            ),
+        )
+        result = await env.agents.validate(
+            env.context, detail.versions[0].version_id, AgentValidateInput(revision=1)
+        )
+        assert not result.valid
+        assert any("资源类型" in issue.message for check in result.checks for issue in check.issues)
+    missing = env.definition.model_copy(
+        update={
+            "steps": (env.definition.steps[0].model_copy(update={"prompt_id": "missing_prompt"}),),
+        }
+    )
+    with pytest.raises(ServiceError, match="已发布"):
+        await env.agents.create(
+            env.context,
+            env.body.model_copy(
+                update={
+                    "agent_code": "missing_node_prompt",
+                    "definition": missing,
+                }
+            ),
+        )
+    # 节点独立绑定仍须检查生成能力，不能因默认绑定为空跳过检查。
+    from creativity_service.modules.agents.schemas import AgentBindings
+
+    config = env.definition.model_copy(
+        update={
+            "bindings": AgentBindings(),
+            "steps": (
+                env.definition.steps[0].model_copy(
+                    update={
+                        "dependency": env.route_id,
+                        "prompt_id": env.prompt_id,
+                    }
+                ),
+            ),
+        }
+    )
+    detail = await env.agents.create(
+        env.context,
+        env.body.model_copy(
+            update={
+                "agent_code": "node_capability",
+                "definition": config,
+            }
+        ),
+    )
+    async with transaction(
+        env.engine,
+        env.context.scope,
+        [
+            content_key(env.context.scope),
+            record_key(env.context.scope.channel_id, "resource_versions", env.route_id),
+        ],
+    ) as uow:
+        repo = repository("resource_versions", env.context.scope)
+        route = await repo.get(uow.connection, env.route_id)
+        content = {**route["content"], "required_capabilities": ["structured_output"]}
+        await repo.change(
+            uow,
+            env.route_id,
+            route["revision"],
+            {
+                "content": content,
+                "content_digest": digest(
+                    {"content": content, "output_schema": route["output_schema"]}
+                ),
+            },
+        )
+    result = await env.agents.validate(
+        env.context, detail.versions[0].version_id, AgentValidateInput(revision=1)
+    )
+    assert not result.valid
+    assert any(
+        issue.code == "CAPABILITY_MISMATCH" for check in result.checks for issue in check.issues
+    )

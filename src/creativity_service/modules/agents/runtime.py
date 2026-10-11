@@ -144,7 +144,7 @@ class AgentRunResolver:
                 connection, context.scope, "resource_versions", mapping["version_id"]
             )
             config = AgentDefinition.model_validate(version["content"])
-            dependencies = await dependency_rows(connection, context.scope, config.bindings.ids())
+            dependencies = await dependency_rows(connection, context.scope, config.dependency_ids())
         if request.conversation_id and not config.context.conversation_enabled:
             raise ServiceError("CONVERSATION_DISABLED", "此智能体未启用会话", 422)
         identifier = new_id("candidate")

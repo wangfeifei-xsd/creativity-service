@@ -33,6 +33,8 @@ stateful.v1/stateful。普通任务优先单个 model 步骤。每个模型步�
 每条流程可达 END；分支条件使用来源节点输出字段，兜底用 otherwise=true，循环有上限。
 input 来源 path 对应智能体输入，step 来源指定前置步骤及字段，constant 来源指定 value。
 步骤 dependency 必须绑定到对应工具或模型路由；工具须同时加入 bindings.tool_ids。
+模型步骤可用 dependency 和 prompt_id 单独选择路由与提示词，留空沿用 bindings 默认值。
+节点提示词的 input 变量读取本步骤输入映射；默认提示词的 input 变量读取智能体运行输入。
 智能体最终输出包含并必填 business_status、schema_version、data、warnings、evidence_refs，
 类型分别为 string、string、object、array、array。business_status 声明枚举 COMPLETED、
 NEEDS_INPUT、NO_MATCH、INSUFFICIENT_DATA、PARTIAL 中适用的值。最后步骤输出匹配此结构。

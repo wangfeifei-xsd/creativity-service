@@ -377,6 +377,7 @@ def test_legacy_definition_golden_files_and_importable_examples():
         assert current["bindings"].pop("embedding_route_version") is None
         for step in current["steps"]:
             assert step.pop("operator") is None
+            assert step.pop("prompt_id") is None
         assert json.loads(stored.read_text()) == current
     for path in Path("examples/agents").glob("*.json"):
         body = AgentCreate.model_validate_json(path.read_text())

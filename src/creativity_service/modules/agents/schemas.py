@@ -28,6 +28,7 @@ class AgentStep(Contract):
     kind: Literal["model", "tool", "compute"]
     operator: Literal["object", "input", "approval"] | None = None
     dependency: Identifier | None = None
+    prompt_id: Identifier | None = None
     inputs: dict[str, InputSource] = Field(default_factory=dict, max_length=100)
     input_schema: dict[str, Any]
     output_schema: dict[str, Any]
@@ -137,6 +138,36 @@ class AgentDefinition(Contract):
     bindings: AgentBindings = AgentBindings()
     limits: AgentLimits = AgentLimits()
     context: AgentContextPolicy = AgentContextPolicy()
+
+    def dependency_ids(self) -> list[str]:
+        """默认资源与节点覆盖统一进入授权、引用和快照清单，按资源去重。"""
+        return list(
+            dict.fromkeys(
+                [
+                    *self.bindings.ids(),
+                    *(
+                        identifier
+                        for step in self.steps
+                        if step.kind == "model"
+                        for identifier in (step.dependency, step.prompt_id)
+                        if identifier
+                    ),
+                ]
+            )
+        )
+
+    def model_route_ids(self) -> list[str]:
+        """汇总生成用途的路由；向量检索另行检查所需能力。"""
+        return list(
+            dict.fromkeys(
+                identifier
+                for identifier in (
+                    self.bindings.model_route_version,
+                    *(step.dependency for step in self.steps if step.kind == "model"),
+                )
+                if identifier
+            )
+        )
 
 
 class AgentCreate(Contract):

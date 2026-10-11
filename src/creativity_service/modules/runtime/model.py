@@ -237,11 +237,7 @@ class ModelRunner:
                     if sent_confirmed and not resource_recorded:
                         from creativity_service.modules.resources.usage import record_use
 
-                        route_id = (
-                            spec.definition.bindings.embedding_route_version
-                            if request.operation == "embedding"
-                            else spec.definition.bindings.model_route_version
-                        )
+                        route_id = policy.target_version_id
                         route = next((v for v in spec.versions if v.version_id == route_id), None)
                         if route:
                             try:

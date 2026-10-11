@@ -112,7 +112,7 @@ class AgentKernel:
         rows = loaded
         if rows is None:
             async with read_connection(self.engine) as connection:
-                rows = await dependency_rows(connection, context.scope, definition.bindings.ids())
+                rows = await dependency_rows(connection, context.scope, definition.dependency_ids())
         connection_ids = {
             row["content"].get("binding", {}).get("connection_id")
             for row in rows

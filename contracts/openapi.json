@@ -1875,6 +1875,20 @@
             "title": "Output Schema",
             "type": "object"
           },
+          "prompt_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Id"
+          },
           "timeout_seconds": {
             "default": 30,
             "maximum": 3600.0,

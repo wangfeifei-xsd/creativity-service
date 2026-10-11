@@ -54,24 +54,32 @@ class DependencyResolver:
         resources: dict[str, dict[str, dict[str, Any]]] | None = None,
     ) -> tuple[list[dict[str, Any]], dict[str, Any], list[FrozenModel]]:
         bindings, scope = definition.bindings, context.scope
-        if not bindings.model_route_version or not (
-            bindings.prompt_version or definition.instructions.strip()
-        ):
-            raise ServiceError(
-                "DEPENDENCY_INVALID", "请选择模型路由，并填写任务指令或选择提示词", 422
-            )
+        for step in definition.steps:
+            if step.kind == "model" and (
+                not (step.dependency or bindings.model_route_version)
+                or not (
+                    step.prompt_id or bindings.prompt_version or definition.instructions.strip()
+                )
+            ):
+                raise ServiceError(
+                    "DEPENDENCY_INVALID",
+                    f"步骤“{step.name}”请选择模型路由，并填写任务指令或选择提示词",
+                    422,
+                )
+        identifiers = definition.dependency_ids()
         rows = (
             loaded
             if loaded is not None
-            else await dependency_rows(uow.connection, scope, bindings.ids())
+            else await dependency_rows(uow.connection, scope, identifiers)
         )
         indexed = {r["id"]: r for r in rows}
         from creativity_service.modules.resources.configuration import require_dependencies
 
-        await require_dependencies(uow, scope, [r["id"] for r in rows])
+        await require_dependencies(uow, scope, list(dict.fromkeys([*identifiers, *indexed])))
         types = [
             *([(bindings.prompt_version, "prompt")] if bindings.prompt_version else []),
-            (bindings.model_route_version, "model_route"),
+            *((identifier, "model_route") for identifier in definition.model_route_ids()),
+            *((step.prompt_id, "prompt") for step in definition.steps if step.prompt_id),
             *((identifier, "tool") for identifier in bindings.tool_versions),
             *((identifier, "skill") for identifier in bindings.skill_versions),
         ]
@@ -99,8 +107,8 @@ class DependencyResolver:
             and memory_policy.suggest_enabled
             and memory_policy.write_mode != "DISABLED"
         ):
-            # 后台归档与画像固定使用原生结构化输出，发布前核验同一模型路由。
-            capabilities.add("structured_output")
+            if not bindings.model_route_version:
+                raise ServiceError("DEPENDENCY_INVALID", "记忆建议需要配置默认模型路由", 422)
         parents = {
             kind: await repository(table, scope).get_many(
                 uow.connection, [row["resource_id"] for row in rows if row["resource_type"] == kind]
@@ -217,38 +225,61 @@ class DependencyResolver:
             known_versions=indexed,
             resources=parents,
         )
-        prompt = (
-            PromptContent.model_validate(indexed[bindings.prompt_version]["content"])
+        # 默认提示词读取运行输入；节点提示词读取映射后的步骤输入。
+        prompt_uses = (
+            [(bindings.prompt_version, definition.input_schema, "默认提示词")]
             if bindings.prompt_version
-            else PromptContent()
+            else []
         )
-        for prompt_variable in prompt.variables:
-            if prompt_variable.source == "input" and prompt_variable.required:
-                source = schema_field(definition.input_schema, prompt_variable.name)
-                if source is None or not compatible(source, {"type": prompt_variable.type}):
+        prompt_uses.extend(
+            (step.prompt_id, step.input_schema, f"步骤“{step.name}”的提示词")
+            for step in definition.steps
+            if step.kind == "model" and step.prompt_id
+        )
+        for prompt_id, input_schema, label in prompt_uses:
+            prompt = PromptContent.model_validate(indexed[prompt_id]["content"])
+            for prompt_variable in prompt.variables:
+                if prompt_variable.source == "input" and prompt_variable.required:
+                    source = schema_field(input_schema, prompt_variable.name)
+                    if source is None or not compatible(source, {"type": prompt_variable.type}):
+                        raise ServiceError(
+                            "FLOW_INVALID",
+                            f"{label}变量“{prompt_variable.display_name}”缺少兼容输入",
+                            422,
+                        )
+                if prompt_variable.source == "tool" and not bindings.tool_versions:
+                    raise ServiceError("DEPENDENCY_INVALID", "提示词声明工具来源但未选择工具", 422)
+                if prompt_variable.source == "memory" and not definition.context.memory_policy:
                     raise ServiceError(
-                        "FLOW_INVALID",
-                        f"提示词变量“{prompt_variable.display_name}”缺少兼容输入",
-                        422,
+                        "DEPENDENCY_INVALID", "提示词声明记忆来源但未配置记忆策略", 422
                     )
-            if prompt_variable.source == "tool" and not bindings.tool_versions:
-                raise ServiceError("DEPENDENCY_INVALID", "提示词声明工具来源但未选择工具", 422)
-            if prompt_variable.source == "memory" and not definition.context.memory_policy:
-                raise ServiceError("DEPENDENCY_INVALID", "提示词声明记忆来源但未配置记忆策略", 422)
-        route = indexed[bindings.model_route_version]["content"]
-        snapshots = [FrozenModel.model_validate(v) for v in route.get("models", [])]
-        if not snapshots:
-            raise ServiceError("DEPENDENCY_INVALID", "模型路由缺少具体候选模型", 422)
-        declared = set(route.get("required_capabilities", []))
-        missing = capabilities - declared
-        if missing:
-            raise ServiceError(
-                "CAPABILITY_MISMATCH",
-                "模型路由未声明当前流程所需能力："
-                + "、".join(CAPABILITY_NAMES[c] for c in sorted(missing)),
-                422,
-            )
-        capabilities.update(declared)
+        snapshots: list[FrozenModel] = []
+        model_uses: list[tuple[FrozenModel, set[str]]] = []
+        for route_id in definition.model_route_ids():
+            route = indexed[route_id]["content"]
+            candidates = [FrozenModel.model_validate(v) for v in route.get("models", [])]
+            if not candidates:
+                raise ServiceError("DEPENDENCY_INVALID", "模型路由缺少具体候选模型", 422)
+            declared = set(route.get("required_capabilities", []))
+            required = set(capabilities)
+            if (
+                route_id == bindings.model_route_version
+                and definition.context.conversation_enabled
+                and memory_policy
+                and memory_policy.suggest_enabled
+                and memory_policy.write_mode != "DISABLED"
+            ):
+                required.add("structured_output")
+            missing = required - declared
+            if missing:
+                raise ServiceError(
+                    "CAPABILITY_MISMATCH",
+                    f"模型路由“{indexed[route_id]['resource_name']}”未声明当前流程所需能力："
+                    + "、".join(CAPABILITY_NAMES[c] for c in sorted(missing)),
+                    422,
+                )
+            snapshots.extend(candidates)
+            model_uses.extend((model, required | declared) for model in candidates)
         embedding_snapshots: list[FrozenModel] = []
         if bindings.embedding_route_version:
             embedding_route = indexed[bindings.embedding_route_version]["content"]
@@ -267,7 +298,7 @@ class DependencyResolver:
         )
         # 同一模型用于生成和检索时必须分别满足两种用途，不能只检查向量能力。
         for model_snapshot, required_capabilities in [
-            *((model, capabilities) for model in snapshots),
+            *model_uses,
             *((model, {"embedding"}) for model in embedding_snapshots),
         ]:
             if (

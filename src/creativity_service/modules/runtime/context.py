@@ -144,10 +144,19 @@ class ContextBuilder:
         prompt_data: list[dict[str, Any]] = []
         if config.instructions:
             instructions += "\n" + config.instructions
-        if config.bindings.prompt_version:
-            version = versions[config.bindings.prompt_version]
+        # 循环节点的运行键带迭代后缀，优先匹配完整步骤标识。
+        step = next((s for s in config.steps if s.key == node_key), None)
+        if step is None:
+            step = next((s for s in config.steps if s.key == node_key.rsplit(".i", 1)[0]), None)
+        prompt_id = (step.prompt_id if step else None) or config.bindings.prompt_version
+        if prompt_id:
+            version = versions[prompt_id]
             declared = PromptContent.model_validate(version.content).variables
-            sources = {"input": declared_input, "tool": outputs, "memory": memory_values}
+            sources = {
+                "input": input_value if step and step.prompt_id else declared_input,
+                "tool": outputs,
+                "memory": memory_values,
+            }
             arguments = {
                 source: {
                     v.name: values[v.name]
@@ -185,7 +194,7 @@ class ContextBuilder:
         loaded_files: dict[str, Any] | None = None
         if config.bindings.skill_versions:
             bindings = []
-            route_id = config.bindings.model_route_version
+            route_id = (step.dependency if step else None) or config.bindings.model_route_version
             capabilities = (
                 versions[route_id].content.get("required_capabilities", []) if route_id else []
             )

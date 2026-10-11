@@ -36,7 +36,7 @@ class ReleaseService:
         version_id = new_id("version") if initial["state"] == "DRAFT" else body.version_id
         release_id, audit_id = new_id("release"), new_id("audit")
         async with s.engine.connect() as connection:
-            dependencies = await dependency_rows(connection, scope, definition.bindings.ids())
+            dependencies = await dependency_rows(connection, scope, definition.dependency_ids())
         dependency_ids = [d["id"] for d in dependencies]
         sources = [("agent", agent_id), *[("version", d) for d in dependency_ids]]
         keys = s.keys(

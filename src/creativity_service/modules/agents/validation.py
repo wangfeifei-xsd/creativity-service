@@ -241,11 +241,8 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
             fail("步骤超时不能超过运行限时", f"steps.{key}.timeout_seconds")
         if (step.failure_policy == "retry") != (step.max_retries > 0):
             fail("重试策略与次数不一致", f"steps.{key}.failure_policy")
-        if step.kind == "model" and step.dependency not in {
-            None,
-            definition.bindings.model_route_version,
-        }:
-            fail("模型步骤只能引用已选择的模型路由", f"steps.{key}.dependency")
+        if step.kind != "model" and step.prompt_id:
+            fail("只有模型步骤可以选择提示词", f"steps.{key}.prompt_id")
         if step.kind == "tool" and step.dependency not in definition.bindings.tool_versions:
             fail("工具步骤必须引用智能体工具白名单中的版本", f"steps.{key}.dependency")
         if step.kind == "compute" and step.dependency:

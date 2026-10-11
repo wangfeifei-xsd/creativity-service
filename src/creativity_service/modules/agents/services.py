@@ -46,7 +46,7 @@ class AgentService(AgentSnapshots):
             raise ServiceError("VERSION_LABEL_CONFLICT", "版本名称已存在", 409)
         from creativity_service.modules.resources.configuration import require_dependencies
 
-        await require_dependencies(uow, context.scope, definition.bindings.ids())
+        await require_dependencies(uow, context.scope, definition.dependency_ids())
         content = definition.model_dump(mode="json")
         row = await repo.add(
             uow,
@@ -60,8 +60,8 @@ class AgentService(AgentSnapshots):
                 "content_digest": digest(
                     {"content": content, "output_schema": definition.output_schema}
                 ),
-                "dependencies": sorted(definition.bindings.ids()),
-                "dependencies_digest": digest(sorted(definition.bindings.ids())),
+                "dependencies": sorted(definition.dependency_ids()),
+                "dependencies_digest": digest(sorted(definition.dependency_ids())),
                 "output_schema": definition.output_schema,
                 "created_by": context.principal_id,
             },
@@ -172,7 +172,7 @@ class AgentService(AgentSnapshots):
                 raise ServiceError("VERSION_FROZEN", "已发布版本不可修改，请新增草稿", 409)
             from creativity_service.modules.resources.configuration import require_dependencies
 
-            await require_dependencies(uow, context.scope, body.definition.bindings.ids())
+            await require_dependencies(uow, context.scope, body.definition.dependency_ids())
             content = body.definition.model_dump(mode="json")
             row = await repository("resource_versions", context.scope).change(
                 uow,
@@ -184,8 +184,8 @@ class AgentService(AgentSnapshots):
                     "content_digest": digest(
                         {"content": content, "output_schema": body.definition.output_schema}
                     ),
-                    "dependencies": sorted(body.definition.bindings.ids()),
-                    "dependencies_digest": digest(sorted(body.definition.bindings.ids())),
+                    "dependencies": sorted(body.definition.dependency_ids()),
+                    "dependencies_digest": digest(sorted(body.definition.dependency_ids())),
                 },
             )
             await append_audit(
