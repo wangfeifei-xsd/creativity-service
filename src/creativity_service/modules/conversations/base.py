@@ -174,14 +174,35 @@ class ConversationKernel:
                 ("export", "导出", "data:export"),
             ],
         )
-        for kind, key, label, permission in (
-            ("conversation", "branch", "创建分支", "conversation:write"),
-            ("artifact", "upload", "上传附件", "artifact:upload"),
+        branch_permissions = await read_actions(
+            self.authorization,
+            context,
+            "conversation",
+            "new",
+            ["conversation:write"],
+            policy=policy,
+        )
+        actions.extend(
+            visible_actions(branch_permissions, [("branch", "创建分支", "conversation:write")])
+        )
+        attachment_permissions = await read_actions(
+            self.authorization,
+            context,
+            "artifact",
+            "new",
+            ["artifact:upload", "artifact:download"],
+            policy=policy,
+        )
+        # 会话附件在发送时须可读取，避免允许上传后才发现无权使用。
+        if (
+            "conversation:write" in permissions
+            and {
+                "artifact:upload",
+                "artifact:download",
+            }
+            <= attachment_permissions
         ):
-            allowed = await read_actions(
-                self.authorization, context, kind, "new", [permission], policy=policy
-            )
-            actions.extend(visible_actions(allowed, [(key, label, permission)]))
+            actions.append(VisibleAction(action_key="upload", label="上传附件"))
         return actions
 
     @staticmethod

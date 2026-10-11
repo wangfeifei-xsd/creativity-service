@@ -64,8 +64,13 @@ def register_error_handlers(app: FastAPI) -> None:
             "missing": "请填写此项",
             "extra_forbidden": "不支持此字段",
             "json_invalid": "请求内容不是有效的 JSON",
+            "dict_type": "请填写 JSON 对象",
             "timezone_invalid": "时区不存在",
             "batch_event_duplicate": "同批次事件编号不能重复",
+            "evaluation_criteria_missing": "样本需要确定性断言、预期拒绝或人工判定标准",
+            "statement_decimal_required": "金额必须使用十进制字符串",
+            "statement_time_bounds": "结束时间须晚于开始时间，账单行须在核查时间范围内",
+            "statement_payload_too_large": "账单输入超过一兆字节",
         }
         fields = []
         for item in exc.errors():
@@ -77,6 +82,11 @@ def register_error_handlers(app: FastAPI) -> None:
                     message = f"至少输入 {context['min_length']} 个字符"
                 elif item["type"] in {"string_too_long", "too_long"}:
                     message = f"最多输入 {context['max_length']} 个字符"
+            elif isinstance(item.get("input"), list):
+                if item["type"] == "too_short":
+                    message = f"至少填写 {context['min_length']} 项"
+                elif item["type"] == "too_long":
+                    message = f"最多填写 {context['max_length']} 项"
             fields.append(
                 FieldError(path=cast(list[str | int], list(item["loc"])[1:]), message=message)
             )

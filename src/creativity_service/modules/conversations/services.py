@@ -207,6 +207,7 @@ class ConversationService(
         self, context: AuthContext, conversation_id: str, name: str, content_type: str, data: bytes
     ) -> Artifact:
         context = await self.access(context, conversation_id, "conversation:write")
+        await self.artifacts.authorization.require(context, "artifact:download", "new")
         async with transaction(
             self.engine, context.scope, self.hooks.keys(context, conversation_id)
         ) as uow:

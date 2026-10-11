@@ -167,6 +167,22 @@ async def test_invalid_dependency_is_repaired_without_creating_resources(runtime
     assert (await env.runs.get_run(env.context, receipt.run_id)).usage_summary["attempt_count"] == 2
 
 
+async def test_unexecutable_token_budget_is_repaired_before_showing_proposal(runtime_env):
+    env = runtime_env
+    invalid = proposal(env)
+    invalid["definition"]["limits"]["token_limit"] = 100
+    invalid["definition"]["context"]["context_limit"] = 50
+    env.adapter.responses.append(output(invalid))
+    _, turn = await generate(env, proposal(env))
+    assert len(env.adapter.calls) == 2
+    assert turn.reply.proposal.definition.limits.token_limit > 100
+    first_request = env.adapter.calls[0][1]
+    catalog = json.loads(first_request.messages[1]["content"])["resources"]
+    route = next(item for item in catalog if item["version_id"] == env.route_id)
+    assert route["configuration"]["max_output_tokens"] == 100
+    assert "输出上限" in env.adapter.calls[1][1].messages[-1]["content"]
+
+
 @pytest.mark.parametrize("configured_limit", [4096, 32768])
 async def test_full_proposal_has_its_own_output_budget(runtime_env, configured_limit):
     env = runtime_env
@@ -185,6 +201,10 @@ async def test_full_proposal_has_its_own_output_budget(runtime_env, configured_l
         ),
     )
     calls = []
+    candidate = proposal(env)
+    candidate["definition"]["limits"]["token_limit"] = max(
+        candidate["definition"]["limits"]["token_limit"], configured_limit + 8000
+    )
 
     async def handler(request):
         body = json.loads(request.content)
@@ -205,7 +225,7 @@ async def test_full_proposal_has_its_own_output_budget(runtime_env, configured_l
                             "role": "assistant",
                             "content": '{"business_status":'
                             if truncated
-                            else json.dumps(output(proposal(env)), ensure_ascii=False),
+                            else json.dumps(output(candidate), ensure_ascii=False),
                         },
                         "finish_reason": "length" if truncated else "stop",
                     }

@@ -206,6 +206,24 @@ class DeletionGuard:
                 if tuple(link.get(k) for k in Scope.model_fields) in deleted_scopes:
                     blocked.add(parent)
                 connect(parent, ContentRef(link["source_type"], link["source_id"]))
+            message_ids = [r.resource_id for r in batch if r.resource_type == "message"]
+            messages = CONTENT_MODELS.get("message")
+            if message_ids and messages is not None:
+                # 会话归属是消息的固有来源，兼容旧分支尚未登记来源边的记录。
+                records = await uow.connection.execute(
+                    active_rows(
+                        select(messages.c.id, messages.c.conversation_id).where(
+                            messages.c.channel_id == self.scope.channel_id,
+                            messages.c.id.in_(message_ids),
+                        )
+                    )
+                )
+                for row in records.mappings():
+                    if row["conversation_id"]:
+                        connect(
+                            ContentRef("message", row["id"]),
+                            ContentRef("conversation", row["conversation_id"]),
+                        )
             run_ids = [r.resource_id for r in batch if r.resource_type == "run"]
             if run_ids:
                 # 受理后的输入及工具内容先于上下文来源边出现，旧运行也须立即阻断。

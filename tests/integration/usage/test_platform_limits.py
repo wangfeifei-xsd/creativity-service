@@ -26,6 +26,9 @@ async def test_current_platform_limit_revision_occupancy_and_scope(usage_env):
     limits = await management.platform_limits(env.admin, body)
     assert len(limits) == 1 and limits[0].revision == 1
     assert (limits[0].used, limits[0].remaining) == (0, 20)
+    with pytest.raises(ServiceError) as duplicate:
+        await management.platform_limits(env.admin, body)
+    assert duplicate.value.code == "DUPLICATE_RESOURCE"
     p = plan()
     await admit(env, p)
     limits = await management.platform_limits(

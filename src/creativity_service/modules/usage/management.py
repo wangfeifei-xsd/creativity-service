@@ -121,7 +121,9 @@ class UsageManagement:
             source={
                 **row["snapshot"],
                 "connection_id": row["connection_id"],
-                "source_request_id": row["source_request_id"],
+                "source_request_id": row["source_request_id"]
+                if row["source_request_id"] != row["attempt_id"]
+                else None,
             },
             adjustments=adjustments,
             events=events,
@@ -482,6 +484,8 @@ class UsageManagement:
             records = await current_limits(uow.connection, utcnow())
             if body:
                 latest = next((r for r in records if r["limit_code"] == body.limit_code), None)
+                if latest and body.revision is None:
+                    raise ServiceError("DUPLICATE_RESOURCE", "限额标识已存在，请使用其他标识", 409)
                 if (latest and body.revision != latest["revision"]) or (
                     not latest and body.revision is not None
                 ):

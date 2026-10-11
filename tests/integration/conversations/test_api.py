@@ -23,11 +23,17 @@ pytestmark = pytest.mark.integration
 __all__ = ["channel_env"]
 
 
-async def test_real_token_scope_attachments_retention_and_expiration(channel_env):
+@pytest.mark.parametrize(
+    "independent_actions",
+    [[], ["data:read_sensitive"], ["data:export"], ["data:read_sensitive", "data:export"]],
+)
+async def test_real_token_scope_attachments_retention_and_expiration(
+    channel_env, independent_actions
+):
     env = channel_env
     body = channel_body(env).model_copy(
         update={
-            "independent_actions": ["data:read_sensitive", "data:export"],
+            "independent_actions": independent_actions,
             "retention_policy": RetentionPolicy(retention_days=7),
         }
     )
@@ -74,8 +80,9 @@ async def test_real_token_scope_attachments_retention_and_expiration(channel_env
             )
         ),
     )
+    store = Store()
     conversations = build_conversation_service(
-        env.engine, env.iam.authorization, runs, Store(), cleanup
+        env.engine, env.iam.authorization, runs, store, cleanup
     )
     app = create_schema_app()
     app.state.conversations, app.state.authentication = conversations, env.iam.authentication
@@ -98,12 +105,31 @@ async def test_real_token_scope_attachments_retention_and_expiration(channel_env
             - datetime.fromisoformat(conversation["created_at"])
         ).days in {6, 7}
         path = f"/admin/v1/conversations/{conversation['conversation_id']}"
-        assert (await client.get(path)).status_code == 200
+        detail = await client.get(path)
+        can_attach = len(independent_actions) == 2
+        can_read = "data:read_sensitive" in independent_actions
+        assert detail.status_code == (200 if can_read else 403), detail.text
+        actions = {action["action_key"] for action in conversation["actions"]}
+        assert ("upload" in actions) == can_attach
+        if can_read:
+            detail_actions = {
+                action["action_key"] for action in detail.json()["conversation"]["actions"]
+            }
+            assert ("upload" in detail_actions) == can_attach
         upload = await client.post(
             f"{path}/attachments?name=notes.txt",
             content=b"private-content",
             headers={"Content-Type": "text/plain"},
         )
+        if not can_attach:
+            assert upload.status_code == 403, upload.text
+            assert store.data == {}
+            posted = await client.post(
+                f"{path}/messages",
+                json={"client_message_id": "text-only", "content": "无附件消息仍可发送"},
+            )
+            assert posted.status_code == (202 if can_read else 403), posted.text
+            return
         assert upload.status_code == 201, upload.text
         download = upload.json()["download_path"]
         assert (await client.get(download)).content == b"private-content"

@@ -122,6 +122,24 @@ async def test_cleanup_failure_keeps_guard_and_retry_is_idempotent(env, lifecycl
     assert all(i["last_error"] is None for i in items)
 
 
+async def test_cleanup_completes_when_conversation_metadata_is_already_absent(env, lifecycle):
+    job = await env.conversations.delete(env.context, env.cid)
+    table = metadata.tables["conversations"]
+    # 模拟历史清理或恢复后只保留删除意图，会话元数据已不存在。
+    async with env.engine.begin() as connection:
+        await connection.execute(
+            delete(table).where(
+                table.c.channel_id == env.context.scope.channel_id, table.c.id == env.cid
+            )
+        )
+    await drain(lifecycle, env.context.scope.channel_id)
+    progress = await lifecycle.progress(env.context, job.deletion_id)
+    assert progress["status"] == "COMPLETED" and progress["proof_digests"]
+    await drain(lifecycle, env.context.scope.channel_id)
+    async with env.engine.connect() as connection:
+        assert not await rows(connection, env.context.scope.channel_id, "conversations", id=env.cid)
+
+
 async def test_late_upload_cannot_recreate_deleted_object(env, lifecycle):
     started, finish = asyncio.Event(), asyncio.Event()
     store = env.conversations.artifacts.store

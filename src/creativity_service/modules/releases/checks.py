@@ -39,6 +39,17 @@ async def check_budget(
     exposure = {} if defer_exposure else await service.exposure_data(uow, policies, now)
     relevant: dict[str, dict[str, Any]] = {}
     for model in models:
+        output_limit = int(model.parameters.get("max_tokens", 1024))
+        if (
+            any(step.kind == "model" for step in definition.steps)
+            and output_limit >= definition.limits.token_limit
+        ):
+            raise ServiceError(
+                "BUDGET_NOT_EXECUTABLE",
+                f"智能体 Token 上限需高于模型“{model.model_name}”的输出上限"
+                f"（{output_limit} Token），并为输入预留额度",
+                422,
+            )
         plan = AttemptPlan(
             run_id="publication",
             attempt_id="publication",

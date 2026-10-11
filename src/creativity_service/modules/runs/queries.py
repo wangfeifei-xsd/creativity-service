@@ -376,7 +376,13 @@ class QueryService(RunKernel):
                 "resource_uses": resource_uses,
                 "versions": [
                     {
-                        "name": v.resource_name or v.version_label,
+                        "name": v.resource_name
+                        or (
+                            v.content.get("name")
+                            if v.resource_type in {"model", "model_connection"}
+                            else None
+                        )
+                        or v.version_label,
                         "type": v.resource_type,
                         "version_id": v.version_id,
                     }
@@ -641,7 +647,11 @@ class QueryService(RunKernel):
                                 else None,
                                 "usage_ref": a["usage_id"],
                                 "error": a["error"],
-                                "kind_label": "模型调用" if a["kind"] == "model" else "工具调用",
+                                "kind_label": {
+                                    "model": "模型调用",
+                                    "tool": "工具调用",
+                                    "compute": "固定计算",
+                                }.get(a["kind"], "执行类型不可用"),
                                 "state_label": {"STARTED": "调用中", "UNKNOWN": "结果待核实"}.get(
                                     a["state"], LABELS.get(a["state"], "状态不可用")
                                 ),

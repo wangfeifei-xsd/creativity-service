@@ -139,6 +139,7 @@ async def audit_page(
             "webhook_endpoint": "webhook_endpoints",
             "alert_rule": "alert_rules",
             "budget_policy": "budget_policies",
+            "provider_statement": "provider_statements",
         }
         for kind, name in display_tables.items():
             ids = {identifier for ref_kind, identifier in references if ref_kind == kind}

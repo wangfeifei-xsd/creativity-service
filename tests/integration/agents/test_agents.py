@@ -38,6 +38,43 @@ async def publish(env, detail, **changes):
     )
 
 
+async def test_output_limit_cannot_exhaust_agent_budget_before_any_input(agent_env):
+    env = agent_env
+    definition = env.definition.model_copy(
+        update={
+            "limits": env.definition.limits.model_copy(update={"token_limit": 100}),
+            "context": env.definition.context.model_copy(update={"context_limit": 50}),
+        }
+    )
+    detail = await env.agents.create(
+        env.context, env.body.model_copy(update={"definition": definition})
+    )
+    draft = detail.versions[0]
+    validation = await env.agents.validate(
+        env.context, draft.version_id, AgentValidateInput(revision=draft.revision)
+    )
+    assert not validation.valid
+    assert any(
+        check.key == "budget" and "100 Token" in issue.message
+        for check in validation.checks
+        for issue in check.issues
+    )
+    with pytest.raises(ServiceError, match="输出上限"):
+        await publish(env, detail)
+    await env.agents.edit_version(
+        env.context,
+        draft.version_id,
+        AgentVersionEdit(
+            revision=draft.revision,
+            definition=definition.model_copy(
+                update={"limits": definition.limits.model_copy(update={"token_limit": 1000})}
+            ),
+        ),
+    )
+    published = await publish(env, await env.agents.detail(env.context, detail.agent.agent_id))
+    assert published.release_version_id is not None
+
+
 async def test_agt_a04_code_revision_and_mapping_races(agent_env):
     env = agent_env
     results = await asyncio.gather(

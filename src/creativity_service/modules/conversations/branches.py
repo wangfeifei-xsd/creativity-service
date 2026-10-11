@@ -113,6 +113,13 @@ class BranchOperations(ConversationKernel):
                             "run_id": None,
                         },
                     )
+                    # 分支拥有复制消息，但不拥有原运行；删除分支也须覆盖这些副本。
+                    await self.hooks.link(
+                        uow,
+                        context,
+                        ContentRef("conversation", branch_id),
+                        ContentRef("message", message_id),
+                    )
                     await guard.link(
                         uow,
                         digest([branch_id, message["id"]]),

@@ -181,10 +181,12 @@ class ModelService:
             raise ServiceError("MODEL_TEMPLATE_INVALID", "连接模板只能包含协议、地址和超时", 422)
         if body.template_content:
             protocol = body.template_content.get("protocol")
-            if protocol not in body.protocols or not isinstance(
-                body.template_content.get("endpoint"), str
-            ):
+            if not protocol or not isinstance(body.template_content.get("endpoint"), str):
                 raise ServiceError("MODEL_TEMPLATE_INVALID", "模板协议和地址不完整", 422)
+            if protocol not in body.protocols:
+                raise ServiceError(
+                    "MODEL_TEMPLATE_INVALID", "模板协议必须在供应商支持的协议中", 422
+                )
             validate_endpoint(protocol, body.template_content["endpoint"])
         name = body.name.strip()
         code = name_code(name, "供应商")

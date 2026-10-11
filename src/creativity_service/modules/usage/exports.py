@@ -13,6 +13,7 @@ from creativity_service.core.deletion import CleanupRegistry, ContentRef, Deleti
 from creativity_service.core.primitives import ServiceError, new_id, unavailable, utcnow
 from creativity_service.core.security.keys import object_path
 from creativity_service.modules.usage.management import UsageManagement
+from creativity_service.modules.usage.pricing import timezone
 from creativity_service.modules.usage.query import totals, view
 from creativity_service.modules.usage.repositories import ledger_key, required, rows, save
 from creativity_service.modules.usage.schemas import CurrencyTotal, ExportView, UsageFilter
@@ -29,6 +30,11 @@ EXPORT_LABELS = {
 def csv_cell(value: Any) -> str:
     result = "" if value is None else str(value)
     return "'" + result if result.lstrip().startswith(("=", "+", "-", "@")) else result
+
+
+def report_time(value: datetime, zone: str) -> str:
+    local = value.astimezone(timezone(zone))
+    return f"{local.year}年{local.month}月{local.day}日 {local:%H:%M:%S}"
 
 
 class UsageExports:
@@ -180,7 +186,7 @@ class UsageExports:
             writer = csv.writer(output)
             writer.writerow(
                 [
-                    "时间",
+                    f"时间（{query.timezone}）",
                     "模型",
                     "智能体",
                     "用途",
@@ -193,17 +199,13 @@ class UsageExports:
                     "结算状态",
                 ]
             )
-            from creativity_service.modules.usage.pricing import timezone
-
             for record in records:
                 value = view(record)
                 writer.writerow(
                     [
                         csv_cell(v)
                         for v in (
-                            record["created_at"]
-                            .astimezone(timezone(query.timezone))
-                            .strftime("%Y-%m-%d %H:%M:%S %z"),
+                            report_time(record["created_at"], query.timezone),
                             value.names.get("model"),
                             value.names.get("agent"),
                             value.purpose_label,
@@ -388,7 +390,6 @@ class UsageExports:
             row["requested_by"]
         )
         require_platform(account, "usage:platform")
-        require_platform(account, "channel:govern")
         async with self.engine.connect() as connection:
             available = set(await self.management.channels.repository.directory(connection))
         covered = row["channel_range"]
@@ -444,7 +445,7 @@ class UsageExports:
                     "暂估费用",
                     "未定价数量",
                     "用量缺失数量",
-                    "聚合更新时间",
+                    f"聚合更新时间（{query.timezone}）",
                 ]
             )
             complete = True
@@ -475,7 +476,7 @@ class UsageExports:
                                 cost.provisional if cost else None,
                                 summary.unpriced,
                                 summary.missing_usage,
-                                summary.aggregate_updated_at.isoformat(),
+                                report_time(summary.aggregate_updated_at, query.timezone),
                             )
                         ]
                     )

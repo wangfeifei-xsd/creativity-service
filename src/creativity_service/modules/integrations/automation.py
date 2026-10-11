@@ -12,6 +12,7 @@ from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import RunInput, ServiceError, digest, new_id, utcnow
+from creativity_service.core.schema_validation import SchemaInputError, schema_errors
 from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.agents.repositories import repository as agent_repository
 from creativity_service.modules.iam.audit import append_event
@@ -175,7 +176,7 @@ class AutomationService:
         ) as uow:
             await require_management(uow, context, "integration:manage")
             await DeletionGuard(context.scope).check(uow, [])
-            await self.require_scheduled_agent(uow, context, body.request.agent_code)
+            await self.require_scheduled_agent(uow, context, body.request)
             row = await add(
                 uow,
                 context,
@@ -196,11 +197,11 @@ class AutomationService:
 
     @staticmethod
     async def require_scheduled_agent(
-        uow: UnitOfWork, context: AuthContext, agent_code: str
+        uow: UnitOfWork, context: AuthContext, request: RunInput
     ) -> None:
-        """与计划保存共用渠道策略锁，排除未发布、停用和已删除的智能体。"""
+        """在策略锁内校验当前发布状态及输入，避免保存或重新启用无效计划。"""
         agents = await agent_repository("agents", context.scope).find(
-            uow.connection, agent_code=agent_code
+            uow.connection, agent_code=request.agent_code
         )
         if len(agents) != 1:
             raise ServiceError("NOT_FOUND", "智能体不存在", 404)
@@ -229,6 +230,15 @@ class AutomationService:
         await DeletionGuard(context.scope).check(
             uow, [ContentRef("agent", agent["id"]), ContentRef("version", version["id"])]
         )
+        schema = version["content"]["input_schema"]
+        fields = schema_errors(request.input, schema)
+        if fields:
+            for field in fields:
+                name = field["path"][0] if field["path"] else None
+                label = schema.get("properties", {}).get(name, {}).get("title") or "运行输入"
+                field["message"] = f"{label}：{field['message']}"
+                field["path"] = ["request", "input", *field["path"]]
+            raise SchemaInputError("INPUT_SCHEMA_INVALID", "运行输入不符合当前智能体要求", fields)
 
     async def toggle_schedule(
         self, context: AuthContext, identifier: str, body: Toggle
@@ -248,7 +258,7 @@ class AutomationService:
             values: dict[str, Any] = {"state": "ACTIVE" if body.active else "PAUSED"}
             if body.active:
                 await self.require_scheduled_agent(
-                    uow, context, row["spec"]["request"]["agent_code"]
+                    uow, context, RunInput.model_validate(row["spec"]["request"])
                 )
                 values["next_at"] = next_window(
                     ScheduleCreate.model_validate(row["spec"]), utcnow()

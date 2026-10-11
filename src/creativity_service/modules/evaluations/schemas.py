@@ -4,6 +4,7 @@ import math
 from typing import Any, Literal, Self
 
 from pydantic import AwareDatetime, Field, model_validator
+from pydantic_core import PydanticCustomError
 
 from creativity_service.core.contracts import DisplayStatus, VisibleAction
 from creativity_service.core.primitives import Contract, Digest, Identifier, Money, Revision
@@ -82,7 +83,9 @@ class CaseInput(Contract):
         if set(self.input) & set(self.context):
             raise ValueError("输入与上下文字段不能重名")
         if not self.assertions and not self.expected_error and not self.human_label:
-            raise ValueError("样本需要确定性断言、预期拒绝或人工判定标准")
+            raise PydanticCustomError(
+                "evaluation_criteria_missing", "样本需要确定性断言、预期拒绝或人工判定标准"
+            )
         return self
 
 

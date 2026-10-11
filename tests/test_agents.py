@@ -130,6 +130,32 @@ def test_unproven_schema_constraints_and_boolean_subschemas():
     )
 
 
+@pytest.mark.parametrize(
+    ("source", "target", "expected"),
+    [
+        ({"type": "integer", "title": "数量"}, {"type": "number", "title": "总数"}, True),
+        (
+            {"type": "integer", "minimum": 0},
+            {"type": "number", "title": "非负总数", "minimum": 0},
+            True,
+        ),
+        ({"type": "integer"}, {"type": "number", "minimum": 0}, False),
+        ({"type": "number", "title": "总数"}, {"type": "integer"}, False),
+    ],
+)
+def test_integer_mapping_accepts_numeric_titles_and_preserves_constraints(source, target, expected):
+    assert compatible(source, target) is expected
+
+
+def test_integer_input_mapping_with_display_names_passes_flow_validation():
+    definition = changed()
+    definition.input_schema["properties"]["quantity"] = {"type": "integer", "title": "数量"}
+    step = definition.steps[0]
+    step.input_schema["properties"]["total"] = {"type": "number", "title": "总数"}
+    step.inputs["total"] = InputSource(source="input", path="quantity")
+    assert not static_issues(definition)
+
+
 def test_branch_must_be_exhaustive_and_source_must_dominate_consumer():
     base = templates()[0].definition
     first = base.steps[0].model_copy(update={"key": "first", "name": "第一步"})
@@ -326,7 +352,9 @@ async def test_caller_key_budget_is_enforced_without_changing_published_dependen
             return Decimal(0)
 
     service, uow = BudgetReader(), object()
-    model = SimpleNamespace(model_id="model", connection_id="connection")
+    model = SimpleNamespace(
+        model_id="model", connection_id="connection", parameters={"max_tokens": 100}
+    )
     published = await check_budget(service, uow, context, "agent", changed(), [model])
     requested = await check_budget(service, uow, caller, "agent", changed(), [model])
     assert published == requested and len(published) == 1

@@ -185,6 +185,14 @@ class AgentAssistance:
                 )
                 if k in content
             }
+            if dependency.resource_type == "model_route":
+                item["configuration"]["max_output_tokens"] = max(
+                    (
+                        int(model.get("parameters", {}).get("max_tokens", 1024))
+                        for model in content.get("models", [])
+                    ),
+                    default=1024,
+                )
             catalog.append(item)
         descriptor["allowed_resources"] = [d.version_id for d in dependencies]
         descriptor["resource_digests"] = {

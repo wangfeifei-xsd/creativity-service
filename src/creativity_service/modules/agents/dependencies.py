@@ -207,7 +207,7 @@ class DependencyResolver:
                 for variable in skill.input_variables:
                     source = schema_field(definition.input_schema, variable.name)
                     if variable.required and (
-                        not source or source.get("type") != variable.value_type
+                        not source or not compatible(source, {"type": variable.value_type})
                     ):
                         raise ServiceError("FLOW_INVALID", "技能必填变量缺少兼容的运行输入", 422)
         await SkillVersionValidator(self.skills).validate_many(
@@ -225,7 +225,7 @@ class DependencyResolver:
         for prompt_variable in prompt.variables:
             if prompt_variable.source == "input" and prompt_variable.required:
                 source = schema_field(definition.input_schema, prompt_variable.name)
-                if source is None or source.get("type") != prompt_variable.type:
+                if source is None or not compatible(source, {"type": prompt_variable.type}):
                     raise ServiceError(
                         "FLOW_INVALID",
                         f"提示词变量“{prompt_variable.display_name}”缺少兼容输入",

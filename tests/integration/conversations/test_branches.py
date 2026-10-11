@@ -4,10 +4,12 @@ import asyncio
 import json
 
 import pytest
+from sqlalchemy import delete
 
 from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.contracts import BusinessResult
 from creativity_service.core.database import transaction
+from creativity_service.core.database.tables import metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, DeletionService
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.conversations.schemas import BranchInput
@@ -114,3 +116,45 @@ async def test_source_delete_blocks_branch_and_cross_scope_cannot_branch(env):
                 uow, [ContentRef("message", assistant["id"])]
             )
         assert deleted.value.code == "CONTENT_DELETED"
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+async def test_branch_deletion_tracks_copied_messages_without_owning_source_run(env, legacy):
+    receipt = await submit(env)
+    await finish(env, receipt)
+    branch = await env.conversations.branch(
+        env.context,
+        env.cid,
+        BranchInput(message_id=receipt.assistant_message_id, idempotency_key="branch-deletion"),
+    )
+    if legacy:
+        # 历史分支缺少会话归属边，消息表仍保存权威的会话标识。
+        table = metadata.tables["source_links"]
+        async with env.engine.begin() as connection:
+            await connection.execute(
+                delete(table).where(
+                    table.c.channel_id == env.context.scope.channel_id,
+                    table.c.source_type == "conversation",
+                    table.c.source_id == branch.conversation_id,
+                    table.c.derived_type == "message",
+                )
+            )
+    impact = await env.conversations.preview_delete(env.context, branch.conversation_id)
+    assert impact.messages == 2
+    assert impact.runs == 0
+    copied = await records(env, "messages", conversation_id=branch.conversation_id)
+    await DeletionService(env.engine, env.authorization).mark(
+        env.context, ContentRef("conversation", branch.conversation_id), "TEST"
+    )
+    async with transaction(
+        env.engine,
+        env.context.scope,
+        env.conversations.hooks.keys(env.context, branch.conversation_id),
+    ) as uow:
+        guard = DeletionGuard(env.context.scope)
+        for item in copied:
+            with pytest.raises(ServiceError) as deleted:
+                await guard.check(uow, [ContentRef("message", item["id"])])
+            assert deleted.value.code == "CONTENT_DELETED"
+        await guard.check(uow, [ContentRef("message", receipt.assistant_message_id)])
+    assert (await env.conversations.detail(env.context, env.cid)).conversation.status == "ACTIVE"

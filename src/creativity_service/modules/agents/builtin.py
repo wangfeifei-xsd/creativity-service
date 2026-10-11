@@ -25,6 +25,7 @@ proposal 必须符合提供的 AgentCreate 契约，不能新增契约外字段�
 任务方法写入 definition.instructions；无需创建独立提示词。已有提示词可复用目录中的标识。
 所有依赖必须选自目录，禁止编造资源。工具输入输出须遵循目录中的完整 schema 和超时。
 所有输入输出 properties（包括嵌套对象与数组元素）须有简洁中文 title；字段 key 保持稳定。
+输入必填、类型、长度和枚举由 input_schema 校验；不要让模型重复计数或以同一结构约束拒绝已校验输入。
 修改时保留未涉及的字段、绑定、运行限制和行为；agent_code 保持原值，返回完整配置。
 基本字段 name、description、owner、version_label 使用中文。新建编码使用简短英文小写。
 入口与类型对应：structured.v1/structured、workflow.v1/template、tool_loop.v1/tool_loop、
@@ -37,6 +38,7 @@ input 来源 path 对应智能体输入，step 来源指定前置步骤及字段
 NEEDS_INPUT、NO_MATCH、INSUFFICIENT_DATA、PARTIAL 中适用的值。最后步骤输出匹配此结构。
 选择模型路由时使用目录中的真实能力；自主工具循环要求 tools。会话与长期记忆按需开启。
 新建默认 120 秒、16000 Token、8000 上下文、6 轮模型、10 次工具、1 次结构修复；
+Token 上限须为路由配置中的 max_output_tokens 和输入预留足够额度，不能小于等于最大输出。
 按实际流程合理调整，遵循资源容量。不要把用户需求直接复制为无约束的执行指令。
 """
 

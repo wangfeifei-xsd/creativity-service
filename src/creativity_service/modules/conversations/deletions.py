@@ -4,8 +4,8 @@ from typing import Any
 
 from sqlalchemy import delete, select
 
-from creativity_service.core.context import AuthContext
-from creativity_service.core.database import Repository, transaction
+from creativity_service.core.context import AuthContext, Scope
+from creativity_service.core.database import Repository, UnitOfWork, transaction
 from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard
@@ -57,6 +57,30 @@ def affected_graph(links: list[dict[str, Any]], conversation_id: str) -> list[di
 
 
 class DeletionOperations(ConversationKernel):
+    async def deletion_links(
+        self, uow: UnitOfWork, scope: Scope, conversation_id: str
+    ) -> list[dict[str, Any]]:
+        uow.require_scope(scope)
+        links = await Repository(core_metadata.tables["source_links"], scope).find(uow.connection)
+        # 历史分支可能缺少归属边，按消息的会话标识补充当前图，不接管原会话的运行。
+        table = metadata.tables["messages"]
+        identifiers = await uow.connection.scalars(
+            select(table.c.id).where(
+                Repository(table, scope).predicate(),
+                table.c.conversation_id == conversation_id,
+            )
+        )
+        links.extend(
+            {
+                "source_type": "conversation",
+                "source_id": conversation_id,
+                "derived_type": "message",
+                "derived_id": identifier,
+            }
+            for identifier in identifiers
+        )
+        return links
+
     async def clean_derived(self, context: AuthContext, ref: ContentRef) -> None:
         table_name = {
             "message": "messages",
@@ -108,9 +132,7 @@ class DeletionOperations(ConversationKernel):
             self.engine, context.scope, self.hooks.keys(context, conversation_id)
         ) as uow:
             await self.hooks.current(uow, context, conversation_id)
-            links = await Repository(core_metadata.tables["source_links"], context.scope).find(
-                uow.connection
-            )
+            links = await self.deletion_links(uow, context.scope, conversation_id)
             affected = affected_graph(links, conversation_id)
         return DeletionImpact(
             messages=sum(r["resource_type"] == "message" for r in affected),
@@ -180,9 +202,7 @@ class DeletionOperations(ConversationKernel):
                 )
                 if {r["id"] for r in current_runs} != {r["id"] for r in runs}:
                     continue
-                links = await Repository(core_metadata.tables["source_links"], scope).find(
-                    uow.connection
-                )
+                links = await self.deletion_links(uow, scope, conversation_id)
                 markers = Repository(core_metadata.tables["deletion_markers"], scope)
                 if await markers.get(uow.connection, marker_id) is None:
                     await markers.add(

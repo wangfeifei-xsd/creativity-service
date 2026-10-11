@@ -37,7 +37,14 @@ class JsonFormatter(logging.Formatter):
         if span.is_valid:
             data.update(trace_id=f"{span.trace_id:032x}", span_id=f"{span.span_id:016x}")
         # 仅收录显式允许的诊断字段，避免请求正文、凭据及异常文本进入日志。
-        for key in ("method", "route", "status_code", "duration_ms", "error_type"):
+        for key in (
+            "method",
+            "route",
+            "status_code",
+            "duration_ms",
+            "error_type",
+            "error_location",
+        ):
             if hasattr(record, key):
                 data[key] = getattr(record, key)
         return json.dumps(data, ensure_ascii=False)

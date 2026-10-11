@@ -34,6 +34,7 @@ from tests.integration.runtime.test_configuration import (
     validate_agent,
 )
 from tests.integration.runtime.test_execution import pytestmark as runtime_marks
+from tests.support.resources import publish_resource
 
 pytestmark = [
     *runtime_marks,
@@ -71,6 +72,7 @@ async def delivery_env(business_env):
             required_capabilities=["text", "structured_output", "tools", "streaming"],
         ),
     )
+    await publish_resource(env, "model_route", route.id)
     env.definition = env.definition.model_copy(
         update={
             "bindings": env.definition.bindings.model_copy(
@@ -84,6 +86,7 @@ async def delivery_env(business_env):
         skill = await import_skill(env, name, {"archive.find-notes": tool_id} if tool_id else {})
         version = skill.versions[0]
         frozen = await env.skills.freeze(env.context, version.version_id, version.revision)
+        await publish_resource(env, "skill", frozen.version_id)
         body = configured(env, name, frozen.version_id, tool_id)
         if name == "text-brief":
             body = body.model_copy(

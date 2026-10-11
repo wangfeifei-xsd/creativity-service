@@ -26,8 +26,11 @@ def compatible(source: dict[str, Any] | bool, target: dict[str, Any] | bool) -> 
         return True
     if not isinstance(source, dict) or not isinstance(target, dict):
         return False
-    if source.get("type") != target.get("type"):
-        return source.get("type") == "integer" and target == {"type": "number"}
+    if source.get("type") != target.get("type") and not (
+        source.get("type") == "integer" and target.get("type") == "number"
+    ):
+        return False
+    # 整数可用于数值字段，显示名称不影响兼容性；取值约束仍在下方逐项复核。
     structural = {"type", "properties", "required", "additionalProperties", "items"}
     annotations = {
         "title",

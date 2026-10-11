@@ -243,7 +243,17 @@ class UsageQueries:
                             "date": None,
                             "rate": None,
                         }
-                        if rate:
+                        if cost.currency == query.target_currency:
+                            conversion.update(
+                                amount=str(
+                                    (Decimal(cost.priced) + Decimal(cost.provisional)).quantize(
+                                        PRECISION
+                                    )
+                                ),
+                                source="同币种，无需折算",
+                                rate="1",
+                            )
+                        elif rate:
                             conversion.update(
                                 amount=str(
                                     (

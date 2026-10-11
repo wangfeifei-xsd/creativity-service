@@ -163,6 +163,36 @@ async def test_schedule_requires_current_published_agent(runtime_env):
     assert (await service.get(env.context, "automation_schedules", row["id"]))["state"] == "PAUSED"
 
 
+async def test_schedule_rejects_invalid_input_on_create_and_resume(runtime_env):
+    env = runtime_env
+    await admitted(env, purpose="production")
+    service = env.runs.automation
+    body = ScheduleCreate(name="输入边界", request=request(env), interval_seconds=60)
+    invalid = body.model_copy(update={"request": request(env).model_copy(update={"input": {}})})
+    with pytest.raises(ServiceError) as rejected:
+        await service.create_schedule(env.context, invalid)
+    assert rejected.value.code == "INPUT_SCHEMA_INVALID"
+    assert not await service.list_schedules(env.context)
+
+    row = await service.create_schedule(env.context, body)
+    row = await service.toggle_schedule(
+        env.context, row["id"], Toggle(revision=row["revision"], active=False)
+    )
+    # 模拟修复前已保存的无效计划；重新启用同样必须按当前发布结构检查。
+    async with transaction(
+        env.engine, env.context.scope, keys(env.context, ("automation_schedules", row["id"]))
+    ) as uow:
+        row = await repo(env.context.scope, "automation_schedules").change(
+            uow, row["id"], row["revision"], {"spec": invalid.model_dump(mode="json")}
+        )
+    with pytest.raises(ServiceError) as resumed:
+        await service.toggle_schedule(
+            env.context, row["id"], Toggle(revision=row["revision"], active=True)
+        )
+    assert resumed.value.code == "INPUT_SCHEMA_INVALID"
+    assert (await service.get(env.context, "automation_schedules", row["id"]))["state"] == "PAUSED"
+
+
 async def test_deleted_run_keeps_batch_queryable_and_other_items_cancellable(runtime_env):
     env = runtime_env
     await admitted(env, purpose="production")

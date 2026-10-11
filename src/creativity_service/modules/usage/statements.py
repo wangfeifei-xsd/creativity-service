@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Any, Self
 
 from pydantic import AwareDatetime, Field, field_validator, model_validator
+from pydantic_core import PydanticCustomError
 from sqlalchemy import select
 
 from creativity_service.core.auth.authentication import AdminSession
@@ -41,7 +42,7 @@ class StatementLine(Contract):
     @classmethod
     def exact_amount(cls, value: Any) -> Any:
         if not isinstance(value, (str, Decimal)):
-            raise ValueError("金额必须使用十进制字符串")
+            raise PydanticCustomError("statement_decimal_required", "金额必须使用十进制字符串")
         return value
 
 
@@ -59,9 +60,9 @@ class StatementCreate(Contract):
         if self.start_at >= self.end_at or any(
             not self.start_at <= line.occurred_at < self.end_at for line in self.lines
         ):
-            raise ValueError("账单行必须在核查时间范围内")
+            raise PydanticCustomError("statement_time_bounds", "账单行必须在有效核查时间范围内")
         if len(canonical_json(self.model_dump(mode="json"))) > 1048576:
-            raise ValueError("账单输入超过一兆字节")
+            raise PydanticCustomError("statement_payload_too_large", "账单输入超过一兆字节")
         return self
 
 

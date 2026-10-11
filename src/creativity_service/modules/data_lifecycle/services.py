@@ -4,7 +4,7 @@ from collections import Counter
 from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.context import AuthContext, Authorization, Scope
@@ -357,11 +357,20 @@ class DataLifecycleService:
                         },
                     )
                     if job["conversation_id"]:
-                        await put(
-                            uow,
-                            "conversations",
-                            job["conversation_id"],
-                            {"is_deleted": True, "status": "DELETED"},
+                        # 历史清理可能已移除元数据，只更新仍存在的会话，不能重新插入残缺记录。
+                        table = metadata.tables["conversations"]
+                        await uow.connection.execute(
+                            update(table)
+                            .where(
+                                Repository(table, scope, include_deleted=True).predicate(),
+                                table.c.id == job["conversation_id"],
+                            )
+                            .values(
+                                is_deleted=True,
+                                status="DELETED",
+                                updated_at=utcnow(),
+                                revision=table.c.revision + 1,
+                            )
                         )
         await self.finish_memory_jobs(channel_id)
 

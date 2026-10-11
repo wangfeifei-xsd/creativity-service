@@ -244,16 +244,21 @@ class ModelRunner:
                         )
                         route = next((v for v in spec.versions if v.version_id == route_id), None)
                         if route:
-                            await record_use(
-                                self.runs.engine,
-                                context,
-                                lease.run_id,
-                                "model_route",
-                                route.resource_id,
-                                resource_name=route.resource_name,
-                                agent_name=spec.agent_name,
-                                purpose=spec.purpose,
-                            )
+                            try:
+                                await record_use(
+                                    self.runs.engine,
+                                    context,
+                                    lease.run_id,
+                                    "model_route",
+                                    route.resource_id,
+                                    resource_name=route.resource_name,
+                                    agent_name=spec.agent_name,
+                                    purpose=spec.purpose,
+                                )
+                            except ServiceError as exc:
+                                # 使用记录也受删除边界保护，失败时仍须收取已发生调用的尾部用量。
+                                content_error = exc
+                                cancel.cancel()
                         resource_recorded = True
                     if event.kind == "usage" and event.usage is not None:
                         # 用量独立于内容提交；取消、删除和过期租约之后仍按原渠道结算。

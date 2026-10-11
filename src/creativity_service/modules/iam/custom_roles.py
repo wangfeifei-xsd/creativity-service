@@ -376,7 +376,7 @@ class CustomRoles:
                 event_id,
                 context.actor_id or "",
                 context.request_id,
-                "role:edit",
+                "role:create" if creating else "role:edit",
                 "custom_role",
                 identifier,
                 ["name", "allowed_actions", "menu_ids", "state"],

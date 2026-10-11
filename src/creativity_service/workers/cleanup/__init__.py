@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import traceback
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -58,9 +59,17 @@ async def sweep() -> None:
                 await service.sweep(channel_id)
                 for event in events:
                     await lifecycle.acknowledge(channel_id, event.event_id, "retention")
-            except Exception:
+            except Exception as exc:
                 # 日志只含定位信息；内容、凭据与第三方异常文本不进入清理日志。
-                logger.error("渠道清理暂未完成", extra={"channel_id": channel_id})
+                frame = traceback.extract_tb(exc.__traceback__)[-1]
+                logger.error(
+                    "渠道清理暂未完成",
+                    extra={
+                        "channel_id": channel_id,
+                        "error_type": type(exc).__name__,
+                        "error_location": f"{frame.name}:{frame.lineno}",
+                    },
+                )
 
 
 def sweep_cleanup() -> None:

@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select, update
 
 from creativity_service.core.context import TaskEnvelope
-from creativity_service.core.primitives import RunInput, ServiceError
+from creativity_service.core.primitives import RunInput
 from creativity_service.modules.iam.schemas import ChannelContextInput
 from creativity_service.modules.models.schemas import TestInput as Cases
 from creativity_service.modules.runs.repositories import required
@@ -29,7 +29,7 @@ async def configuration_session(env):
     return await env.iam.authentication.admin_session(token.access_token, "configuration-test")
 
 
-async def test_configuration_model_validation_uses_runtime_and_does_not_open_business_access(
+async def test_configuration_model_validation_uses_runtime_and_preserves_channel_permissions(
     runtime_env,
 ):
     env = runtime_env
@@ -64,10 +64,9 @@ async def test_configuration_model_validation_uses_runtime_and_does_not_open_bus
             .all()
         )
         assert len(events) == 2
-    # 模型测试记录可读，业务运行原文和业务资源的执行授权不因测试入口开放。
-    with pytest.raises(ServiceError) as content:
-        await env.runs.get_run(context, test.run_id)
-    assert content.value.status == 403
+    # 现行渠道管理权包含运行原文，其他敏感内容仍须独立授权。
+    assert (await env.runs.get_run(context, test.run_id)).state == "SUCCEEDED"
+    assert not (await env.iam.authorization.check(context, "memory:read", "memory", "new")).allowed
     for resource in ("agent", "tool", "prompt", "skill"):
         assert (await env.iam.authorization.check(context, "run:create", resource, "new")).allowed
     receipt = await env.runs.admit_run(

@@ -15,6 +15,29 @@ from creativity_service.modules.evaluations.schemas import (
     ImportRow,
 )
 
+FIELD_LABELS = {
+    "case_key": "样本定位键",
+    "title": "样本标题",
+    "input": "输入",
+    "context": "上下文",
+    "assertions": "预期与断言",
+    "expected_error": "预期拒绝",
+    "labels": "标签",
+    "label_source": "标签来源",
+    "human_label": "人工标注",
+    "source_refs": "来源引用",
+    "source_mode": "来源模式",
+    "fixture": "工具夹具",
+    "kind": "断言类型",
+    "path": "字段路径",
+    "expected": "预期值",
+    "tolerance": "允许误差",
+    "category": "分类",
+    "name": "名称",
+    "decision": "结论",
+    "reason": "理由",
+}
+
 
 def preview(body: ImportInput) -> ImportPreview:
     rows = []
@@ -75,16 +98,24 @@ def preview(body: ImportInput) -> ImportPreview:
             seen.add(case.case_key)
         except ValidationError as exc:
             for error in exc.errors(include_input=False):
-                path = ".".join(str(value) for value in error["loc"])
+                path = " / ".join(
+                    f"第 {value + 1} 项"
+                    if isinstance(value, int)
+                    else FIELD_LABELS.get(value, value)
+                    for value in error["loc"]
+                )
                 reason = str(error.get("ctx", {}).get("error", ""))
                 # 只展示已知固定文案，其他校验不回显样本原文。
-                if not path and reason in {
+                if error["type"] == "evaluation_criteria_missing":
+                    errors.append("样本需要确定性断言、预期拒绝或人工判定标准")
+                elif not path and reason in {
                     "输入与上下文字段不能重名",
                     "样本需要确定性断言、预期拒绝或人工判定标准",
                 }:
                     errors.append(reason)
                 else:
-                    errors.append(f"{path or '样本'}：字段格式不合法")
+                    message = "请填写此项" if error["type"] == "missing" else "字段格式不合法"
+                    errors.append(f"{path or '样本'}：{message}")
         except (TypeError, ValueError):
             errors = ["行格式、字段映射或样本定位键不合法"]
         rows.append(ImportRow(row_number=number, case=case if not errors else None, errors=errors))

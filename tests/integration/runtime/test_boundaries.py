@@ -17,6 +17,7 @@ from creativity_service.modules.runs.repositories import rows, save
 from creativity_service.modules.runtime.stream import event_stream
 from creativity_service.workers.executor import execute_message
 from tests.integration.runtime.test_execution import admitted, pytestmark
+from tests.support.resources import publish_resource
 
 __all__ = ["pytestmark"]
 
@@ -39,6 +40,7 @@ async def route_definition(env, *, streaming=False, calls=6):
             retry_policy=RetryPolicy(max_attempts=3, retries_per_model=2),
         ),
     )
+    await publish_resource(env, "model_route", route.id)
     return env.definition.model_copy(
         update={
             "bindings": env.definition.bindings.model_copy(

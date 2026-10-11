@@ -1,8 +1,11 @@
 """USG-A01—A08/A10：真实事务、累计回调、未知调用与渠道隔离验收。"""
 
 import asyncio
-from datetime import timedelta
+import csv
+import io
+from datetime import datetime, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import update
@@ -15,6 +18,7 @@ from creativity_service.modules.budgets.schemas import (
     BudgetUpdate,
     PlatformLimitCreate,
 )
+from creativity_service.modules.iam.custom_roles import CustomRoles, RoleSave
 from creativity_service.modules.usage.repositories import (
     budget_configuration_key,
     ledger_key,
@@ -24,6 +28,7 @@ from creativity_service.modules.usage.repositories import (
 from creativity_service.modules.usage.schemas import AttemptPlan, UsageFilter
 from creativity_service.modules.usage.tables import metadata
 from tests.integration.channels.conftest import credential, provision
+from tests.integration.channels.test_management_directory import signed_account
 
 pytestmark = pytest.mark.integration
 
@@ -454,6 +459,12 @@ async def test_query_and_export_cannot_expand_scope_and_conversion_keeps_source(
     summary = await env.usage.queries.summary(env.scope.channel_id, [env.scope], query)
     assert summary.costs[0].currency == "USD"
     assert summary.costs[0].conversion["amount"] == "4.97000000"
+    same_currency = await env.usage.queries.summary(
+        env.scope.channel_id, [env.scope], query.model_copy(update={"target_currency": "USD"})
+    )
+    assert same_currency.costs[0].conversion["amount"] == "0.70000000"
+    assert same_currency.costs[0].conversion["rate"] == "1"
+    assert same_currency.costs[0].conversion["date"] is None
     headers = {"Authorization": "Bearer " + env.channel.token.access_token}
     response = await env.client.get(
         "/admin/v1/usage/summary",
@@ -498,6 +509,50 @@ async def test_platform_export_is_system_owned_and_business_ledger_stays_in_chan
     assert len(await stored(env, "usage_records")) == 1
     with pytest.raises(ServiceError):
         await env.usage.exports.platform_download(env.channel.manager, job.id)
+
+
+async def test_platform_export_only_requires_statistics_permission_and_uses_report_timezone(
+    usage_env,
+):
+    env = usage_env
+    roles = CustomRoles(env.iam.access)
+    role = await roles.save(
+        env.admin,
+        RoleSave(name="仅统计角色", allowed_actions=["usage:platform"]),
+    )
+    _, _, session = await signed_account(env, "usage-export-viewer", [role["id"]])
+    await price(env)
+    p = await prepare(env)
+    await env.usage.ledger.settle(event(env, p))
+    query = UsageFilter(
+        start_at=utcnow() - timedelta(days=1),
+        end_at=utcnow() + timedelta(minutes=1),
+        timezone="Asia/Shanghai",
+    )
+    job = await env.usage.exports.create_platform(session, [env.scope.channel_id], query)
+    before = utcnow().astimezone(ZoneInfo(query.timezone)).replace(microsecond=0)
+    await env.usage.exports.process("system", job.id)
+    after = utcnow().astimezone(ZoneInfo(query.timezone)).replace(microsecond=0)
+    data = await env.usage.exports.platform_download(session, job.id)
+    records = list(csv.DictReader(io.StringIO(data.decode("utf-8-sig"))))
+    timestamp = records[0]["聚合更新时间（Asia/Shanghai）"]
+    rendered = datetime.strptime(timestamp, "%Y年%m月%d日 %H:%M:%S").replace(
+        tzinfo=ZoneInfo(query.timezone)
+    )
+    assert before <= rendered <= after
+    await roles.save(
+        env.admin,
+        RoleSave(
+            name=role["name"],
+            allowed_actions=["usage:platform"],
+            revision=role["revision"],
+            active=False,
+        ),
+        role["id"],
+    )
+    with pytest.raises(ServiceError) as revoked:
+        await env.usage.exports.platform_download(session, job.id)
+    assert revoked.value.status == 403
 
 
 async def test_simultaneous_final_callback_and_next_reservation_preserve_exposure(usage_env):

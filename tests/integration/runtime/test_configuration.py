@@ -20,7 +20,7 @@ from creativity_service.modules.prompts.debug import PromptDebugService
 from creativity_service.modules.prompts.schemas import (
     PromptContent,
     PromptCreate,
-    PromptDraftCreate,
+    PromptDraftEdit,
     PromptSampleCreate,
     PromptTestRequest,
 )
@@ -34,16 +34,17 @@ from creativity_service.modules.skills.schemas import (
     SkillImport,
     SkillSettings,
     SkillToolRequirement,
-    SkillVersionCreate,
     SkillVersionEdit,
 )
 from creativity_service.workers.executor import execute_message
 from examples.agents.prepare import prepare
+from examples.skills.prepare import build_package
 from tests.integration.agents.test_agents import publish
 from tests.integration.channels.conftest import provision
 from tests.integration.mcp.test_business_access import business_env as business_env
 from tests.integration.runtime.test_entries import create_tool
 from tests.integration.runtime.test_execution import pytestmark
+from tests.support.resources import publish_resource
 
 __all__ = ["pytestmark"]
 EXAMPLES = Path("examples")
@@ -68,11 +69,12 @@ async def configure_prompt(env, name):
     prompt = await env.prompts.create(
         env.context, PromptCreate(prompt_code=name, name="配置样例提示词", purpose="验证配置闭环")
     )
-    draft = await env.prompts.create_draft(
+    draft = await env.prompts.version_detail(env.context, prompt.prompt_id)
+    draft = await env.prompts.edit_draft(
         env.context,
         prompt.prompt_id,
-        PromptDraftCreate(
-            version_label="配置初版",
+        PromptDraftEdit(
+            revision=draft.revision,
             content=PromptContent.model_validate_json(
                 (EXAMPLES / "agents" / "prompts" / f"{name}.json").read_text()
             ),
@@ -97,6 +99,7 @@ async def configure_prompt(env, name):
     frozen = await env.prompts.versions.freeze(
         env.context, draft.version.version_id, draft.revision
     )
+    await publish_resource(env, "prompt", prompt.prompt_id)
     env.definition = env.definition.model_copy(
         update={
             "bindings": env.definition.bindings.model_copy(
@@ -111,9 +114,7 @@ async def import_skill(env, name, bindings=None):
     env.client._transport.app.state.core = build_core_services(
         env.engine, env.skills.store, env.iam.authorization
     )
-    encoded = base64.b64encode(
-        (EXAMPLES / "skills" / "packages" / f"{name}.zip").read_bytes()
-    ).decode()
+    encoded = base64.b64encode(build_package(name)).decode()
     preview = await env.client.post(
         "/admin/v1/skills/imports/preview", json={"archive_base64": encoded}
     )
@@ -224,6 +225,7 @@ async def test_text_configuration_debug_evaluation_publish_and_new_candidate(run
     content = await env.skills.file(env.context, version.version_id, "references/output.md")
     assert "摘要" in content.text
     frozen = await env.skills.freeze(env.context, version.version_id, version.revision)
+    await publish_resource(env, "skill", frozen.version_id)
     body = configured(env, name, frozen.version_id)
     response = await env.client.post("/admin/v1/agents", json=body.model_dump(mode="json"))
     assert response.status_code == 201, response.text
@@ -267,11 +269,7 @@ async def test_text_configuration_debug_evaluation_publish_and_new_candidate(run
     await execute(env, production)
     assert published.release_version_id
     before = await env.agents.load_candidate(env.context, spec.snapshot_id)
-    fork = await env.skills.create_version(
-        env.context,
-        skill.skill.skill_id,
-        SkillVersionCreate(version_label="资料第二版", base_version_id=frozen.version_id),
-    )
+    fork = await env.skills.version(env.context, frozen.version_id)
     fork = await env.skills.edit_version(
         env.context,
         fork.version_id,
@@ -286,7 +284,6 @@ async def test_text_configuration_debug_evaluation_publish_and_new_candidate(run
             ),
         ),
     )
-    fork = await env.skills.freeze(env.context, fork.version_id, fork.revision)
     new_body = configured(env, name, fork.version_id)
     await env.agents.edit_version(
         env.context,
@@ -337,6 +334,7 @@ async def test_mcp_configuration_explicit_binding_contract_and_runtime(business_
         ),
     )
     frozen = await env.skills.freeze(env.context, version.version_id, version.revision)
+    await publish_resource(env, "skill", frozen.version_id)
     exported = await env.skills.export(env.context, frozen.version_id)
     portable = (await env.client.get(exported.download_path)).content
     assert unpack(portable).settings.tool_bindings == {}
@@ -412,11 +410,12 @@ async def test_imported_bindings_cannot_reference_foreign_channel_or_package_ids
     env = runtime_env
     tool = await create_tool(env)
     await env.tools.management.freeze(env.context, tool.version_id, tool.draft_revision)
+    await publish_resource(env, "tool", tool.version_id)
     target = await provision(env, "configuration_target")
     target_context = await env.iam.authentication.authenticate(
         target.token.access_token, "management"
     )
-    package = (EXAMPLES / "skills" / "packages" / "archive-answer.zip").read_bytes()
+    package = build_package("archive-answer")
     with pytest.raises(ServiceError):
         await env.skills.import_package(
             target_context,
@@ -446,6 +445,7 @@ async def test_skill_binding_rechecks_permission_revoked_during_upload(runtime_e
     env = runtime_env
     tool = await create_tool(env)
     await env.tools.management.freeze(env.context, tool.version_id, tool.draft_revision)
+    await publish_resource(env, "tool", tool.version_id)
     original = env.skills.store.put
 
     async def revoke_after_upload(key, data, content_type):
