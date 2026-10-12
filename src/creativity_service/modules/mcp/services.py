@@ -23,7 +23,11 @@ from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.iam.reading import require_action, resource_state
 from creativity_service.modules.iam.roles import ACTION_NAMES
 from creativity_service.modules.mcp.bindings import require_current_binding
-from creativity_service.modules.mcp.differences import differences, explain_rebind
+from creativity_service.modules.mcp.differences import (
+    McpDiscoveryStaleError,
+    differences,
+    explain_rebind,
+)
 from creativity_service.modules.mcp.reading import import_reasons
 from creativity_service.modules.mcp.repositories import repository
 from creativity_service.modules.mcp.schemas import (
@@ -882,12 +886,37 @@ class McpService:
                     or snapshot["connection_revision"] != connection["configuration_revision"]
                 ):
                     raise ServiceError("MCP_TOOL_CHANGED", "连接已变更，请重新发现工具", 409)
-                latest = await repository(scope, "mcp_discoveries").find(
-                    uow.connection, connection_id=connection_id
+                discoveries = repository(scope, "mcp_discoveries")
+                table = discoveries.table
+                newest = (
+                    (
+                        await uow.connection.execute(
+                            active_rows(
+                                select(table)
+                                .where(
+                                    discoveries.predicate(),
+                                    table.c.connection_id == connection_id,
+                                )
+                                .order_by(table.c.created_at.desc(), table.c.id.desc())
+                                .limit(1)
+                            )
+                        )
+                    )
+                    .mappings()
+                    .first()
                 )
-                newest = max(latest, key=lambda r: (r["created_at"], r["id"]))
+                if newest is None:
+                    raise ServiceError("MCP_TOOL_CHANGED", "发现快照不可用，请重新发现工具", 409)
                 if newest["schema_hashes"].get(remote.name) != remote.schema_hash:
-                    raise ServiceError("MCP_TOOL_CHANGED", "所选快照的工具契约已过期", 409)
+                    latest_tool = next(
+                        (
+                            RemoteTool.model_validate(item)
+                            for item in newest["tool_definitions"]
+                            if item["name"] == remote.name
+                        ),
+                        None,
+                    )
+                    raise McpDiscoveryStaleError(remote, latest_tool)
                 try:
                     version = await self.tools.import_draft(
                         context,

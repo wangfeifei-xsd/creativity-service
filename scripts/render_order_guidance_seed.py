@@ -7,6 +7,8 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from mcp.types import Tool
+
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.database import validate_row
 from creativity_service.core.deletion import barrier_id
@@ -14,6 +16,7 @@ from creativity_service.core.primitives import digest
 from creativity_service.modules.agents.schemas import AgentDefinition
 from creativity_service.modules.integrations.automation import owner
 from creativity_service.modules.integrations.automation_schemas import ScheduleCreate
+from creativity_service.modules.mcp.transport import remote_tool
 from creativity_service.modules.skills.schemas import SkillDefinition
 from creativity_service.modules.tools.schemas import ToolDefinition
 from creativity_service.storage import metadata
@@ -143,6 +146,36 @@ def validate_guidance(seed: dict[str, Any], base: dict[str, Any]) -> None:
             or discovery.get("credential_revision") != connection["credential_revision"]
         ):
             raise ValueError("订单协助工具绑定或发现记录不完整")
+        matches = [
+            item
+            for item in discovery["tool_definitions"]
+            if item["name"] == imported["remote_tool_name"]
+        ]
+        if len(matches) != 1:
+            raise ValueError("订单协助远端工具契约缺失或重复")
+        remote = matches[0]
+        # 按真实发现流程重新计算摘要，避免本地标题、旧快照和导入参数各自不一致。
+        contract = remote_tool(
+            Tool.model_validate(
+                {
+                    "name": remote["name"],
+                    "inputSchema": remote["input_schema"],
+                    "outputSchema": remote["output_schema"],
+                    "annotations": remote["annotations"],
+                    "_meta": {"creativity/purpose": remote["purpose"]},
+                }
+            )
+        )
+        if (
+            remote["schema_hash"] != contract.schema_hash
+            or discovery["schema_hashes"].get(remote["name"]) != contract.schema_hash
+            or imported["schema_hash"] != contract.schema_hash
+            or imported["input_schema"] != {**contract.input_schema, "additionalProperties": False}
+            or definition.input_schema != imported["input_schema"]
+            or definition.output_schema != contract.output_schema
+            or versions[tool["id"]]["output_schema"] != definition.output_schema
+        ):
+            raise ValueError("订单协助工具契约、发现摘要与本地配置不一致")
         if definition.effect_type == "IDEMPOTENT_WRITE":
             policy = definition.write_policy
             if (

@@ -1,7 +1,33 @@
-"""发现只生成差异，绝不修改既有本地版本。"""
+"""发现及重新绑定的差异说明，绝不修改既有本地版本。"""
 
+from typing import Any
+
+from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.mcp.schemas import McpDiff, McpDifference, McpDiscovery, RemoteTool
 from creativity_service.modules.tools.rebinding import ToolRebindError, difference_fields
+
+
+def remote_contract(tool: RemoteTool) -> dict[str, Any]:
+    return {
+        "remote_input_schema": tool.input_schema,
+        "output_schema": tool.output_schema,
+        "annotations": {k: v for k, v in tool.annotations.items() if k != "title"},
+        "purpose": tool.purpose,
+    }
+
+
+class McpDiscoveryStaleError(ServiceError):
+    def __init__(self, selected: RemoteTool, latest: RemoteTool | None) -> None:
+        super().__init__(
+            "MCP_DISCOVERY_STALE", "所选快照的工具契约已过期，请查看最新发现后重试", 409
+        )
+        self.fields = (
+            difference_fields(remote_contract(selected), remote_contract(latest))
+            if latest
+            else [{"path": ["remote_tool"], "message": "原值：存在\n新值：最新发现中已移除"}]
+        ) or [
+            {"path": [], "message": "工具定义字段一致，但快照契约摘要不同，请重新发现工具。"}
+        ]
 
 
 def explain_rebind(
@@ -15,19 +41,7 @@ def explain_rebind(
             {"path": [], "message": "原绑定的远端定义不可用，无法展开契约摘要差异。"}
         )
         return
-    before = {
-        "remote_input_schema": previous.input_schema,
-        "output_schema": previous.output_schema,
-        "annotations": {k: v for k, v in previous.annotations.items() if k != "title"},
-        "purpose": previous.purpose,
-    }
-    after = {
-        "remote_input_schema": current.input_schema,
-        "output_schema": current.output_schema,
-        "annotations": {k: v for k, v in current.annotations.items() if k != "title"},
-        "purpose": current.purpose,
-    }
-    remote_fields = difference_fields(before, after)
+    remote_fields = difference_fields(remote_contract(previous), remote_contract(current))
     if not remote_fields:
         error.fields.append(
             {"path": [], "message": "远端定义字段一致，但契约摘要不同，请核对历史绑定数据。"}

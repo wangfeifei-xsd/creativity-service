@@ -516,6 +516,59 @@ def test_order_guidance_archive_rejects_incomplete_restore(fault):
         validate_guidance(guidance, combined)
 
 
+@pytest.mark.parametrize(
+    "fault",
+    ["remote_input", "remote_output", "import_input", "local_input", "hash_index", "missing_tool"],
+)
+def test_order_guidance_archive_rejects_mcp_contract_drift(fault):
+    base = json.loads(render_init_sql.SEED.read_text())["tables"]
+    combined = merged_tables(base, load_weather(base)["tables"])
+    guidance = load_guidance(combined)
+    tables = guidance["tables"]
+    discovery = tables["mcp_discoveries"][0]
+    remote = next(
+        item
+        for item in discovery["tool_definitions"]
+        if item["name"] == "rental_assistant.list_pending_guidances"
+    )
+    imported = next(
+        item for item in tables["mcp_imports"] if item["remote_tool_name"] == remote["name"]
+    )
+    version = next(
+        item for item in tables["resource_versions"] if item["id"] == imported["imported_version"]
+    )
+    if fault in {"remote_input", "remote_output"}:
+        schema, field = (
+            ("input_schema", "limit") if fault == "remote_input" else ("output_schema", "has_work")
+        )
+        del remote[schema]["properties"][field]["title"]
+        # 即使旧快照的各处摘要自洽，也必须拒绝它与本地中文契约混用。
+        contract_hash = digest(
+            {
+                "input": remote["input_schema"],
+                "output": remote["output_schema"],
+                "annotations": remote["annotations"],
+            }
+        )
+        remote["schema_hash"] = imported["schema_hash"] = contract_hash
+        discovery["schema_hashes"][remote["name"]] = contract_hash
+        version["content"]["binding"]["implementation_version"] = contract_hash
+        imported["input_schema"] = deepcopy(remote["input_schema"])
+    elif fault == "import_input":
+        del imported["input_schema"]["properties"]["limit"]["title"]
+    elif fault == "local_input":
+        del version["content"]["input_schema"]["properties"]["limit"]["title"]
+    elif fault == "hash_index":
+        discovery["schema_hashes"][remote["name"]] = "0" * 64
+    else:
+        discovery["tool_definitions"].remove(remote)
+    version["content_digest"] = digest(
+        {"content": version["content"], "output_schema": version["output_schema"]}
+    )
+    with pytest.raises(ValueError, match="工具契约"):
+        validate_guidance(guidance, combined)
+
+
 @pytest.mark.parametrize("fault", ["missing", "scope", "blocked", "digest", "unverified"])
 def test_weather_archive_requires_verified_content_barriers(fault):
     base = json.loads(render_init_sql.SEED.read_text())["tables"]
