@@ -131,18 +131,21 @@ def test_automation_root_validation_reports_safe_chinese_reasons(settings):
             assert "private-event" not in response.text
 
 
-@pytest.mark.parametrize("failed", ["database", "redis_auth", "object_storage"])
+@pytest.mark.parametrize("failed", ["database", "redis_auth", "object_storage", "vector_store"])
 def test_readiness_identifies_failed_dependency(settings, monkeypatch, failed):
     with TestClient(create_app(settings)) as client:
         infrastructure = client.app.state.infrastructure
         monkeypatch.setattr(infrastructure, "check_database", AsyncMock())
         monkeypatch.setattr(infrastructure, "check_storage", AsyncMock())
+        monkeypatch.setattr(infrastructure.vectors, "health", AsyncMock())
         for redis in infrastructure.redis_clients.values():
             monkeypatch.setattr(redis, "ping", AsyncMock())
         if failed == "database":
             infrastructure.check_database.side_effect = ConnectionError("私密连接信息")
         elif failed == "object_storage":
             infrastructure.check_storage.side_effect = ConnectionError("私密连接信息")
+        elif failed == "vector_store":
+            infrastructure.vectors.health.side_effect = ConnectionError("私密连接信息")
         else:
             infrastructure.redis_clients[failed].ping.side_effect = ConnectionError("私密连接信息")
         response = client.get("/health/ready")

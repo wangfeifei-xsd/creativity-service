@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from pydantic import SecretStr
 from redis import Redis
 from sqlalchemy import create_engine, make_url, text
 
@@ -41,6 +42,26 @@ def test_local_launcher_reuses_services_starts_all_roles_and_stops_cleanly(tmp_p
     fake_docker.chmod(0o755)
     environment = {
         **os.environ,
+        # 子进程选择 test 时显式注入真实依赖，不再隐式读取开发者的 dev 文件。
+        **{
+            f"CREATIVITY_{name.upper()}": (
+                value.get_secret_value() if isinstance(value, SecretStr) else str(value)
+            )
+            for name in (
+                "redis_cache_url",
+                "redis_auth_url",
+                "celery_broker_url",
+                "celery_result_url",
+                "s3_endpoint_url",
+                "s3_region",
+                "s3_access_key_id",
+                "s3_secret_access_key",
+                "s3_bucket",
+                "qdrant_uri",
+                "qdrant_api_key",
+            )
+            for value in (getattr(settings, name),)
+        },
         "PATH": str(binaries) + os.pathsep + os.environ.get("PATH", ""),
         "DOCKER_CALL_MARKER": str(marker),
         "CREATIVITY_ENVIRONMENT": "test",

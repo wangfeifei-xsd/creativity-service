@@ -5,11 +5,12 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
 
 from pydantic import Field, SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
 
 from creativity_service.core.auth.types import TokenResponse
 from creativity_service.core.context import Scope
 from creativity_service.core.database import transaction
+from creativity_service.core.environment import EnvironmentSettings
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import (
     Contract,
@@ -40,10 +41,9 @@ class IdentityProfile(Contract):
     subjects: dict[str, Identifier]
 
 
-class IdentitySettings(BaseSettings):
+class IdentitySettings(EnvironmentSettings):
     model_config = SettingsConfigDict(
         env_prefix="CREATIVITY_IDENTITY_",
-        env_file=".env",
         extra="ignore",
         hide_input_in_errors=True,
     )

@@ -1,4 +1,4 @@
-"""向量请求在事务外执行；MySQL 写回和 Milvus 召回均限定已复核的完整主体范围。"""
+"""向量请求在事务外执行；MySQL 写回和 Qdrant 召回均限定已复核的完整主体范围。"""
 
 from __future__ import annotations
 
@@ -200,7 +200,7 @@ async def semantic_selection(
     found = await sync.store.search(
         context.scope, model.model_version_id, generated[0], identifiers, effective.retrieval_limit
     )
-    # Milvus 只返回引用。网络等待期间的遗忘、关闭和版本变更在新事务内批量复核。
+    # Qdrant 只返回引用。网络等待期间的遗忘、关闭和版本变更在新事务内批量复核。
     async with transaction(memory.engine, context.scope, repo.keys(context.scope)) as uow:
         run = await memory.runtime_run(uow, context, lease.run_id)
         effective = memory.intersect_policy(

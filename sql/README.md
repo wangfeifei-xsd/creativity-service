@@ -57,7 +57,7 @@ SQL 和 JSON 中仅保存该密码的 PBKDF2-SHA256 安全摘要，不保存明�
 
 当前环境的旧 `admin.role_id` 为空，归档补为 `platform_admin` 并保留其 `platform_roles` 关联；平台管理员的旧动作缺少 `menu:manage`，归档补齐以支持菜单维护。两种管理员的菜单关联按当前菜单与有效动作冻结为 `builtin_roles.menu_ids`，不作为业务渠道的通配授权。基础控制数据的导入时间取 UTC 时钟；业务配置保留原时间与修订，初始账号凭据代次仍从 1 开始。
 
-导入后可执行 `make storage-audit`。Redis 与对象存储由各自部署步骤初始化；Milvus 按 [向量环境说明](../deploy/vector.md) 启用。
+导入后可执行 `make storage-audit`。Redis 与对象存储由各自部署步骤初始化；Qdrant 按 [向量环境说明](../deploy/vector.md) 启用。
 
 ## 订单协助助手完整配置归档
 
@@ -84,7 +84,7 @@ SQL 已封存天气和订单协助两份技能对象。导入空库后，按下�
 
 当前最新修订为 `0049_soft_delete`，模型版本为 2.1.0。110 张应用表和迁移版本表均包含 `is_deleted`，初始化数据显式写入 `false`。已有库执行迁移时回填原 `DELETED`、`DELETING` 状态以及具有删除标记的记忆；成员移除、资源授权删除通过最后一次写入后的成功审计识别，避免误删后来重新授权的数据。停用、归档和普通撤销保持未删除。迁移支持 DDL 中断后继续补齐，存在逻辑删除记录时拒绝移除该字段的回退，防止重新暴露数据。
 
-当前迁移链从 [0048_mysql_milvus.py](../alembic/mysql_versions/0048_mysql_milvus.py) 开始，结构冻结在同目录的 `0048_schema.json`，菜单和角色种子冻结在 `0048_seed.json`。基线不读取运行时模型；Alembic 仅扫描 `mysql_versions`。原 `alembic/versions` 保留 PostgreSQL 历史来源，不对 MySQL 执行，也不能将旧库直接 stamp 为新基线。
+迁移 `0050_qdrant` 将同步任务表说明调整为后端无关的中文注释；向量缓存及任务结构保持不变。当前迁移链从 [0048_mysql_milvus.py](../alembic/mysql_versions/0048_mysql_milvus.py) 开始，结构冻结在同目录的 `0048_schema.json`，菜单和角色种子冻结在 `0048_seed.json`。基线不读取运行时模型；Alembic 仅扫描 `mysql_versions`。原 `alembic/versions` 保留 PostgreSQL 历史来源，不对 MySQL 执行，也不能将旧库直接 stamp 为新基线。
 
 空库可使用本目录两份 SQL，或者 `make migrate` 后初始化系统渠道与管理员。两种方式互斥：迁移路径只写系统锁槽、菜单和角色，需要再执行 `make channels-init` 与 `uv run creativity-iam init-admin --login-name admin --display-name 管理员`；不会自动导入业务配置归档。后续变更新增 MySQL 迁移并同步更新初始化归档，不修改本次冻结基线。
 
@@ -104,7 +104,7 @@ uv run pytest tests/integration/test_init_sql.py -q
 
 `make sql` 同时重新生成两份 SQL；生成过程不连接数据库、不加载部署秘密，输出顺序固定。`make sql-check` 同时比较两份完整内容，已纳入 `make check` 和 `make model-check`。
 
-集成测试在真实 MySQL 8 的独立临时数据库执行两份归档，逐条比对冻结业务配置，审查字段、注释和内联索引，验证数据失败回滚、重复与并行导入、空库迁移及重复升级。向量测试直接调用本地 Milvus，覆盖范围隔离、版本和维度变更、遗忘屏障及同步重试。测试不使用 H2 或 SQLite 替代目标数据库。
+集成测试在真实 MySQL 8 的独立临时数据库执行两份归档，逐条比对冻结业务配置，审查字段、注释和内联索引，验证数据失败回滚、重复与并行导入、空库迁移及重复升级。向量测试直接调用所配置的 Qdrant，覆盖范围隔离、版本和维度变更、遗忘屏障及同步重试。测试不使用 H2 或 SQLite 替代目标数据库。
 
 ## 天气助手配置归档
 

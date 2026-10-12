@@ -1,5 +1,5 @@
 -- Creativity 表结构初始化归档，适用于 MySQL 8.0 空数据库。
--- 模型版本：2.1.0；配套数据归档迁移基线：0049_soft_delete。
+-- 模型版本：2.1.0；配套数据归档迁移基线：0050_qdrant。
 -- 初始建库基线：alembic/mysql_versions/0048_mysql_milvus.py；后续修订在其上追加。
 -- 包含 111 张表、1724 个字段、249 个普通索引及全部中文注释。
 -- 本文件不写初始化数据；完成后必须执行 sql/init_data.sql，再启动服务或迁移。
@@ -1297,7 +1297,7 @@ CREATE TABLE memory_embeddings (
 	INDEX ix_memory_embeddings_2 (channel_id, memory_id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='按主体和模型版本隔离的记忆向量' COLLATE utf8mb4_0900_bin;
 
--- memory_index_tasks：Milvus 向量同步与删除持久化任务。
+-- memory_index_tasks：向量同步与删除持久化任务。
 CREATE TABLE memory_index_tasks (
 	id VARCHAR(64) COMMENT '记录标识',
 	channel_id VARCHAR(64) COMMENT '所属渠道标识',
@@ -1318,7 +1318,7 @@ CREATE TABLE memory_index_tasks (
 	INDEX ix_memory_index_tasks_0 (channel_id, id),
 	INDEX ix_memory_index_tasks_1 (channel_id, next_attempt_at, state),
 	INDEX ix_memory_index_tasks_2 (channel_id, environment, subject_type, subject_id)
-)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='Milvus 向量同步与删除持久化任务' COLLATE utf8mb4_0900_bin;
+)ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='向量同步与删除持久化任务' COLLATE utf8mb4_0900_bin;
 
 -- memory_policies：渠道与智能体记忆策略。
 CREATE TABLE memory_policies (

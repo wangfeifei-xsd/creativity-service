@@ -10,9 +10,10 @@ from typing import Any
 from uuid import uuid4
 
 from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
 
 from creativity_service.core.database import assert_external_io_allowed
+from creativity_service.core.environment import EnvironmentSettings
 from creativity_service.core.primitives import Contract, Identifier, ServiceError, canonical_json
 
 
@@ -32,10 +33,8 @@ class SandboxProfile(Contract):
     credential_env: str | None = Field(default=None, pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
 
 
-class SandboxSettings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="CREATIVITY_SANDBOX_", env_file=".env", extra="ignore"
-    )
+class SandboxSettings(EnvironmentSettings):
+    model_config = SettingsConfigDict(env_prefix="CREATIVITY_SANDBOX_", extra="ignore")
     docker: str = "docker"
     profiles: list[SandboxProfile] = []
 

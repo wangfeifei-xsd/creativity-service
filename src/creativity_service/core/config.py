@@ -5,33 +5,37 @@ from typing import Literal, Self
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
 from sqlalchemy.engine import make_url
 
+from creativity_service.core.environment import (
+    Environment,
+    EnvironmentSettings,
+    normalize_environment,
+)
 
-class Settings(BaseSettings):
+
+class Settings(EnvironmentSettings):
     model_config = SettingsConfigDict(
         env_prefix="CREATIVITY_",
-        env_file=(".env", ".env.local"),
         env_file_encoding="utf-8",
         extra="ignore",
         hide_input_in_errors=True,
     )
 
-    environment: Literal["development", "test", "production"] = "development"
+    environment: Environment = "dev"
     service_name: str = "creativity-service"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_directory: Path = Path("log")
     log_max_bytes: int = Field(default=10 * 1024 * 1024, ge=1024)
     log_backup_count: int = Field(default=5, ge=1, le=30)
     database_url: SecretStr
-    milvus_uri: str = "http://127.0.0.1:19530"
-    milvus_token: SecretStr = SecretStr("")
-    milvus_database: str = "default"
-    milvus_collection_prefix: str = Field(
+    qdrant_uri: str = "http://127.0.0.1:6333"
+    qdrant_api_key: SecretStr = SecretStr("")
+    qdrant_collection_prefix: str = Field(
         default="creativity_memory", pattern=r"^[a-zA-Z][a-zA-Z0-9_]{0,100}$"
     )
-    milvus_timeout_seconds: float = Field(default=10, gt=0, le=60)
+    qdrant_timeout_seconds: float = Field(default=10, gt=0, le=60)
     redis_cache_url: SecretStr
     redis_auth_url: SecretStr
     celery_broker_url: SecretStr
@@ -48,6 +52,11 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(default_factory=list)
     otel_enabled: bool = False
     otel_exporter_otlp_endpoint: str | None = None
+
+    @field_validator("environment", mode="before")
+    @classmethod
+    def validate_environment(cls, value: str) -> Environment:
+        return normalize_environment(value)
 
     @property
     def async_database_url(self) -> str:
@@ -68,7 +77,7 @@ class Settings(BaseSettings):
             raise ValueError("数据库必须使用 mysql+pymysql 并指定主机和数据库")
         return value
 
-    @field_validator("s3_endpoint_url", "otel_exporter_otlp_endpoint", "milvus_uri")
+    @field_validator("s3_endpoint_url", "otel_exporter_otlp_endpoint", "qdrant_uri")
     @classmethod
     def validate_http_url(cls, value: str | None) -> str | None:
         if value is None:

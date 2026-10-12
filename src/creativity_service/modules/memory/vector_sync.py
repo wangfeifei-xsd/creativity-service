@@ -1,4 +1,4 @@
-"""向量同步意图与业务数据同事务提交，租约覆盖事务外 Milvus 调用。"""
+"""向量同步意图与业务数据同事务提交，租约覆盖事务外 Qdrant 调用。"""
 
 from collections import defaultdict
 from datetime import timedelta
@@ -13,7 +13,7 @@ from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.primitives import ServiceError, new_id, utcnow
 from creativity_service.modules.memory.embedding_tables import metadata
-from creativity_service.modules.memory.vector_store import MilvusStore
+from creativity_service.modules.memory.vector_store import QdrantStore
 
 TASKS = metadata.tables["memory_index_tasks"]
 VECTORS = metadata.tables["memory_embeddings"]
@@ -91,8 +91,8 @@ async def enqueue(uow: UnitOfWork, rows: list[dict[str, Any]], *, delete: bool =
 
 
 class VectorSync:
-    def __init__(self, engine: AsyncEngine, store: MilvusStore | None = None) -> None:
-        self.engine, self.store = engine, store or MilvusStore()
+    def __init__(self, engine: AsyncEngine, store: QdrantStore | None = None) -> None:
+        self.engine, self.store = engine, store or QdrantStore()
 
     async def sync(self, scope: Scope, ids: list[str] | None = None) -> None:
         token, now = new_id("vector_lease"), utcnow()
@@ -125,7 +125,7 @@ class VectorSync:
             blocked = await DeletionGuard(scope).blocked_refs(
                 uow, [ContentRef("memory_embedding", row["id"]) for row in cached.values()]
             )
-            # 旧索引来源已撤销时把任务转为删除，不把排队写入重新发送到 Milvus。
+            # 旧索引来源已撤销时把任务转为删除，不把排队写入重新发送到 Qdrant。
             for job in jobs:
                 if ContentRef("memory_embedding", job["id"]) in blocked:
                     job["operation"] = "DELETE"
@@ -187,7 +187,7 @@ class VectorSync:
             await update_many(uow, changes)
         if failure:
             raise ServiceError(
-                "VECTOR_UNAVAILABLE", "Milvus 同步失败，后台将自动重试", 503
+                "VECTOR_UNAVAILABLE", "Qdrant 同步失败，后台将自动重试", 503
             ) from failure
 
     async def require_synced(self, scope: Scope, ids: list[str], operation: str = "UPSERT") -> None:

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlencode, urlsplit
 
 from pydantic import Field, SecretBytes, SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
 from sqlalchemy import delete, select
 
 from creativity_service.core.context import AuthContext, Scope
@@ -17,6 +17,7 @@ from creativity_service.core.database import Repository, transaction
 from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
+from creativity_service.core.environment import EnvironmentSettings
 from creativity_service.core.locking import record_key
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import (
@@ -49,10 +50,9 @@ class OAuthProfile(Contract):
     scopes: tuple[str, ...] = ()
 
 
-class OAuthSettings(BaseSettings):
+class OAuthSettings(EnvironmentSettings):
     model_config = SettingsConfigDict(
         env_prefix="CREATIVITY_MCP_OAUTH_",
-        env_file=".env",
         extra="ignore",
         hide_input_in_errors=True,
     )

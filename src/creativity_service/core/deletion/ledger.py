@@ -9,24 +9,27 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
 
 from creativity_service.core.context import Scope
+from creativity_service.core.environment import EnvironmentSettings, environment_files
 from creativity_service.core.primitives import ServiceError, canonical_json, digest, new_id, utcnow
 
 maintenance_mode: ContextVar[bool] = ContextVar("deletion_maintenance", default=False)
 current_manifest: ContextVar[dict[str, Any] | None] = ContextVar("deletion_manifest", default=None)
 
 
-class LedgerSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="CREATIVITY_", env_file=".env", extra="ignore")
+class LedgerSettings(EnvironmentSettings):
+    model_config = SettingsConfigDict(env_prefix="CREATIVITY_", extra="ignore")
     deletion_ledger_path: Path = Path(".local/deletion-ledger")
 
 
 @lru_cache(maxsize=8)
-def _configured_root(env_file: Path, stamp: tuple[int, int, int] | None) -> Path:
+def _configured_root(
+    env_files: tuple[Path, ...], stamps: tuple[tuple[int, int, int] | None, ...]
+) -> Path:
     """仅复用进程配置解析；文件变更、工作目录变化会得到新的配置，清单内容仍每次读取。"""
-    return LedgerSettings(_env_file=env_file).deletion_ledger_path
+    return LedgerSettings(_env_file=env_files).deletion_ledger_path
 
 
 def configured_root() -> Path:
@@ -34,13 +37,15 @@ def configured_root() -> Path:
     override = environment.get("creativity_deletion_ledger_path")
     if override is not None:
         return Path(override)
-    path = Path(".env").resolve()
-    try:
-        stat = path.stat()
-        stamp = (stat.st_mtime_ns, stat.st_size, stat.st_ino)
-    except FileNotFoundError:
-        stamp = None
-    return _configured_root(path, stamp)
+    paths = tuple(path.resolve() for path in environment_files())
+    stamps: list[tuple[int, int, int] | None] = []
+    for path in paths:
+        try:
+            stat = path.stat()
+            stamps.append((stat.st_mtime_ns, stat.st_size, stat.st_ino))
+        except FileNotFoundError:
+            stamps.append(None)
+    return _configured_root(paths, tuple(stamps))
 
 
 class DeletionLedger:

@@ -1,4 +1,4 @@
-"""真实 Milvus 距离、作用域隔离及迟到向量写回的删除屏障。"""
+"""真实 Qdrant 距离、作用域隔离及迟到向量写回的删除屏障。"""
 
 from types import SimpleNamespace
 
@@ -18,21 +18,22 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture(autouse=True)
-async def isolated_milvus_collections(monkeypatch):
+async def isolated_qdrant_collections(monkeypatch):
     from uuid import uuid4
 
-    from creativity_service.modules.memory.vector_store import MilvusStore
+    from creativity_service.modules.memory.vector_store import QdrantStore
 
     prefix = "test_memory_" + uuid4().hex
-    monkeypatch.setenv("CREATIVITY_MILVUS_COLLECTION_PREFIX", prefix)
-    store = MilvusStore()
+    monkeypatch.setenv("CREATIVITY_QDRANT_COLLECTION_PREFIX", prefix)
+    store = QdrantStore()
     await store.health()
     try:
         yield
     finally:
-        for name in await store.request("collections/list"):
+        for collection in (await store.request("GET", "/collections"))["collections"]:
+            name = collection["name"]
             if name.startswith(prefix + "_d"):
-                await store.request("collections/drop", collectionName=name)
+                await store.request("DELETE", f"/collections/{name}")
 
 
 async def select_semantic(env, hook=None, model_version=None, dimensions=2):
@@ -122,9 +123,9 @@ async def test_semantic_sort_scope_and_forget(env):
                 }
                 | {"memory_id": "foreign-memory"},
             )
-        from creativity_service.modules.memory.vector_store import MilvusStore
+        from creativity_service.modules.memory.vector_store import QdrantStore
 
-        await MilvusStore().upsert(
+        await QdrantStore().upsert(
             scope,
             vector["dimensions"],
             [{**vector, **scope.model_dump(), "id": identifier, "memory_id": "foreign-memory"}],
@@ -225,18 +226,18 @@ async def test_vector_preparation_query_count_does_not_grow_per_memory(env):
         )
 
 
-async def test_forget_during_milvus_search_is_checked_again(env, monkeypatch):
-    from creativity_service.modules.memory.vector_store import MilvusStore
+async def test_forget_during_qdrant_search_is_checked_again(env, monkeypatch):
+    from creativity_service.modules.memory.vector_store import QdrantStore
 
     saved = await env.memory.create(env.context, MemoryCreate(key="usual_budget", value=budget()))
-    original = MilvusStore.search
+    original = QdrantStore.search
 
     async def search(self, *args, **kwargs):
         found = await original(self, *args, **kwargs)
         await env.memory.forget(env.context, saved.memory_id)
         return found
 
-    monkeypatch.setattr(MilvusStore, "search", search)
+    monkeypatch.setattr(QdrantStore, "search", search)
     assert (await select_semantic(env)).refs == []
 
 
@@ -248,7 +249,7 @@ async def test_durable_vector_retry_and_delete_overtakes_inflight_upsert(env):
     from creativity_service.core.database import assert_external_io_allowed
     from creativity_service.core.deletion import content_key
     from creativity_service.core.primitives import utcnow
-    from creativity_service.modules.memory.vector_store import MilvusStore
+    from creativity_service.modules.memory.vector_store import QdrantStore
     from creativity_service.modules.memory.vector_sync import TASKS, VECTORS, VectorSync, enqueue
 
     saved = await env.memory.create(env.context, MemoryCreate(key="usual_budget", value=budget()))
@@ -277,10 +278,10 @@ async def test_durable_vector_retry_and_delete_overtakes_inflight_upsert(env):
                 .values(state="PENDING", next_attempt_at=utcnow())
             )
 
-    class Unavailable(MilvusStore):
+    class Unavailable(QdrantStore):
         async def upsert(self, *args):
             assert_external_io_allowed()
-            raise OSError("模拟 Milvus 不可达")
+            raise OSError("模拟 Qdrant 不可达")
 
     await pending()
     with pytest.raises(ServiceError, match="后台将自动重试"):
@@ -291,7 +292,7 @@ async def test_durable_vector_retry_and_delete_overtakes_inflight_upsert(env):
     await pending()
     started, release = asyncio.Event(), asyncio.Event()
 
-    class Delayed(MilvusStore):
+    class Delayed(QdrantStore):
         async def upsert(self, *args):
             assert_external_io_allowed()
             started.set()
@@ -312,9 +313,66 @@ async def test_durable_vector_retry_and_delete_overtakes_inflight_upsert(env):
     await VectorSync(env.engine).sync(scope, [identifier])
     await VectorSync(env.engine).require_synced(scope, [identifier], "DELETE")
     assert (
-        await MilvusStore().search(scope, vector["model_version_id"], [1, 0], [identifier], 1) == []
+        await QdrantStore().search(scope, vector["model_version_id"], [1, 0], [identifier], 1) == []
     )
     # 重建或迟到补写不能把已删除向量的墓碑改回 UPSERT。
     async with transaction(env.engine, scope, [content_key(scope)]) as uow:
         await enqueue(uow, [dict(vector)])
     await VectorSync(env.engine).require_synced(scope, [identifier], "DELETE")
+
+
+async def test_qdrant_parallel_creation_same_id_scope_isolation_and_scoped_delete():
+    import asyncio
+
+    from creativity_service.core.context import Scope
+    from creativity_service.modules.memory.vector_store import PAYLOAD_INDEXES, QdrantStore
+
+    store = QdrantStore()
+    own = Scope(
+        channel_id="qdrant-test", environment="test", subject_type="user", subject_id="same"
+    )
+    scopes = [
+        own,
+        *(
+            own.model_copy(update={key: value})
+            for key, value in (
+                ("channel_id", "other-channel"),
+                ("environment", "prod"),
+                ("subject_type", "device"),
+                ("subject_id", "other-user"),
+            )
+        ),
+    ]
+
+    async def write(scope):
+        await store.upsert(
+            scope,
+            2,
+            [
+                {
+                    **scope.model_dump(),
+                    "id": "same-id",
+                    "memory_id": "memory",
+                    "memory_version_id": "version",
+                    "model_version_id": "model",
+                    "embedding": [1, 0],
+                }
+            ],
+        )
+
+    # API 与 Worker 可以同时首次写入，相同业务标识也不能跨主体覆盖。
+    await asyncio.gather(*(write(scope) for scope in scopes))
+    info = await store.request("GET", f"/collections/{store.collection(2)}")
+    assert info["config"]["params"]["vectors"] == {"size": 2, "distance": "Cosine"}
+    assert set(PAYLOAD_INDEXES) <= set(info["payload_schema"])
+    assert info["payload_schema"]["channel_id"]["params"]["is_tenant"] is True
+    for scope in scopes:
+        assert await store.search(scope, "model", [1, 0], ["same-id"], 10) == ["same-id"]
+    assert await store.search(own, "old-model", [1, 0], ["same-id"], 10) == []
+    assert await store.search(own, "model", [1, 0], ["other-id"], 10) == []
+    await store.delete(own, 2, ["same-id"])
+    await store.delete(own, 2, ["same-id"])
+    assert await store.search(own, "model", [1, 0], ["same-id"], 10) == []
+    for scope in scopes[1:]:
+        assert await store.search(scope, "model", [1, 0], ["same-id"], 10) == ["same-id"]
+    await store.delete(own, 3, ["same-id"])

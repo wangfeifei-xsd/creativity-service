@@ -8,6 +8,10 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
+from dotenv import dotenv_values
+
+from creativity_service.core.environment import environment_files, normalize_environment
+
 SERVICE_FILES = [
     "examples/mcp/server.py",
     "examples/onboarding",
@@ -39,7 +43,18 @@ def main():
     pnpm = [node, str(pnpm)] if pnpm.exists() else [shutil.which("pnpm")]
     if not uv or not node or not pnpm[0]:
         parser.error("需要 uv 0.10.12、Node.js 22 与 pnpm 10.32.1")
-    env = {**os.environ, "CREATIVITY_TEST_NODE": node}
+    configuration = {
+        key: value
+        for path in environment_files()
+        for key, value in dotenv_values(service / path).items()
+        if value is not None
+    }
+    env = {**configuration, **os.environ, "CREATIVITY_TEST_NODE": node}
+    # 历史检出的环境枚举使用长名称，通过进程注入保持同一套实际配置。
+    selected = normalize_environment(env.get("CREATIVITY_ENVIRONMENT", "dev"))
+    env["CREATIVITY_ENVIRONMENT"] = {"dev": "development", "prod": "production"}.get(
+        selected, selected
+    )
     env["PATH"] = os.pathsep.join([str(Path(uv).parent), str(Path(node).parent), env["PATH"]])
     if tools.exists():
         (output / ".tools").symlink_to(tools, target_is_directory=True)
@@ -69,9 +84,6 @@ def main():
             shutil.copy2(src, dst)
     (target_web / WEB_DRIVER).parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(web / WEB_DRIVER, target_web / WEB_DRIVER)
-    if (service / ".env").exists():
-        shutil.copy2(service / ".env", target_service / ".env")
-        (target_service / ".env").chmod(0o600)
     run([uv, "sync", "--locked"], target_service, "install-service.log")
     original_lock = (web / "pnpm-lock.yaml").read_bytes()
     target_lock = (target_web / "pnpm-lock.yaml").read_bytes()

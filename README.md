@@ -29,7 +29,7 @@ Creativity AI 能力平台的后端服务，提供模型接入、Agent 编排、
 | 用途 | 技术 |
 | --- | --- |
 | API 与数据校验 | FastAPI、Pydantic |
-| 数据库与迁移 | MySQL 8、SQLAlchemy、Alembic；向量索引使用 Milvus 2.6 |
+| 数据库与迁移 | MySQL 8、SQLAlchemy、Alembic；向量索引使用 Qdrant 1.19 |
 | 缓存与任务 | Redis 7.4、Celery |
 | 对象存储 | S3 兼容接口，本地使用 MinIO |
 | 模型与编排 | LiteLLM、LangGraph、MCP SDK |
@@ -59,7 +59,7 @@ Creativity AI 能力平台的后端服务，提供模型接入、Agent 编排、
 ./scripts/start-local.sh
 ```
 
-脚本会自动准备配置与 Python 依赖，检查并复用 MySQL 8、Redis、Milvus 和对象存储，缺少时启动对应 Docker 服务，再执行迁移、初始化系统渠道，启动 API、Worker 和调度器。日志写入 `log/`，默认每个文件 10 MiB、保留 5 份历史。依赖识别、命令参数和日志说明见 [本地启动文档](docs/local-development.md)。
+脚本读取 `.env.dev` 并准备 Python 依赖，检查并复用 MySQL 8、Redis、Qdrant 和对象存储，缺少时启动对应 Docker 服务，再执行迁移、初始化系统渠道，启动 API、Worker 和调度器。日志写入 `log/`，默认每个文件 10 MiB、保留 5 份历史。依赖识别、命令参数和日志说明见 [本地启动文档](docs/local-development.md)。
 
 ### 2. 初始化管理员
 
@@ -113,7 +113,7 @@ curl -fsS http://127.0.0.1:8000/health/ready
 
 ## 配置
 
-服务从当前目录读取 `.env`，进程环境变量优先。基础配置模板见 [.env.example](.env.example)，详细说明见 [工程配置文档](docs/development.md#bootstrap)。
+服务提供本地 [.env.dev](.env.dev)、测试 [.env.test](.env.test)、生产 [.env.prod](.env.prod) 三套配置。通过 `CREATIVITY_ENVIRONMENT=dev|test|prod` 选择，默认 `dev`，进程环境变量优先。实际连接与凭据直接配置在对应文件中，也可由进程环境变量覆盖。测试、生产必填连接项留空，部署前需填写；加载规则及启动命令见 [工程配置文档](docs/development.md#bootstrap)。
 
 | 配置项 | 用途 |
 | --- | --- |
@@ -126,9 +126,9 @@ curl -fsS http://127.0.0.1:8000/health/ready
 | `CREATIVITY_DELETION_LEDGER_PATH` | 删除意图清单的持久化目录 |
 | `CREATIVITY_OTEL_ENABLED`、`CREATIVITY_OTEL_EXPORTER_OTLP_ENDPOINT` | 追踪导出开关及 OTLP HTTP 端点 |
 
-本地默认端口为 MySQL `3306`、Milvus `19530`、Redis `56379`、MinIO API `59000`、MinIO 控制台 `59001`。缓存、认证、任务队列和任务结果分别使用独立的 Redis 数据库。
+本地默认端口为 MySQL `3306`、Qdrant `6333`、Redis `56379`、MinIO API `59000`、MinIO 控制台 `59001`。缓存、认证、任务队列和任务结果分别使用独立的 Redis 数据库。
 
-示例凭据用于本地开发，部署时通过环境注入实际凭据。删除清单的共享持久卷要求见 [数据生命周期文档](docs/operations.md#data-lifecycle)；向量检索、MCP OAuth、脚本执行和外部身份等可选能力见 [扩展配置](docs/configuration.md#enhancements)。
+本地配置统一维护在 `.env.dev`，该文件包含本机连接与密钥，保持 Git 忽略。删除清单的共享持久卷要求见 [数据生命周期文档](docs/operations.md#data-lifecycle)；向量检索、MCP OAuth、脚本执行和外部身份等可选能力见 [扩展配置](docs/configuration.md#enhancements)。
 
 ## 开发与测试
 
@@ -153,7 +153,7 @@ curl -fsS http://127.0.0.1:8000/health/ready
 | `make dependency-audit` | 扫描 Python 依赖公告 |
 | `uv build --wheel` | 构建 Python 分发包 |
 
-`make check` 无需启动外部服务。执行 `make integration` 或 `make storage-audit` 前，需要准备 `.env` 并启动开发依赖；数据库结构检查还需先运行迁移。集成测试使用隔离测试环境，相关用例会启动独立 Worker。
+`make check` 无需启动外部服务。执行 `make integration` 或 `make storage-audit` 前，需要准备当前环境配置并启动对应依赖；数据库结构检查还需先运行迁移。集成测试使用隔离测试环境，相关用例会启动独立 Worker。
 
 未上线阶段的早期迁移已合并为 `0034_admission_indexes` 初始基线，后续 `0035`–`0046` 增量迁移继续保留，用于已有开发库升级。空库初始化及后续升级见 [数据库初始化说明](sql/README.md#初始迁移基线)。
 
@@ -181,7 +181,9 @@ creativity-service/
 ├── sdks/                # 调用 SDK
 ├── tests/               # 单元、契约、集成及端到端测试
 ├── log/                 # 本地日志，不提交 Git
-├── .env.example         # 本地配置模板
+├── .env.dev             # 本地配置
+├── .env.test            # 测试配置
+├── .env.prod            # 生产配置
 ├── Makefile             # 常用开发命令
 └── pyproject.toml       # Python 依赖与工具配置
 ```

@@ -4,9 +4,10 @@ import base64
 from dataclasses import dataclass
 
 from pydantic import SecretBytes, SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from creativity_service.core.environment import EnvironmentSettings
 from creativity_service.core.primitives import unavailable
 from creativity_service.core.security.credentials import KeyProvider
 from creativity_service.modules.iam.authorization import IamAuthorization
@@ -19,10 +20,9 @@ from creativity_service.modules.integrations.subject_review import ConfiguredSub
 from creativity_service.modules.mcp.services import McpService
 
 
-class IntegrationSettings(BaseSettings):
+class IntegrationSettings(EnvironmentSettings):
     model_config = SettingsConfigDict(
         env_prefix="CREATIVITY_BUSINESS_",
-        env_file=".env",
         extra="ignore",
         hide_input_in_errors=True,
     )

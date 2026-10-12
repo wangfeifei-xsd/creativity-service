@@ -6,9 +6,32 @@
 
 ## 工程与配置
 
-Python 3.12、uv 0.10.12；基础设施为 MySQL 8、Milvus、Redis 和 S3 兼容对象存储。精确依赖以 [pyproject.toml](../pyproject.toml) 与 [uv.lock](../uv.lock) 为准。
+Python 3.12、uv 0.10.12；基础设施为 MySQL 8、Qdrant、Redis 和 S3 兼容对象存储。精确依赖以 [pyproject.toml](../pyproject.toml) 与 [uv.lock](../uv.lock) 为准。
 
-配置从 `.env` 加载，进程环境优先；变量示例见 [.env.example](../.env.example)，完整字段及校验见 [Settings](../src/creativity_service/core/config.py)。API、Worker 和 Beat 使用相同数据库、凭据主密钥、出站策略及资源配置。缓存、认证、队列和任务结果使用独立 Redis 数据库。
+通过启动进程的 `CREATIVITY_ENVIRONMENT` 选择配置，未设置时使用 `dev`；兼容旧值 `development`、`production`，分别归一为 `dev`、`prod`。选择变量须在启动命令或部署环境中设置，不能仅靠修改配置文件内的值切换环境。API、Worker、Beat、迁移及各模块共用此规则，均从当前服务工作目录读取文件。
+
+| 环境 | 配置文件 |
+| --- | --- |
+| 本地 `dev` | [.env.dev](../.env.dev) |
+| 测试 `test` | [.env.test](../.env.test) |
+| 生产 `prod` | [.env.prod](../.env.prod) |
+
+每个环境只读取对应的一份配置文件。覆盖优先级从高到低为：显式构造参数、进程环境变量、当前环境配置文件、代码默认值。本地开发配置放在 `.env.dev`，测试配置放在 `.env.test`；两份文件可能包含连接凭据，均保持 Git 忽略。不再使用 `.env`、`.env.local` 或 `.env.<环境>.local`。
+
+dev 和 test 共用已配置的 Qdrant 实例，通过独立集合前缀隔离，连接说明见 [向量环境](../deploy/vector.md)。测试环境的其他连接配置及生产环境的连接地址、账号与密钥需在启动前填写或通过部署环境变量注入；缺少必要配置会启动失败。MySQL 使用各环境独立的数据库，缓存、认证、队列和任务结果使用独立 Redis 数据库。Redis 前缀、对象存储桶、Qdrant 集合前缀及删除清单路径按环境区分。删除清单路径必须挂载该环境 API/Worker 共用的独立持久卷，详细要求见 [数据生命周期](operations.md#data-lifecycle)。浏览器来源在 `CREATIVITY_CORS_ORIGINS` 中按 JSON 数组配置。
+
+本地启动使用 `./scripts/start-local.sh`。测试或生产准备好连接配置后，在各进程的终端或部署定义中设置相同环境；以下以测试环境为例，生产将 `test` 改为 `prod`：
+
+```bash
+export CREATIVITY_ENVIRONMENT=test
+uv run alembic upgrade head
+uv run uvicorn creativity_service.app:create_app --factory --host 0.0.0.0 --port 8000 --no-access-log
+# 在继承同一环境配置的其他终端或进程中启动：
+uv run celery -A creativity_service.workers.app:app worker --loglevel=INFO
+uv run celery -A creativity_service.workers.app:app beat --loglevel=INFO
+```
+
+完整字段及校验见 [Settings](../src/creativity_service/core/config.py)。API、Worker 和 Beat 使用相同数据库、凭据主密钥、出站策略及资源配置。
 
 | 代码入口 | 职责 |
 | --- | --- |

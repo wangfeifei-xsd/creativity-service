@@ -23,8 +23,11 @@ dist/
 *.egg
 
 # 本地配置与日志
+.env.dev
+.env.test
 .env
 .env.local
+.env.*.local
 log/
 .logs/
 *.log

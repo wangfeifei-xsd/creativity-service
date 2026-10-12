@@ -51,11 +51,12 @@ def startup_lock(path: Path) -> Iterator[None]:
 
 
 def export_settings(settings: Settings) -> None:
-    # 探测到的本机服务只对本次进程及其子进程生效，不覆盖用户的 .env。
+    # 探测到的本机服务只对本次进程及其子进程生效，不覆盖用户配置文件。
+    os.environ["CREATIVITY_ENVIRONMENT"] = settings.environment
     for name in ("database_url", *REDIS_FIELDS):
         os.environ[f"CREATIVITY_{name.upper()}"] = getattr(settings, name).get_secret_value()
     os.environ["CREATIVITY_S3_ENDPOINT_URL"] = settings.s3_endpoint_url
-    os.environ["CREATIVITY_MILVUS_URI"] = settings.milvus_uri
+    os.environ["CREATIVITY_QDRANT_URI"] = settings.qdrant_uri
     os.environ["CREATIVITY_LOG_DIRECTORY"] = str(settings.log_directory.resolve())
 
 
@@ -199,7 +200,7 @@ def serve(settings: Settings, port: int, *, reload: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="检查并启动本地 MySQL 8、Milvus、Redis、对象存储与后端进程"
+        description="检查并启动本地 MySQL 8、Qdrant、Redis、对象存储与后端进程"
     )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--check", action="store_true", help="只检查依赖连接和向量能力")
@@ -218,9 +219,11 @@ def main() -> None:
         settings = Settings()
     except ValidationError as exc:
         fields = ", ".join(".".join(map(str, error["loc"])) for error in exc.errors())
-        raise SystemExit(f"本地配置无效，请检查 .env：{fields}") from None
-    if settings.environment == "production":
-        raise SystemExit("本地启动脚本不能用于 production 环境。")
+        raise SystemExit(f"本地配置无效，请检查所选环境配置文件及进程环境变量：{fields}") from None
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
+    if settings.environment == "prod":
+        raise SystemExit("本地启动脚本不能用于 prod 环境。")
     configure_logging(settings, "launcher")
 
     # SIGTERM 与 Ctrl+C 走同一清理路径，只关闭本脚本拥有的进程组。

@@ -84,4 +84,4 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-ra"
-markers = ["integration: 需要本地 MySQL 8、Milvus、Redis、对象存储及 Worker 的集成验证"]
+markers = ["integration: 需要本地 MySQL 8、Qdrant、Redis、对象存储及 Worker 的集成验证"]

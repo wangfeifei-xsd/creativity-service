@@ -6,9 +6,10 @@ import json
 import sqlalchemy as sa
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
 
 from alembic import context, op
+from creativity_service.core.environment import EnvironmentSettings
 
 revision = "0046_mcp_plain_credentials"
 down_revision = "0045_remove_legacy_http"
@@ -16,12 +17,11 @@ branch_labels = None
 depends_on = None
 
 
-class LegacyKeys(BaseSettings):
+class LegacyKeys(EnvironmentSettings):
     """只在转换旧密文时读取历史配置，新库和后续运行不需要此配置。"""
 
     model_config = SettingsConfigDict(
         env_prefix="CREATIVITY_MCP_",
-        env_file=(".env", ".env.local"),
         extra="ignore",
         hide_input_in_errors=True,
     )

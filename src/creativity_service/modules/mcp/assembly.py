@@ -2,13 +2,14 @@
 
 from typing import Any
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.auth.types import ResourceState, ResourceStateReader
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.database import Repository
 from creativity_service.core.database.tables import metadata as core_metadata
+from creativity_service.core.environment import EnvironmentSettings
 from creativity_service.core.security.credentials import CredentialService
 from creativity_service.core.security.outbound import Destination, OutboundPolicy
 from creativity_service.integrations.tools.mcp_adapter import resolve_adapter
@@ -18,10 +19,9 @@ from creativity_service.modules.mcp.services import McpService
 from creativity_service.modules.tools.assembly import ToolServices
 
 
-class McpSettings(BaseSettings):
+class McpSettings(EnvironmentSettings):
     model_config = SettingsConfigDict(
         env_prefix="CREATIVITY_MCP_",
-        env_file=(".env", ".env.local"),
         extra="ignore",
         hide_input_in_errors=True,
     )

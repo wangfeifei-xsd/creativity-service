@@ -4,13 +4,14 @@ import base64
 from dataclasses import dataclass
 
 from pydantic import SecretBytes, SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.auth.types import ResourceState, ResourceStateReader
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.database import transaction
 from creativity_service.core.deletion import CleanupRegistry, ContentRef, DeletionGuard, content_key
+from creativity_service.core.environment import EnvironmentSettings
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError
 from creativity_service.core.security.credentials import CredentialService, KeyProvider
@@ -26,10 +27,9 @@ from creativity_service.modules.models.services import ModelService
 from creativity_service.modules.models.testing import ModelTesting
 
 
-class ModelSettings(BaseSettings):
+class ModelSettings(EnvironmentSettings):
     model_config = SettingsConfigDict(
         env_prefix="CREATIVITY_MODEL_",
-        env_file=(".env", ".env.local"),
         extra="ignore",
         hide_input_in_errors=True,
     )

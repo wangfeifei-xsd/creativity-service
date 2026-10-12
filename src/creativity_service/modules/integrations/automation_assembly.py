@@ -16,7 +16,6 @@ from creativity_service.modules.runs.services import RunService
 class AutomationSettings(IntegrationSettings):
     model_config = SettingsConfigDict(
         env_prefix="CREATIVITY_AUTOMATION_",
-        env_file=".env",
         extra="ignore",
         hide_input_in_errors=True,
     )

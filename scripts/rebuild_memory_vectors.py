@@ -74,7 +74,7 @@ async def rebuild(channel_id: str) -> int:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="从 MySQL 缓存按渠道重建 Milvus 索引")
+    parser = argparse.ArgumentParser(description="从 MySQL 缓存按渠道重建 Qdrant 索引")
     parser.add_argument("--channel", required=True)
     args = parser.parse_args()
     print(f"已重新登记 {asyncio.run(rebuild(args.channel))} 条向量同步任务")

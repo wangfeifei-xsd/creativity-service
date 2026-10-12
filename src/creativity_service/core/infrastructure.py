@@ -27,9 +27,9 @@ class ReadinessResponse(BaseModel):
 
 class Infrastructure:
     def __init__(self, settings: Settings) -> None:
-        from creativity_service.modules.memory.vector_store import MilvusStore
+        from creativity_service.modules.memory.vector_store import QdrantStore
 
-        self.vectors = MilvusStore(settings)
+        self.vectors = QdrantStore(settings)
         self.timeout = settings.health_timeout_seconds
         self.engine = create_async_engine(
             settings.async_database_url,

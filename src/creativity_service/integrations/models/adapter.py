@@ -257,7 +257,7 @@ class LiteLLMAdapter:
     ) -> AsyncIterator[ModelEvent]:
         # 使用已锁定安装包的本地模型映射，导入时不访问外部价格目录。
         os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
-        # 项目统一由 Settings 加载配置，禁止 SDK 将 .env 注入进程并覆盖 .env.local。
+        # 项目统一由 Settings 加载配置，禁止 SDK 将 .env 注入进程并覆盖所选环境配置。
         os.environ["LITELLM_MODE"] = "PRODUCTION"
         import litellm
         from litellm.llms.custom_httpx.http_handler import AsyncHTTPHandler

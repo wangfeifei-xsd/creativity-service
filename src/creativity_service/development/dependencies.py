@@ -20,6 +20,7 @@ from redis import Redis
 from sqlalchemy import create_engine, make_url, text
 
 from creativity_service.core.config import Settings
+from creativity_service.core.environment import environment_files
 
 logger = logging.getLogger(__name__)
 REDIS_FIELDS = ("redis_cache_url", "redis_auth_url", "celery_broker_url", "celery_result_url")
@@ -81,7 +82,7 @@ def ensure_endpoint(
         except Exception:
             raise StartupError(
                 f"本机 {candidate_port} 已有 {label} 候选服务，但当前配置无法使用；"
-                "请修改 .env 后重试，避免重复启动。"
+                "请修改 .env.dev 后重试，避免重复启动。"
             ) from None
         logger.info("复用本机 %s：%s:%s", label, candidate_host, candidate_port)
         return candidate_host, candidate_port
@@ -147,6 +148,7 @@ class DockerRuntime:
             self.environment["DEV_MYSQL_PASSWORD"],
             self.environment["CREATIVITY_S3_SECRET_ACCESS_KEY"],
             self.environment.get("DEV_REDIS_PASSWORD", ""),
+            self.environment.get("CREATIVITY_QDRANT_API_KEY", ""),
         ):
             if secret:
                 output = output.replace(secret, "***")
@@ -161,7 +163,7 @@ class DockerRuntime:
         if self.ready:
             return
         if shutil.which("docker") is None:
-            raise StartupError("缺少 Docker；请安装并启动 Docker，或在 .env 配置现有依赖。")
+            raise StartupError("缺少 Docker；请安装并启动 Docker，或在 .env.dev 配置现有依赖。")
         try:
             self.run(["info", "--format", "{{.ServerVersion}}"], timeout=10)
         except StartupError:
@@ -189,10 +191,11 @@ class DockerRuntime:
 
     def compose(self, args: list[str], *, timeout: int = 120) -> str:
         self.ensure_ready()
+        files = [self.root / path for path in environment_files(self.settings.environment)]
+        env_args = [part for path in files if path.is_file() for part in ("--env-file", str(path))]
         return self.run(
             [
-                "--env-file",
-                str(self.root / ".env"),
+                *(env_args or ["--env-file", os.devnull]),
                 "-f",
                 "deploy/compose.dev.yml",
                 "-f",
@@ -208,12 +211,12 @@ class DockerRuntime:
             "mysql": "DEV_MYSQL_PORT",
             "redis": "DEV_REDIS_PORT",
             "minio": "DEV_S3_PORT",
-            "milvus": "DEV_MILVUS_PORT",
+            "qdrant": "DEV_QDRANT_PORT",
         }
         self.environment[variables[service]] = str(port)
         if not replace_existing and self.compose(["ps", "--status", "running", "-q", service]):
             raise StartupError(
-                f"项目 Docker 的 {service} 已运行，但当前地址无法连接；请检查端口映射和 .env。"
+                f"项目 Docker 的 {service} 已运行，但当前地址无法连接；请检查端口映射和环境配置。"
             )
         logger.info("按需启动 Docker 服务：%s", service)
         self.compose(["up", "-d", "--no-deps", "--wait", "--wait-timeout", "60", service])
@@ -249,35 +252,41 @@ def prepare_database(settings: Settings, docker: DockerRuntime, *, check_only: b
 
 
 def prepare_vector(settings: Settings, docker: DockerRuntime, *, check_only: bool) -> Settings:
-    parsed = urlsplit(settings.milvus_uri)
+    parsed = urlsplit(settings.qdrant_uri)
 
     def probe(host: str, port: int) -> None:
         headers = (
-            {"Authorization": f"Bearer {settings.milvus_token.get_secret_value()}"}
-            if settings.milvus_token.get_secret_value()
+            {"api-key": settings.qdrant_api_key.get_secret_value()}
+            if settings.qdrant_api_key.get_secret_value()
             else {}
         )
         with httpx.Client(timeout=3, trust_env=False) as client:
-            response = client.post(
-                redis_address(settings.milvus_uri, host, port) + "/v2/vectordb/collections/list",
+            response = client.get(
+                redis_address(settings.qdrant_uri, host, port) + "/collections",
                 headers=headers,
-                json={"dbName": settings.milvus_database},
             )
             response.raise_for_status()
-            if response.json().get("code") != 0:
-                raise StartupError("Milvus 连接验证失败")
+            body = response.json()
+            if body.get("status") != "ok" or not isinstance(
+                body.get("result", {}).get("collections"), list
+            ):
+                raise StartupError("Qdrant 连接验证失败")
+
+    def start(port: int) -> None:
+        docker.environment["CREATIVITY_QDRANT_API_KEY"] = settings.qdrant_api_key.get_secret_value()
+        docker.start("qdrant", port)
 
     host, port = ensure_endpoint(
-        "Milvus",
+        "Qdrant",
         parsed.hostname or "",
-        parsed.port or 19530,
-        19530,
+        parsed.port or (443 if parsed.scheme == "https" else 80),
+        6333,
         probe,
-        lambda port: docker.start("milvus", port),
+        start,
         check_only=check_only,
     )
     return settings.model_copy(
-        update={"milvus_uri": redis_address(settings.milvus_uri, host, port)}
+        update={"qdrant_uri": redis_address(settings.qdrant_uri, host, port)}
     )
 
 
@@ -307,7 +316,7 @@ def prepare_redis(settings: Settings, docker: DockerRuntime, *, check_only: bool
                 item.scheme != "redis" or item.username not in (None, "", "default")
                 for item in parsed
             ):
-                raise StartupError("自定义 Redis TLS/ACL 配置需使用已有实例，请先检查 .env。")
+                raise StartupError("自定义 Redis TLS/ACL 配置需使用已有实例，请先检查环境配置。")
             docker.environment["DEV_REDIS_PASSWORD"] = unquote(passwords.pop())
             docker.start("redis", target_port)
 

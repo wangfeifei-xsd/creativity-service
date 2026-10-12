@@ -6,7 +6,7 @@
 | --- | --- |
 | `make check` | 格式、lint、类型、非集成测试、契约、模型和初始化 SQL 一致性 |
 | `make test` | 非集成测试 |
-| `make integration` | 真实 MySQL、Redis、对象存储及 Worker 集成验证 |
+| `make integration` | 真实 MySQL、Qdrant、Redis、对象存储及 Worker 集成验证 |
 | `make model-check` | 数据模型、初始化 SQL 与存储定义检查 |
 | `make storage-audit` | 当前数据库结构审查 |
 | `make dependency-audit` | Python 依赖公告扫描 |
@@ -16,7 +16,7 @@
 
 ## 组合验收
 
-入口为 [verify_acceptance.py](../scripts/verify_acceptance.py)，使用当前 `.env` 指定的开发环境。测试建立隔离 schema、Redis 前缀和测试对象；`checks` 阶段会迁移开发库。
+入口为 [verify_acceptance.py](../scripts/verify_acceptance.py)，使用 `CREATIVITY_ENVIRONMENT` 选择的配置（默认 `.env.dev`），覆盖规则见 [工程配置](development.md#bootstrap)。测试建立隔离 schema、Redis 前缀和测试对象；`checks` 阶段会迁移开发库。
 
 ```bash
 uv run python -m scripts.verify_acceptance --stage all

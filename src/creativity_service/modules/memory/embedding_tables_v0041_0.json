@@ -144,7 +144,7 @@
   {
     "module": "memory",
     "name": "memory_index_tasks",
-    "comment": "Milvus 向量同步与删除持久化任务",
+    "comment": "向量同步与删除持久化任务",
     "columns": [
       {
         "name": "id",

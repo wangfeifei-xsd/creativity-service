@@ -128,13 +128,13 @@ def test_redis_fallback_preserves_credentials_and_database():
     assert updated.password == "p%40ss%2Fword"
 
 
-def test_milvus_fallback_is_propagated_to_application(settings, monkeypatch, tmp_path):
-    settings = settings.model_copy(update={"milvus_uri": "http://localhost:19531"})
+def test_qdrant_fallback_is_propagated_to_application(settings, monkeypatch, tmp_path):
+    settings = settings.model_copy(update={"qdrant_uri": "http://localhost:6334"})
     docker = DockerRuntime(tmp_path, settings)
-    monkeypatch.setattr(dependencies, "ensure_endpoint", Mock(return_value=("::1", 19530)))
+    monkeypatch.setattr(dependencies, "ensure_endpoint", Mock(return_value=("::1", 6333)))
     prepared = dependencies.prepare_vector(settings, docker, check_only=True)
-    assert prepared.milvus_uri == "http://[::1]:19530"
-    assert settings.milvus_uri == "http://localhost:19531"
+    assert prepared.qdrant_uri == "http://[::1]:6333"
+    assert settings.qdrant_uri == "http://localhost:6334"
 
 
 def test_compose_falls_back_to_project_binary(settings, monkeypatch, tmp_path):
@@ -175,3 +175,50 @@ def test_docker_redis_accepts_password_only_connection_urls(settings, monkeypatc
     dependencies.prepare_redis(settings, docker, check_only=False)
     start_docker.assert_called_once_with("redis", 56379)
     assert docker.environment["DEV_REDIS_PASSWORD"] == "p@ss"
+
+
+def test_compose_uses_same_environment_files_as_application(settings, monkeypatch, tmp_path):
+    for filename in (".env", ".env.dev", ".env.test", ".env.test.local"):
+        (tmp_path / filename).touch()
+    docker = DockerRuntime(tmp_path, settings)
+    docker.ready = True
+    run = Mock(return_value="")
+    monkeypatch.setattr(docker, "run", run)
+    docker.compose(["config", "--quiet"])
+    args = run.call_args.args[0]
+    assert args[:2] == ["--env-file", str(tmp_path / ".env.test")]
+    assert str(tmp_path / ".env.test.local") not in args
+    assert str(tmp_path / ".env") not in args
+    assert str(tmp_path / ".env.dev") not in args
+
+
+@pytest.mark.parametrize(
+    "uri,port", [("http://localhost:6333", 6333), ("https://vectors.example", 443)]
+)
+def test_qdrant_probe_uses_rest_api_key_and_url_port(settings, monkeypatch, tmp_path, uri, port):
+    import httpx
+
+    settings = settings.model_copy(
+        update={"qdrant_uri": uri, "qdrant_api_key": SecretStr("test-key")}
+    )
+    docker = DockerRuntime(tmp_path, settings)
+    client = httpx.Client
+
+    def respond(request):
+        assert request.method == "GET"
+        assert request.url.path == "/collections"
+        assert request.headers["api-key"] == "test-key"
+        return httpx.Response(200, json={"status": "ok", "result": {"collections": []}})
+
+    monkeypatch.setattr(
+        httpx, "Client", lambda **kwargs: client(**kwargs, transport=httpx.MockTransport(respond))
+    )
+
+    def endpoint(_label, host, requested_port, standard_port, probe, _start, **kwargs):
+        assert requested_port == port and standard_port == 6333
+        assert kwargs["check_only"] is True
+        probe(host, requested_port)
+        return host, requested_port
+
+    monkeypatch.setattr(dependencies, "ensure_endpoint", endpoint)
+    dependencies.prepare_vector(settings, docker, check_only=True)
