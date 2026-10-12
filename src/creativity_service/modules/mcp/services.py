@@ -23,7 +23,7 @@ from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.iam.reading import require_action, resource_state
 from creativity_service.modules.iam.roles import ACTION_NAMES
 from creativity_service.modules.mcp.bindings import require_current_binding
-from creativity_service.modules.mcp.differences import differences
+from creativity_service.modules.mcp.differences import differences, explain_rebind
 from creativity_service.modules.mcp.reading import import_reasons
 from creativity_service.modules.mcp.repositories import repository
 from creativity_service.modules.mcp.schemas import (
@@ -45,6 +45,7 @@ from creativity_service.modules.mcp.schemas import (
     RemoteTool,
 )
 from creativity_service.modules.mcp.transport import DiscoveryResult, McpTransport, SessionKey
+from creativity_service.modules.tools.rebinding import ToolRebindError
 from creativity_service.modules.tools.schemas import (
     BindingOption,
     ToolBinding,
@@ -818,10 +819,11 @@ class McpService:
             ):
                 raise ServiceError("MCP_IMPORT_INVALID", "目标工具必须来自同一连接和远端工具", 422)
         schema = {**remote.input_schema, "additionalProperties": False}
-        if body.effect_type == "READ_ONLY" and (
+        effect_unconfirmed = body.effect_type == "READ_ONLY" and (
             remote.annotations.get("readOnlyHint") is not True
             or remote.annotations.get("destructiveHint") is True
-        ):
+        )
+        if effect_unconfirmed and not body.target_tool_id:
             raise ServiceError(
                 "MCP_EFFECT_UNCONFIRMED", "远端未声明只读，请按真实影响登记草稿", 422
             )
@@ -886,14 +888,43 @@ class McpService:
                 newest = max(latest, key=lambda r: (r["created_at"], r["id"]))
                 if newest["schema_hashes"].get(remote.name) != remote.schema_hash:
                     raise ServiceError("MCP_TOOL_CHANGED", "所选快照的工具契约已过期", 409)
-                version = await self.tools.import_draft(
-                    context,
-                    tool,
-                    ToolVersionCreate(version_label=body.version_label, definition=definition),
-                    uow=uow,
-                    import_key=import_id,
-                    target_tool_id=body.target_tool_id,
-                )
+                try:
+                    version = await self.tools.import_draft(
+                        context,
+                        tool,
+                        ToolVersionCreate(version_label=body.version_label, definition=definition),
+                        uow=uow,
+                        import_key=import_id,
+                        target_tool_id=body.target_tool_id,
+                    )
+                    # 重新绑定先给出完整契约差异；即使历史配置异常，也不允许绕过只读声明检查。
+                    if effect_unconfirmed:
+                        raise ServiceError(
+                            "MCP_EFFECT_UNCONFIRMED", "远端未声明只读，请按真实影响登记草稿", 422
+                        )
+                except ToolRebindError as error:
+                    original = None
+                    bound = await repo.get(uow.connection, error.previous.binding.adapter_key)
+                    if (
+                        bound
+                        and bound["connection_id"] == connection_id
+                        and bound["local_tool_id"] == body.target_tool_id
+                        and bound["remote_tool_name"] == remote.name
+                    ):
+                        discovery = await repository(scope, "mcp_discoveries").get(
+                            uow.connection, bound["discovery_id"]
+                        )
+                        if discovery and discovery["connection_id"] == connection_id:
+                            original = next(
+                                (
+                                    RemoteTool.model_validate(item)
+                                    for item in discovery["tool_definitions"]
+                                    if item["name"] == remote.name
+                                ),
+                                None,
+                            )
+                    explain_rebind(error, original, remote)
+                    raise
                 row = await repo.add(
                     uow,
                     import_id,

@@ -21,6 +21,7 @@ from creativity_service.modules.iam.reading import require_action, resource_stat
 from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.tools.ports import ToolDebugPort
 from creativity_service.modules.tools.reading import ToolReadData
+from creativity_service.modules.tools.rebinding import ToolRebindError
 from creativity_service.modules.tools.repositories import ToolRepository
 from creativity_service.modules.tools.schemas import (
     BindingOption,
@@ -419,11 +420,7 @@ class ToolService:
                     or previous.binding.implementation_version
                     != definition.binding.implementation_version
                 ):
-                    raise ServiceError(
-                        "MCP_TOOL_CHANGED",
-                        "工具契约或影响类型已变化，请创建独立工具并重新配置 Agent",
-                        409,
-                    )
+                    raise ToolRebindError(previous, definition)
                 # 同契约重新发现只替换来源绑定，不用导入表单默认值覆盖原授权和执行策略。
                 definition = previous.model_copy(update={"binding": definition.binding})
                 validate_definition(definition)

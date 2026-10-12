@@ -19,6 +19,7 @@ def mcp_source():
         mode="normal",
         token=None,
         schema_revision=1,
+        tool_overrides={},
         app_id="isolated-app",
         app_secret="isolated-app-secret-only",
         token_exchanges=0,
@@ -118,6 +119,7 @@ def mcp_source():
                         ],
                         "nextCursor": "second",
                     }
+                    result["tools"][0].update(state.tool_overrides)
             elif method == "tools/call":
                 if state.mode == "disconnect":
                     self.connection.shutdown(socket.SHUT_RDWR)

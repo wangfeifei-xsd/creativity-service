@@ -13,6 +13,7 @@ from creativity_service.modules.mcp.schemas import (
     McpCreate,
     McpCredential,
     McpDiscovery,
+    McpEdit,
     McpImportInput,
 )
 from creativity_service.modules.tools.schemas import ToolExecution
@@ -317,8 +318,10 @@ async def test_remote_drift_blocks_old_binding_and_imports_independent_tool(mcp_
     assert any(o.name == "目录查询" and o.execution_enabled for o in options)
 
 
-async def test_same_contract_rebind_after_credentials_preserves_policy_and_requires_publish(
+@pytest.mark.parametrize("changed_setting", ["credentials", "endpoint"])
+async def test_same_contract_rebind_preserves_policy_and_requires_publish(
     mcp_env,
+    changed_setting,
 ):
     env = mcp_env
     conn, snapshot = await ready(env)
@@ -327,12 +330,23 @@ async def test_same_contract_rebind_after_credentials_preserves_policy_and_requi
     original = await service.version_detail(env.context, first.imported_version)
     await service.freeze(env.context, first.imported_version, original.revision)
     detail = await env.mcp.detail(env.context, conn.connection_id)
-    await env.mcp.rotate(
-        env.context,
-        conn.connection_id,
-        McpCredential(revision=detail.connection.revision, token="changed-credential"),
-    )
-    env.source.token = "changed-credential"
+    if changed_setting == "credentials":
+        await env.mcp.rotate(
+            env.context,
+            conn.connection_id,
+            McpCredential(revision=detail.connection.revision, token="changed-credential"),
+        )
+        env.source.token = "changed-credential"
+    else:
+        await env.mcp.edit(
+            env.context,
+            conn.connection_id,
+            McpEdit(
+                revision=detail.connection.revision,
+                name=detail.connection.name,
+                endpoint=env.source.endpoint + "/moved",
+            ),
+        )
     snapshot = await env.mcp.probe(env.context, conn.connection_id, True)
     detail = await env.mcp.detail(env.context, conn.connection_id)
     await env.mcp.set_enabled(env.context, conn.connection_id, detail.connection.revision, True)
@@ -362,6 +376,67 @@ async def test_same_contract_rebind_after_credentials_preserves_policy_and_requi
     assert pending.value.code == "TOOL_UNAVAILABLE"
     published = await service.freeze(env.context, first.imported_version, current.revision)
     assert published.version.state == "PUBLISHED"
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected_path", "expected_message"),
+    [
+        (
+            {
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"query": {"type": "integer"}},
+                    "required": ["query"],
+                }
+            },
+            ["remote_input_schema", "properties", "query", "type"],
+            '原值："string"\n新值："integer"',
+        ),
+        (
+            {
+                "outputSchema": {
+                    "type": "object",
+                    "properties": {"value": {"type": "integer"}},
+                    "required": ["value"],
+                }
+            },
+            ["output_schema", "properties", "value", "type"],
+            '原值："string"\n新值："integer"',
+        ),
+        (
+            {"annotations": {"readOnlyHint": False}},
+            ["annotations", "readOnlyHint"],
+            "原值：true\n新值：false",
+        ),
+    ],
+)
+async def test_rebind_http_explains_original_binding_even_when_latest_discoveries_match(
+    mcp_env,
+    overrides,
+    expected_path,
+    expected_message,
+):
+    env = mcp_env
+    conn, snapshot = await ready(env)
+    first = await env.mcp.import_tool(env.context, conn.connection_id, import_body(snapshot))
+    original = await env.tools.management.version_detail(env.context, first.imported_version)
+    env.source.tool_overrides = overrides
+    await env.mcp.probe(env.context, conn.connection_id, True)
+    latest = await env.mcp.probe(env.context, conn.connection_id, True)
+    assert not (await env.mcp.diff(env.context, conn.connection_id, latest.discovery_id)).items
+    body = import_body(latest).model_copy(update={"target_tool_id": first.local_tool_id})
+    response = await env.client.post(
+        f"/admin/v1/mcp-connections/{conn.connection_id}/imports",
+        json=body.model_dump(mode="json"),
+    )
+    assert response.status_code == 409
+    error = response.json()["error"]
+    assert error["code"] == "MCP_TOOL_CHANGED"
+    assert {"path": expected_path, "message": expected_message} in error["fields"]
+    assert not any(field["path"] == ["implementation_version"] for field in error["fields"])
+    current = await env.tools.management.version_detail(env.context, first.imported_version)
+    assert current.definition == original.definition and current.revision == original.revision
+    assert len(await env.mcp.rows(env.context, "mcp_imports")) == 1
 
 
 async def test_mcp_structured_file_reference_is_rejected_by_tool_layer(mcp_env):
