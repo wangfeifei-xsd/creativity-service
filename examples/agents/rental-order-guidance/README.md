@@ -4,8 +4,8 @@
 
 ## 装配顺序
 
-1. 核对租号服务是否已有 `rental_ai_guidance` 和 `rental_ai_operation`；缺失时执行 `sql/upgrade_order_ai_guidance.sql`，新库使用完整的 `sql/gamerental_service.sql`。已有环境应核对实际结构，不重跑全库初始化；环境升级记录由租号服务维护。
-2. 建立本环境专用 MCP 应用，绑定实际 Creativity 渠道，并通过原 MCP 连接配置鉴权。租号 `gamerental.order-assistant` 默认关闭；准备好 `application-ids`、`principal-ids`、`orders-created-after` 后才启用。`principal-ids` 是创建计划的管理身份转换为 worker 后保持的实际 `principal_id`，不能随意填租客、号主或虚构服务账号。租号不增加平台租户。
+1. 核对租号服务是否已有 `rental_ai_guidance` 和 `rental_ai_operation`；缺失时执行 `sql/upgrade_order_ai_guidance.sql`，新库使用完整的 `sql/gamerental_service.sql`。已有旧渠道/调用方环境列的环境，须按租号 `skill-project/mcp-config.md` 的维护窗口顺序执行 `sql/upgrade_mcp_application_identity.sql` 并切换新版后端；不重跑全库初始化，应用凭据、协助记录和回执保持原值。
+2. 建立 MCP 应用，通过原 MCP 连接填写 appId/appSecret，无需再复制渠道 ID 或配置调用方环境。租号订单协助直接沿用 MCP 已验证的应用身份，无需另配业务开关、应用名单或执行身份名单，也不增加平台租户。
 3. 在工具管理中发现六个 `rental_assistant.*` 工具，输入输出采用源端发现契约。先配置并发布 `get_operation_status`，再将六份 `*.policy.json` 合并进相应工具配置。它们是策略覆盖项，不是完整的工具创建请求；保留真实 MCP binding、环境和输入输出契约。三个写工具设置 `source_key`、禁止普通重试/缓存，预授权只允许本 Agent 编码、实际执行身份和封闭参数 Schema。`bind_get_operation_status`、`bind_principal` 必须替换为本环境实际资源标识。
 4. 将 `prompt.json` 建为提示词配置；将 `SKILL.md` 导入为技能包（或将正文填入技能内容），配置支持文本生成的实际模型路由（可复用“通用模型路由”；原生结构化输出可选，平台始终校验 JSON 与输出 Schema）；发布提示词、路由、技能及工具。模型输出 Schema 与保存工具契约保持一致。运行时每个分析节点仅一次模型尝试，不启用自动输出修复或模型重试。
 5. 准备绑定表，包含 `bind_prompt`、`bind_model_route`、`bind_skill` 及六个 `bind_<操作名称>`。使用已有离线工具替换资源引用：
@@ -15,24 +15,23 @@
    ```
 
    创建 Agent、执行校验并发布。场景名称和全部步骤均在配置文件中。平台工具参数边界也保存在配置里；修改 Agent 编码时应同步修改三个工具的允许列表。
-6. 用 `schedule.json` 创建计划。只有生产用途运行可使用预授权；工具调试仍逐次确认，评测不得真实写入。先用隔离数据验证与业务人员核对模型内容，再启用正式租号授权及计划。
+6. 用 `schedule.json` 创建计划。只有生产用途运行可使用预授权；工具调试仍逐次确认，评测不得真实写入。先用隔离数据验证与业务人员核对模型内容，再启用计划。
 
 `agent.json` 的输入输出及嵌套字段通过 JSON Schema `title` 配置中文显示名称，技术标识继续用于映射和工具调用。模型分析输出、保存步骤输入与保存工具的参数约束采用相同命名。工具导入保留源端契约；若源端未提供中文标题，可在本地工具的字段配置中补充显示名称。
 
-租号源端示例配置（值须来自实际环境）：
+租号源端 dev、test、fat、prod 环境文件均完整维护以下业务参数，无需为接入新增配置。如需调整范围或时限，修改对应环境文件：
 
 ```yaml
 gamerental:
   order-assistant:
-    enabled: false
-    application-ids: [实际专用应用标识]
-    principal-ids: [实际计划执行身份]
-    orders-created-after: 2026-10-08T00:00:00Z
+    orders-created-after: null
     preparation-minutes: 30
     lease-seconds: 900
 ```
 
-截止时间是明确的接入范围，启用时设置实际业务切换时间。租号应用的调用方渠道必须等于 Creativity 实际 `channel_id`，不能填写应用名称或渠道显示名称；连接测试和发现成功不能替代业务身份核验。填写错误时可在租号后台修改现有应用，保存会使旧令牌失效，现有密钥继续用于重新鉴权。渠道标识和调用方环境可从 Creativity「MCP 连接 → 连接详情 → 鉴权」查看；租号后台“调用方环境”须与此一致，可与租号服务部署环境不同。MCP 应用保存独立的 caller_environment，受信身份与返回结果使用调用方环境，租号业务数据仍按服务部署环境隔离。应用授权还会核对 MCP 令牌验证得出的调用方环境、渠道和应用状态，以及平台身份时效；模型参数不能替换这些字段。
+`orders-created-after` 可选，仅限制参与处理的订单创建时间；各环境及本机覆盖配置均为 `null`，按实际订单状态筛选，不影响接入鉴权。较早创建但仍符合条件、尚未处理的订单也可进入候选；已有协助账本继续防止重复分析。
+
+租号只通过 MCP 验证接入应用，协助记录及操作回执按已鉴权 appId 隔离。平台自动传递自己的渠道、环境和主体范围，租号在结果元数据中原样保留，平台继续校验结果属于当前工作区；源端不校验 Agent 的渠道、环境或自报身份有效期。`principal_id`、`run_id` 和写操作的幂等键由平台自动提供，只用于留痕、执行归属和防止重复分析，不需要在租号配置名单。应用修改、轮换或停用后，原 Token 失效；业务写入事务内仍核对应用当前状态与修订号，继续校验本单事实、结果和合法接收方。
 
 ## 工作流与容量
 

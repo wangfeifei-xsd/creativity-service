@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select, tuple_
+from sqlalchemy import func, select, tuple_
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import Artifact, BusinessResult, ResultEnvelope, RunEvent
@@ -411,6 +411,7 @@ class QueryService(RunKernel):
         *,
         after_id: str | None = None,
         limit: int = 50,
+        offset: int | None = None,
         state: str | None = None,
         agent_id: str | None = None,
         key_id: str | None = None,
@@ -423,6 +424,8 @@ class QueryService(RunKernel):
     ) -> dict[str, Any]:
         if not 1 <= limit <= 200:
             raise ServiceError("PAGE_INVALID", "分页数量超出范围", 422)
+        if offset is not None and (offset < 0 or after_id is not None):
+            raise ServiceError("PAGE_INVALID", "分页偏移须非负，且不能与游标同时使用", 422)
         policy = await read_policy(self.authorization, context)
         allowed = await read_actions(
             self.authorization, context, "run", "scope", ["run:read"], policy=policy
@@ -452,7 +455,16 @@ class QueryService(RunKernel):
             predicates.append(table.c.created_at < end_at)
         if error_code:
             predicates.append(table.c.error["code"].as_string() == error_code)
+        total = None
         async with self.engine.connect() as connection:
+            # IAM 已将可读范围收窄到查询条件，计数与分页复用同一权限和筛选。
+            if offset is not None and policy is not None:
+                total = int(
+                    await connection.scalar(
+                        active_rows(select(func.count()).select_from(table).where(*predicates))
+                    )
+                    or 0
+                )
             if after_id:
                 cursors = (
                     await connection.execute(
@@ -465,9 +477,14 @@ class QueryService(RunKernel):
                 ).all()
                 if len(cursors) != 1:
                     raise ServiceError("CURSOR_INVALID", "分页位置已失效", 422)
-                predicates.append(tuple_(table.c.created_at, table.c.id) > tuple(cursors[0]))
+                predicates.append(tuple_(table.c.created_at, table.c.id) < tuple(cursors[0]))
             visible: list[dict[str, Any]] = []
-            while len(visible) <= limit:
+            # 独立授权端口无法下推权限时按有界批次计数，只保留当前页记录。
+            scan_total = offset is not None and policy is None
+            seen = 0
+            batch_size = 200 if scan_total else limit + 1
+            query_offset = offset if offset is not None and policy is not None else 0
+            while scan_total or len(visible) <= limit:
                 batch = [
                     dict(r)
                     for r in (
@@ -475,8 +492,9 @@ class QueryService(RunKernel):
                             active_rows(
                                 select(table)
                                 .where(*predicates)
-                                .order_by(table.c.created_at, table.c.id)
-                                .limit(limit + 1)
+                                .order_by(table.c.created_at.desc(), table.c.id.desc())
+                                .offset(query_offset)
+                                .limit(batch_size)
                             )
                         )
                     ).mappings()
@@ -495,15 +513,20 @@ class QueryService(RunKernel):
                         state=resource_state(effective, "run", row),
                     )
                     if "run:read" in permissions:
-                        visible.append(row)
-                    if len(visible) > limit:
+                        if not scan_total or (seen >= (offset or 0) and len(visible) <= limit):
+                            visible.append(row)
+                        seen += 1
+                    if not scan_total and len(visible) > limit:
                         break
-                if len(batch) < limit + 1:
+                if len(batch) < batch_size:
                     break
+                query_offset = 0
                 predicates.append(
                     tuple_(table.c.created_at, table.c.id)
-                    > (batch[-1]["created_at"], batch[-1]["id"])
+                    < (batch[-1]["created_at"], batch[-1]["id"])
                 )
+            if scan_total:
+                total = seen
         return {
             "items": [
                 RunSummary(
@@ -516,6 +539,7 @@ class QueryService(RunKernel):
                 for r in visible[:limit]
             ],
             "next_cursor": visible[limit - 1]["id"] if len(visible) > limit else None,
+            "total": total,
         }
 
     async def events(

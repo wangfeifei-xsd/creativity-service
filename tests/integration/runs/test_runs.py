@@ -6,11 +6,13 @@ from datetime import timedelta
 import pytest
 from pydantic import ValidationError
 
+from creativity_service.core.auth.types import GrantState, MembershipState
 from creativity_service.core.context import Scope, TaskEnvelope, current_context
 from creativity_service.core.contracts import BusinessResult, UsageEvent
 from creativity_service.core.database import assert_external_io_allowed, transaction
 from creativity_service.core.deletion import ContentRef, DeletionService, RecoveryService
 from creativity_service.core.primitives import RunInput, ServiceError, utcnow
+from creativity_service.modules.iam.authorization import ReadAuthorization
 from creativity_service.modules.runs.repositories import rows, save
 from creativity_service.modules.usage import repositories as usage_repo
 from creativity_service.modules.usage.schemas import AttemptPlan
@@ -637,6 +639,106 @@ async def test_routes_require_server_definition_and_offer_queries(env):
             f"/admin/v1/runs/{run_id}/rerun", headers={"Idempotency-Key": "rerun_api"}, json={}
         )
         assert again.status_code == 202 and again.json()["run_id"] != run_id
+        page = await client.get("/admin/v1/runs", params={"offset": 0, "limit": 1})
+        assert page.status_code == 200
+        assert page.json()["total"] == 2
+        assert page.json()["items"][0]["run_id"] == again.json()["run_id"]
+        assert (await client.get("/admin/v1/runs", params={"offset": -1})).status_code == 422
+        assert (
+            await client.get("/admin/v1/runs", params={"offset": 0, "cursor": run_id})
+        ).status_code == 422
+
+
+@pytest.mark.parametrize("with_policy", [False, True])
+async def test_run_pages_are_newest_first_with_visible_filtered_totals(
+    env, monkeypatch, with_policy
+):
+    created_at = utcnow() - timedelta(days=1)
+    records = []
+    for index, seconds in enumerate([2, 0, 2, 1, 4, 5, 6]):
+        timestamp = created_at + timedelta(seconds=seconds)
+        with monkeypatch.context() as clock:
+            clock.setattr(
+                "creativity_service.modules.runs.repositories.utcnow", lambda now=timestamp: now
+            )
+            receipt = await env.runs.admit_run(env.context, env.request, f"page_{index}")
+        await env.runs.cancel(env.context, receipt.run_id)
+        records.append((timestamp, receipt.run_id))
+    await update_run(env, records[4][1], "runs", records[4][1], state="FAILED")
+    await update_run(env, records[5][1], "runs", records[5][1], is_deleted=True)
+    expected = [identifier for _, identifier in sorted(records[:5], reverse=True)]
+
+    if with_policy:
+
+        async def read_policy(authorization, context):
+            return ReadAuthorization(
+                context=context,
+                member=MembershipState(
+                    id="member",
+                    channel_id=context.scope.channel_id,
+                    user_id=context.actor_id,
+                    roles=["viewer"],
+                    environments=["test"],
+                    status="ACTIVE",
+                    revision=1,
+                    custom_actions=frozenset({"run:read"}),
+                ),
+                grants=tuple(
+                    GrantState(
+                        id=f"grant_{identifier}",
+                        channel_id=context.scope.channel_id,
+                        grantee_type="account",
+                        grantee_id=context.actor_id,
+                        resource_type="run",
+                        resource_id=identifier,
+                        allowed_actions=["run:read"],
+                        environments=["test"],
+                        revision=1,
+                    )
+                    for identifier in ["scope", *expected, records[5][1]]
+                ),
+            )
+
+        monkeypatch.setattr("creativity_service.modules.runs.queries.read_policy", read_policy)
+    else:
+
+        async def require(context, action, resource_id):
+            if resource_id == records[6][1]:
+                raise ServiceError("FORBIDDEN", "无权读取此运行", 403)
+
+        monkeypatch.setattr(env.authorization, "require", require)
+
+    for offset in [0, 2, 4, 40]:
+        page = await env.runs.list_runs(env.context, offset=offset, limit=2)
+        assert page["total"] == 5
+        assert [row["run_id"] for row in page["items"]] == expected[offset : offset + 2]
+        assert page["next_cursor"] == (expected[offset + 1] if offset + 2 < 5 else None)
+
+    cursor = None
+    collected = []
+    for _ in range(3):
+        page = await env.runs.list_runs(env.context, after_id=cursor, limit=2)
+        collected.extend(row["run_id"] for row in page["items"])
+        cursor = page["next_cursor"]
+    assert collected == expected
+    assert cursor is None
+    failed = await env.runs.list_runs(env.context, offset=0, limit=2, state="FAILED")
+    assert failed["total"] == 1
+    assert [row["run_id"] for row in failed["items"]] == [records[4][1]]
+    recent = await env.runs.list_runs(
+        env.context,
+        offset=0,
+        start_at=created_at + timedelta(seconds=2),
+        end_at=created_at + timedelta(seconds=5),
+    )
+    assert recent["total"] == 3
+    empty = await env.runs.list_runs(env.context, offset=0, state="RUNNING")
+    assert empty["items"] == [] and empty["total"] == 0
+    foreign = env.context.model_copy(
+        update={"scope": env.context.scope.model_copy(update={"channel_id": "another_channel"})}
+    )
+    empty = await env.runs.list_runs(foreign, offset=0)
+    assert empty["items"] == [] and empty["total"] == 0
 
 
 async def test_management_subject_scope_is_derived_from_stored_run(env):

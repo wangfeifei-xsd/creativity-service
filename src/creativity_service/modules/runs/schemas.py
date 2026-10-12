@@ -174,6 +174,9 @@ class RunSummary(AdmissionReceipt):
 class RunList(Contract):
     items: list[RunSummary]
     next_cursor: str | None
+    total: int | None = Field(
+        default=None, ge=0, description="偏移分页时返回符合筛选与权限的总条数"
+    )
 
 
 class TracePage(Contract):
