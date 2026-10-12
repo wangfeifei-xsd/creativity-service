@@ -1,9 +1,9 @@
-"""按用途校验出站许可与公网地址，连接时固定已验证地址。"""
+"""HTTPS 配置直接放行，HTTP 按用途校验许可；连接时固定解析地址。"""
 
 import ipaddress
 import socket
 from collections.abc import Awaitable, Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal
 from urllib.parse import unquote, urljoin, urlsplit
 
@@ -48,26 +48,41 @@ class OutboundPolicy:
         self,
         destinations: tuple[Destination, ...],
         resolver: Callable[[str, int], Awaitable[list[str]]] = resolve_host,
-        *,
-        public_https_purposes: frozenset[Purpose] = frozenset(),
     ) -> None:
         self.destinations, self.resolver = destinations, resolver
-        self.public_https_purposes = public_https_purposes
+
+    async def validate_configuration(self, scope: Scope, purpose: Purpose, url: str) -> None:
+        """保存 HTTPS 配置只检查格式，不依赖 DNS、连通性或目的地许可。"""
+        target, destination = self._prepare(scope, purpose, url)
+        if destination.scheme != "https":
+            await self._resolve(target, destination)
 
     async def validate(
         self, scope: Scope, purpose: Purpose, url: str, headers: Mapping[str, str] | None = None
     ) -> ValidatedTarget:
         assert_external_io_allowed()
+        target, destination = self._prepare(scope, purpose, url, headers)
+        return await self._resolve(target, destination)
+
+    def _prepare(
+        self, scope: Scope, purpose: Purpose, url: str, headers: Mapping[str, str] | None = None
+    ) -> tuple[ValidatedTarget, Destination]:
         denied = ServiceError("DESTINATION_FORBIDDEN", "出站目的地或请求头未获授权", 403)
         try:
             parsed = urlsplit(url)
-            port = parsed.port or (443 if parsed.scheme == "https" else 80)
+            port = (
+                parsed.port
+                if parsed.port is not None
+                else (443 if parsed.scheme == "https" else 80)
+            )
             hostname = (parsed.hostname or "").encode("idna").decode().lower()
         except (ValueError, UnicodeError) as exc:
             raise denied from exc
         decoded_path = unquote(parsed.path or "/")
         if (
             parsed.scheme not in {"https", "http"}
+            or not hostname
+            or port < 1
             or parsed.username
             or parsed.password
             or parsed.fragment
@@ -76,23 +91,23 @@ class OutboundPolicy:
             or any(segment in {".", ".."} for segment in decoded_path.split("/"))
         ):
             raise denied
-        candidates = [
-            d
-            for d in self.destinations
-            if (d.channel_id, d.environment, d.purpose, d.hostname.lower(), d.port, d.scheme)
-            == (scope.channel_id, scope.environment, purpose, hostname, port, parsed.scheme)
-            and (
-                decoded_path == d.path_prefix.rstrip("/")
-                or decoded_path.startswith(d.path_prefix.rstrip("/") + "/")
-            )
-        ]
-        if len(candidates) == 1:
-            destination = candidates[0]
-        elif not candidates and parsed.scheme == "https" and purpose in self.public_https_purposes:
-            # 公网入口仍复用请求头与全部 DNS 地址校验；已有精确许可优先，不能绕过其限制。
+        if parsed.scheme == "https":
+            # 所有 HTTPS 配置均直接放行，历史目的地规则不再限制域名、路径或 IP。
             destination = Destination(scope.channel_id, scope.environment, purpose, hostname, port)
         else:
-            raise denied
+            candidates = [
+                d
+                for d in self.destinations
+                if (d.channel_id, d.environment, d.purpose, d.hostname.lower(), d.port, d.scheme)
+                == (scope.channel_id, scope.environment, purpose, hostname, port, parsed.scheme)
+                and (
+                    decoded_path == d.path_prefix.rstrip("/")
+                    or decoded_path.startswith(d.path_prefix.rstrip("/") + "/")
+                )
+            ]
+            if len(candidates) != 1:
+                raise denied
+            destination = candidates[0]
         normalized: dict[str, str] = {}
         blocked = {
             "host",
@@ -116,21 +131,30 @@ class OutboundPolicy:
             ):
                 raise denied
             normalized[key] = value
-        addresses = await self.resolver(hostname, port)
+        return ValidatedTarget(url, hostname, port, (), normalized), destination
+
+    async def _resolve(self, target: ValidatedTarget, destination: Destination) -> ValidatedTarget:
+        assert_external_io_allowed()
+        try:
+            addresses = await self.resolver(target.hostname, target.port)
+        except OSError:
+            raise ServiceError("DESTINATION_UNAVAILABLE", "目的地解析失败", 503) from None
         if not addresses:
             raise ServiceError("DESTINATION_UNAVAILABLE", "目的地解析失败", 503)
-        networks = [ipaddress.ip_network(network) for network in destination.allowed_networks]
-        for address in addresses:
-            ip = ipaddress.ip_address(address)
-            if ip.is_unspecified or ip.is_multicast or ip.is_link_local:
-                raise denied
-            if networks:
-                if not any(ip in network for network in networks):
+        if destination.scheme != "https":
+            denied = ServiceError("DESTINATION_FORBIDDEN", "出站目的地或请求头未获授权", 403)
+            networks = [ipaddress.ip_network(network) for network in destination.allowed_networks]
+            for address in addresses:
+                ip = ipaddress.ip_address(address)
+                if ip.is_unspecified or ip.is_multicast or ip.is_link_local:
                     raise denied
-            elif not ip.is_global:
-                raise denied
-        # 适配器须用这些地址连接并保留 hostname 的 TLS 校验；不能再次 DNS 解析。
-        return ValidatedTarget(url, hostname, port, tuple(addresses), normalized)
+                if networks:
+                    if not any(ip in network for network in networks):
+                        raise denied
+                elif not ip.is_global:
+                    raise denied
+        # HTTPS 解析结果不按网络范围过滤；连接仍保留 hostname 的 TLS 校验。
+        return replace(target, addresses=tuple(addresses))
 
     async def redirect(
         self, scope: Scope, purpose: Purpose, previous: ValidatedTarget, location: str, hop: int

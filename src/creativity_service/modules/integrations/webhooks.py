@@ -93,7 +93,7 @@ class WebhookService:
 
     async def create(self, context: AuthContext, body: WebhookCreate) -> dict[str, Any]:
         await self.automation.manage(context)
-        await self.policy.validate(context.scope, "webhook", body.url)
+        await self.policy.validate_configuration(context.scope, "webhook", body.url)
         identifier = new_id("webhook")
         reference = await self.credentials().store(
             context, "webhook", SecretBytes(body.secret.get_secret_value().encode())

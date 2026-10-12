@@ -115,11 +115,22 @@ async def test_invalid_credentials_never_reach_mcp(value):
     operation.assert_not_awaited()
 
 
-async def test_token_destination_requires_separate_oauth_allowlist():
+async def test_http_token_destination_requires_separate_oauth_allowlist():
     ctx = context()
     policy = OutboundPolicy(
-        (Destination(ctx.scope.channel_id, ctx.scope.environment, "mcp", "rental.example"),)
+        (
+            Destination(
+                ctx.scope.channel_id,
+                ctx.scope.environment,
+                "mcp",
+                "rental.example",
+                port=80,
+                scheme="http",
+            ),
+        )
     )
+    row = connection()
+    row["authentication"]["token_endpoint"] = "http://rental.example/mcp/token"
     with pytest.raises(ServiceError) as error:
-        await ClientCredentials(policy).call(ctx, connection(), SecretBytes(b"secret"), AsyncMock())
+        await ClientCredentials(policy).call(ctx, row, SecretBytes(b"secret"), AsyncMock())
     assert error.value.code == "DESTINATION_FORBIDDEN"

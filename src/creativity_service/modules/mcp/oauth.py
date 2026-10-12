@@ -199,8 +199,12 @@ class OAuthService:
         if row["transport"] != "oauth":
             raise ServiceError("OAUTH_PROFILE_INVALID", "连接未使用 OAuth", 422)
         profile = self.profile(context, body.profile_id, row["endpoint"])
-        await self.service.outbound.validate(context.scope, "oauth", profile.authorization_endpoint)
-        await self.service.outbound.validate(context.scope, "oauth", profile.token_endpoint)
+        await self.service.outbound.validate_configuration(
+            context.scope, "oauth", profile.authorization_endpoint
+        )
+        await self.service.outbound.validate_configuration(
+            context.scope, "oauth", profile.token_endpoint
+        )
         state, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
         identifier = digest(state)
         audit_id = new_id("audit")

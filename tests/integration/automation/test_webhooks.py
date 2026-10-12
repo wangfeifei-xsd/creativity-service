@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import json
 from datetime import timedelta
+from unittest.mock import AsyncMock
 
 import pytest
 from pydantic import SecretBytes
@@ -83,6 +84,19 @@ async def configured(env, *, client_ids=(), events=("run.terminal",)):
         ),
     )
     return service, endpoint, receiver
+
+
+async def test_https_webhook_saves_without_dns_or_allowlist(runtime_env):
+    resolver = AsyncMock(side_effect=OSError("DNS 不可用"))
+    service = WebhookService(
+        runtime_env.runs.automation, OutboundPolicy((), resolver), Keys(), Receiver()
+    )
+    endpoint = await service.create(
+        runtime_env.context,
+        WebhookCreate(name="HTTPS 回调", url="https://198.18.0.253/events", secret="s" * 32),
+    )
+    assert endpoint["url"] == "https://198.18.0.253/events"
+    resolver.assert_not_awaited()
 
 
 async def test_webhook_stable_event_signature_manual_retry_and_disabled(runtime_env):

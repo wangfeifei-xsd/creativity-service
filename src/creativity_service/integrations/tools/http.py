@@ -1,4 +1,4 @@
-"""固定目的地 HTTP 适配器：钉住核准 IP，保留 TLS 主机校验并有界读取。"""
+"""固定目的地 HTTP 适配器：使用解析 IP，保留 TLS 主机校验并有界读取。"""
 
 import asyncio
 import json
@@ -33,7 +33,7 @@ class PinnedBackend(httpcore.AsyncNetworkBackend):
     ) -> httpcore.AsyncNetworkStream:
         if host != self.target.hostname or port != self.target.port:
             raise ToolAdapterError("TOOL_UNAVAILABLE", "工具请求目标发生变化")
-        # 仅连接核准 IP；HTTP 库继续以原域名执行 TLS/SNI 校验，不自动重试。
+        # 连接本次解析 IP；HTTP 库继续以原域名执行 TLS/SNI 校验，不自动重试。
         return await self.backend.connect_tcp(
             self.target.addresses[0],
             port,

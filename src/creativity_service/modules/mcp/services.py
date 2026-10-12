@@ -186,7 +186,7 @@ class McpService:
                 "MCP_DESTINATION_FORBIDDEN", "服务地址不能包含查询参数，凭据请单独配置", 422
             )
         if body.transport != "stdio":
-            await self.outbound.validate(context.scope, "mcp", body.endpoint)
+            await self.outbound.validate_configuration(context.scope, "mcp", body.endpoint)
         row = await self.credential_row(context, body.credential_ref)
         if row:
             await self.authorization.boundary(context, "credential:use", "credential", row["id"])
@@ -413,7 +413,7 @@ class McpService:
             raise ServiceError("MCP_AUTH_FAILED", "服务间鉴权需要 Streamable HTTP 连接", 422)
         if urlsplit(body.token_endpoint).query:
             raise ServiceError("MCP_AUTH_FAILED", "鉴权地址不能包含查询参数", 422)
-        await self.outbound.validate(context.scope, "oauth", body.token_endpoint)
+        await self.outbound.validate_configuration(context.scope, "oauth", body.token_endpoint)
         old = row.get("authentication") or {}
         ref, cred_revision = row["credential_ref"], row["credential_revision"]
         if body.app_secret is None:

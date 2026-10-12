@@ -1,4 +1,4 @@
-"""连接装配：管理端配置可用公网 HTTPS，内网及 HTTP 仍须明确出站许可。"""
+"""连接装配：HTTPS 地址直接配置，HTTP 仍须明确出站许可。"""
 
 from typing import Any
 
@@ -84,7 +84,6 @@ def build_mcp_service(
     settings = settings or McpSettings()
     outbound = outbound or OutboundPolicy(
         tuple(Destination(**d) for d in settings.destinations),
-        public_https_purposes=frozenset({"mcp", "oauth"}),
     )
     authorization.resources = McpResources(engine, authorization.resources)
     credentials = CredentialService(engine, authorization=McpCredentialAuthorization(authorization))
