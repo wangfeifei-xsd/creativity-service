@@ -36,6 +36,10 @@ class ScheduleCreate(Contract):
         return self
 
 
+class ScheduleUpdate(ScheduleCreate):
+    revision: Revision
+
+
 def next_window(spec: ScheduleCreate, after: datetime) -> datetime:
     """只计算未来窗口；夏令时缺失时间跳过，重复时间仅使用首次。"""
     if spec.interval_seconds is not None:

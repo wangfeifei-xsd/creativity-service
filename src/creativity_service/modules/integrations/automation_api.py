@@ -14,6 +14,7 @@ from creativity_service.modules.integrations.automation_schemas import (
     BatchView,
     ItemView,
     ScheduleCreate,
+    ScheduleUpdate,
     Toggle,
     WebhookCreate,
     WebhookUpdate,
@@ -57,6 +58,13 @@ async def create_schedule(
     context: Context, service: Automation, body: ScheduleCreate
 ) -> dict[str, Any]:
     return await service.create_schedule(context, body)
+
+
+@router.put("/schedules/{identifier}")
+async def update_schedule(
+    context: Context, service: Automation, identifier: str, body: ScheduleUpdate
+) -> dict[str, Any]:
+    return await service.update_schedule(context, identifier, body)
 
 
 @router.patch("/schedules/{identifier}")

@@ -17,6 +17,7 @@ from creativity_service.modules.integrations.automation_schemas import (
     BatchCreate,
     BatchItem,
     ScheduleCreate,
+    ScheduleUpdate,
     Toggle,
 )
 from creativity_service.workers.executor import execute_message
@@ -161,6 +162,109 @@ async def test_schedule_requires_current_published_agent(runtime_env):
     assert removed.value.code == "AGENT_NOT_RELEASED"
     assert not (await env.agents.list_agents(env.context, published_only=True)).items
     assert (await service.get(env.context, "automation_schedules", row["id"]))["state"] == "PAUSED"
+    with pytest.raises(ServiceError) as edited:
+        await service.update_schedule(
+            env.context, row["id"], ScheduleUpdate(**body.model_dump(), revision=row["revision"])
+        )
+    assert edited.value.code == "AGENT_NOT_RELEASED"
+
+
+@pytest.mark.parametrize("active", [True, False])
+async def test_schedule_edit_preserves_state_and_replaces_only_future_windows(runtime_env, active):
+    env = runtime_env
+    await admitted(env, purpose="production")
+    service = env.runs.automation
+    row = await service.create_schedule(
+        env.context, ScheduleCreate(name="原计划", request=request(env), interval_seconds=60)
+    )
+    now = utcnow()
+    async with transaction(
+        env.engine, env.context.scope, keys(env.context, ("automation_schedules", row["id"]))
+    ) as uow:
+        due = await repo(env.context.scope, "automation_schedules").change(
+            uow, row["id"], row["revision"], {"next_at": now}
+        )
+    await service.fire(due, now)
+    current = await service.get(env.context, "automation_schedules", row["id"])
+    if not active:
+        await service.toggle_schedule(
+            env.context, row["id"], Toggle(revision=current["revision"], active=False)
+        )
+        current = await service.get(env.context, "automation_schedules", row["id"])
+    renamed = await service.update_schedule(
+        env.context,
+        row["id"],
+        ScheduleUpdate(
+            name="新计划",
+            request=request(env, "新输入"),
+            interval_seconds=60,
+            revision=current["revision"],
+        ),
+    )
+    assert renamed["next_at"] == current["next_at"]
+    update = ScheduleUpdate(
+        name="每日计划",
+        request=request(env, "新输入"),
+        daily_at="09:30",
+        timezone="America/New_York",
+        revision=renamed["revision"],
+    )
+    edited = await service.update_schedule(env.context, row["id"], update)
+    saved = await service.get(env.context, "automation_schedules", row["id"])
+    assert edited["state"] == ("ACTIVE" if active else "PAUSED")
+    assert edited["name"] == "每日计划"
+    assert edited["spec"] == update.model_dump(mode="json", exclude={"revision"})
+    assert edited["next_at"] > now
+    assert edited["next_at"] != renamed["next_at"]
+    assert saved["identity"] == current["identity"]
+    assert saved["owner_key"] == current["owner_key"]
+    with pytest.raises(ServiceError) as stale:
+        await service.update_schedule(env.context, row["id"], update)
+    assert stale.value.code == "REVISION_CONFLICT"
+    # 已扫描的旧配置不得再派发；原有条目保留原输入，新窗口使用新输入。
+    await service.fire(current, current["next_at"])
+    items = await service.channel_rows(env.context.scope.channel_id, "automation_items")
+    assert len(items) == 1
+    assert items[0]["request"]["input"] == request(env).input
+    await service.fire(saved, saved["next_at"])
+    items = await service.channel_rows(env.context.scope.channel_id, "automation_items")
+    assert len(items) == (2 if active else 1)
+    if active:
+        assert any(item["request"]["input"] == {"request": "新输入"} for item in items)
+
+
+async def test_schedule_edit_rejects_invalid_input_and_other_owner(runtime_env):
+    env = runtime_env
+    await admitted(env, purpose="production")
+    service = env.runs.automation
+    body = ScheduleCreate(name="输入边界", request=request(env), interval_seconds=60)
+    row = await service.create_schedule(env.context, body)
+    update = ScheduleUpdate(**body.model_dump(), revision=row["revision"])
+    with pytest.raises(ServiceError) as rejected:
+        await service.update_schedule(
+            env.context,
+            row["id"],
+            update.model_copy(update={"request": request(env).model_copy(update={"input": {}})}),
+        )
+    assert rejected.value.code == "INPUT_SCHEMA_INVALID"
+    assert (await service.get(env.context, "automation_schedules", row["id"]))["revision"] == row[
+        "revision"
+    ]
+    # 模拟同渠道另一人的计划，管理权限不能越过计划所有权。
+    async with transaction(
+        env.engine, env.context.scope, keys(env.context, ("automation_schedules", row["id"]))
+    ) as uow:
+        foreign = await repo(env.context.scope, "automation_schedules").change(
+            uow, row["id"], row["revision"], {"owner_key": "other-owner"}
+        )
+    with pytest.raises(ServiceError) as denied:
+        await service.update_schedule(
+            env.context, row["id"], update.model_copy(update={"revision": foreign["revision"]})
+        )
+    assert denied.value.code == "NOT_FOUND"
+    async with env.engine.connect() as connection:
+        saved = await repo(env.context.scope, "automation_schedules").get(connection, row["id"])
+    assert saved["revision"] == foreign["revision"]
 
 
 async def test_schedule_rejects_invalid_input_on_create_and_resume(runtime_env):

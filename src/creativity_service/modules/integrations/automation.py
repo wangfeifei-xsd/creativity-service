@@ -24,6 +24,7 @@ from creativity_service.modules.integrations.automation_schemas import (
     BatchView,
     ItemView,
     ScheduleCreate,
+    ScheduleUpdate,
     Toggle,
     next_window,
 )
@@ -191,6 +192,41 @@ class AutomationService:
                     "next_at": next_window(body, utcnow()),
                     "last_error": None,
                 },
+            )
+            await audit_configuration(uow, context, "automation_schedules", identifier, event_id)
+        return self.schedule_view(row)
+
+    async def update_schedule(
+        self, context: AuthContext, identifier: str, body: ScheduleUpdate
+    ) -> dict[str, Any]:
+        await self.manage(context)
+        event_id = new_id("audit")
+        spec = ScheduleCreate.model_validate(body.model_dump(exclude={"revision"}))
+        async with transaction(
+            self.engine,
+            context.scope,
+            configuration_keys(context, "automation_schedules", identifier, event_id),
+        ) as uow:
+            await require_management(uow, context, "integration:manage")
+            row = await repo(context.scope, "automation_schedules").get(uow.connection, identifier)
+            if not row or row["owner_key"] != owner(context):
+                raise ServiceError("NOT_FOUND", "当前身份与范围没有此记录", 404)
+            await DeletionGuard(context.scope).check(uow, [ContentRef("schedule", identifier)])
+            await self.require_scheduled_agent(uow, context, spec.request)
+            values: dict[str, Any] = {
+                "name": spec.name,
+                "spec": spec.model_dump(mode="json"),
+                "last_error": None,
+            }
+            # 周期改变才重排未来窗口；编辑名称或输入不推迟原有触发时间。
+            # 与派发共用计划锁和修订检查，已生成的条目继续使用原始输入快照。
+            if any(
+                row["spec"].get(field) != values["spec"][field]
+                for field in ("timezone", "interval_seconds", "daily_at")
+            ):
+                values["next_at"] = next_window(spec, utcnow())
+            row = await repo(context.scope, "automation_schedules").change(
+                uow, identifier, body.revision, values
             )
             await audit_configuration(uow, context, "automation_schedules", identifier, event_id)
         return self.schedule_view(row)
