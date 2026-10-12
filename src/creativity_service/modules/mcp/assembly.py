@@ -1,4 +1,4 @@
-"""连接装配与服务端出站许可；不自动允许管理员输入的新目的地址。"""
+"""连接装配：管理端配置可用公网 HTTPS，内网及 HTTP 仍须明确出站许可。"""
 
 from typing import Any
 
@@ -82,7 +82,10 @@ def build_mcp_service(
     outbound: OutboundPolicy | None = None,
 ) -> McpService:
     settings = settings or McpSettings()
-    outbound = outbound or OutboundPolicy(tuple(Destination(**d) for d in settings.destinations))
+    outbound = outbound or OutboundPolicy(
+        tuple(Destination(**d) for d in settings.destinations),
+        public_https_purposes=frozenset({"mcp", "oauth"}),
+    )
     authorization.resources = McpResources(engine, authorization.resources)
     credentials = CredentialService(engine, authorization=McpCredentialAuthorization(authorization))
     service = McpService(engine, authorization, tools.management, credentials, outbound)

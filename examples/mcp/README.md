@@ -24,6 +24,6 @@ uv run python examples/mcp/server.py --profile matrix --port 18082 --identity-fi
 
 租号服务启用 `MCP_ENABLED=true`，设置环境与完整 `MCP_RESOURCE_URI`。在租号后台「配置 → AI应用接入配置」为实际渠道创建 appId/appSecret；每个渠道、环境在该服务独立维护一套。Creativity 连接选择 streamable_http，在「配置鉴权」中选择服务间鉴权，填写 `/mcp/token` 地址、appId/appSecret，平台直接保存密钥，无需解密主密钥，并自动换取、续期访问 Token。然后手动测试、发现、启用。
 
-API/Worker 的 `CREATIVITY_MCP_DESTINATIONS` 须允许同一渠道、环境的 `purpose=mcp` `/mcp` 路径，以及 `purpose=oauth` `/mcp/token` 路径。升级前执行 Creativity 0044 迁移与租号 `sql/upgrade_mcp_application.sql`、`sql/upgrade_mcp_application_menu.sql`；源端配置见租号 `skill-project/mcp-config.md`。此模式不需要用户 OAuth 授权码流程。
+公网 HTTPS 的 MCP 地址和鉴权地址可由管理端直接配置，无需环境白名单。使用本机、内网或 HTTP 地址时，API/Worker 的 `CREATIVITY_MCP_DESTINATIONS` 仍须允许同一渠道、环境的 `purpose=mcp` `/mcp` 路径，以及 `purpose=oauth` `/mcp/token` 路径。升级前执行 Creativity 0044 迁移与租号 `sql/upgrade_mcp_application.sql`、`sql/upgrade_mcp_application_menu.sql`；源端配置见租号 `skill-project/mcp-config.md`。此模式不需要用户 OAuth 授权码流程。
 
 当前源端提供六个 `rental_assistant.*` 订单协助工具，按[订单协助配置](../agents/rental-order-guidance/README.md)导入发布并装配 Agent。租号应用的调用方渠道必须填写 Creativity 实际 `channel_id`，不能填写应用名称或渠道显示名称。连接测试和工具发现通过只代表服务间鉴权可用；业务调用还会核对订单协助开关、应用与执行身份允许列表、接入订单时间及受信范围。本样例不预置渠道、令牌或数据库记录。

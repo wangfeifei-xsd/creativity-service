@@ -1,4 +1,4 @@
-"""分别登记模型、MCP 与 HTTP 工具目的地，连接时固定已验证地址。"""
+"""按用途校验出站许可与公网地址，连接时固定已验证地址。"""
 
 import ipaddress
 import socket
@@ -48,8 +48,11 @@ class OutboundPolicy:
         self,
         destinations: tuple[Destination, ...],
         resolver: Callable[[str, int], Awaitable[list[str]]] = resolve_host,
+        *,
+        public_https_purposes: frozenset[Purpose] = frozenset(),
     ) -> None:
         self.destinations, self.resolver = destinations, resolver
+        self.public_https_purposes = public_https_purposes
 
     async def validate(
         self, scope: Scope, purpose: Purpose, url: str, headers: Mapping[str, str] | None = None
@@ -83,9 +86,13 @@ class OutboundPolicy:
                 or decoded_path.startswith(d.path_prefix.rstrip("/") + "/")
             )
         ]
-        if len(candidates) != 1:
+        if len(candidates) == 1:
+            destination = candidates[0]
+        elif not candidates and parsed.scheme == "https" and purpose in self.public_https_purposes:
+            # 公网入口仍复用请求头与全部 DNS 地址校验；已有精确许可优先，不能绕过其限制。
+            destination = Destination(scope.channel_id, scope.environment, purpose, hostname, port)
+        else:
             raise denied
-        destination = candidates[0]
         normalized: dict[str, str] = {}
         blocked = {
             "host",
