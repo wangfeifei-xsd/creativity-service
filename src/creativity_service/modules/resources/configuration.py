@@ -63,11 +63,52 @@ async def require_dependencies(uow: UnitOfWork, scope: Scope, identifiers: list[
         uow.connection, "resource_id", [r["resource_id"] for r in managed]
     )
     published = {r["version_id"] for r in releases}
-    if set(identifiers) - loaded.keys() or any(
-        r["state"] != "PUBLISHED" or r["id"] != r["resource_id"] or r["id"] not in published
+    invalid = [
+        r
         for r in managed
-    ):
-        raise ServiceError("DEPENDENCY_UNPUBLISHED", "只能关联当前环境已发布的资源", 422)
+        if r["state"] != "PUBLISHED" or r["id"] != r["resource_id"] or r["id"] not in published
+    ]
+    if set(identifiers) - loaded.keys() or invalid:
+        from creativity_service.modules.agents.repositories import repository
+
+        # 仅在失败时批量读取本渠道仍可用的依赖名称，不回显缺失或跨渠道标识。
+        names = {}
+        if invalid:
+            statement = union_all(
+                *[
+                    active_rows(
+                        select(table.c.id, table.c.name, literal(kind).label("kind")).where(
+                            table.c.channel_id == scope.channel_id,
+                            table.c.status == "ACTIVE",
+                            table.c.id.in_(
+                                r["resource_id"] for r in invalid if r["resource_type"] == kind
+                            ),
+                        )
+                    )
+                    for kind in sorted({r["resource_type"] for r in invalid})
+                    for table in [repository(TABLES[kind], scope).table]
+                ]
+            )
+            names = {
+                (row.kind, row.id): row.name
+                for row in (await uow.connection.execute(statement)).mappings()
+            }
+        unpublished = []
+        unavailable = bool(set(identifiers) - loaded.keys())
+        for row in invalid:
+            name = names.get((row["resource_type"], row["resource_id"]))
+            if name and row["id"] == row["resource_id"] and row["state"] != "RETIRED":
+                unpublished.append(f"{LABELS[row['resource_type']]}“{name}”")
+            else:
+                unavailable = True
+        messages = []
+        if unpublished:
+            messages.append(
+                f"依赖的{'、'.join(unpublished)}在当前环境未发布，请先发布这些资源后重试"
+            )
+        if unavailable:
+            messages.append("部分依赖资源不存在或已不可用，请重新选择后重试")
+        raise ServiceError("DEPENDENCY_UNPUBLISHED", "；".join(messages), 422)
     await DeletionGuard(scope).check(uow, [ContentRef("version", i) for i in identifiers])
 
 

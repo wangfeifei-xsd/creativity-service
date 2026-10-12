@@ -120,7 +120,7 @@ async def test_two_states_references_usage_and_second_confirmation(resources, ki
     env = resources
     identifier = await create(env, kind)
     assert (await summary(env, kind, identifier)).status.value == "UNPUBLISHED"
-    with pytest.raises(ServiceError, match="只能关联"):
+    with pytest.raises(ServiceError, match="共用资源.*当前环境未发布"):
         await create(env, "skill", dependencies=[identifier])
     await mutate(env, kind, identifier, "publish")
     consumer = await create(env, "skill", dependencies=[identifier])
@@ -225,3 +225,47 @@ async def test_published_edit_and_admitted_snapshot(resources):
         await versions.edit_draft(
             env.context, identifier, item.configuration_revision, {"text": "覆盖他人修改"}, [], {}
         )
+
+
+async def test_publish_identifies_reimported_dependency_and_preserves_state(resources):
+    env = resources
+    dependency = await create(env, "tool")
+    await mutate(env, "tool", dependency, "publish")
+    consumer = await create(env, "tool", dependencies=[dependency])
+    scope = env.context.scope
+    # 模拟 MCP 重新绑定：发布映射仍保留，但依赖配置需要重新发布。
+    async with transaction(
+        env.engine,
+        scope,
+        [content_key(scope), record_key(scope.channel_id, "resource_versions", dependency)],
+    ) as uow:
+        repo = Repository(metadata.tables["resource_versions"], scope)
+        row = await repo.get(uow.connection, dependency)
+        await repo.change(uow, dependency, row["revision"], {"state": "DRAFT"})
+    before = await summary(env, "tool", consumer)
+    with pytest.raises(ServiceError, match="依赖的工具“共用资源”.*请先发布") as failure:
+        await mutate(env, "tool", consumer, "publish")
+    assert failure.value.code == "DEPENDENCY_UNPUBLISHED"
+    assert dependency not in failure.value.message
+    after = await summary(env, "tool", consumer)
+    assert after.status.value == "UNPUBLISHED"
+    assert after.configuration_revision == before.configuration_revision
+    await mutate(env, "tool", dependency, "publish")
+    await mutate(env, "tool", consumer, "publish")
+    assert (await summary(env, "tool", consumer)).status.value == "PUBLISHED"
+
+
+@pytest.mark.parametrize("unavailable", ["missing", "deleted", "other_channel"])
+async def test_dependency_error_does_not_disclose_unavailable_resources(resources, unavailable):
+    env = resources
+    identifier = new_id("missing") if unavailable == "missing" else await create(env, "tool")
+    if unavailable == "deleted":
+        await mutate(env, "tool", identifier, "delete")
+    if unavailable == "other_channel":
+        other = await provision(env, code="other")
+        env = SimpleNamespace(**{**vars(env), "context": other.manager.context})
+    with pytest.raises(ServiceError, match="依赖资源不存在或已不可用.*重新选择") as failure:
+        await create(env, "skill", dependencies=[identifier])
+    assert failure.value.code == "DEPENDENCY_UNPUBLISHED"
+    assert "共用资源" not in failure.value.message
+    assert identifier not in failure.value.message
