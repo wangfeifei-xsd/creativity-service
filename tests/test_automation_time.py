@@ -20,3 +20,23 @@ def test_timezone_missing_and_repeated_local_time():
     first = next_window(repeated, datetime(2026, 11, 1, 4, tzinfo=UTC))
     assert first == datetime(2026, 11, 1, 5, 30, tzinfo=UTC)
     assert next_window(repeated, first) == datetime(2026, 11, 2, 6, 30, tzinfo=UTC)
+
+
+def test_failure_threshold_is_a_bounded_integer_and_defaults_for_existing_specs():
+    import pytest
+    from pydantic import ValidationError
+
+    body = {
+        "name": "失败保护",
+        "request": {"agent_code": "test", "input": {}},
+        "interval_seconds": 60,
+    }
+    assert ScheduleCreate.model_validate(body).failure_threshold == 3
+    for value in (0, -1, 101, 1.5, True, "3", None):
+        with pytest.raises(ValidationError):
+            ScheduleCreate.model_validate({**body, "failure_threshold": value})
+    for value in (1, 100):
+        assert (
+            ScheduleCreate.model_validate({**body, "failure_threshold": value}).failure_threshold
+            == value
+        )

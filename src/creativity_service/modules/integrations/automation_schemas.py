@@ -22,6 +22,7 @@ class ScheduleCreate(Contract):
     timezone: str = "Asia/Shanghai"
     interval_seconds: int | None = Field(default=None, ge=60, le=2592000, strict=True)
     daily_at: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    failure_threshold: int = Field(default=3, ge=1, le=100, strict=True)
 
     @model_validator(mode="after")
     def valid(self) -> Self:

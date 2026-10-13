@@ -54,8 +54,18 @@ class RawCapture:
         self.request_id: str | None = None
         self.usage: dict[str, Any] | None = None
         self.response_id: str | None = None
+        self.http_status: int | None = None
+        self.error_message: str | None = None
 
     def observe(self, payload: dict[str, Any]) -> None:
+        error = payload.get("error")
+        if isinstance(error, dict) and isinstance(error.get("message"), str):
+            self.error_message = error["message"]
+        elif isinstance(error, str):
+            self.error_message = error
+        elif self.http_status and self.http_status >= 400:
+            if isinstance(payload.get("message"), str):
+                self.error_message = payload["message"]
         body = payload.get("message", payload)
         if isinstance(body, dict):
             self.response_id = body.get("id") or self.response_id
@@ -140,6 +150,7 @@ class ModelTransport(httpx.AsyncBaseTransport):
         self.sent = True
         self.capture.request_sent = True
         response = await self.inner.handle_async_request(request)
+        self.capture.http_status = response.status_code
         if response.is_redirect:
             await response.aclose()
             raise ServiceError(

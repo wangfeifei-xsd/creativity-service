@@ -14922,6 +14922,22 @@
           "required": true,
           "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
+        },
+        {
+          "name": "consecutive_failures",
+          "type": "integer",
+          "comment": "定时计划连续失败次数",
+          "required": true,
+          "source": "调度服务",
+          "sensitivity": "内部"
+        },
+        {
+          "name": "outcome_cursor",
+          "type": "jsonb",
+          "comment": "按触发顺序已统计的条目游标",
+          "required": true,
+          "source": "调度服务",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -15290,6 +15306,12 @@
           "channel_id",
           "state",
           "lease_until"
+        ],
+        [
+          "channel_id",
+          "schedule_id",
+          "created_at",
+          "id"
         ]
       ],
       "status": "已实现",

@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
 import httpx
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, ValidationError
 from pydantic import SecretBytes
 
 from creativity_service.core.context import AuthContext
@@ -22,6 +22,7 @@ from creativity_service.integrations.models.contracts import (
     cancellable,
     validate_request,
 )
+from creativity_service.integrations.models.errors import failure_message, request_texts
 from creativity_service.integrations.models.transport import RawCapture
 from creativity_service.integrations.models.usage import normalize_usage
 from creativity_service.modules.models.policy import PROTOCOLS, may_retry
@@ -37,6 +38,7 @@ ERRORS = {
     "MODEL_OUTPUT_INVALID": "模型输出不符合结构契约",
     "MODEL_OUTPUT_TRUNCATED": "模型输出达到长度上限，请提高模型的最大输出 Token 数后重试",
     "MODEL_CANCELLED": "模型调用已取消",
+    "MODEL_ADAPTER_ERROR": "模型协议处理失败",
 }
 
 
@@ -101,6 +103,7 @@ class LiteLLMAdapter:
 
         async def produce() -> None:
             capture, emitted = RawCapture(), False
+            sensitive = request_texts(request.messages)
             current = config
             try:
                 if cancel.event.is_set():
@@ -131,6 +134,7 @@ class LiteLLMAdapter:
 
                 async def invoke(secret: SecretBytes, http_client: httpx.AsyncClient) -> None:
                     nonlocal emitted
+                    sensitive.append(secret.get_secret_value().decode())
                     async for event in self._invoke(
                         current,
                         request,
@@ -222,7 +226,16 @@ class LiteLLMAdapter:
                         attempt_id=attempt.attempt_id,
                         source_request_id=capture.request_id or capture.response_id,
                         error_code=code,
-                        message=ERRORS.get(code, "模型调用未完成"),
+                        message=failure_message(
+                            exc,
+                            ERRORS.get(code, "模型调用失败"),
+                            provider_error=capture.error_message,
+                            request_sent=capture.request_sent,
+                            status=capture.http_status
+                            if capture.http_status and capture.http_status >= 400
+                            else None,
+                            sensitive=sensitive,
+                        ),
                         retryable=may_retry(code, emitted),
                     )
                 )
@@ -385,8 +398,26 @@ class LiteLLMAdapter:
             try:
                 structured = json.loads("".join(parts))
                 Draft202012Validator(request.output_schema).validate(structured)
-            except Exception as exc:
+            except json.JSONDecodeError as exc:
                 raise ServiceError(
-                    "MODEL_OUTPUT_INVALID", ERRORS["MODEL_OUTPUT_INVALID"], 422
+                    "MODEL_OUTPUT_INVALID",
+                    f"模型输出不是有效 JSON：第 {exc.lineno} 行、第 {exc.colno} 列，{exc.msg}",
+                    422,
+                ) from exc
+            except ValidationError as exc:
+                path = ".".join(str(part) for part in exc.absolute_path) or "根节点"
+                rule = {
+                    "type": "类型",
+                    "required": "必填字段",
+                    "additionalProperties": "额外字段",
+                    "enum": "允许取值",
+                    "const": "固定取值",
+                    "minItems": "最少条目数",
+                    "maxItems": "最多条目数",
+                    "minLength": "最小长度",
+                    "maxLength": "最大长度",
+                }.get(str(exc.validator), "结构")
+                raise ServiceError(
+                    "MODEL_OUTPUT_INVALID", f"模型输出的 {path} 不符合{rule}要求", 422
                 ) from exc
             yield ModelEvent(kind="structured", attempt_id=attempt_id, structured=structured)

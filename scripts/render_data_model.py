@@ -76,6 +76,14 @@ def render():
             "总索引见 [README](../README.md)。",
             "",
         ]
+        if module == "agents":
+            lines += [
+                "流程定义保存在资源版本的 JSON 内容中。模型节点的 `dependency`、`prompt_id` "
+                "分别覆盖默认模型路由与提示词，缺省或空值继承默认配置。节点提示词读取映射后的步骤输入，"
+                "默认提示词读取运行输入。资源版本的 `dependencies` 合并节点与默认资源并去重，"
+                "受理快照冻结全部依赖内容；本次扩展不增加表或字段。",
+                "",
+            ]
         for t in (t for t in catalog["tables"] if t["module"] == module):
             index.append(
                 f"| `{t['name']}` | [{info['title']}](modules/{module}.md) | "

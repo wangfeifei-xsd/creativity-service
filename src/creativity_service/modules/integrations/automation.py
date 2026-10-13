@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import and_, select, tuple_
 
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.database import Repository, UnitOfWork, transaction
@@ -30,6 +30,7 @@ from creativity_service.modules.integrations.automation_schemas import (
 )
 from creativity_service.modules.integrations.automation_tables import metadata
 from creativity_service.modules.runs.services import RunService
+from creativity_service.modules.runs.tables import metadata as run_metadata
 
 KINDS = {
     "automation_schedules": "schedule",
@@ -161,8 +162,13 @@ class AutomationService:
     @staticmethod
     def schedule_view(row: dict[str, Any]) -> dict[str, Any]:
         return {k: row[k] for k in ("id", "name", "spec", "revision", "next_at", "last_error")} | {
+            "spec": ScheduleCreate.model_validate(row["spec"]).model_dump(mode="json"),
+            "consecutive_failures": row["consecutive_failures"],
             "state": row["state"],
-            "state_label": LABELS[row["state"]],
+            "state_label": "失败自动暂停"
+            if row["state"] == "PAUSED"
+            and (row["last_error"] or {}).get("code") == "SCHEDULE_FAILURE_LIMIT"
+            else LABELS[row["state"]],
         }
 
     async def create_schedule(self, context: AuthContext, body: ScheduleCreate) -> dict[str, Any]:
@@ -191,6 +197,8 @@ class AutomationService:
                     "state": "ACTIVE",
                     "next_at": next_window(body, utcnow()),
                     "last_error": None,
+                    "consecutive_failures": 0,
+                    "outcome_cursor": {"created_at": utcnow().isoformat(), "id": ""},
                 },
             )
             await audit_configuration(uow, context, "automation_schedules", identifier, event_id)
@@ -216,7 +224,6 @@ class AutomationService:
             values: dict[str, Any] = {
                 "name": spec.name,
                 "spec": spec.model_dump(mode="json"),
-                "last_error": None,
             }
             # 周期改变才重排未来窗口；编辑名称或输入不推迟原有触发时间。
             # 与派发共用计划锁和修订检查，已生成的条目继续使用原始输入快照。
@@ -228,6 +235,7 @@ class AutomationService:
             row = await repo(context.scope, "automation_schedules").change(
                 uow, identifier, body.revision, values
             )
+            row, _ = await self.settle_schedule(uow, context, row)
             await audit_configuration(uow, context, "automation_schedules", identifier, event_id)
         return self.schedule_view(row)
 
@@ -292,12 +300,17 @@ class AutomationService:
             row = await repo(context.scope, "automation_schedules").get(uow.connection, identifier)
             assert row
             values: dict[str, Any] = {"state": "ACTIVE" if body.active else "PAUSED"}
-            if body.active:
+            if body.active and row["state"] != "ACTIVE":
                 await self.require_scheduled_agent(
                     uow, context, RunInput.model_validate(row["spec"]["request"])
                 )
                 values["next_at"] = next_window(
                     ScheduleCreate.model_validate(row["spec"]), utcnow()
+                )
+                values.update(
+                    consecutive_failures=0,
+                    last_error=None,
+                    outcome_cursor={"created_at": utcnow().isoformat(), "id": ""},
                 )
             row = await repo(context.scope, "automation_schedules").change(
                 uow, identifier, body.revision, values
@@ -587,6 +600,114 @@ class AutomationService:
                     raise
         return await self.batch(context, identifier)
 
+    async def settle_schedule(
+        self, uow: UnitOfWork, context: AuthContext, row: dict[str, Any]
+    ) -> tuple[dict[str, Any], bool]:
+        """在计划写锁内按触发顺序消费终态；游标使重启、重复扫描不会重复计数。"""
+        if row["state"] != "ACTIVE":
+            return row, False
+        items, runs = metadata.tables["automation_items"], run_metadata.tables["runs"]
+        cursor = row["outcome_cursor"]
+        # 一次关联读取有界结果；运行记录按完整范围关联，已删除内容不参与诊断。
+        records = [
+            dict(r)
+            for r in (
+                await uow.connection.execute(
+                    select(
+                        items.c.id,
+                        items.c.created_at,
+                        items.c.state,
+                        items.c.error,
+                        items.c.run_id,
+                        items.c.is_deleted,
+                        runs.c.state.label("run_state"),
+                        runs.c.error.label("run_error"),
+                        runs.c.is_deleted.label("run_deleted"),
+                    )
+                    .select_from(
+                        items.outerjoin(
+                            runs,
+                            and_(
+                                runs.c.channel_id == items.c.channel_id,
+                                runs.c.environment == items.c.environment,
+                                runs.c.subject_type.is_not_distinct_from(items.c.subject_type),
+                                runs.c.subject_id.is_not_distinct_from(items.c.subject_id),
+                                runs.c.id == items.c.run_id,
+                            ),
+                        )
+                    )
+                    .where(
+                        repo(context.scope, "automation_items", include_deleted=True).predicate(),
+                        items.c.schedule_id == row["id"],
+                        tuple_(items.c.created_at, items.c.id)
+                        > (datetime.fromisoformat(cursor["created_at"]), cursor["id"]),
+                    )
+                    .order_by(items.c.created_at, items.c.id)
+                    .limit(100)
+                )
+            ).mappings()
+        ]
+        count = row["consecutive_failures"]
+        error = row["last_error"]
+        threshold = ScheduleCreate.model_validate(row["spec"]).failure_threshold
+        blocked = await DeletionGuard(context.scope).blocked_refs(
+            uow,
+            [ContentRef("batch_item", item["id"]) for item in records]
+            + [ContentRef("run", item["run_id"]) for item in records if item["run_id"]],
+        )
+        for item in records:
+            state = item["run_state"] if item["state"] == "ADMITTED" else item["state"]
+            deleted = (
+                item["is_deleted"]
+                or item["run_deleted"]
+                or ContentRef("batch_item", item["id"]) in blocked
+                or (item["run_id"] and ContentRef("run", item["run_id"]) in blocked)
+            )
+            if not deleted and state not in {"FAILED", "TIMED_OUT", "SUCCEEDED", "CANCELLED"}:
+                break
+            cursor = {"created_at": item["created_at"].isoformat(), "id": item["id"]}
+            if deleted or state == "CANCELLED":
+                continue
+            if state == "SUCCEEDED":
+                count, error = 0, None
+            else:
+                count += 1
+                error = {
+                    **(
+                        item["run_error"]
+                        or item["error"]
+                        or {
+                            "code": "SCHEDULE_RUN_FAILED",
+                            "message": "定时运行超时" if state == "TIMED_OUT" else "定时运行失败",
+                        }
+                    ),
+                    "run_id": item["run_id"],
+                }
+            if count >= threshold:
+                break
+        values: dict[str, Any] = {
+            "consecutive_failures": count,
+            "outcome_cursor": cursor,
+            "last_error": error,
+        }
+        if count >= threshold:
+            reason = (error or {}).get("message", "未提供")
+            values.update(
+                state="PAUSED",
+                last_error={
+                    "code": "SCHEDULE_FAILURE_LIMIT",
+                    "message": f"连续失败 {count} 次，已自动暂停。最近原因：{reason}",
+                    "run_id": (error or {}).get("run_id"),
+                },
+            )
+        if any(row.get(k) != v for k, v in values.items()):
+            row = await repo(context.scope, "automation_schedules").change(
+                uow, row["id"], row["revision"], values
+            )
+        # 积压结果未处理完时先推进游标，下一轮扫描再决定是否触发新任务。
+        backlog = len(records) == 100 and cursor["id"] == records[-1]["id"]
+        return row, backlog
+
     async def fire(self, row: dict[str, Any], now: datetime) -> None:
         context = AuthContext.model_validate(row["identity"])
         spec = ScheduleCreate.model_validate(row["spec"])
@@ -609,16 +730,18 @@ class AutomationService:
                 not current
                 or current["revision"] != row["revision"]
                 or current["state"] != "ACTIVE"
-                or current["next_at"] > now
             ):
                 return
             await DeletionGuard(context.scope).check(uow, [ContentRef("schedule", row["id"])])
+            current, backlog = await self.settle_schedule(uow, context, current)
+            if current["state"] != "ACTIVE" or backlog or current["next_at"] > now:
+                return
             next_at = next_window(spec, now)
             if spec.interval_seconds:
                 missed = int((now - row["next_at"]).total_seconds() // spec.interval_seconds)
                 next_at = row["next_at"] + timedelta(seconds=spec.interval_seconds * (missed + 1))
             await repo(context.scope, "automation_schedules").change(
-                uow, row["id"], row["revision"], {"next_at": next_at}
+                uow, row["id"], current["revision"], {"next_at": next_at}
             )
             if (now - row["next_at"]).total_seconds() > 60:
                 return
@@ -638,7 +761,11 @@ class AutomationService:
         context = AuthContext.model_validate(row["identity"])
         nonce = secrets.token_hex(16)
         item_repo = repo(context.scope, "automation_items")
-        lock = keys(context, ("automation_items", row["id"]))
+        lock = keys(
+            context,
+            ("automation_items", row["id"]),
+            *([("automation_schedules", row["schedule_id"])] if row["schedule_id"] else []),
+        )
         async with transaction(self.engine, context.scope, lock) as uow:
             current = await item_repo.get(uow.connection, row["id"])
             if not current or current["state"] not in {"PENDING", "CLAIMED"}:
@@ -654,6 +781,20 @@ class AutomationService:
                     parent = await repo(context.scope, table).get(uow.connection, current[field])
                     if not parent or parent["state"] != "ACTIVE":
                         return
+                    if field == "schedule_id":
+                        parent, backlog = await self.settle_schedule(uow, context, parent)
+                        if parent["state"] != "ACTIVE" or backlog:
+                            return
+                        cursor = parent["outcome_cursor"]
+                        if (current["created_at"], current["id"]) <= (
+                            datetime.fromisoformat(cursor["created_at"]),
+                            cursor["id"],
+                        ):
+                            # 重新启用只接收未来窗口，暂停前未派发的条目不补跑。
+                            await item_repo.change(
+                                uow, current["id"], current["revision"], {"state": "CANCELLED"}
+                            )
+                            return
             await item_repo.change(
                 uow,
                 row["id"],
@@ -701,15 +842,39 @@ class AutomationService:
 
     async def sweep(self, channel_id: str) -> None:
         now = utcnow()
-        for row in await self.channel_rows(channel_id, "automation_schedules"):
-            if row["state"] == "ACTIVE" and row["next_at"] <= now:
-                try:
-                    await self.fire(row, now)
-                except ServiceError:
-                    continue
-        for row in await self.channel_rows(channel_id, "automation_items"):
-            if row["state"] in {"PENDING", "CLAIMED"}:
-                try:
-                    await self.dispatch(row)
-                except ServiceError:
-                    continue
+        for name, states in (
+            ("automation_schedules", ["ACTIVE"]),
+            ("automation_items", ["PENDING", "CLAIMED"]),
+        ):
+            table = metadata.tables[name]
+            after = ""
+            while True:
+                async with self.engine.connect() as connection:
+                    records = [
+                        dict(r)
+                        for r in (
+                            await connection.execute(
+                                active_rows(
+                                    select(table)
+                                    .where(
+                                        table.c.channel_id == channel_id,
+                                        table.c.state.in_(states),
+                                        table.c.id > after,
+                                    )
+                                    .order_by(table.c.id)
+                                    .limit(100)
+                                )
+                            )
+                        ).mappings()
+                    ]
+                if not records:
+                    break
+                for row in records:
+                    try:
+                        if name == "automation_schedules":
+                            await self.fire(row, now)
+                        else:
+                            await self.dispatch(row)
+                    except ServiceError:
+                        continue
+                after = records[-1]["id"]

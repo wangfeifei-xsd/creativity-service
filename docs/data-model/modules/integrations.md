@@ -101,6 +101,8 @@
 | `next_at` | `datetime(6) UTC` | 下次触发时间 | 是 | 受信上下文与服务层校验 | 内部 |
 | `last_error` | `json` | 最近派发错误 | 否 | 受信上下文与服务层校验 | 内部 |
 | `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
+| `consecutive_failures` | `integer` | 定时计划连续失败次数 | 是 | 调度服务 | 内部 |
+| `outcome_cursor` | `json` | 按触发顺序已统计的条目游标 | 是 | 调度服务 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`；`(channel_id, state, next_at)`。
 
@@ -157,7 +159,7 @@
 | `error` | `json` | 最近受理错误 | 否 | 受信上下文与服务层校验 | 内部 |
 | `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
 
-普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`；`(channel_id, state, lease_until)`。
+普通索引：`(channel_id, id)`；`(channel_id, environment, subject_type, subject_id)`；`(channel_id, state, lease_until)`；`(channel_id, schedule_id, created_at, id)`。
 
 ## webhook_endpoints
 

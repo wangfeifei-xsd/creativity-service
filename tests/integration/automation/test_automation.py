@@ -340,3 +340,154 @@ async def test_deleted_run_keeps_batch_queryable_and_other_items_cancellable(run
     with pytest.raises(ServiceError) as denied:
         await service.retry_item(env.context, deleted.item_id, cleaned["revision"])
     assert denied.value.status == 404
+
+
+async def scheduled_item(env, schedule_id, *, dispatch=True):
+    service = env.runs.automation
+    async with transaction(
+        env.engine, env.context.scope, keys(env.context, ("automation_schedules", schedule_id))
+    ) as uow:
+        schedules = repo(env.context.scope, "automation_schedules")
+        row = await schedules.get(uow.connection, schedule_id)
+        row = await schedules.change(uow, schedule_id, row["revision"], {"next_at": utcnow()})
+    await service.fire(row, row["next_at"])
+    items = await service.channel_rows(env.context.scope.channel_id, "automation_items")
+    item = max((i for i in items if i["schedule_id"] == schedule_id), key=lambda i: i["created_at"])
+    if dispatch:
+        await service.dispatch(item)
+    return await service.get(env.context, "automation_items", item["id"])
+
+
+async def finish_scheduled(env, item, state):
+    envelope = TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=item["run_id"])
+    if state == "SUCCEEDED":
+        await execute_message(env.runs, envelope, "schedule-test", env.runtime)
+    elif state == "CANCELLED":
+        await env.runs.cancel(env.context, item["run_id"])
+    elif state == "TIMED_OUT":
+        from tests.integration.runs.test_runs import update_run
+
+        await update_run(
+            env, item["run_id"], "runs", item["run_id"], deadline=utcnow() - timedelta(seconds=1)
+        )
+        assert await env.runs.claim_lease(envelope, "schedule-test") is None
+    else:
+        lease = await env.runs.claim_lease(envelope, "schedule-test")
+        assert lease
+        await env.runs.finish_run(
+            lease,
+            "FAILED",
+            failure=ServiceError(
+                "MODEL_INPUT_INVALID", "模型请求参数不正确：max_tokens 超出供应商上限", 502
+            ),
+        )
+    assert (await env.runs.get_run(env.context, item["run_id"])).state == state
+
+
+async def test_schedule_failure_streak_resets_and_pauses_before_next_dispatch(runtime_env):
+    env = runtime_env
+    await admitted(env, purpose="production")
+    service = env.runs.automation
+    row = await service.create_schedule(
+        env.context,
+        ScheduleCreate(
+            name="失败保护", request=request(env), interval_seconds=60, failure_threshold=2
+        ),
+    )
+    for state, expected in (
+        ("FAILED", 1),
+        ("SUCCEEDED", 0),
+        ("FAILED", 1),
+        ("CANCELLED", 1),
+        ("TIMED_OUT", 2),
+    ):
+        item = await scheduled_item(env, row["id"])
+        await finish_scheduled(env, item, state)
+        await asyncio.gather(*(service.sweep(env.context.scope.channel_id) for _ in range(3)))
+        current = await service.get(env.context, "automation_schedules", row["id"])
+        assert current["consecutive_failures"] == expected
+    assert current["state"] == "PAUSED"
+    assert current["last_error"]["code"] == "SCHEDULE_FAILURE_LIMIT"
+    assert current["last_error"]["run_id"] == item["run_id"]
+    assert "连续失败 2 次" in current["last_error"]["message"]
+    before = await service.channel_rows(env.context.scope.channel_id, "automation_items")
+    await service.fire(current, current["next_at"])
+    assert len(await service.channel_rows(env.context.scope.channel_id, "automation_items")) == len(
+        before
+    )
+    resumed = await service.toggle_schedule(
+        env.context, row["id"], Toggle(revision=current["revision"], active=True)
+    )
+    assert resumed["consecutive_failures"] == 0 and resumed["last_error"] is None
+    item = await scheduled_item(env, row["id"])
+    await finish_scheduled(env, item, "FAILED")
+    await service.sweep(env.context.scope.channel_id)
+    current = await service.get(env.context, "automation_schedules", row["id"])
+    assert current["state"] == "ACTIVE" and current["consecutive_failures"] == 1
+
+
+async def test_schedule_counts_trigger_order_and_does_not_dispatch_after_limit(runtime_env):
+    env = runtime_env
+    await admitted(env, purpose="production")
+    service = env.runs.automation
+    row = await service.create_schedule(
+        env.context,
+        ScheduleCreate(
+            name="并发完成", request=request(env), interval_seconds=60, failure_threshold=2
+        ),
+    )
+    first = await scheduled_item(env, row["id"])
+    second = await scheduled_item(env, row["id"])
+    pending = await scheduled_item(env, row["id"], dispatch=False)
+    await finish_scheduled(env, second, "FAILED")
+    current = await service.get(env.context, "automation_schedules", row["id"])
+    await service.fire(current, utcnow())
+    assert (await service.get(env.context, "automation_schedules", row["id"]))[
+        "consecutive_failures"
+    ] == 0
+    await finish_scheduled(env, first, "FAILED")
+    # 直接派发也须复核结果，不依赖某个 Worker 恰好先扫描计划。
+    await asyncio.gather(*(service.dispatch(pending) for _ in range(2)))
+    current = await service.get(env.context, "automation_schedules", row["id"])
+    assert current["state"] == "PAUSED" and current["consecutive_failures"] == 2
+    assert (await service.get(env.context, "automation_items", pending["id"]))["run_id"] is None
+    await service.toggle_schedule(
+        env.context, row["id"], Toggle(revision=current["revision"], active=True)
+    )
+    await service.dispatch(pending)
+    assert (await service.get(env.context, "automation_items", pending["id"]))[
+        "state"
+    ] == "CANCELLED"
+
+
+async def test_schedule_admission_failure_and_lowered_threshold(runtime_env):
+    env = runtime_env
+    await admitted(env, purpose="production")
+    service = env.runs.automation
+    body = ScheduleCreate(
+        name="受理失败", request=request(env), interval_seconds=60, failure_threshold=3
+    )
+    row = await service.create_schedule(env.context, body)
+    item = await scheduled_item(env, row["id"], dispatch=False)
+    async with transaction(
+        env.engine, env.context.scope, keys(env.context, ("automation_items", item["id"]))
+    ) as uow:
+        item = await repo(env.context.scope, "automation_items").change(
+            uow,
+            item["id"],
+            item["revision"],
+            {"request": request(env).model_copy(update={"input": {}}).model_dump(mode="json")},
+        )
+    await service.dispatch(item)
+    await service.sweep(env.context.scope.channel_id)
+    current = await service.get(env.context, "automation_schedules", row["id"])
+    assert current["consecutive_failures"] == 1 and current["state"] == "ACTIVE"
+    edited = await service.update_schedule(
+        env.context,
+        row["id"],
+        ScheduleUpdate(
+            **body.model_copy(update={"failure_threshold": 1}).model_dump(),
+            revision=current["revision"],
+        ),
+    )
+    assert edited["state"] == "PAUSED" and edited["consecutive_failures"] == 1

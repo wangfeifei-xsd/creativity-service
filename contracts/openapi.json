@@ -15912,6 +15912,13 @@
             ],
             "title": "Daily At"
           },
+          "failure_threshold": {
+            "default": 3,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Failure Threshold",
+            "type": "integer"
+          },
           "interval_seconds": {
             "anyOf": [
               {
@@ -15961,6 +15968,13 @@
               }
             ],
             "title": "Daily At"
+          },
+          "failure_threshold": {
+            "default": 3,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Failure Threshold",
+            "type": "integer"
           },
           "interval_seconds": {
             "anyOf": [

@@ -67,7 +67,8 @@
           },
           "daily_at": null,
           "timezone": "Asia/Shanghai",
-          "interval_seconds": 60
+          "interval_seconds": 60,
+          "failure_threshold": 3
         },
         "owner_key": "302fca1fd622e84ad756cfebeb3c9f92962f81c32db98fff25749dbc2a4ef6b5",
         "identity": {
@@ -91,7 +92,12 @@
         "state": "ACTIVE",
         "next_at": "2026-10-09T04:15:23.950549+00:00",
         "last_error": null,
-        "is_deleted": false
+        "is_deleted": false,
+        "consecutive_failures": 0,
+        "outcome_cursor": {
+          "created_at": "2026-10-09T02:06:37.459593+00:00",
+          "id": ""
+        }
       }
     ],
     "credentials": [

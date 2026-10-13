@@ -84,7 +84,7 @@ def test_mysql_archive_preserves_configuration_and_indexes_inside_create_table(i
         assert conn.exec_driver_sql("SELECT count(*) FROM transaction_lock_slots").scalar() == 12288
         assert (
             conn.exec_driver_sql("SELECT version_num FROM creativity_alembic_version").scalar()
-            == "0050_qdrant"
+            == "0051_schedule_failures"
         )
         for name, rows in archived.items():
             table = metadata.tables[name]

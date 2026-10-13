@@ -237,7 +237,13 @@ async def test_failures_have_one_attempt_and_usage(status, code, retryable):
     async def handler(request):
         calls.append(request)
         return httpx.Response(
-            status, json={"error": {"message": "fixture-secret", "type": "error"}}
+            status,
+            json={
+                "error": {
+                    "message": "模型不支持该参数 fixture-secret-never-return",
+                    "type": "error",
+                }
+            },
         )
 
     events = [
@@ -678,3 +684,103 @@ def test_single_model_route_retries_without_duplicate_fallback():
         "primary",
         "primary",
     )
+
+
+async def test_failure_preserves_service_reason_and_provider_diagnostics():
+    config = fixture_config()
+
+    async def handler(request):
+        return httpx.Response(
+            400,
+            headers={"x-request-id": "upstream-123"},
+            json={
+                "error": {
+                    "message": "max_tokens must be at most 8192; "
+                    "token=fixture-secret-never-return; request=私人订单内容",
+                    "type": "invalid_request_error",
+                }
+            },
+        )
+
+    events = [
+        e
+        async for e in adapter(handler).events(
+            context(config),
+            config,
+            ModelRequest(messages=[{"role": "user", "content": "私人订单内容"}]),
+            fixture_attempt(config),
+            fixture_reservation(config),
+        )
+    ]
+    failure = events[-1]
+    assert failure.error_code == "MODEL_INPUT_INVALID"
+    assert "max_tokens must be at most 8192" in failure.message and "HTTP 400" in failure.message
+    assert failure.source_request_id == "upstream-123"
+    assert "私人订单内容" not in failure.message and "fixture-secret" not in failure.message
+    run = adapter(handler)
+
+    async def denied(*args, **kwargs):
+        raise ServiceError("MODEL_CONFIGURATION_STALE", "模型凭据已轮换，请重新创建尝试", 409)
+
+    run.prepare = denied
+    events = [
+        e
+        async for e in run.events(
+            context(config),
+            config,
+            ModelRequest(messages=[{"role": "user", "content": "测试"}]),
+            fixture_attempt(config),
+            fixture_reservation(config),
+        )
+    ]
+    assert events[-1].message == "模型凭据已轮换，请重新创建尝试"
+
+
+async def test_unexpected_adapter_error_has_specific_reason_without_request_body():
+    run = adapter(lambda request: httpx.Response(200))
+
+    async def broken(*args, **kwargs):
+        raise TypeError("response.choices is missing")
+        yield
+
+    run._invoke = broken
+    config = fixture_config()
+    events = [
+        e
+        async for e in run.events(
+            context(config),
+            config,
+            ModelRequest(messages=[{"role": "user", "content": "私有输入"}]),
+            fixture_attempt(config),
+            fixture_reservation(config),
+        )
+    ]
+    assert events[-1].error_code == "MODEL_ADAPTER_ERROR"
+    assert "TypeError: response.choices is missing" in events[-1].message
+
+
+async def test_sdk_parameter_rejection_preserves_explanation_before_sending():
+    from litellm.exceptions import UnsupportedParamsError
+
+    config = fixture_config()
+    run = adapter(lambda request: pytest.fail("参数错误不应发送请求"))
+
+    async def unsupported(*args, **kwargs):
+        raise UnsupportedParamsError("参数 temperature 不支持；request={'messages': '私人内容'}")
+
+    run.prepare = unsupported
+    events = [
+        e
+        async for e in run.events(
+            context(config),
+            config,
+            ModelRequest(messages=[{"role": "user", "content": "私人内容"}]),
+            fixture_attempt(config),
+            fixture_reservation(config),
+        )
+    ]
+    assert events[-1].error_code == "MODEL_INPUT_INVALID"
+    assert "temperature 不支持" in events[-1].message
+    assert "私人内容" not in events[-1].message
+    assert "request=" not in events[-1].message
+    assert events[-1].request_sent is False

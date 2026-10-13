@@ -1,7 +1,7 @@
 -- Creativity 表结构初始化归档，适用于 MySQL 8.0 空数据库。
--- 模型版本：2.1.0；配套数据归档迁移基线：0050_qdrant。
+-- 模型版本：2.1.0；配套数据归档迁移基线：0051_schedule_failures。
 -- 初始建库基线：alembic/mysql_versions/0048_mysql_milvus.py；后续修订在其上追加。
--- 包含 111 张表、1724 个字段、249 个普通索引及全部中文注释。
+-- 包含 111 张表、1726 个字段、250 个普通索引及全部中文注释。
 -- 本文件不写初始化数据；完成后必须执行 sql/init_data.sql，再启动服务或迁移。
 -- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。
 -- 执行方式见 sql/README.md；表创建在连接的当前 schema。
@@ -274,7 +274,8 @@ CREATE TABLE automation_items (
 	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_automation_items_0 (channel_id, id),
 	INDEX ix_automation_items_1 (channel_id, environment, subject_type, subject_id),
-	INDEX ix_automation_items_2 (channel_id, state, lease_until)
+	INDEX ix_automation_items_2 (channel_id, state, lease_until),
+	INDEX ix_automation_items_schedule_outcome (channel_id, schedule_id, created_at, id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COMMENT='逐项运行派发记录' COLLATE utf8mb4_0900_bin;
 
 -- automation_schedules：通用运行定时计划。
@@ -295,6 +296,8 @@ CREATE TABLE automation_schedules (
 	next_at DATETIME(6) COMMENT '下次触发时间',
 	last_error JSON COMMENT '最近派发错误',
 	is_deleted BOOL COMMENT '是否已逻辑删除',
+	consecutive_failures INTEGER COMMENT '定时计划连续失败次数',
+	outcome_cursor JSON COMMENT '按触发顺序已统计的条目游标',
 	INDEX ix_automation_schedules_0 (channel_id, id),
 	INDEX ix_automation_schedules_1 (channel_id, environment, subject_type, subject_id),
 	INDEX ix_automation_schedules_2 (channel_id, state, next_at)

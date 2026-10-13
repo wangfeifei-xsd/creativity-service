@@ -748,6 +748,7 @@ class QueryService(RunKernel):
                                 if a["finished_at"]
                                 else None,
                                 "usage_ref": a["usage_id"],
+                                "source_request_id": a["source_request_id"],
                                 "error": a["error"],
                                 "kind_label": {
                                     "model": "模型调用",
