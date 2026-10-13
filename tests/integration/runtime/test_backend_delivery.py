@@ -169,20 +169,12 @@ async def submit(env, name, key, delivery="async"):
 async def finish(env, receipt, name):
     env.adapter.responses = [copy.deepcopy(case(name)["fixture_output"])]
 
-    async def evidence(context, attempt):
-        if name == "archive-answer":
-            messages = env.adapter.calls[-1][1].messages
-            lookup = json.loads(messages[-1]["content"])["tool_results"]["lookup"]
-            env.adapter.responses[0]["evidence_refs"] = lookup["evidence_refs"]
-
-    env.adapter.before = evidence
     await execute_message(
         env.runs,
         TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=receipt["run_id"]),
         "delivery-worker",
         env.runtime,
     )
-    env.adapter.before = None
 
 
 async def evidence_record(env, name, receipt):

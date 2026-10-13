@@ -26,6 +26,7 @@ class Adapter:
         self.failures = []
         self.before = None
         self.responses = []
+        self.tool_rounds = None
 
     async def events(self, context, config, request, attempt, reservation, cancellation, **kwargs):
         self.calls.append((config, request, attempt))
@@ -52,7 +53,7 @@ class Adapter:
                 "evidence_refs": [],
             }
         )
-        if request.tools:
+        if request.tools and (self.tool_rounds is None or len(self.calls) <= self.tool_rounds):
             yield ModelEvent(
                 kind="tool",
                 attempt_id=attempt.attempt_id,

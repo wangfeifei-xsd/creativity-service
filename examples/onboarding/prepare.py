@@ -28,10 +28,11 @@ def prepare(source, folder):
     files = {
         "SKILL.md": (
             "---\nname: configured-source\ndescription: 根据授权源结果组织输出。\n---\n\n"
-            "将查询步骤的真实结构化数据写入 data，保留来源引用，不添加源端未返回的数据。"
+            "将本步骤输入的真实结构化数据写入 data，不添加源端未返回的数据。"
+            "仅保留本步骤明确提供的来源引用；未提供时 evidence_refs 返回空数组。"
             "空结果与错误遵守源服务契约。参考 [输出规则](references/output.md)。\n"
         ),
-        "references/output.md": "仅使用本次已授权的工具结果。源版本和观测时间来自 MCP。\n",
+        "references/output.md": "仅使用本步骤映射的工具结果。完整来源与观测信息由执行记录保存。\n",
         ".platform/skill.json": json.dumps({"format": "skill-package-v1", "settings": settings}),
     }
     archive = folder / "skill.zip"

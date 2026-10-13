@@ -215,6 +215,11 @@ async def test_configured_guidance_routes_skip_unneeded_analysis_and_save_before
     )
     assert calls == expected
     assert len(env.adapter.calls) == (1 if scenario in {"guide", "nohelp"} else 0)
+    if env.adapter.calls:
+        messages = env.adapter.calls[0][1].messages
+        assert json.loads(messages[-1]["content"]) == {"input": {"context": CONTEXT}}
+        assert json.dumps(messages, ensure_ascii=False).count('\\"payments\\"') == 1
+        assert "帮助用户理解本单" in messages[0]["content"]
     if saved:
         assert saved == [model_result]
     await execute_message(env.runs, message, "redelivered", env.runtime)

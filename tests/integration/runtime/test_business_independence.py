@@ -66,14 +66,14 @@ def write(folder, name, data):
 async def answer_from_tool(env, context, attempt):
     request = env.adapter.calls[-1][1]
     contents = json.loads(request.messages[-1]["content"])
-    result = contents["tool_results"]["lookup"]
+    result = contents["input"]
     env.adapter.responses = [
         {
             "business_status": "COMPLETED",
             "schema_version": "1.0",
-            "data": result["data"],
+            "data": result,
             "warnings": [],
-            "evidence_refs": result["evidence_refs"],
+            "evidence_refs": [],
         }
     ]
 
@@ -106,7 +106,8 @@ async def successful(env, item, folder):
         env.runs.context(row), "tool_calls", run_id=record["run_id"]
     )
     assert len(calls) == 1 and calls[0]["source_request_id"]
-    refs = record["result"]["evidence_refs"]
+    assert not record["result"]["evidence_refs"]
+    refs = (await env.runs.detail(env.runs.context(row), record["run_id"]))["evidence"]
     assert refs and all(ref["scope"]["channel_id"] == item.context.scope.channel_id for ref in refs)
     usage = record["usage_summary"]
     assert usage["input_tokens"] == 10 and usage["output_tokens"] == 20

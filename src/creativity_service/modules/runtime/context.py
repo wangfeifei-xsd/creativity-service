@@ -270,20 +270,13 @@ class ContextBuilder:
                     {"role": message["role"], "content": json_text(message["content_parts"])}
                 )
             refs += [ContentRef("message", i) for i in selected.included_message_ids]
-        messages.append(
-            {
-                "role": "user",
-                "content": json_text(
-                    {
-                        "input": input_value,
-                        "steps": {k: v for k, v in outputs.items() if not k.startswith("_")},
-                        "tool_results": outputs.get("_tool_results", {}),
-                        "memory": memory_values,
-                        "archives": archive_values,
-                    }
-                ),
-            }
-        )
+        # 步骤输入映射限定业务数据范围；上游完整输出只用于映射、显式提示词变量和追溯。
+        payload: dict[str, Any] = {"input": input_value}
+        if memory_values:
+            payload["memory"] = memory_values
+        if archive_values:
+            payload["archives"] = archive_values
+        messages.append({"role": "user", "content": json_text(payload)})
         messages.extend(outputs.get("_tool_messages", []))
         if len(json_text(messages).encode()) > config.context.context_limit * 4:
             raise ServiceError("CONTEXT_LIMIT_EXCEEDED", "实际上下文超过配置上限", 422)

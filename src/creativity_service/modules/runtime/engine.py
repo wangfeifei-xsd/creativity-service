@@ -441,7 +441,11 @@ class RuntimeExecutor:
                 return {
                     "node": target,
                     "visits": {**state["visits"], step.key: visit + 1},
-                    "outputs": {**state["outputs"], step.key: output},
+                    # 工具对话只供当前模型步骤续接；节点完成后不能泄漏到后续步骤。
+                    "outputs": {
+                        **{k: v for k, v in state["outputs"].items() if k != "_tool_messages"},
+                        step.key: output,
+                    },
                     "result": output,
                 }
 

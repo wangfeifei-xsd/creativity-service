@@ -387,22 +387,24 @@ async def test_mcp_configuration_explicit_binding_contract_and_runtime(business_
     receipt = AdmissionReceipt.model_validate(response.json())
     env.adapter.responses = [case(name)["fixture_output"]]
 
-    async def source_evidence(context, attempt):
-        messages = env.adapter.calls[-1][1].messages
-        lookup = json.loads(messages[-1]["content"])["tool_results"]["lookup"]
-        env.adapter.responses[0]["evidence_refs"] = lookup["evidence_refs"]
-
-    env.adapter.before = source_evidence
     result = await execute(env, receipt, env.subject)
     assert result.result.data == case(name)["fixture_output"]["data"]
     assert result.result.data["citations"] == env.sources[0].data["notes"]
-    assert result.result.evidence_refs
+    assert not result.result.evidence_refs
     assert not env.runtime.registry.handlers
     inputs = await record(env, name, receipt, validation, env.subject)
     model_input = json.loads(inputs[0]["messages"][-1]["content"])
-    assert model_input["tool_results"]["lookup"]["source_version"] == "fixture-data-v1"
-    assert model_input["tool_results"]["lookup"]["observed_at"]
-    assert model_input["tool_results"]["lookup"]["evidence_refs"]
+    assert model_input == {
+        "input": {
+            "question": case(name)["input"]["question"],
+            "notes": env.sources[0].data["notes"],
+        }
+    }
+    # 未映射的来源信息保留在轨迹，不要求模型返回它没有收到的引用。
+    trace = await env.runs.detail(env.subject, receipt.run_id)
+    assert trace["evidence"]
+    assert all(item["source_version"] == "fixture-data-v1" for item in trace["evidence"])
+    assert all(item["observed_at"] for item in trace["evidence"])
     assert len([c for c in env.sources[0].calls if c["name"] == alias]) == 1
 
 
