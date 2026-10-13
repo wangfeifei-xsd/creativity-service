@@ -1298,6 +1298,44 @@
         "title": "RunError",
         "type": "object"
       },
+      "RunErrorGuidance": {
+        "additionalProperties": false,
+        "properties": {
+          "configuration_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Configuration Label"
+          },
+          "configuration_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Configuration Path"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "title": "RunErrorGuidance",
+        "type": "object"
+      },
       "RunEvidenceView": {
         "additionalProperties": false,
         "properties": {
@@ -1520,6 +1558,17 @@
             "type": "null"
           }
         ]
+      },
+      "error_guidance": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/RunErrorGuidance"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
       },
       "events_url": {
         "title": "Events Url",

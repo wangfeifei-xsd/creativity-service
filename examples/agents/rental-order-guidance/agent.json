@@ -757,7 +757,7 @@
     "limits": {
       "deadline_seconds": 300,
       "loop_timeout_seconds": 300,
-      "token_limit": 96000,
+      "token_limit": 256000,
       "max_model_rounds": 1,
       "max_tool_calls": 40,
       "max_iterations": 1,

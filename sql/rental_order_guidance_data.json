@@ -1,6 +1,6 @@
 {
   "source": {
-    "description": "只归档当前可用配置及必要依赖，不包含运行、用量、测试或操作历史；订单协助 MCP 契约、导入与绑定摘要已按当前中文字段标题同步。",
+    "description": "只归档当前可用配置及必要依赖，不包含运行、用量、测试或操作历史；订单协助 MCP 契约、导入与绑定摘要已按当前中文字段标题同步。 2026年10月13日将订单协助单次运行 Token 上限调整为 256,000，为较大输入的保守预估和最大输出预留额度。",
     "captured_at": "2026-10-09T04:14:38.279520+00:00",
     "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
     "environment": "dev",
@@ -3123,7 +3123,7 @@
           ],
           "limits": {
             "cost_limit": null,
-            "token_limit": 96000,
+            "token_limit": 256000,
             "max_iterations": 1,
             "max_tool_calls": 40,
             "deadline_seconds": 300,
@@ -3210,7 +3210,7 @@
           },
           "workflow_type": "stateful"
         },
-        "content_digest": "de49c2f5a224eb07bea3c94d610a4c27d45032522a5b94c5b520acb012576ca7",
+        "content_digest": "90c87a28ad7755afbf8d1516cdab052076863adc7bc4cb30559fa0a798b1645d",
         "dependencies": [
           "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
           "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
@@ -4033,7 +4033,7 @@
           ],
           "limits": {
             "cost_limit": null,
-            "token_limit": 96000,
+            "token_limit": 256000,
             "max_iterations": 1,
             "max_tool_calls": 40,
             "deadline_seconds": 300,
@@ -4120,7 +4120,7 @@
           },
           "workflow_type": "stateful"
         },
-        "content_digest": "de49c2f5a224eb07bea3c94d610a4c27d45032522a5b94c5b520acb012576ca7",
+        "content_digest": "90c87a28ad7755afbf8d1516cdab052076863adc7bc4cb30559fa0a798b1645d",
         "dependencies": [
           "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
           "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",

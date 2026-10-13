@@ -13,6 +13,7 @@ from creativity_service.core.locking import ResourceKey
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.modules.budgets.services import record_cost
 from creativity_service.modules.runs.base import RunKernel
+from creativity_service.modules.runs.limits import token_limit_message
 from creativity_service.modules.runs.repositories import one, required, rows, save
 from creativity_service.modules.runs.schemas import TERMINAL, ExecutionPolicy, Lease, StepPolicy
 from creativity_service.modules.usage import repositories as usage_repo
@@ -426,17 +427,29 @@ class ExecutionService(RunKernel):
                         + plan.max_output_tokens
                         + sum(plan.additional_upper_tokens.values())
                     )
-                    if (
-                        limits.token_limit is not None
-                        and token_upper
-                        + sum(
+                    occupied_tokens = int(
+                        sum(
                             record_cost(u, "tokens", exposure=True) or 0
                             for u in usages
                             if u["state"] != "RELEASED"
                         )
-                        > limits.token_limit
+                    )
+                    if (
+                        limits.token_limit is not None
+                        and token_upper + occupied_tokens > limits.token_limit
                     ):
-                        raise ServiceError("RUN_TOKEN_LIMIT", "运行 Token 额度已达上限", 429)
+                        raise ServiceError(
+                            "RUN_TOKEN_LIMIT",
+                            token_limit_message(
+                                row["agent_name"],
+                                limits.token_limit,
+                                occupied=occupied_tokens,
+                                input_tokens=plan.input_tokens,
+                                output_tokens=plan.max_output_tokens,
+                                additional=sum(plan.additional_upper_tokens.values()),
+                            ),
+                            429,
+                        )
                     if limits.cost_limit:
                         if (
                             price is None

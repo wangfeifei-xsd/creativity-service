@@ -66,23 +66,35 @@ class RawCapture:
 
 
 class CapturedStream(httpx.AsyncByteStream):
-    def __init__(self, stream: httpx.AsyncByteStream, capture: RawCapture, sse: bool) -> None:
+    def __init__(
+        self,
+        stream: httpx.AsyncByteStream,
+        capture: RawCapture,
+        sse: bool,
+        headers: httpx.Headers,
+    ) -> None:
         self.stream, self.capture, self.sse = stream, capture, sse
         self.buffer = b""
+        # HTTPX 0.28 在传输层之后解压；独立复用其解码器采集用量，原始字节仍交给 SDK。
+        self.decoder = httpx.Response(200, headers=headers)._get_content_decoder()
 
     async def __aiter__(self) -> AsyncIterator[bytes]:
         async for chunk in self.stream:
-            self.buffer += chunk
-            if len(self.buffer) > 8 * 1024 * 1024:
-                raise ServiceError("MODEL_RESPONSE_TOO_LARGE", "模型响应超出允许范围", 502)
-            if self.sse:
-                while b"\n" in self.buffer:
-                    line, self.buffer = self.buffer.split(b"\n", 1)
-                    if line.startswith(b"data:"):
-                        self.observe(line[5:].strip())
+            self.feed(self.decoder.decode(chunk))
             yield chunk
+        self.feed(self.decoder.flush())
         if self.buffer:
-            self.observe(self.buffer)
+            self.observe(self.buffer.removeprefix(b"data:").strip() if self.sse else self.buffer)
+
+    def feed(self, data: bytes) -> None:
+        self.buffer += data
+        if len(self.buffer) > 8 * 1024 * 1024:
+            raise ServiceError("MODEL_RESPONSE_TOO_LARGE", "模型响应超出允许范围", 502)
+        if self.sse:
+            while b"\n" in self.buffer:
+                line, self.buffer = self.buffer.split(b"\n", 1)
+                if line.startswith(b"data:"):
+                    self.observe(line[5:].strip())
 
     def observe(self, data: bytes) -> None:
         try:
@@ -148,6 +160,7 @@ class ModelTransport(httpx.AsyncBaseTransport):
             response.stream,
             self.capture,
             "text/event-stream" in response.headers.get("content-type", ""),
+            response.headers,
         )
         return response
 

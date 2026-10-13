@@ -127,6 +127,12 @@ class RunEvidenceView(Contract):
     location: dict[str, Any]
 
 
+class RunErrorGuidance(Contract):
+    description: str
+    configuration_path: str | None = None
+    configuration_label: str | None = None
+
+
 class RunDetail(AdmissionReceipt):
     name: str
     purpose: Literal["production", "debug", "evaluation"]
@@ -139,6 +145,7 @@ class RunDetail(AdmissionReceipt):
     actual_inputs: list[RunInputRecord]
     evidence: list[RunEvidenceView]
     error: RunError | None
+    error_guidance: RunErrorGuidance | None = None
     versions: list[RunVersionView]
     resource_uses: list[dict[str, Any]] = Field(default_factory=list)
     actions: list[VisibleAction]

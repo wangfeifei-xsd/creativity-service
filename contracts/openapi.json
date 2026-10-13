@@ -15251,6 +15251,16 @@
               }
             ]
           },
+          "error_guidance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunErrorGuidance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "events_url": {
             "title": "Events Url",
             "type": "string"
@@ -15413,6 +15423,42 @@
           "request_id"
         ],
         "title": "RunError",
+        "type": "object"
+      },
+      "RunErrorGuidance": {
+        "additionalProperties": false,
+        "properties": {
+          "configuration_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration Label"
+          },
+          "configuration_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration Path"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "title": "RunErrorGuidance",
         "type": "object"
       },
       "RunEvent": {

@@ -7,7 +7,7 @@ from typing import Any, Literal
 from pydantic import Field
 
 from creativity_service.core.contracts import Attempt, BudgetReservation, UsageEvent
-from creativity_service.core.primitives import Contract, ServiceError, utcnow
+from creativity_service.core.primitives import Contract, ServiceError, canonical_json, utcnow
 from creativity_service.core.versioning import validate_schema
 from creativity_service.integrations.models.images import validate_image_messages
 from creativity_service.modules.models.policy import validate_parameters
@@ -23,6 +23,18 @@ class ModelRequest(Contract):
     output_mode: Literal["native", "prompt"] = "native"
     parameters: dict[str, Any] = Field(default_factory=dict)
     stream: bool = False
+
+    def input_token_upper_bound(self) -> int:
+        """按完整请求的 UTF-8 字节数保守预占，不能作为供应商实际用量。"""
+        return len(canonical_json(self.model_dump(mode="json")))
+
+    def output_token_upper_bound(self, model_parameters: dict[str, Any]) -> int:
+        """请求参数优先于冻结模型参数，向量调用不预占生成输出。"""
+        return (
+            0
+            if self.operation == "embedding"
+            else int(self.parameters.get("max_tokens", model_parameters.get("max_tokens", 1024)))
+        )
 
     @property
     def requires_native_output(self) -> bool:

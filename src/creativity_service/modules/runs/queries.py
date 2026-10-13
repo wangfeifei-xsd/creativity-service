@@ -3,6 +3,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
+from urllib.parse import urlencode
 
 from sqlalchemy import func, select, tuple_
 
@@ -21,6 +22,7 @@ from creativity_service.modules.iam.reading import (
     resource_state,
 )
 from creativity_service.modules.runs.base import RunKernel
+from creativity_service.modules.runs.limits import historical_token_limit_message
 from creativity_service.modules.runs.repositories import required, rows, verify_scope
 from creativity_service.modules.runs.schemas import (
     LABELS,
@@ -358,6 +360,81 @@ class QueryService(RunKernel):
                 }
                 for r in uses
             ]
+            error = row["error"]
+            error_guidance = None
+            if error and error["code"] == "RUN_TOKEN_LIMIT":
+                if error["message"] == "运行 Token 额度已达上限":
+                    attempts = metadata.tables["attempts"]
+                    has_model_attempt = await uow.connection.scalar(
+                        active_rows(
+                            select(attempts.c.id)
+                            .where(
+                                attempts.c.channel_id == context.scope.channel_id,
+                                attempts.c.run_id == run_id,
+                                attempts.c.kind == "model",
+                            )
+                            .limit(1)
+                        )
+                    )
+                    error = {
+                        **error,
+                        "message": historical_token_limit_message(
+                            row,
+                            snapshot,
+                            actual_inputs,
+                            has_model_attempt=has_model_attempt is not None,
+                            content_allowed=content_allowed,
+                        ),
+                    }
+                agent = await resource_repo("agents", context.scope).get(
+                    uow.connection, row["agent_id"]
+                )
+                agent_actions = (
+                    await read_actions(
+                        self.authorization,
+                        context,
+                        "agent",
+                        row["agent_id"],
+                        ["agent:manage"],
+                        policy=policy,
+                        state=resource_state(context, "agent", agent),
+                    )
+                    if agent
+                    else frozenset()
+                )
+                blocked = (
+                    await DeletionGuard(context.scope).blocked_refs(
+                        uow, [ContentRef("agent", row["agent_id"])]
+                    )
+                    if agent
+                    else set()
+                )
+                can_view_agent = "agent:manage" in agent_actions and not blocked
+                error_guidance = {
+                    "description": (
+                        "输入为调用前的保守预估，不代表模型实际消耗。"
+                        f"修改位置：智能体 → {row['agent_name']} → 选择草稿 → 编辑配置"
+                        " → 运行策略 → 单次运行 Token 上限。"
+                        "已发布版本需新增草稿；也可减少输入或调低模型的最大输出 Token。"
+                        + (
+                            "保存后调试；正式调用需发布到原运行所在环境，再重新执行。"
+                            if row["purpose"] == "production"
+                            else "保存草稿后重新调试或评测。"
+                        )
+                        + (
+                            ""
+                            if can_view_agent
+                            else "当前无法打开该智能体配置，请联系渠道管理员处理。"
+                        )
+                    ),
+                    "configuration_path": (
+                        f"/agents/{row['agent_id']}?"
+                        + urlencode({"version": row["agent_version_id"], "tab": "limits"})
+                    )
+                    if can_view_agent
+                    else None,
+                    "configuration_label": "查看智能体运行限制" if can_view_agent else None,
+                }
             return_value = {
                 **self.receipt(row).model_dump(mode="json"),
                 "name": row["agent_name"],
@@ -372,7 +449,8 @@ class QueryService(RunKernel):
                 "input": input_value,
                 "actual_inputs": actual_inputs,
                 "evidence": evidence,
-                "error": row["error"],
+                "error": error,
+                "error_guidance": error_guidance,
                 "resource_uses": resource_uses,
                 "versions": [
                     {

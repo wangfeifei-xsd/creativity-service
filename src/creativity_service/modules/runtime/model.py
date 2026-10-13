@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import Attempt, BudgetReservation
-from creativity_service.core.primitives import ServiceError, canonical_json, digest, utcnow
+from creativity_service.core.primitives import ServiceError, digest, utcnow
 from creativity_service.integrations.models.contracts import Cancellation, ModelRequest
 from creativity_service.modules.agents.schemas import FrozenExecutionSpec
 from creativity_service.modules.models.assembly import ModelServices
@@ -23,8 +23,6 @@ from creativity_service.modules.usage.schemas import AttemptPlan
 def plan_for(
     spec: FrozenExecutionSpec, model: FrozenModel, request: ModelRequest, run_id: str
 ) -> AttemptPlan:
-    # UTF-8 字节数作为保守上界，包含工具及结果结构，不能用缺失的实际用量代替估算。
-    input_tokens = len(canonical_json(request.model_dump(mode="json")))
     return AttemptPlan(
         run_id=run_id,
         attempt_id="pending",
@@ -32,10 +30,8 @@ def plan_for(
         model_id=model.model_id,
         connection_id=model.connection_id,
         purpose=spec.purpose,
-        input_tokens=input_tokens,
-        max_output_tokens=0
-        if request.operation == "embedding"
-        else int(request.parameters.get("max_tokens", model.parameters.get("max_tokens", 1024))),
+        input_tokens=request.input_token_upper_bound(),
+        max_output_tokens=request.output_token_upper_bound(model.parameters),
         source_type="run",
         names={"agent": spec.agent_name, "model": model.model_name},
     )

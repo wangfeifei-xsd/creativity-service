@@ -1,13 +1,21 @@
 """模型发送证据、迟报和调用终态在运行与账本之间一致交接。"""
 
+import gzip
+import json
+from datetime import timedelta
+
+import httpx
 import pytest
 
+from creativity_service.core.primitives import utcnow
 from creativity_service.integrations.models.contracts import ModelEvent
 from creativity_service.integrations.models.usage import normalize_usage
-from creativity_service.modules.usage.query import totals
+from creativity_service.modules.usage.query import UsageQueries, totals
 from creativity_service.modules.usage.repositories import rows
+from creativity_service.modules.usage.schemas import UsageFilter
 from creativity_service.workers.executor import execute_message
 from tests.integration.runtime.test_execution import admitted
+from tests.models.test_protocols import adapter
 
 pytestmark = pytest.mark.integration
 
@@ -66,6 +74,62 @@ async def test_successful_run_persists_usage_outcome(runtime_env):
     assert records[0]["state"] == "SETTLED"
     assert records[0]["outcome"] == "SUCCEEDED"
     assert totals(records, [], "UTC").success_rate == "1.0000"
+
+
+async def test_compressed_model_usage_reaches_summary(runtime_env):
+    env = runtime_env
+    result = {
+        "business_status": "COMPLETED",
+        "schema_version": "1.0",
+        "data": {"answer": "验证完成"},
+        "warnings": [],
+        "evidence_refs": [],
+    }
+    body = {
+        "id": "compressed-ledger-response",
+        "object": "chat.completion",
+        "created": 1,
+        "model": "fixture-model",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": json.dumps(result)},
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {"prompt_tokens": 12, "completion_tokens": 3, "total_tokens": 15},
+    }
+
+    class Stream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield gzip.compress(json.dumps(body).encode())
+
+    async def handler(request):
+        return httpx.Response(
+            200,
+            headers={"content-type": "application/json", "content-encoding": "gzip"},
+            stream=Stream(),
+        )
+
+    env.adapter.events = adapter(handler).events
+    receipt, message = await admitted(env)
+    await execute_message(env.runs, message, "compressed-usage", env.runtime)
+    assert (await env.runs.load(message))["state"] == "SUCCEEDED"
+    summary = await UsageQueries(env.engine).summary(
+        env.context.scope.channel_id,
+        [env.context.scope],
+        UsageFilter(start_at=utcnow() - timedelta(days=1), end_at=utcnow()),
+    )
+    assert summary.requests == summary.attempts == 1
+    assert summary.success_rate == "1.0000"
+    assert summary.input_tokens == 12 and summary.output_tokens == 3
+    assert summary.missing_usage == 0
+    async with env.engine.connect() as connection:
+        (record,) = await rows(
+            connection, "usage_records", env.context.scope.channel_id, run_id=receipt.run_id
+        )
+    assert record["source_request_id"] == "compressed-ledger-response"
+    assert record["usage_status"] == "REPORTED"
 
 
 async def test_compensation_repairs_historical_terminal_outcomes(runtime_env):
