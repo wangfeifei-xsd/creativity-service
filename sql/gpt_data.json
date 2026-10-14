@@ -1,0 +1,386 @@
+{
+  "source": {
+    "description": "只读采集 ChatGTP 连接、GPT-6.1 Sol 模型和 GTP6.1路由的当前配置及必要依赖；保留真实能力摘要，移除测试记录关联，不包含运行、用量、测试或操作历史。",
+    "captured_at": "2026-10-14T18:13:13.038660+08:00",
+    "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+    "environment": "dev",
+    "route_id": "route_b9c745d37653438b891f2026414e7afe"
+  },
+  "tables": {
+    "credentials": [
+      {
+        "id": "credential_0c769d412a39419695511363d4c66f1f",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T07:57:58.958746+00:00",
+        "updated_at": "2026-10-14T07:57:58.958746+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "purpose": "model",
+        "ciphertext": "5882af242793e5812862fa380118748d882883a5f0199c76ceb65b18131d6e48fa58cf14fe4d0e74b6c61d934f1bd2375feb4f1cb06b2d5813ac01e06390a3b310aacbfeafa5c7c4b9f136559ec06bc10235ae6e1edc09c55fcb0db240ab8a",
+        "key_version": "local-model-v1",
+        "state": "ACTIVE",
+        "secret_value": null,
+        "is_deleted": false
+      }
+    ],
+    "model_connections": [
+      {
+        "id": "connection_a1add463c6f14cdb9c26377e88bbafb5",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T07:57:59.118128+00:00",
+        "updated_at": "2026-10-14T08:43:34.692929+00:00",
+        "revision": 9,
+        "environment": "dev",
+        "name": "ChatGTP",
+        "protocol": "chat_completions",
+        "endpoint": "https://api.masterhuang.top",
+        "credential_ref": "credential_0c769d412a39419695511363d4c66f1f",
+        "timeout_seconds": 60,
+        "status": "ACTIVE",
+        "health_status": "HEALTHY",
+        "provider_id": "provider_openai",
+        "current_version_id": "version_719acda97f9245f18958556dec3e7ed5",
+        "health_reason": null,
+        "health_checked_at": "2026-10-14T08:43:34.689113+00:00",
+        "validation_revision": 3,
+        "is_deleted": false
+      }
+    ],
+    "model_routes": [
+      {
+        "id": "route_b9c745d37653438b891f2026414e7afe",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T09:33:49.883027+00:00",
+        "updated_at": "2026-10-14T09:34:12.679690+00:00",
+        "revision": 2,
+        "code": "gpt-6.1-sol",
+        "name": "GTP6.1路由",
+        "status": "ACTIVE",
+        "is_deleted": false
+      }
+    ],
+    "models": [
+      {
+        "id": "model_7531f43ba7f548a681588866d9817afb",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T08:00:59.489085+00:00",
+        "updated_at": "2026-10-14T08:43:34.691204+00:00",
+        "revision": 5,
+        "model_code": "gtp",
+        "name": "GPT-6.1 Sol",
+        "connection_id": "connection_a1add463c6f14cdb9c26377e88bbafb5",
+        "provider_model_name": "gpt-6.1-sol",
+        "context_limit": null,
+        "status": "ACTIVE",
+        "capabilities": {
+          "text": {
+            "state": "SUPPORTED",
+            "reason": null,
+            "evidence": "live",
+            "verified_at": "2026-10-14T08:43:34.689113+00:00",
+            "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b"
+          },
+          "tools": {
+            "state": "UNSUPPORTED",
+            "reason": "当前配置未通过该用例验证",
+            "evidence": "live",
+            "verified_at": "2026-10-14T08:17:41.100074+00:00",
+            "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b"
+          },
+          "embedding": {
+            "state": "UNSUPPORTED",
+            "reason": "当前配置未通过该用例验证",
+            "evidence": "live",
+            "verified_at": "2026-10-14T08:17:41.100074+00:00",
+            "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b"
+          },
+          "streaming": {
+            "state": "UNSUPPORTED",
+            "reason": "当前配置未通过该用例验证",
+            "evidence": "live",
+            "verified_at": "2026-10-14T08:17:41.100074+00:00",
+            "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b"
+          },
+          "json_output": {
+            "state": "UNSUPPORTED",
+            "reason": "当前配置未通过该用例验证",
+            "evidence": "live",
+            "verified_at": "2026-10-14T08:17:41.100074+00:00",
+            "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b"
+          },
+          "structured_output": {
+            "state": "UNSUPPORTED",
+            "reason": "当前配置未通过该用例验证",
+            "evidence": "live",
+            "verified_at": "2026-10-14T08:17:41.100074+00:00",
+            "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b"
+          }
+        },
+        "verified_at": "2026-10-14T08:43:34.689113+00:00",
+        "current_version_id": "version_2f87b035e57a475eb666f6ef98d22e89",
+        "parameters": {},
+        "parameter_allowlist": [
+          "max_tokens"
+        ],
+        "validation_revision": 2,
+        "is_deleted": false
+      }
+    ],
+    "release_mappings": [
+      {
+        "id": "67878be5357e32d6e4baac304bdc351a04f86a965e48482992e63a7961e82f83",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T09:53:17.937623+00:00",
+        "updated_at": "2026-10-14T09:53:17.937623+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "resource_type": "model_route",
+        "resource_id": "route_b9c745d37653438b891f2026414e7afe",
+        "version_id": "route_b9c745d37653438b891f2026414e7afe",
+        "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "release_note": "发布资源",
+        "is_deleted": false
+      }
+    ],
+    "resource_references": [
+      {
+        "id": "665883410938d1573db338a1adf2e7bde886611169e7475ba982e77344d8b251",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T08:01:29.056651+00:00",
+        "updated_at": "2026-10-14T08:01:29.056651+00:00",
+        "revision": 1,
+        "source_version_id": "version_2f87b035e57a475eb666f6ef98d22e89",
+        "target_version_id": "version_43b2d8493a04467ea9e36b1846b6dad5",
+        "target_resource_type": "model_connection",
+        "is_deleted": false
+      }
+    ],
+    "resource_versions": [
+      {
+        "id": "route_b9c745d37653438b891f2026414e7afe",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T09:34:12.683836+00:00",
+        "updated_at": "2026-10-14T09:53:17.884877+00:00",
+        "revision": 2,
+        "resource_type": "model_route",
+        "resource_id": "route_b9c745d37653438b891f2026414e7afe",
+        "version_label": "当前配置",
+        "state": "PUBLISHED",
+        "content": {
+          "models": [
+            {
+              "scope": {
+                "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+                "subject_id": null,
+                "environment": "dev",
+                "subject_type": null
+              },
+              "endpoint": "https://api.masterhuang.top",
+              "model_id": "model_7531f43ba7f548a681588866d9817afb",
+              "protocol": "chat_completions",
+              "model_name": "GPT-6.1 Sol",
+              "parameters": {},
+              "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b",
+              "connection_id": "connection_a1add463c6f14cdb9c26377e88bbafb5",
+              "model_revision": 5,
+              "timeout_seconds": 60,
+              "model_version_id": "version_2f87b035e57a475eb666f6ef98d22e89",
+              "connection_revision": 9,
+              "parameter_allowlist": [
+                "max_tokens"
+              ],
+              "provider_model_name": "gpt-6.1-sol",
+              "connection_version_id": "version_719acda97f9245f18958556dec3e7ed5",
+              "provider_credential_id": "credential_0c769d412a39419695511363d4c66f1f"
+            }
+          ],
+          "parameters": {},
+          "retry_policy": {
+            "max_attempts": 3,
+            "retries_per_model": 0
+          },
+          "attempt_order": [
+            "model_7531f43ba7f548a681588866d9817afb"
+          ],
+          "primary_model": "model_7531f43ba7f548a681588866d9817afb",
+          "fallback_models": [],
+          "hard_amount_budget": false,
+          "required_capabilities": [
+            "text"
+          ]
+        },
+        "content_digest": "43585f8c9dbbdddd44b7db56d33cb2c954829c91321c87b9c3b81e6980ed2d69",
+        "dependencies": [
+          "version_2f87b035e57a475eb666f6ef98d22e89",
+          "version_719acda97f9245f18958556dec3e7ed5"
+        ],
+        "dependencies_digest": "75d29b18cb5a2fa2e3f9bc74ef84e204cb4bfb16f3097ba1bdc116890ba97f98",
+        "output_schema": {},
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
+      },
+      {
+        "id": "version_2f87b035e57a475eb666f6ef98d22e89",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T08:01:29.005115+00:00",
+        "updated_at": "2026-10-14T08:01:29.005115+00:00",
+        "revision": 1,
+        "resource_type": "model",
+        "resource_id": "model_7531f43ba7f548a681588866d9817afb",
+        "version_label": "2",
+        "state": "PUBLISHED",
+        "content": {
+          "name": "GPT-6.1 Sol",
+          "status": "ACTIVE",
+          "model_code": "gtp",
+          "parameters": {},
+          "config_digest": "7973edff78b0ee46cf48e380c0368ad8ba9e5888fbde1727bbadaa698fa7f4bf",
+          "connection_id": "connection_a1add463c6f14cdb9c26377e88bbafb5",
+          "context_limit": null,
+          "parameter_allowlist": [
+            "max_tokens"
+          ],
+          "provider_model_name": "gpt-6.1-sol",
+          "validation_revision": 2,
+          "connection_version_id": "version_43b2d8493a04467ea9e36b1846b6dad5"
+        },
+        "content_digest": "7943d4d3a423f9412f82951ea83842ab828b55112563fec2072bb934d4dcbdda",
+        "dependencies": [
+          "version_43b2d8493a04467ea9e36b1846b6dad5"
+        ],
+        "dependencies_digest": "99f9fe58db38a3471e2899dcb68c0be4850319ae490bde77983e01fc5fce2fbc",
+        "output_schema": {},
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
+      },
+      {
+        "id": "version_43b2d8493a04467ea9e36b1846b6dad5",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T07:57:59.195857+00:00",
+        "updated_at": "2026-10-14T07:57:59.195857+00:00",
+        "revision": 1,
+        "resource_type": "model_connection",
+        "resource_id": "connection_a1add463c6f14cdb9c26377e88bbafb5",
+        "version_label": "1",
+        "state": "PUBLISHED",
+        "content": {
+          "name": "ChatGTP",
+          "status": "ACTIVE",
+          "endpoint": "https://api.openai.com/v1",
+          "protocol": "chat_completions",
+          "provider_id": "provider_openai",
+          "health_reason": null,
+          "health_status": "UNKNOWN",
+          "credential_ref": "credential_0c769d412a39419695511363d4c66f1f",
+          "timeout_seconds": 60,
+          "health_checked_at": null,
+          "current_version_id": "version_43b2d8493a04467ea9e36b1846b6dad5",
+          "validation_revision": 1
+        },
+        "content_digest": "a6ae9477bfda170c1e74c971a6479dd6b288ec6ded0627a030f1d43558ff48c6",
+        "dependencies": [],
+        "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "output_schema": {},
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
+      },
+      {
+        "id": "version_719acda97f9245f18958556dec3e7ed5",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T08:17:04.261122+00:00",
+        "updated_at": "2026-10-14T08:17:04.261122+00:00",
+        "revision": 1,
+        "resource_type": "model_connection",
+        "resource_id": "connection_a1add463c6f14cdb9c26377e88bbafb5",
+        "version_label": "6",
+        "state": "PUBLISHED",
+        "content": {
+          "name": "ChatGTP",
+          "status": "ACTIVE",
+          "endpoint": "https://api.masterhuang.top",
+          "protocol": "chat_completions",
+          "provider_id": "provider_openai",
+          "health_reason": null,
+          "health_status": "UNKNOWN",
+          "credential_ref": "credential_0c769d412a39419695511363d4c66f1f",
+          "timeout_seconds": 60,
+          "health_checked_at": null,
+          "current_version_id": "version_719acda97f9245f18958556dec3e7ed5",
+          "validation_revision": 3
+        },
+        "content_digest": "0aecc08e2c06e2127d03ab34ba652cf71a38e76515ef80f42a3cedd79f5b390c",
+        "dependencies": [],
+        "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "output_schema": {},
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
+      }
+    ],
+    "source_links": [
+      {
+        "id": "424ae0e756ec0607bc829eb52a33801bf45c3ae16d018a047ac6bd35cfb27d1a",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T08:17:04.281603+00:00",
+        "updated_at": "2026-10-14T08:17:04.281603+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "subject_type": null,
+        "subject_id": null,
+        "source_type": "model_connection",
+        "source_id": "connection_a1add463c6f14cdb9c26377e88bbafb5",
+        "derived_type": "version",
+        "derived_id": "version_719acda97f9245f18958556dec3e7ed5",
+        "source_version": null,
+        "is_deleted": false
+      },
+      {
+        "id": "bf70a94f8ccd9bdf3d4e0a1f4bfa85f21d57a57605ac392db8a2c11781551660",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T07:57:59.222200+00:00",
+        "updated_at": "2026-10-14T07:57:59.222200+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "subject_type": null,
+        "subject_id": null,
+        "source_type": "model_connection",
+        "source_id": "connection_a1add463c6f14cdb9c26377e88bbafb5",
+        "derived_type": "version",
+        "derived_id": "version_43b2d8493a04467ea9e36b1846b6dad5",
+        "source_version": null,
+        "is_deleted": false
+      },
+      {
+        "id": "c83731ed75bfa6e94af3b8cd0e881ccfb18b8c393347b7433303ec8611c87435",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T08:01:29.053905+00:00",
+        "updated_at": "2026-10-14T08:01:29.053905+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "subject_type": null,
+        "subject_id": null,
+        "source_type": "model",
+        "source_id": "model_7531f43ba7f548a681588866d9817afb",
+        "derived_type": "version",
+        "derived_id": "version_2f87b035e57a475eb666f6ef98d22e89",
+        "source_version": null,
+        "is_deleted": false
+      },
+      {
+        "id": "ce1569f952c588b939cbde7f5876ec52b963ef5881570792bba510d97be13ffe",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-14T08:01:29.053905+00:00",
+        "updated_at": "2026-10-14T08:01:29.053905+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "subject_type": null,
+        "subject_id": null,
+        "source_type": "version",
+        "source_id": "version_43b2d8493a04467ea9e36b1846b6dad5",
+        "derived_type": "version",
+        "derived_id": "version_2f87b035e57a475eb666f6ef98d22e89",
+        "source_version": null,
+        "is_deleted": false
+      }
+    ]
+  }
+}

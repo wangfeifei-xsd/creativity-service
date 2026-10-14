@@ -16,6 +16,7 @@ from alembic import command
 from creativity_service.core.config import Settings
 from creativity_service.core.database.audit import audit_database
 from creativity_service.storage import metadata
+from scripts.render_gpt_seed import load_gpt, merge_gpt
 from scripts.render_order_guidance_seed import load_guidance, merge_guidance
 from scripts.render_weather_seed import load_weather, merged_tables, typed_archive_values
 
@@ -78,7 +79,9 @@ def test_mysql_archive_preserves_configuration_and_indexes_inside_create_table(i
     base = json.loads(Path("sql/init_data.json").read_text())["tables"]
     weather = load_weather(base)["tables"]
     combined = merged_tables(base, weather)
-    archived = merge_guidance(weather, load_guidance(combined)["tables"])
+    guidance = load_guidance(combined)["tables"]
+    gpt = load_gpt(merge_guidance(combined, guidance))["tables"]
+    archived = merge_gpt(merge_guidance(weather, guidance), gpt)
     with env.engine.connect() as conn:
         assert audit_database(conn, env.name) == []
         assert conn.exec_driver_sql("SELECT count(*) FROM transaction_lock_slots").scalar() == 12288

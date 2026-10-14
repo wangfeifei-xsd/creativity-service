@@ -14,6 +14,7 @@ from creativity_service.modules.iam.repositories import membership_id, role_cata
 from creativity_service.modules.models.policy import PROTOCOLS, validate_endpoint
 from creativity_service.modules.models.schemas import ProviderView
 from scripts import render_init_sql
+from scripts.render_gpt_seed import load_gpt, merge_gpt
 from scripts.render_order_guidance_seed import load_guidance, merge_guidance, validate_guidance
 from scripts.render_weather_seed import load_weather, merged_tables, validate_weather
 from scripts.restore_init_objects import archived_objects
@@ -163,6 +164,7 @@ def test_seed_contains_platform_and_channel_concurrency_limits_with_frozen_versi
     weather = load_weather(tables)
     combined = merged_tables(tables, weather["tables"])
     combined = merge_guidance(combined, load_guidance(combined)["tables"])
+    combined = merge_gpt(combined, load_gpt(combined)["tables"])
     assert data.count("INSERT INTO resource_versions ") == len(combined["resource_versions"])
     assert "platform_quota_occupancies" not in data
     assert "INSERT INTO admissions " not in data
