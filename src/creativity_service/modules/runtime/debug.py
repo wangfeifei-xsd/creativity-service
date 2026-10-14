@@ -376,6 +376,14 @@ class DebugExecutor:
                             output_mode=case.output_mode,
                             tools=case.tools,
                             stream=case.case == "stream_cancel",
+                            # 固定验证用例显式限额，让预算预占与实际请求使用同一上限。
+                            parameters={}
+                            if case.case == "embedding"
+                            else {
+                                "max_tokens": execution.configuration.parameters.get(
+                                    "max_tokens", 1024
+                                )
+                            },
                         ),
                         [execution.configuration],
                         [execution.configuration.model_id],

@@ -4,6 +4,7 @@ import asyncio
 import json
 from datetime import timedelta
 
+import httpx
 import pytest
 
 from creativity_service.core.context import TaskEnvelope
@@ -208,12 +209,59 @@ async def test_cancel_inflight_preserves_usage_without_success(runtime_env):
     assert value.usage_summary["input_tokens"] == 10
 
 
-async def test_model_validation_without_published_agent_creates_debug_run(runtime_env):
+@pytest.mark.parametrize("parameters", [{}, {"max_tokens": 73}])
+async def test_model_validation_without_published_agent_creates_debug_run(runtime_env, parameters):
     env = runtime_env
+    from creativity_service.modules.models.schemas import ModelInput
     from creativity_service.modules.models.schemas import TestInput as Cases
+    from tests.models.test_protocols import adapter
+
+    current = await env.models.configuration.detail(env.tenant.manager, env.model.id)
+    await env.models.configuration.save_model(
+        env.tenant.manager,
+        ModelInput.model_validate(
+            {**current.model_dump(), "parameters": parameters}, extra="ignore"
+        ),
+        env.model.id,
+    )
+    sent = []
+
+    async def handler(request):
+        body = json.loads(request.content)
+        sent.append(body)
+        if request.url.path.endswith("/embeddings"):
+            return httpx.Response(
+                200,
+                json={
+                    "object": "list",
+                    "model": "fixture",
+                    "data": [{"object": "embedding", "index": 0, "embedding": [0.1, 0.2]}],
+                    "usage": {"prompt_tokens": 12, "total_tokens": 12},
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "id": f"validation-{len(sent)}",
+                "object": "chat.completion",
+                "created": 1,
+                "model": "fixture",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "验证完成"},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 12, "completion_tokens": 3, "total_tokens": 15},
+            },
+        )
+
+    # 使用真实协议适配与预算校验，避免宽松事件夹具掩盖缺少参数的发送前失败。
+    env.adapter.events = adapter(handler).events
 
     test = await env.models.testing.create(
-        env.tenant.manager, env.model.id, Cases(cases=["text", "usage"])
+        env.tenant.manager, env.model.id, Cases(cases=["text", "usage", "embedding"])
     )
     assert test.run_id, test.model_dump_json()
     await execute_message(
@@ -224,8 +272,12 @@ async def test_model_validation_without_published_agent_creates_debug_run(runtim
     )
     value = await env.runs.get_run(env.context, test.run_id)
     assert value.state == "SUCCEEDED", value.error
-    assert value.usage_summary["attempt_count"] == 2
+    assert value.usage_summary["attempt_count"] == 3
     assert value.result.data["evidence"] == "fixture"
+    assert value.result.data["passed"], value.result.data
+    assert len(sent) == 3
+    assert [body["max_tokens"] for body in sent[:2]] == [parameters.get("max_tokens", 1024)] * 2
+    assert "max_tokens" not in sent[2]
 
 
 async def test_saved_response_recovery_does_not_resend(runtime_env):
