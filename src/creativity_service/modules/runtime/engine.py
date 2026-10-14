@@ -200,7 +200,11 @@ class RuntimeExecutor:
                 parameters=parameters or {},
                 tools=tools,
                 output_schema=step.output_schema,
-                output_mode="native" if native_output else "prompt",
+                output_mode="native"
+                if native_output
+                else "json"
+                if "json_output" in route_capabilities
+                else "prompt",
                 stream="streaming" in route_capabilities,
             ),
             candidates,
@@ -450,10 +454,54 @@ class RuntimeExecutor:
                 }
 
             async def advance(state: FlowState) -> FlowState:
+                nonlocal tool_count
                 try:
                     return await unsafe_advance(state)
-                except ServiceError as exc:
+                except (ServiceError, TimeoutError) as failure:
+                    exc = (
+                        failure
+                        if isinstance(failure, ServiceError)
+                        else ServiceError("STEP_TIMEOUT", "步骤执行超时", 504)
+                    )
                     step = next(s for s in config.steps if s.key == state["node"])
+                    if step.failure_handler and exc.status in {422, 429, 500, 502, 503, 504}:
+                        handler = next(s for s in config.steps if s.key == step.failure_handler)
+                        try:
+                            if tool_count >= config.limits.max_tool_calls:
+                                raise ServiceError(
+                                    "CALL_LIMIT", "失败收尾工具调用次数已达上限", 429
+                                )
+                            values = step_input(handler, original, state["outputs"])
+                            assert handler.dependency is not None
+                            # 沿用原运行授权、幂等与持久化步骤，保留原失败结论。
+                            visit = state["visits"].get(step.key, 0)
+                            key = handler.key if visit == 0 else f"{handler.key}.i{visit}"
+                            async with asyncio.timeout(handler.timeout_seconds):
+                                result = await self.tool(
+                                    context, lease, spec, key, handler.dependency, values
+                                )
+                            tool_count += 1
+                            if not Draft202012Validator(handler.output_schema).is_valid(
+                                result["data"]
+                            ):
+                                raise ServiceError(
+                                    "OUTPUT_SCHEMA_INVALID", "失败收尾结果未通过结构校验", 422
+                                )
+                        except (ServiceError, TimeoutError) as cleanup_error:
+                            # 未确认收尾成功时保留来源占用；记录诊断供原执行核查，不能伪装成已释放。
+                            with suppress_inactive():
+                                await self.runs.append_event(
+                                    lease,
+                                    "tool_status",
+                                    {
+                                        "node_key": handler.key,
+                                        "failure_handler_failed": True,
+                                        "error_code": cleanup_error.code
+                                        if isinstance(cleanup_error, ServiceError)
+                                        else "STEP_TIMEOUT",
+                                    },
+                                )
+                        raise exc from failure
                     if step.failure_policy != "partial" or exc.status not in {
                         422,
                         429,
@@ -462,7 +510,7 @@ class RuntimeExecutor:
                         503,
                         504,
                     }:
-                        raise
+                        raise exc from failure
                     partial = BusinessResult(
                         schema_version="1.0",
                         business_status="PARTIAL",
@@ -475,7 +523,7 @@ class RuntimeExecutor:
                         evidence_refs=(),
                     ).model_dump(mode="json")
                     if not Draft202012Validator(config.output_schema).is_valid(partial):
-                        raise exc
+                        raise exc from failure
                     return {**state, "node": "END", "result": partial}
 
             if config.workflow_type == "stateful":

@@ -1,6 +1,6 @@
 {
   "source": {
-    "description": "只归档当前可用配置及必要依赖，不包含运行、用量、测试或操作历史；订单协助 MCP 契约、导入与绑定摘要已按当前中文字段标题同步。 2026年10月13日将订单协助单次运行 Token 上限调整为 256,000，为较大输入的保守预估和最大输出预留额度。",
+    "description": "只归档当前可用配置及必要依赖，不包含运行、用量、测试或操作历史；订单协助 MCP 契约、导入与绑定摘要已按当前中文字段标题同步。 2026年10月13日将订单协助单次运行 Token 上限调整为 256,000，为较大输入的保守预估和最大输出预留额度。；失败收尾工具与流程按本地源端契约同步，JSON 输出能力仍须实际验证后启用",
     "captured_at": "2026-10-09T04:14:38.279520+00:00",
     "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
     "environment": "dev",
@@ -565,6 +565,42 @@
             "output_schema": {
               "type": "object"
             }
+          },
+          {
+            "name": "rental_assistant.fail_guidances",
+            "title": "结束失败分析的领取占用",
+            "description": "原运行确认分析失败并放弃提交结果后，结束其领取占用。保留本类型已尝试记录，不触发重试，不覆盖已保存或已发布结果。",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "guidance_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "minItems": 1,
+                  "maxItems": 20,
+                  "title": "协助事项标识列表"
+                }
+              },
+              "required": [
+                "guidance_ids"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "schema_hash": "78872deb5f7f417dd4ad47c41ae6278b88dc6beacef8bcf792a3c2f811e51c51",
+            "purpose": "business"
           }
         ],
         "schema_hashes": {
@@ -573,7 +609,8 @@
           "rental_assistant.get_operation_status": "3082e8876db729df4404b18b090ddb83593747edb40883328d58446321a8b9a8",
           "rental_assistant.get_guidance_contexts": "9bb25dcea39abe653e57775e800b756a91135651ad9975a195c9bf7446290582",
           "rental_assistant.save_guidance_results": "0aad0eac677ce391334514e2285ecedf02c3e2b1a0fe7a5da35cd3574860f3db",
-          "rental_assistant.list_pending_guidances": "bdcd212eb8c39a5f5fc8b9b0fa75b6f91b598784a4469af807d13990fa34cad7"
+          "rental_assistant.list_pending_guidances": "bdcd212eb8c39a5f5fc8b9b0fa75b6f91b598784a4469af807d13990fa34cad7",
+          "rental_assistant.fail_guidances": "78872deb5f7f417dd4ad47c41ae6278b88dc6beacef8bcf792a3c2f811e51c51"
         },
         "negotiated_version": "2025-11-25",
         "credential_revision": 1,
@@ -932,6 +969,44 @@
         },
         "contract_status": "CURRENT",
         "is_deleted": false
+      },
+      {
+        "id": "mcp_iw_9d738f637185195a618cdea36fb9272b23720a15b2517e32f1d2",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-09T02:48:28.161529+00:00",
+        "updated_at": "2026-10-09T02:48:28.161529+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "connection_id": "mcp_799886052a5241f4828df8660c16e249",
+        "discovery_id": "discovery_46dc1e165dea410a96e35df6f89bf773",
+        "remote_tool_name": "rental_assistant.fail_guidances",
+        "local_tool_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "schema_hash": "78872deb5f7f417dd4ad47c41ae6278b88dc6beacef8bcf792a3c2f811e51c51",
+        "imported_version": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "effect_type": "IDEMPOTENT_WRITE",
+        "name": "结束失败分析的领取占用",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "guidance_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "minItems": 1,
+              "maxItems": 20,
+              "title": "协助事项标识列表"
+            }
+          },
+          "required": [
+            "guidance_ids"
+          ],
+          "additionalProperties": false
+        },
+        "contract_status": "CURRENT",
+        "is_deleted": false
       }
     ],
     "model_connections": [
@@ -1166,6 +1241,20 @@
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
         "release_note": "发布资源",
         "is_deleted": false
+      },
+      {
+        "id": "6a56a0fa4c964bc7c23f35ffc5c052885b02825ac463a54929aac6226432b18b",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-08T11:46:05.284427+00:00",
+        "updated_at": "2026-10-09T02:52:16.223972+00:00",
+        "revision": 2,
+        "environment": "dev",
+        "resource_type": "tool",
+        "resource_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "version_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "release_note": "发布资源",
+        "is_deleted": false
       }
     ],
     "resource_references": [
@@ -1298,6 +1387,17 @@
         "revision": 1,
         "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
         "target_version_id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
+        "target_resource_type": "tool",
+        "is_deleted": false
+      },
+      {
+        "id": "b993fab51d3cd4639c6f65750441fc54e3b4130639b40fe0a2fa4f3a99c063f1",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-09T03:07:03.665195+00:00",
+        "updated_at": "2026-10-09T03:07:03.665195+00:00",
+        "revision": 1,
+        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "target_version_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
         "target_resource_type": "tool",
         "is_deleted": false
       }
@@ -2790,7 +2890,8 @@
                 "additionalProperties": false
               },
               "failure_policy": "fail",
-              "timeout_seconds": 120
+              "timeout_seconds": 120,
+              "failure_handler": "fail_analysis"
             },
             {
               "key": "save",
@@ -3125,6 +3226,45 @@
               },
               "failure_policy": "fail",
               "timeout_seconds": 30
+            },
+            {
+              "key": "fail_analysis",
+              "name": "结束失败分析的领取占用",
+              "kind": "tool",
+              "dependency": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+              "inputs": {
+                "guidance_ids": {
+                  "source": "step",
+                  "step": "claim",
+                  "path": "guidance_ids"
+                }
+              },
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "guidance_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "title": "协助事项标识列表"
+                  }
+                },
+                "required": [
+                  "guidance_ids"
+                ],
+                "additionalProperties": false
+              },
+              "output_schema": {
+                "type": "object"
+              },
+              "timeout_seconds": 30,
+              "failure_policy": "fail",
+              "max_retries": 0
             }
           ],
           "limits": {
@@ -3160,7 +3300,8 @@
               "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
               "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
               "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
-              "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e"
+              "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
+              "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233"
             ],
             "prompt_version": "prompt_d79b922127524951ada73866d62abf5a",
             "skill_versions": [
@@ -3216,19 +3357,20 @@
           },
           "workflow_type": "stateful"
         },
-        "content_digest": "90c87a28ad7755afbf8d1516cdab052076863adc7bc4cb30559fa0a798b1645d",
+        "content_digest": "2b41c4c29bfd6c2288ae254539e4971c4562e6c9e825bd563ea5ef1a64cc7095",
         "dependencies": [
           "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
           "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
           "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
           "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
+          "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
           "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
           "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
           "prompt_d79b922127524951ada73866d62abf5a",
           "route_0595b357c65e4c879af695163ee5d129",
           "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1"
         ],
-        "dependencies_digest": "9f6799f66a5bfa39ff7063b247e356d5e83403f9022c224180070b92a834e689",
+        "dependencies_digest": "ec59b9f257d356d6ddfe47a0c05b54a0e877351a61545881f0de442cac6f6383",
         "output_schema": {
           "type": "object",
           "required": [
@@ -3700,7 +3842,8 @@
                 "additionalProperties": false
               },
               "failure_policy": "fail",
-              "timeout_seconds": 120
+              "timeout_seconds": 120,
+              "failure_handler": "fail_analysis"
             },
             {
               "key": "save",
@@ -4035,6 +4178,45 @@
               },
               "failure_policy": "fail",
               "timeout_seconds": 30
+            },
+            {
+              "key": "fail_analysis",
+              "name": "结束失败分析的领取占用",
+              "kind": "tool",
+              "dependency": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+              "inputs": {
+                "guidance_ids": {
+                  "source": "step",
+                  "step": "claim",
+                  "path": "guidance_ids"
+                }
+              },
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "guidance_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "title": "协助事项标识列表"
+                  }
+                },
+                "required": [
+                  "guidance_ids"
+                ],
+                "additionalProperties": false
+              },
+              "output_schema": {
+                "type": "object"
+              },
+              "timeout_seconds": 30,
+              "failure_policy": "fail",
+              "max_retries": 0
             }
           ],
           "limits": {
@@ -4070,7 +4252,8 @@
               "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
               "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
               "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
-              "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e"
+              "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
+              "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233"
             ],
             "prompt_version": "prompt_d79b922127524951ada73866d62abf5a",
             "skill_versions": [
@@ -4126,12 +4309,13 @@
           },
           "workflow_type": "stateful"
         },
-        "content_digest": "90c87a28ad7755afbf8d1516cdab052076863adc7bc4cb30559fa0a798b1645d",
+        "content_digest": "2b41c4c29bfd6c2288ae254539e4971c4562e6c9e825bd563ea5ef1a64cc7095",
         "dependencies": [
           "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
           "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
           "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
           "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
+          "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
           "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
           "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
           "prompt_d79b922127524951ada73866d62abf5a",
@@ -4141,7 +4325,7 @@
           "version_90734e0e8b794bc5851101ab2bdfcb0f",
           "version_ab199b3f3d1d4d62bde6f40d1362a959"
         ],
-        "dependencies_digest": "a7bcfa37cc7dca3bad561056bd057f99a2067feab68c73f6efe83d893a718f62",
+        "dependencies_digest": "fc352f63ab247c485aab993a6139edd3fe63a9d90062e231ddc634d38a858ad6",
         "output_schema": {
           "type": "object",
           "required": [
@@ -4178,6 +4362,118 @@
             }
           },
           "additionalProperties": false
+        },
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
+      },
+      {
+        "id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-08T11:28:07.727304+00:00",
+        "updated_at": "2026-10-09T02:52:16.219273+00:00",
+        "revision": 5,
+        "resource_type": "tool",
+        "resource_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "version_label": "当前配置",
+        "state": "PUBLISHED",
+        "content": {
+          "binding": {
+            "script": null,
+            "adapter_key": "mcp_iw_9d738f637185195a618cdea36fb9272b23720a15b2517e32f1d2",
+            "connection_id": "mcp_799886052a5241f4828df8660c16e249",
+            "implementation_version": "78872deb5f7f417dd4ad47c41ae6278b88dc6beacef8bcf792a3c2f811e51c51"
+          },
+          "effect_type": "IDEMPOTENT_WRITE",
+          "cache_policy": {
+            "volatile": false,
+            "ttl_seconds": 0,
+            "freshness_seconds": 120
+          },
+          "environments": [
+            "dev"
+          ],
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "guidance_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "minItems": 1,
+                "maxItems": 20,
+                "title": "协助事项标识列表"
+              }
+            },
+            "required": [
+              "guidance_ids"
+            ],
+            "additionalProperties": false
+          },
+          "retry_policy": {
+            "delay_ms": 100,
+            "max_attempts": 1
+          },
+          "write_policy": {
+            "max_checks": 3,
+            "check_delay_ms": 1000,
+            "max_submissions": 2,
+            "authorization_mode": "preauthorized",
+            "allowed_agent_codes": [
+              "rental_order_guidance"
+            ],
+            "argument_constraints": {
+              "type": "object",
+              "properties": {
+                "guidance_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "minItems": 1,
+                  "maxItems": 20,
+                  "title": "协助事项标识列表"
+                }
+              },
+              "required": [
+                "guidance_ids"
+              ],
+              "additionalProperties": false
+            },
+            "allowed_principal_ids": [
+              "user_1d5e419d2ad54a99aca1ebd45e412c78"
+            ],
+            "status_tool_version_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e"
+          },
+          "output_schema": {
+            "type": "object"
+          },
+          "analysis_policy": null,
+          "max_result_size": 262144,
+          "required_scopes": [
+            "run:create"
+          ],
+          "timeout_seconds": 10,
+          "idempotency_policy": "source_key",
+          "model_fields_allowed": [
+            "guidance_ids"
+          ],
+          "subject_requirements": {
+            "required": false,
+            "allowed_types": []
+          }
+        },
+        "content_digest": "5b58c8c56b04010c42520d148890e4f04e00a3577d8cc1263189126cb31a7d00",
+        "dependencies": [
+          "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e"
+        ],
+        "dependencies_digest": "9f27113734531cd7be765ff780b8b2e17de491f2657c2678f2d76d87c232d707",
+        "output_schema": {
+          "type": "object"
         },
         "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
         "is_deleted": false
@@ -4713,6 +5009,54 @@
         "derived_id": "skill_file_83d20880ca5b46a98e0f901762424661",
         "source_version": null,
         "is_deleted": false
+      },
+      {
+        "id": "4c0960e7e148b5b0dc0390451a825569ef005bc4d03a5a3bb4a7a7b6bd833943",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-08T11:28:07.737816+00:00",
+        "updated_at": "2026-10-08T11:28:07.737816+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "subject_type": null,
+        "subject_id": null,
+        "source_type": "tool",
+        "source_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "derived_type": "version",
+        "derived_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "source_version": null,
+        "is_deleted": false
+      },
+      {
+        "id": "f419347c7c7ee8b4474681cd37142076c24b135dabf991ec40e5bedbab9308d0",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-09T03:07:03.590123+00:00",
+        "updated_at": "2026-10-09T03:07:03.590123+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "subject_type": null,
+        "subject_id": null,
+        "source_type": "version",
+        "source_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "derived_type": "version",
+        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version": null,
+        "is_deleted": false
+      },
+      {
+        "id": "ef54181144ff6588562d8feee31cda5ae9b1062ab01772925aabf8a99d075516",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-09T02:48:28.147710+00:00",
+        "updated_at": "2026-10-09T02:48:28.147710+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "subject_type": null,
+        "subject_id": null,
+        "source_type": "tool",
+        "source_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "derived_type": "version",
+        "derived_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "source_version": null,
+        "is_deleted": false
       }
     ],
     "tools": [
@@ -4795,6 +5139,20 @@
         "tool_code": "mcp.99116e9972d072f4a0df8bab7f4af06a45424c5e33f833313ff3",
         "name": "订单协助 · 复核并发布",
         "description": "复核事实并发布已保存协助。仅使用已授权应用与平台注入身份；AI协助不改变订单状态。",
+        "source_type": "mcp",
+        "owner": "租号运营",
+        "status": "ACTIVE",
+        "is_deleted": false
+      },
+      {
+        "id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-08T11:28:07.722125+00:00",
+        "updated_at": "2026-10-08T11:28:07.722125+00:00",
+        "revision": 1,
+        "tool_code": "mcp.9d738f637185195a618cdea36fb9272b23720a15b2517e32f1d2",
+        "name": "订单协助 · 结束失败分析的领取占用",
+        "description": "原运行确认分析失败并放弃提交结果后，结束其领取占用。保留本类型已尝试记录，不触发重试，不覆盖已保存或已发布结果。",
         "source_type": "mcp",
         "owner": "租号运营",
         "status": "ACTIVE",

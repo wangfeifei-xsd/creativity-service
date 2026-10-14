@@ -349,6 +349,21 @@
             "default": null,
             "title": "Dependency"
           },
+          "failure_handler": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Failure Handler"
+          },
           "failure_policy": {
             "default": "retry",
             "enum": [

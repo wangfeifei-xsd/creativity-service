@@ -35,6 +35,7 @@ class AgentStep(Contract):
     timeout_seconds: int = Field(default=30, ge=1, le=3600, strict=True)
     failure_policy: Literal["fail", "partial", "retry"] = "retry"
     max_retries: int = Field(default=2, ge=0, le=2, strict=True)
+    failure_handler: Identifier | None = None
 
 
 class AgentCondition(Contract):

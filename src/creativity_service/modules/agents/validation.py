@@ -154,10 +154,33 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
     if definition.start_step not in nodes:
         fail("起始步骤不存在", "start_step")
     outgoing: dict[str, list[str]] = {k: [] for k in nodes}
+    handlers: dict[str, set[str]] = {}
+    for step in definition.steps:
+        if step.failure_handler is None:
+            continue
+        handler = nodes.get(step.failure_handler)
+        if (
+            handler is None
+            or handler.kind != "tool"
+            or handler.failure_handler is not None
+            or handler.failure_policy != "fail"
+            or handler.key == step.key
+            or step.failure_policy == "partial"
+        ):
+            fail(
+                "失败收尾须引用独立工具步骤，不能嵌套、重试或返回部分成功",
+                f"steps.{step.key}.failure_handler",
+            )
+            continue
+        handlers.setdefault(handler.key, set()).add(step.key)
+        outgoing[step.key].append(handler.key)
+        outgoing[handler.key] = ["END"]
     for edge in definition.edges:
         if edge.source not in nodes or edge.target not in {*nodes, "END"}:
             fail("流转边引用不存在的步骤", "edges")
             continue
+        if edge.source in handlers or edge.target in handlers:
+            fail("失败收尾工具不能同时参与正常流转", "edges")
         outgoing[edge.source].append(edge.target)
         if edge.condition:
             condition_schema = schema_field(nodes[edge.source].output_schema, edge.condition.path)
@@ -170,6 +193,10 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
         if edge.otherwise and edge.condition:
             fail("兜底分支不能同时设置条件", "edges")
     for key in nodes:
+        if key in handlers:
+            if key == definition.start_step:
+                fail("失败收尾工具不能作为起始步骤", "start_step")
+            continue
         edges = [e for e in definition.edges if e.source == key]
         if not edges:
             fail("步骤缺少终止或后续流转", f"steps.{key}")
@@ -224,6 +251,7 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
                 if (
                     not predecessor
                     or source.step == key
+                    or source.step in handlers.get(key, set())
                     or key in reachable(definition.start_step, source.step)
                 ):
                     fail(
@@ -247,7 +275,11 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
             fail("工具步骤必须引用智能体工具白名单中的版本", f"steps.{key}.dependency")
         if step.kind == "compute" and step.dependency:
             fail("计算步骤只能由已登记的流程代码实现", f"steps.{key}.dependency")
-        if "END" in outgoing[key] and not compatible(step.output_schema, definition.output_schema):
+        if (
+            key not in handlers
+            and "END" in outgoing[key]
+            and not compatible(step.output_schema, definition.output_schema)
+        ):
             fail("终止步骤输出不满足智能体业务输出结构", f"steps.{key}.output_schema")
     cyclic = any(k in reachable(n) for k, targets in outgoing.items() for n in targets)
     if cyclic and definition.workflow_type not in {"tool_loop", "stateful"}:

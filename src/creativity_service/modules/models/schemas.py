@@ -13,10 +13,14 @@ from creativity_service.modules.iam.schemas import AccessAction
 ProtocolType = Literal[
     "chat_completions", "responses", "anthropic_messages", "gemini_generate_content"
 ]
-Capability = Literal["text", "tools", "structured_output", "streaming", "vision", "embedding"]
+Capability = Literal[
+    "text", "tools", "structured_output", "json_output", "streaming", "vision", "embedding"
+]
 CapabilityState = Literal["SUPPORTED", "UNSUPPORTED", "UNVERIFIED"]
 Status = Literal["ACTIVE", "DISABLED"]
-TestCase = Literal["text", "schema", "tools", "stream_cancel", "usage", "embedding", "vision"]
+TestCase = Literal[
+    "text", "schema", "json", "tools", "stream_cancel", "usage", "embedding", "vision"
+]
 
 
 class ProtocolView(Contract):
@@ -181,7 +185,7 @@ class RouteVersionView(ResourceVersion):
 
 
 class TestInput(Contract):
-    cases: list[TestCase] = Field(default=["text", "usage"], min_length=1, max_length=7)
+    cases: list[TestCase] = Field(default=["text", "usage"], min_length=1, max_length=8)
 
 
 class CaseDefinition(Contract):
@@ -191,7 +195,7 @@ class CaseDefinition(Contract):
     capability: Capability | None = None
     images: list[str] = Field(default_factory=list, max_length=10)
     output_schema: dict[str, Any] | None = None
-    output_mode: Literal["native", "prompt"] = "native"
+    output_mode: Literal["native", "json", "prompt"] = "native"
     tools: list[dict[str, Any]] = Field(default_factory=list)
     cancel_after_chunks: int | None = None
 

@@ -41,6 +41,17 @@ def _capability_case(case: TestCase, prompt: str, **options: Any) -> CaseDefinit
 CASES = {
     "embedding": _capability_case(case="embedding", prompt="查询用户的长期偏好"),
     "text": _capability_case(case="text", prompt="请只回复：验证完成"),
+    "json": _capability_case(
+        case="json",
+        prompt='只返回 JSON 对象 {"ok":true}，不添加解释或代码围栏。',
+        output_mode="json",
+        output_schema={
+            "type": "object",
+            "properties": {"ok": {"type": "boolean", "const": True}},
+            "required": ["ok"],
+            "additionalProperties": False,
+        },
+    ),
     "schema": _capability_case(
         case="schema",
         prompt="返回 ok 为 true 的对象",

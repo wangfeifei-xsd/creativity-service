@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from creativity_service.core.context import TaskEnvelope
-from creativity_service.core.primitives import RunInput, utcnow
+from creativity_service.core.primitives import RunInput, ServiceError, utcnow
 from creativity_service.integrations.tools import AdapterRegistration, AdapterResult
 from creativity_service.modules.skills.schemas import SkillCreate, SkillRelease
 from creativity_service.modules.tools.schemas import (
@@ -61,6 +61,12 @@ class Source:
                     }
                 ]
             }
+        elif self.operation == "fail_guidances":
+            assert request.arguments == {"guidance_ids": [GUIDANCE]}
+            assert not self.saved
+            if self.scenario == "cleanup_failure":
+                raise ServiceError("SOURCE_UNAVAILABLE", "来源暂不可用", 503)
+            data = {"items": [{"guidance_id": GUIDANCE, "state": "FAILED"}]}
         elif self.operation == "publish_guidances":
             assert self.scenario == "saved" or self.saved
             data = {
@@ -78,7 +84,9 @@ class Source:
         )
 
 
-@pytest.mark.parametrize("scenario", ["empty", "race", "saved", "guide", "nohelp"])
+@pytest.mark.parametrize(
+    "scenario", ["empty", "race", "saved", "guide", "nohelp", "failure", "cleanup_failure"]
+)
 async def test_configured_guidance_routes_skip_unneeded_analysis_and_save_before_publish(
     runtime_env, scenario
 ):
@@ -101,6 +109,7 @@ async def test_configured_guidance_routes_skip_unneeded_analysis_and_save_before
         "claim_guidances",
         "save_guidance_results",
         "publish_guidances",
+        "fail_guidances",
     ):
         policy = json.loads((FOLDER / f"{operation}.policy.json").read_text())
         if policy.get("write_policy"):
@@ -198,23 +207,42 @@ async def test_configured_guidance_routes_skip_unneeded_analysis_and_save_before
             }
         )
     env.adapter.responses = [{"results": [model_result]}]
+    if scenario in {"failure", "cleanup_failure"}:
+        env.adapter.failures = ["MODEL_OUTPUT_INVALID"]
     receipt = await env.runs.admit_run(
         env.context, RunInput(agent_code=body.agent_code, input={}), "production"
     )
     message = TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=receipt.run_id)
     await execute_message(env.runs, message, "configured", env.runtime)
     result = await env.runs.get_run(env.context, receipt.run_id)
-    assert result.state == "SUCCEEDED", result.error
+    if scenario == "cleanup_failure":
+        # 写收尾结果未知时沿用平台核查流程；不能伪造释放或再调用模型。
+        assert result.state == "WAITING_INPUT"
+        assert calls[:3] == ["list_pending_guidances", "claim_guidances", "fail_guidances"]
+        assert all(call == "get_operation_status" for call in calls[3:])
+        assert len(env.adapter.calls) == 1
+        previous = list(calls)
+        await execute_message(env.runs, message, "redelivered", env.runtime)
+        assert calls == previous and len(env.adapter.calls) == 1
+        return
+    failed = scenario in {"failure", "cleanup_failure"}
+    assert result.state == ("FAILED" if failed else "SUCCEEDED"), result.error
+    if failed:
+        assert result.error.code == "MODEL_OUTPUT_INVALID"
     expected = {
         "empty": ["list_pending_guidances"],
         "race": ["list_pending_guidances", "claim_guidances"],
         "saved": ["list_pending_guidances", "claim_guidances", "publish_guidances"],
+        "failure": ["list_pending_guidances", "claim_guidances", "fail_guidances"],
+        "cleanup_failure": ["list_pending_guidances", "claim_guidances", "fail_guidances"],
     }.get(
         scenario,
         ["list_pending_guidances", "claim_guidances", "save_guidance_results", "publish_guidances"],
     )
     assert calls == expected
-    assert len(env.adapter.calls) == (1 if scenario in {"guide", "nohelp"} else 0)
+    assert len(env.adapter.calls) == (
+        1 if scenario in {"guide", "nohelp", "failure", "cleanup_failure"} else 0
+    )
     if env.adapter.calls:
         messages = env.adapter.calls[0][1].messages
         assert json.loads(messages[-1]["content"]) == {"input": {"context": CONTEXT}}

@@ -19,8 +19,8 @@ class ModelRequest(Contract):
     messages: list[dict[str, Any]] = Field(min_length=1, max_length=1000)
     tools: list[dict[str, Any]] = Field(default_factory=list, max_length=100)
     output_schema: dict[str, Any] | None = None
-    # 输出校验始终执行；模式仅决定是否要求供应商原生结构化输出。
-    output_mode: Literal["native", "prompt"] = "native"
+    # 输出校验始终执行；模式决定供应商采用 Schema、JSON 对象还是提示词约束。
+    output_mode: Literal["native", "json", "prompt"] = "native"
     parameters: dict[str, Any] = Field(default_factory=dict)
     stream: bool = False
 
@@ -39,6 +39,10 @@ class ModelRequest(Contract):
     @property
     def requires_native_output(self) -> bool:
         return self.output_schema is not None and self.output_mode == "native"
+
+    @property
+    def requires_json_output(self) -> bool:
+        return self.output_schema is not None and self.output_mode == "json"
 
     @property
     def requires_vision(self) -> bool:
@@ -151,6 +155,8 @@ def validate_request(
         raise ServiceError(
             "MODEL_CAPABILITY_UNSUPPORTED", "当前 Messages 适配器未启用结构化输出", 422
         )
+    if request.requires_json_output and config.protocol != "chat_completions":
+        raise ServiceError("MODEL_CAPABILITY_UNSUPPORTED", "当前协议未启用 JSON 对象输出", 422)
     if "max_tokens" not in parameters:
         raise ServiceError("MODEL_PARAMETER_INVALID", "调用必须显式设置最大输出 Token 数", 422)
     if reservation.token_limit is not None and parameters["max_tokens"] > reservation.token_limit:

@@ -95,6 +95,7 @@ class LiteLLMAdapter:
             "text",
             *(["tools"] if request.tools else []),
             *(["structured_output"] if request.requires_native_output else []),
+            *(["json_output"] if request.requires_json_output else []),
             *(["streaming"] if request.stream else []),
             *(["vision"] if request.requires_vision else []),
         ]
@@ -214,7 +215,9 @@ class LiteLLMAdapter:
                             attempt.attempt_id,
                             source_id,
                             capture.usage,
-                            final=False,
+                            # 输出格式校验发生在响应结束之后；业务输出失败不意味着供应商用量未定。
+                            final=capture.usage is not None
+                            and code in {"MODEL_OUTPUT_INVALID", "MODEL_OUTPUT_TRUNCATED"},
                             embedding=request.operation == "embedding",
                         ),
                     )
@@ -337,6 +340,8 @@ class LiteLLMAdapter:
                 "type": "json_schema",
                 "json_schema": {"name": "result", "strict": True, "schema": request.output_schema},
             }
+        elif request.requires_json_output:
+            options["response_format"] = {"type": "json_object"}
         if request.stream and provider == "openai":
             options["stream_options"] = {"include_usage": True}
         result: Any = await cancellable(litellm.acompletion(**options), cancellation)

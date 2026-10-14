@@ -363,7 +363,8 @@
         },
         "timeout_seconds": 120,
         "max_retries": 0,
-        "failure_policy": "fail"
+        "failure_policy": "fail",
+        "failure_handler": "fail_analysis"
       },
       {
         "key": "save",
@@ -682,6 +683,45 @@
         },
         "max_retries": 0,
         "failure_policy": "fail"
+      },
+      {
+        "key": "fail_analysis",
+        "name": "结束失败分析的领取占用",
+        "kind": "tool",
+        "dependency": "bind_fail_guidances",
+        "inputs": {
+          "guidance_ids": {
+            "source": "step",
+            "step": "claim",
+            "path": "guidance_ids"
+          }
+        },
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "guidance_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "minItems": 1,
+              "maxItems": 20,
+              "title": "协助事项标识列表"
+            }
+          },
+          "required": [
+            "guidance_ids"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object"
+        },
+        "timeout_seconds": 30,
+        "failure_policy": "fail",
+        "max_retries": 0
       }
     ],
     "edges": [
@@ -748,7 +788,8 @@
         "bind_get_operation_status",
         "bind_list_pending_guidances",
         "bind_publish_guidances",
-        "bind_save_guidance_results"
+        "bind_save_guidance_results",
+        "bind_fail_guidances"
       ],
       "skill_versions": [
         "bind_skill"

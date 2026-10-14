@@ -131,8 +131,8 @@ def validate_guidance(seed: dict[str, Any], base: dict[str, Any]) -> None:
         or not credential.get("secret_value")
     ):
         raise ValueError("订单协助 MCP 鉴权或验证修订不完整")
-    if len(tables["tools"]) != 6 or len(tables["mcp_imports"]) != 6:
-        raise ValueError("订单协助六个工具必须完整归档")
+    if len(tables["tools"]) != 7 or len(tables["mcp_imports"]) != 7:
+        raise ValueError("订单协助七个工具必须完整归档")
     for tool in tables["tools"]:
         definition = ToolDefinition.model_validate(versions[tool["id"]]["content"])
         imported = index["mcp_imports"].get(definition.binding.adapter_key, {})

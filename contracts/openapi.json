@@ -1802,6 +1802,20 @@
             ],
             "title": "Dependency"
           },
+          "failure_handler": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Handler"
+          },
           "failure_policy": {
             "default": "retry",
             "enum": [
@@ -3917,6 +3931,7 @@
               "text",
               "tools",
               "structured_output",
+              "json_output",
               "streaming",
               "vision",
               "embedding"
@@ -4103,6 +4118,7 @@
                   "text",
                   "tools",
                   "structured_output",
+                  "json_output",
                   "streaming",
                   "vision",
                   "embedding"
@@ -4119,6 +4135,7 @@
             "enum": [
               "text",
               "schema",
+              "json",
               "tools",
               "stream_cancel",
               "usage",
@@ -4144,6 +4161,7 @@
             "default": "native",
             "enum": [
               "native",
+              "json",
               "prompt"
             ],
             "title": "Output Mode",
@@ -4331,6 +4349,7 @@
             "enum": [
               "text",
               "schema",
+              "json",
               "tools",
               "stream_cancel",
               "usage",
@@ -14863,6 +14882,7 @@
                 "text",
                 "tools",
                 "structured_output",
+                "json_output",
                 "streaming",
                 "vision",
                 "embedding"
@@ -17935,6 +17955,7 @@
               "enum": [
                 "text",
                 "schema",
+                "json",
                 "tools",
                 "stream_cancel",
                 "usage",
@@ -17943,7 +17964,7 @@
               ],
               "type": "string"
             },
-            "maxItems": 7,
+            "maxItems": 8,
             "minItems": 1,
             "title": "Cases",
             "type": "array"
@@ -17967,6 +17988,7 @@
               "enum": [
                 "text",
                 "schema",
+                "json",
                 "tools",
                 "stream_cancel",
                 "usage",

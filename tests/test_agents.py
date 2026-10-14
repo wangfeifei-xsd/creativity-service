@@ -378,8 +378,45 @@ def test_legacy_definition_golden_files_and_importable_examples():
         for step in current["steps"]:
             assert step.pop("operator") is None
             assert step.pop("prompt_id") is None
+            assert step.pop("failure_handler") is None
         assert json.loads(stored.read_text()) == current
     for path in Path("examples/agents").glob("*.json"):
         body = AgentCreate.model_validate_json(path.read_text())
         assert body.definition.entrypoint in {"workflow.v1", "structured.v1"}
         assert not codes(body.definition)
+
+
+def test_failure_handler_requires_independent_tool_and_completed_input_sources():
+    from pathlib import Path
+
+    payload = json.loads(Path("examples/agents/rental-order-guidance/agent.json").read_text())[
+        "definition"
+    ]
+    definition = AgentDefinition.model_validate(payload)
+    assert not static_issues(definition)
+    handler = next(s for s in definition.steps if s.key == "fail_analysis")
+    invalid_input = handler.model_copy(
+        update={
+            "inputs": {"guidance_ids": InputSource(source="step", step="analyze", path="results")}
+        }
+    )
+    assert static_issues(
+        definition.model_copy(
+            update={
+                "steps": tuple(
+                    invalid_input if s.key == handler.key else s for s in definition.steps
+                )
+            }
+        )
+    )
+    assert static_issues(
+        definition.model_copy(
+            update={"edges": (*definition.edges, AgentEdge(source="find", target=handler.key))}
+        )
+    )
+    nested = handler.model_copy(update={"failure_handler": "claim"})
+    assert static_issues(
+        definition.model_copy(
+            update={"steps": tuple(nested if s.key == handler.key else s for s in definition.steps)}
+        )
+    )

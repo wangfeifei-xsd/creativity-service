@@ -182,3 +182,60 @@ async def test_success_without_final_usage_keeps_accounting_pending(runtime_env)
         )
     assert (await env.runs.load(message))["state"] == "SUCCEEDED"
     assert record["outcome"] == "SUCCEEDED" and record["state"] == "PENDING"
+
+
+async def test_invalid_json_run_still_settles_reported_usage_and_reasoning(runtime_env):
+    env = runtime_env
+
+    async def handler(request):
+        return httpx.Response(
+            200,
+            json={
+                "id": "invalid-json-complete",
+                "object": "chat.completion",
+                "created": 1,
+                "model": "fixture-model",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": '{"broken":true "missing_comma":1}',
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 12,
+                    "completion_tokens": 8,
+                    "total_tokens": 20,
+                    "completion_tokens_details": {"reasoning_tokens": 5},
+                },
+            },
+        )
+
+    env.adapter.events = adapter(handler).events
+    definition = env.definition.model_copy(
+        update={
+            "limits": env.definition.limits.model_copy(update={"output_repair_attempts": 0}),
+        }
+    )
+    receipt, message = await admitted(env, definition=definition)
+    await execute_message(env.runs, message, "invalid-json-usage", env.runtime)
+    run = await env.runs.load(message)
+    assert run["state"] == "FAILED" and run["error"]["code"] == "MODEL_OUTPUT_INVALID"
+    async with env.engine.connect() as connection:
+        (record,) = await rows(
+            connection, "usage_records", env.context.scope.channel_id, run_id=receipt.run_id
+        )
+        reservations = await rows(
+            connection,
+            "budget_reservations",
+            env.context.scope.channel_id,
+            attempt_id=record["attempt_id"],
+        )
+    assert record["state"] == "SETTLED" and record["final_reported"]
+    assert record["outcome"] == "FAILED"
+    assert record["input_tokens"] + record["output_tokens"] == 20
+    assert record["reasoning_tokens"] == 5
+    assert all(r["status"] == "SETTLED" for r in reservations)

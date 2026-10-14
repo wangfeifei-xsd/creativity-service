@@ -39,6 +39,14 @@ def normalize_usage(
                 cache_read=count(details.get("cached_tokens")),
             )
             subsets["cache_read"] = "input"
+            completion = raw.get("completion_tokens_details") or {}
+            reasoning = (
+                count(completion.get("reasoning_tokens")) if isinstance(completion, dict) else None
+            )
+            if reasoning is not None:
+                tokens["reasoning"] = reasoning
+                # 推理已包含在完成 Token 中，只记录子集，不重复计入总数或费用。
+                subsets["reasoning"] = "output"
         elif config.protocol == "anthropic_messages":
             # Messages 的 input_tokens 不包含缓存读写，先合为总输入再标明子集。
             base, read, write = (
