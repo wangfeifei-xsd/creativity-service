@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import and_, select, tuple_
+from sqlalchemy import and_, func, select, tuple_
 
 from creativity_service.core.context import AuthContext, Scope
 from creativity_service.core.database import Repository, UnitOfWork, transaction
@@ -24,6 +24,8 @@ from creativity_service.modules.integrations.automation_schemas import (
     BatchView,
     ItemView,
     ScheduleCreate,
+    ScheduleTodo,
+    ScheduleTodoList,
     ScheduleUpdate,
     Toggle,
     next_window,
@@ -151,13 +153,70 @@ class AutomationService:
                 ).mappings()
             ]
 
-    async def list_schedules(self, context: AuthContext) -> list[dict[str, Any]]:
+    async def list_schedules(
+        self, context: AuthContext, identifier: str | None = None
+    ) -> list[dict[str, Any]]:
         await self.manage(context)
         async with self.engine.connect() as connection:
             records = await repo(context.scope, "automation_schedules").find(
-                connection, owner_key=owner(context)
+                connection, owner_key=owner(context), **({"id": identifier} if identifier else {})
             )
         return [self.schedule_view(r) for r in records if not r["is_deleted"]]
+
+    async def schedule_todos(
+        self, context: AuthContext, page: int = 1, page_size: int = 5
+    ) -> ScheduleTodoList:
+        await self.manage(context)
+        if page < 1 or not 1 <= page_size <= 100:
+            raise ServiceError("INVALID_INPUT", "待办分页参数不正确", 422)
+        table = metadata.tables["automation_schedules"]
+        # 待办直接来自计划当前状态，恢复后自动消失；沿用计划的主体及所有者范围。
+        predicate = and_(
+            repo(context.scope, "automation_schedules").predicate(),
+            table.c.is_deleted.is_(False),
+            table.c.owner_key == owner(context),
+            table.c.state == "PAUSED",
+            table.c.last_error["code"].as_string() == "SCHEDULE_FAILURE_LIMIT",
+        )
+        async with self.engine.connect() as connection:
+            total = await connection.scalar(
+                select(func.count()).select_from(table).where(predicate)
+            )
+            records = (
+                (
+                    await connection.execute(
+                        select(
+                            table.c.id,
+                            table.c.name,
+                            table.c.consecutive_failures,
+                            table.c.spec["failure_threshold"]
+                            .as_integer()
+                            .label("failure_threshold"),
+                            table.c.last_error,
+                        )
+                        .where(predicate)
+                        .order_by(table.c.updated_at.desc(), table.c.id)
+                        .offset((page - 1) * page_size)
+                        .limit(page_size)
+                    )
+                )
+                .mappings()
+                .all()
+            )
+        return ScheduleTodoList(
+            total=total or 0,
+            items=[
+                ScheduleTodo(
+                    id=row["id"],
+                    name=row["name"],
+                    consecutive_failures=row["consecutive_failures"],
+                    failure_threshold=row["failure_threshold"] or 3,
+                    message=row["last_error"].get("message") or "连续失败，已自动暂停",
+                    run_id=row["last_error"].get("run_id"),
+                )
+                for row in records
+            ],
+        )
 
     @staticmethod
     def schedule_view(row: dict[str, Any]) -> dict[str, Any]:

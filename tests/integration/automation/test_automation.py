@@ -20,6 +20,7 @@ from creativity_service.modules.integrations.automation_schemas import (
     ScheduleUpdate,
     Toggle,
 )
+from creativity_service.modules.integrations.automation_tables import metadata
 from creativity_service.workers.executor import execute_message
 from tests.integration.agents.test_agents import publish
 from tests.integration.runtime.test_execution import admitted
@@ -406,10 +407,15 @@ async def test_schedule_failure_streak_resets_and_pauses_before_next_dispatch(ru
         await asyncio.gather(*(service.sweep(env.context.scope.channel_id) for _ in range(3)))
         current = await service.get(env.context, "automation_schedules", row["id"])
         assert current["consecutive_failures"] == expected
+        todos = await service.schedule_todos(env.context)
+        assert todos.total == (1 if state == "TIMED_OUT" else 0)
     assert current["state"] == "PAUSED"
     assert current["last_error"]["code"] == "SCHEDULE_FAILURE_LIMIT"
     assert current["last_error"]["run_id"] == item["run_id"]
     assert "连续失败 2 次" in current["last_error"]["message"]
+    assert todos.items[0].id == row["id"]
+    assert todos.items[0].run_id == item["run_id"]
+    assert todos.items[0].failure_threshold == 2
     before = await service.channel_rows(env.context.scope.channel_id, "automation_items")
     await service.fire(current, current["next_at"])
     assert len(await service.channel_rows(env.context.scope.channel_id, "automation_items")) == len(
@@ -419,11 +425,62 @@ async def test_schedule_failure_streak_resets_and_pauses_before_next_dispatch(ru
         env.context, row["id"], Toggle(revision=current["revision"], active=True)
     )
     assert resumed["consecutive_failures"] == 0 and resumed["last_error"] is None
+    assert (await service.schedule_todos(env.context)).total == 0
     item = await scheduled_item(env, row["id"])
     await finish_scheduled(env, item, "FAILED")
     await service.sweep(env.context.scope.channel_id)
     current = await service.get(env.context, "automation_schedules", row["id"])
     assert current["state"] == "ACTIVE" and current["consecutive_failures"] == 1
+
+
+async def test_schedule_todos_are_bounded_and_scoped(runtime_env):
+    env = runtime_env
+    await admitted(env, purpose="production")
+    service = env.runs.automation
+    row = await service.create_schedule(
+        env.context, ScheduleCreate(name="待办筛选", request=request(env), interval_seconds=60)
+    )
+    current = await service.get(env.context, "automation_schedules", row["id"])
+    base = {
+        **current,
+        "state": "PAUSED",
+        "consecutive_failures": 3,
+        "last_error": {"code": "SCHEDULE_FAILURE_LIMIT", "message": "连续失败，供应商超时"},
+    }
+    # 构造不同可见范围，确保分页与总数都只包含当前身份的有效自动暂停计划。
+    variants = [
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {"state": "ACTIVE"},
+        {"last_error": None},
+        {"is_deleted": True},
+        {"channel_id": "other-channel"},
+        {"environment": "prod"},
+        {"subject_id": "other-subject"},
+        {"owner_key": "other-owner"},
+    ]
+    table = metadata.tables["automation_schedules"]
+    async with env.engine.begin() as connection:
+        await connection.execute(
+            table.insert(),
+            [{**base, "id": f"todo_{index}", **variant} for index, variant in enumerate(variants)],
+        )
+    first = await service.schedule_todos(env.context, 1, 5)
+    second = await service.schedule_todos(env.context, 2, 5)
+    assert first.total == second.total == 6
+    assert len(first.items) == 5 and len(second.items) == 1
+    assert {item.id for item in first.items + second.items} == {f"todo_{i}" for i in range(6)}
+    assert all(item.run_id is None for item in first.items)
+    assert (await service.schedule_todos(env.context, 3, 5)).items == []
+    assert len(await service.list_schedules(env.context, "todo_0")) == 1
+    assert await service.list_schedules(env.context, "todo_9") == []
+    with pytest.raises(ServiceError) as denied:
+        await service.schedule_todos(env.context.model_copy(update={"actor_id": None}))
+    assert denied.value.status == 403
 
 
 async def test_schedule_counts_trigger_order_and_does_not_dispatch_after_limit(runtime_env):

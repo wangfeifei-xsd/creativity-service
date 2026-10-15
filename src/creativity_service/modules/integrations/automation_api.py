@@ -2,7 +2,7 @@
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Header, Request
+from fastapi import APIRouter, Depends, Header, Query, Request
 
 from creativity_service.core.context import AuthContext, require_http_context
 from creativity_service.core.primitives import Contract, Revision, unavailable
@@ -14,6 +14,7 @@ from creativity_service.modules.integrations.automation_schemas import (
     BatchView,
     ItemView,
     ScheduleCreate,
+    ScheduleTodoList,
     ScheduleUpdate,
     Toggle,
     WebhookCreate,
@@ -49,8 +50,22 @@ class RevisionInput(Contract):
 
 
 @router.get("/schedules")
-async def schedules(context: Context, service: Automation) -> list[dict[str, Any]]:
-    return await service.list_schedules(context)
+async def schedules(
+    context: Context,
+    service: Automation,
+    schedule_id: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+) -> list[dict[str, Any]]:
+    return await service.list_schedules(context, schedule_id)
+
+
+@router.get("/schedule-todos")
+async def schedule_todos(
+    context: Context,
+    service: Automation,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 5,
+) -> ScheduleTodoList:
+    return await service.schedule_todos(context, page, page_size)
 
 
 @router.post("/schedules", status_code=201)

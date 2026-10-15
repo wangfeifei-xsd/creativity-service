@@ -41,6 +41,20 @@ class ScheduleUpdate(ScheduleCreate):
     revision: Revision
 
 
+class ScheduleTodo(Contract):
+    id: Identifier
+    name: str
+    consecutive_failures: int
+    failure_threshold: int
+    message: str
+    run_id: Identifier | None
+
+
+class ScheduleTodoList(Contract):
+    items: list[ScheduleTodo]
+    total: int
+
+
 def next_window(spec: ScheduleCreate, after: datetime) -> datetime:
     """只计算未来窗口；夏令时缺失时间跳过，重复时间仅使用首次。"""
     if spec.interval_seconds is not None:
