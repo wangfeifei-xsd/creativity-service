@@ -71,4 +71,4 @@ class FrozenSkillPort:
         current = await self.resolve(context, skill.version_id, purpose)
         if not current.active:
             raise ServiceError("SKILL_UNAVAILABLE", "技能已不可用", 409)
-        await self.service.artifact_context(context, skill.definition.artifact_id)
+        await self.service.check_package_reference(context, skill.definition)

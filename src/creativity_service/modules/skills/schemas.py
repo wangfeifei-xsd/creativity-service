@@ -2,7 +2,7 @@
 
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from creativity_service.core.contracts import DisplayStatus, VisibleAction
 from creativity_service.core.primitives import Contract, Digest, Identifier, Revision
@@ -56,13 +56,13 @@ class SkillImport(Contract):
     skill_code: str = Field(pattern=r"^[a-z][a-z0-9_.-]{0,63}$")
     name: str | None = Field(default=None, min_length=1, max_length=128)
     owner: str = Field(min_length=1, max_length=128)
-    archive_base64: str = Field(min_length=1, max_length=12000000)
+    archive_url: str = Field(min_length=1, max_length=2048)
     version_label: str = Field(default="当前配置", min_length=1, max_length=64)
     tool_bindings: dict[str, Identifier] = Field(default_factory=dict, max_length=32)
 
 
 class SkillImportPreviewInput(Contract):
-    archive_base64: str = Field(min_length=1, max_length=12000000)
+    archive_url: str = Field(min_length=1, max_length=2048)
 
 
 class SkillRevision(Contract):
@@ -115,8 +115,15 @@ class SkillDefinition(SkillSettings):
     entry_file: Literal["SKILL.md"] = "SKILL.md"
     metadata: dict[str, Any]
     files: tuple[SkillFile, ...]
-    artifact_id: Identifier
+    package_url: str | None = Field(default=None, min_length=1, max_length=2048)
+    artifact_id: Identifier | None = Field(default=None, description="仅用于读取历史技能包")
     required_tool_versions: tuple[Identifier, ...]
+
+    @model_validator(mode="after")
+    def storage_reference(self) -> "SkillDefinition":
+        if bool(self.package_url) == bool(self.artifact_id):
+            raise ValueError("技能包必须包含一个文件地址或历史文件引用")
+        return self
 
 
 class SkillIssue(Contract):

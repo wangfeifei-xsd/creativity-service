@@ -71,5 +71,5 @@ fi
 if [[ "$stop_infra" == true ]]; then
     "$service_dir/scripts/start-local.sh" --stop-infra
 else
-    printf '%s\n' '数据库、Redis、MinIO 和已有外部服务继续保留。'
+    printf '%s\n' '数据库、Redis、Qdrant 和阿里云 OSS 继续保留。'
 fi

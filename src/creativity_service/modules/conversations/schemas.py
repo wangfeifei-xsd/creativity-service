@@ -27,7 +27,7 @@ class TextPart(Contract):
 
 class AttachmentPart(Contract):
     type: Literal["attachment"] = "attachment"
-    artifact_id: Identifier
+    url: str = Field(min_length=1, max_length=2048)
 
 
 ContentPart = Annotated[TextPart | AttachmentPart, Field(discriminator="type")]
@@ -101,10 +101,8 @@ class ConversationList(Page[ConversationView]):
 
 
 class AttachmentView(Contract):
-    artifact_id: str
+    url: str
     name: str
-    size_bytes: int
-    download_path: str
 
 
 class MessageView(Contract):

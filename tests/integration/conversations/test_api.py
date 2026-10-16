@@ -6,6 +6,7 @@ import pytest
 from creativity_service.app import create_schema_app
 from creativity_service.core.deletion import CleanupRegistry, ContentRef
 from creativity_service.core.primitives import new_id
+from creativity_service.core.services import build_core_services
 from creativity_service.core.versioning import VersionService
 from creativity_service.modules.budgets.services import BudgetService
 from creativity_service.modules.channels.schemas import RetentionPolicy
@@ -86,6 +87,7 @@ async def test_real_token_scope_attachments_retention_and_expiration(
     )
     app = create_schema_app()
     app.state.conversations, app.state.authentication = conversations, env.iam.authentication
+    app.state.core = build_core_services(env.engine, store, env.iam.authorization)
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
         base_url="http://test",
@@ -106,7 +108,7 @@ async def test_real_token_scope_attachments_retention_and_expiration(
         ).days in {6, 7}
         path = f"/admin/v1/conversations/{conversation['conversation_id']}"
         detail = await client.get(path)
-        can_attach = len(independent_actions) == 2
+        can_attach = True
         can_read = "data:read_sensitive" in independent_actions
         assert detail.status_code == (200 if can_read else 403), detail.text
         actions = {action["action_key"] for action in conversation["actions"]}
@@ -117,33 +119,22 @@ async def test_real_token_scope_attachments_retention_and_expiration(
             }
             assert ("upload" in detail_actions) == can_attach
         upload = await client.post(
-            f"{path}/attachments?name=notes.txt",
-            content=b"private-content",
-            headers={"Content-Type": "text/plain"},
+            "/admin/v1/files/upload", files={"file": ("notes.txt", b"file-content", "text/plain")}
         )
-        if not can_attach:
-            assert upload.status_code == 403, upload.text
-            assert store.data == {}
-            posted = await client.post(
-                f"{path}/messages",
-                json={"client_message_id": "text-only", "content": "无附件消息仍可发送"},
-            )
-            assert posted.status_code == (202 if can_read else 403), posted.text
-            return
         assert upload.status_code == 201, upload.text
-        download = upload.json()["download_path"]
-        assert (await client.get(download)).content == b"private-content"
+        url = upload.json()["url"]
+        assert await conversations.files.read(context, url) == b"file-content"
         posted = await client.post(
             f"{path}/messages",
             json={
                 "client_message_id": "one",
                 "content": "请处理附件",
-                "attachments": [
-                    {"type": "attachment", "artifact_id": upload.json()["artifact_id"]}
-                ],
+                "attachments": [{"type": "attachment", "url": url}],
             },
         )
-        assert posted.status_code == 202, posted.text
+        assert posted.status_code == (202 if can_read else 403), posted.text
+        if not can_read:
+            return
         assert (await client.get(f"{path}/messages")).json()["items"][0]["attachments"][0][
             "name"
         ] == "notes.txt"
@@ -151,12 +142,14 @@ async def test_real_token_scope_attachments_retention_and_expiration(
         deleted = await client.delete(path)
         assert deleted.status_code == 202, deleted.text
         assert (await client.get(path)).status_code == 404
-        assert (await client.get(download)).status_code == 404
+        assert await conversations.files.read(context, url) == b"file-content"
         progress = f"/admin/v1/deletions/{deleted.json()['deletion_id']}"
         assert (await client.get(progress)).status_code == 200
         await cleanup.clean(context, ContentRef("run", posted.json()["run"]["run_id"]))
         await cleanup.clean(context, ContentRef("conversation", conversation["conversation_id"]))
         assert (await client.get(progress)).json()["status"] == "WAITING_PROPAGATION"
         await env.redis.expire(env.iam.authentication.tokens.token_key(context.token_digest), 0)
-        assert (await client.get(download)).status_code == 401
+        expired = await client.post("/admin/v1/files/upload", files={"file": ("x.txt", b"x")})
+        assert expired.status_code == 401
+        assert await conversations.files.read(context, url) == b"file-content"
         assert (await client.get(progress)).status_code == 401

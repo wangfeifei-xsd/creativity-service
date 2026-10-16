@@ -14,7 +14,6 @@ from creativity_service.api.errors import ErrorResponse, register_error_handlers
 from creativity_service.api.health import router as health_router
 from creativity_service.api.middleware import RequestContextMiddleware
 from creativity_service.api.routes import admin_router, api_router
-from creativity_service.core.artifacts import S3ObjectStore
 from creativity_service.core.config import Settings
 from creativity_service.core.contracts.export import schemas
 from creativity_service.core.infrastructure import Infrastructure
@@ -117,7 +116,7 @@ def create_app(
         app.state.prompts = build_prompt_service(
             infrastructure.engine,
             app.state.iam.authorization,
-            S3ObjectStore(infrastructure.s3, infrastructure.bucket),
+            infrastructure.object_store,
         )
         app.state.tools = build_tool_services(
             infrastructure.engine,
@@ -128,13 +127,13 @@ def create_app(
         app.state.skills = build_skill_service(
             infrastructure.engine,
             app.state.iam.authorization,
-            S3ObjectStore(infrastructure.s3, infrastructure.bucket),
+            infrastructure.object_store,
             app.state.tools.management,
         )
         app.state.usage = build_usage_services(
             infrastructure.engine,
             app.state.channels.channels,
-            S3ObjectStore(infrastructure.s3, infrastructure.bucket),
+            infrastructure.object_store,
         )
         app.state.mcp = build_mcp_service(
             infrastructure.engine, app.state.iam.authorization, app.state.tools
@@ -149,7 +148,7 @@ def create_app(
         app.state.authentication = app.state.iam.authentication
         app.state.core = build_core_services(
             infrastructure.engine,
-            S3ObjectStore(infrastructure.s3, infrastructure.bucket),
+            infrastructure.object_store,
             authorization=app.state.iam.authorization,
             configure_cleanup=lambda registry: register_prompt_cleanup(
                 registry, infrastructure.engine, app.state.iam.authorization
@@ -179,7 +178,7 @@ def create_app(
             infrastructure.engine,
             app.state.iam.authorization,
             app.state.runs,
-            S3ObjectStore(infrastructure.s3, infrastructure.bucket),
+            infrastructure.object_store,
             app.state.core.cleanup,
         )
         app.state.memory = build_memory_service(
@@ -216,7 +215,7 @@ def create_app(
             infrastructure.engine,
             ContentHandlers(
                 infrastructure.engine,
-                S3ObjectStore(infrastructure.s3, infrastructure.bucket),
+                infrastructure.object_store,
                 app.state.runs,
                 infrastructure.redis_clients["redis_cache"],
                 settings.redis_key_prefix,

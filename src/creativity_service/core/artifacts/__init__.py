@@ -1,18 +1,15 @@
-"""受控文件传输与暂存回收，不向客户端签发绕过实时授权的对象地址。"""
+"""受控文件传输与元数据失效，保留私有原件且不签发绕过实时授权的地址。"""
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import re
-from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Protocol
+from datetime import timedelta
+from typing import Protocol
 
-if TYPE_CHECKING:
-    from mypy_boto3_s3 import S3Client
-    from mypy_boto3_s3.type_defs import ListObjectsV2RequestTypeDef
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from creativity_service.core.artifacts.oss import OSSObjectStore as OSSObjectStore
 from creativity_service.core.context import AuthContext, Authorization, DenyAuthorization
 from creativity_service.core.contracts import Artifact
 from creativity_service.core.database import Repository, assert_external_io_allowed, transaction
@@ -28,62 +25,9 @@ MAX_FILE_BYTES = 20 * 1024 * 1024
 class ObjectStore(Protocol):
     async def put(self, key: str, data: bytes, content_type: str) -> None: ...
     async def get(self, key: str, max_bytes: int) -> bytes: ...
-    async def delete(self, key: str) -> None: ...
-
-
-class S3ObjectStore:
-    def __init__(self, client: S3Client, bucket: str) -> None:
-        self.client, self.bucket = client, bucket
-
-    async def put(self, key: str, data: bytes, content_type: str) -> None:
-        assert_external_io_allowed()
-        await asyncio.to_thread(
-            self.client.put_object, Bucket=self.bucket, Key=key, Body=data, ContentType=content_type
-        )
-
-    async def get(self, key: str, max_bytes: int) -> bytes:
-        assert_external_io_allowed()
-
-        def read() -> bytes:
-            response = self.client.get_object(Bucket=self.bucket, Key=key)
-            body = response["Body"]
-            try:
-                if response["ContentLength"] > max_bytes:
-                    raise ServiceError("ARTIFACT_SIZE_INVALID", "文件大小超限", 422)
-                data = body.read(max_bytes + 1)
-                if len(data) > max_bytes:
-                    raise ServiceError("ARTIFACT_SIZE_INVALID", "文件大小超限", 422)
-                return data
-            finally:
-                body.close()
-
-        return await asyncio.to_thread(read)
-
-    async def delete(self, key: str) -> None:
-        assert_external_io_allowed()
-        await asyncio.to_thread(self.client.delete_object, Bucket=self.bucket, Key=key)
-
-    async def list_page(
-        self, prefix: str, cursor: str | None = None
-    ) -> tuple[list[tuple[str, datetime]], str | None]:
-        assert_external_io_allowed()
-
-        def read() -> tuple[list[tuple[str, datetime]], str | None]:
-            request: ListObjectsV2RequestTypeDef = {
-                "Bucket": self.bucket,
-                "Prefix": prefix,
-                "MaxKeys": 1000,
-            }
-            if cursor:
-                request["ContinuationToken"] = cursor
-            response = self.client.list_objects_v2(**request)
-            return [
-                (item["Key"], item["LastModified"])
-                for item in response.get("Contents", [])
-                if "Key" in item and "LastModified" in item
-            ], response.get("NextContinuationToken")
-
-        return await asyncio.to_thread(read)
+    async def put_public(self, key: str, data: bytes, content_type: str) -> str: ...
+    def public_url(self, key: str) -> str: ...
+    def key_from_url(self, url: str) -> str: ...
 
 
 class ArtifactService:
@@ -143,32 +87,24 @@ class ArtifactService:
             )
             for link_id, source in zip(link_ids, sources, strict=True):
                 await guard.link(uow, link_id, source, ref)
-        # 对象访问不占用数据库事务；失败保持暂存意图供重试清理。
-        try:
-            await self.store.put(key, data, content_type)
-            await self.authorization.require(context, "artifact:upload", artifact_id)
-            async with transaction(self.engine, scope, keys) as uow:
-                await DeletionGuard(scope).check(uow, [ref])
-                current = await repo.get(uow.connection, artifact_id)
-                if (
-                    current is None
-                    or current["state"] != "STAGED"
-                    or current["upload_expires_at"] <= utcnow()
-                ):
-                    raise ServiceError("UPLOAD_EXPIRED", "文件暂存已失效", 410)
-                row = await repo.change(
-                    uow,
-                    artifact_id,
-                    current["revision"],
-                    {"state": "AVAILABLE", "registered_at": utcnow()},
-                )
-        except BaseException:
-            # 删除与迟到上传竞争时立即回收；回收失败仍保留暂存记录供扫描重试。
-            try:
-                await self.store.delete(key)
-            except Exception:
-                pass
-            raise
+        # 对象访问不占用数据库事务；原件始终保留，上传后的复核决定平台可用性。
+        await self.store.put(key, data, content_type)
+        await self.authorization.require(context, "artifact:upload", artifact_id)
+        async with transaction(self.engine, scope, keys) as uow:
+            await DeletionGuard(scope).check(uow, [ref])
+            current = await repo.get(uow.connection, artifact_id)
+            if (
+                current is None
+                or current["state"] != "STAGED"
+                or current["upload_expires_at"] <= utcnow()
+            ):
+                raise ServiceError("UPLOAD_EXPIRED", "文件暂存已失效", 410)
+            row = await repo.change(
+                uow,
+                artifact_id,
+                current["revision"],
+                {"state": "AVAILABLE", "registered_at": utcnow()},
+            )
         api_prefix = "admin" if context.principal_type == "management" else "api"
         return Artifact(
             artifact_id=artifact_id,
@@ -235,18 +171,12 @@ class ArtifactService:
                         raise
                 else:
                     raise ServiceError("DELETION_MARKER_REQUIRED", "清理前必须登记删除标记")
-            if row["state"] != "DELETING":
-                row = await repo.change(
-                    uow, row["id"], row["revision"], {"state": "DELETING", "is_deleted": True}
-                )
-        await self.store.delete(row["object_key"])
-        async with transaction(self.engine, scope, keys) as uow:
-            current = await repo.get(uow.connection, ref.resource_id)
-            if current and current["state"] == "DELETING":
+            # 平台删除只关闭文件访问，OSS 原件及迟到上传均保留。
+            if row["state"] != "DELETED" or not row["is_deleted"]:
                 await repo.change(
                     uow,
-                    current["id"],
-                    current["revision"],
+                    row["id"],
+                    row["revision"],
                     {"is_deleted": True, "state": "DELETED", "name": "已删除文件"},
                 )
 
@@ -258,11 +188,8 @@ class ArtifactService:
             rows = await repo.find(connection)
         cleaned = 0
         for row in rows:
-            if (
-                row["state"] in {"STAGED", "DELETING", "DELETED"}
-                and row["upload_expires_at"] <= utcnow()
-            ):
-                # 已删暂存项也重复清理，以覆盖上次清理后才结束的失败上传。
+            if row["state"] in {"STAGED", "DELETING"} and row["upload_expires_at"] <= utcnow():
+                # 只使到期暂存元数据失效；已失效记录不再反复处理。
                 await self.clean(context, ContentRef("artifact", row["id"]), orphan=True)
                 cleaned += 1
         return cleaned

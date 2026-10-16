@@ -1,7 +1,7 @@
 -- Creativity 表结构初始化归档，适用于 MySQL 8.0 空数据库。
--- 模型版本：2.1.0；配套数据归档迁移基线：0051_schedule_failures。
+-- 模型版本：2.1.0；配套数据归档迁移基线：0052_file_urls。
 -- 初始建库基线：alembic/mysql_versions/0048_mysql_milvus.py；后续修订在其上追加。
--- 包含 111 张表、1726 个字段、250 个普通索引及全部中文注释。
+-- 包含 111 张表、1727 个字段、250 个普通索引及全部中文注释。
 -- 本文件不写初始化数据；完成后必须执行 sql/init_data.sql，再启动服务或迁移。
 -- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。
 -- 执行方式见 sql/README.md；表创建在连接的当前 schema。
@@ -2085,6 +2085,7 @@ CREATE TABLE skill_files (
 	artifact_id VARCHAR(64) COMMENT '受控内容引用',
 	loadable BOOL COMMENT '当前是否可加载',
 	unavailable_reason LONGTEXT COMMENT '不可加载原因',
+	package_url VARCHAR(2048) COMMENT '技能归档包文件地址',
 	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_skill_files_0 (channel_id, id),
 	INDEX ix_skill_files_1 (channel_id, version_id, relative_path(512))

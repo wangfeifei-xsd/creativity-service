@@ -4,7 +4,6 @@ import asyncio
 
 from celery import shared_task
 
-from creativity_service.core.artifacts import S3ObjectStore
 from creativity_service.core.config import Settings
 from creativity_service.core.context import Scope
 from creativity_service.core.infrastructure import Infrastructure
@@ -26,7 +25,7 @@ async def sweep() -> None:
         services = build_usage_services(
             infrastructure.engine,
             channels.channels,
-            S3ObjectStore(infrastructure.s3, infrastructure.bucket),
+            infrastructure.object_store,
         )
         async with infrastructure.engine.connect() as connection:
             channel_ids = await channels.channels.repository.directory(connection)

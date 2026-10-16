@@ -26,7 +26,7 @@ API 和 Worker 的连接凭据、加密密钥与 HTTP 出站许可应一致；HT
 
 ## Skills
 
-上传技能包，检查 manifest、文件及工具依赖，完成测试后发布。Agent 固定绑定技能版本，运行记录实际加载的文件和摘要。包格式与样例见 [Skills 示例](../examples/skills/README.md)；可选脚本执行需额外配置受控执行环境。
+Web 先通过通用文件接口上传技能包，再以返回的 URL 请求预览和导入；技能配置保存该 URL。检查文件清单、内容及工具依赖，完成测试后发布。Agent 绑定技能资源，运行固定包快照并记录实际加载的文件和摘要。包格式与样例见 [Skills 示例](../examples/skills/README.md)，文件保留规则见 [OSS 说明](../deploy/oss/README.md)；可选脚本执行需额外配置受控执行环境。
 
 <a id="agents"></a>
 

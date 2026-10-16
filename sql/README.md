@@ -126,7 +126,7 @@ uv run creativity-lifecycle backup --channel channel_407de822881947339e26ec7d9d5
 
 命令使用服务端配置的 `CREATIVITY_DELETION_LEDGER_PATH`，保留已有删除意图和封锁状态。此步骤用于新空库部署；已有内容的备份恢复仍须遵循 [恢复流程](../docs/operations.md#data-lifecycle)，不能用重建清单或直接修改屏障状态解除封锁。
 
-执行两份 SQL 后，技能对象仍需写入已配置的 S3/MinIO。原始 ZIP 已作为带摘要的 `creativity-object` 注释封存在 `init_data.sql` 中，SQL 本身不访问对象存储。使用同一服务环境配置恢复：
+执行两份 SQL 后，技能对象仍需写入已配置的阿里云 OSS 私有目录。原始 ZIP 已作为带摘要的 `creativity-object` 注释封存在 `init_data.sql` 中，SQL 本身不访问对象存储。使用同一服务环境配置恢复：
 
 ```bash
 uv run --locked python -m scripts.restore_init_objects

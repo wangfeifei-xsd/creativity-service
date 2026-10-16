@@ -43,12 +43,15 @@ class Settings(EnvironmentSettings):
     redis_key_prefix: str = Field(default="creativity", pattern=r"^[a-z][a-z0-9_-]*$")
     management_token_ttl: int = Field(default=28800, ge=60, le=86400)
     service_token_ttl: int = Field(default=3600, ge=60, le=86400)
-    s3_endpoint_url: str
-    s3_region: str = Field(min_length=1)
-    s3_access_key_id: SecretStr
-    s3_secret_access_key: SecretStr
-    s3_bucket: str = Field(min_length=3)
-    health_timeout_seconds: float = Field(default=3, gt=0, le=30)
+    oss_endpoint: str
+    oss_region: str = Field(pattern=r"^[a-z][a-z0-9-]+$")
+    oss_access_key_id: SecretStr
+    oss_access_key_secret: SecretStr
+    oss_bucket: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$")
+    oss_path_prefix: str = Field(
+        default="creativity/", pattern=r"^[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_-]+)*/$"
+    )
+    health_timeout_seconds: float = Field(default=10, gt=0, le=30)
     cors_origins: list[str] = Field(default_factory=list)
     otel_enabled: bool = False
     otel_exporter_otlp_endpoint: str | None = None
@@ -77,7 +80,7 @@ class Settings(EnvironmentSettings):
             raise ValueError("数据库必须使用 mysql+pymysql 并指定主机和数据库")
         return value
 
-    @field_validator("s3_endpoint_url", "otel_exporter_otlp_endpoint", "qdrant_uri")
+    @field_validator("otel_exporter_otlp_endpoint", "qdrant_uri")
     @classmethod
     def validate_http_url(cls, value: str | None) -> str | None:
         if value is None:
@@ -89,7 +92,7 @@ class Settings(EnvironmentSettings):
             raise ValueError("服务地址不能包含查询参数或片段")
         return value.rstrip("/")
 
-    @field_validator("s3_access_key_id", "s3_secret_access_key")
+    @field_validator("oss_access_key_id", "oss_access_key_secret")
     @classmethod
     def validate_secret(cls, value: SecretStr) -> SecretStr:
         if not value.get_secret_value().strip():
@@ -98,6 +101,27 @@ class Settings(EnvironmentSettings):
 
     @model_validator(mode="after")
     def validate_services(self) -> Self:
+        # 接受地域地址或包含桶名的地址，统一交给 OSS SDK 按虚拟主机方式访问。
+        endpoint = self.oss_endpoint.strip().rstrip("/")
+        endpoint = endpoint if "://" in endpoint else "https://" + endpoint
+        url = urlsplit(endpoint)
+        host = (url.hostname or "").removeprefix(self.oss_bucket + ".")
+        if (
+            url.scheme != "https"
+            or url.username
+            or url.password
+            or url.port is not None
+            or url.path
+            or url.query
+            or url.fragment
+            or host
+            not in {
+                f"oss-{self.oss_region}.aliyuncs.com",
+                f"oss-{self.oss_region}-internal.aliyuncs.com",
+            }
+        ):
+            raise ValueError("OSS 必须配置与地域一致的阿里云 HTTPS 端点，不能使用本地存储")
+        self.oss_endpoint = f"https://{host}"
         locations: set[tuple[str, int, int]] = set()
         for value in (
             self.redis_cache_url,

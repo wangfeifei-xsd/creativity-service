@@ -377,7 +377,7 @@ class ConversationQueries(ConversationKernel):
                     part["artifact_id"]
                     for message in selected
                     for part in message["content_parts"]
-                    if part["type"] == "attachment"
+                    if part["type"] == "attachment" and "artifact_id" in part
                 ],
             )
         permissions = {}
@@ -461,15 +461,20 @@ class ConversationQueries(ConversationKernel):
                 for part in message["content_parts"]:
                     if part["type"] != "attachment":
                         continue
+                    if "url" in part:
+                        from creativity_service.core.files import file_name
+
+                        attachments.append(
+                            AttachmentView(url=part["url"], name=file_name(part["url"]))
+                        )
+                        continue
                     artifact = valid_artifacts.get(part["artifact_id"])
                     if artifact:
                         prefix = "admin" if context.principal_type == "management" else "api"
                         attachments.append(
                             AttachmentView(
-                                artifact_id=artifact["id"],
                                 name=artifact["name"],
-                                size_bytes=artifact["size_bytes"],
-                                download_path=f"/{prefix}/v1/conversations/{conversation_id}/attachments/{artifact['id']}/content",
+                                url=f"/{prefix}/v1/conversations/{conversation_id}/attachments/{artifact['id']}/content",
                             )
                         )
                 state = run_states.get(message["run_id"])

@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import Column, Index, MetaData
 
@@ -9,11 +10,12 @@ from creativity_service.core.database.soft_delete import soft_delete_table
 from creativity_service.core.database.tables import column_type
 
 BASELINE = json.loads(Path(__file__).with_name("tables_v0041_0.json").read_text(encoding="utf-8"))
+CURRENT = json.loads(Path(__file__).with_name("tables_v0052_0.json").read_text(encoding="utf-8"))
 
 
-def build_metadata() -> MetaData:
+def build_metadata(definitions: list[dict[str, Any]] | None = None) -> MetaData:
     result = MetaData()
-    for definition in BASELINE:
+    for definition in BASELINE if definitions is None else definitions:
         table = soft_delete_table(
             definition["name"],
             result,
@@ -35,4 +37,4 @@ def build_metadata() -> MetaData:
     return result
 
 
-metadata = build_metadata()
+metadata = build_metadata(CURRENT)

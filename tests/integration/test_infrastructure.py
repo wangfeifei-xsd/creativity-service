@@ -49,11 +49,12 @@ def test_real_services_and_no_automatic_tables():
     [
         ("database_url", "mysql+pymysql://test:test@127.0.0.1:1/test", "database"),
         ("redis_auth_url", "redis://127.0.0.1:1/1", "redis_auth"),
-        ("s3_bucket", "creativity-missing-test-bucket", "object_storage"),
+        ("oss_bucket", "creativity-missing-test-bucket", "object_storage"),
     ],
 )
 def test_real_dependency_failure_is_diagnosable(field, value, failed):
-    values = Settings().model_dump() | {field: value, "health_timeout_seconds": 1}
+    # 真实 OSS 与向量服务经过公网，给健康依赖留出网络握手时间。
+    values = Settings().model_dump() | {field: value, "health_timeout_seconds": 5}
     with TestClient(create_app(Settings(_env_file=None, **values))) as client:
         response = client.get("/health/ready")
         assert response.status_code == 503

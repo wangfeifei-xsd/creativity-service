@@ -152,7 +152,7 @@ def environment(output, workspace=None):
             "mcp": "两种真实 TCP Streamable HTTP 服务，源数据由受控夹具提供",
             "model": "受控替身；未验收真实供应商",
             "worker": "组合测试调用正式 execute_message；独立 Celery 由专门故障用例验证",
-            "object_store": "专门用例使用真实 MinIO，组合页面使用内存夹具",
+            "object_store": "专门用例使用真实阿里云 OSS，组合页面使用内存夹具",
         },
     }
     baseline = output / "onboarding/baseline.json"

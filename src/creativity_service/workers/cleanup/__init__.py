@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 
 from celery import shared_task
 
-from creativity_service.core.artifacts import S3ObjectStore
 from creativity_service.core.config import Settings
 from creativity_service.core.infrastructure import Infrastructure
 from creativity_service.modules.channels.assembly import build_channel_services
@@ -36,7 +35,7 @@ async def runtime() -> AsyncIterator[tuple[DataLifecycleService, list[str], Life
             infrastructure.engine,
             ContentHandlers(
                 infrastructure.engine,
-                S3ObjectStore(infrastructure.s3, infrastructure.bucket),
+                infrastructure.object_store,
                 runs,
                 infrastructure.redis_clients["redis_cache"],
                 settings.redis_key_prefix,

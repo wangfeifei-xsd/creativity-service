@@ -1,7 +1,6 @@
 """SKL-A01—A06：真实持久化、对象存储、并发发布与身份隔离。"""
 
 import asyncio
-import base64
 
 import pytest
 from sqlalchemy import create_engine
@@ -203,15 +202,21 @@ async def test_import_validation_export_scope_and_cross_channel(skills_env):
             "references/sample.json": b'{"example": true}',
         }
     )
+    uploaded = await env.skills.files.upload(
+        env.context, "skill.zip", "application/zip", package.archive(portable=True)
+    )
     imported = await env.skills.import_package(
         env.context,
         SkillImport(
             skill_code="portable",
             owner="负责人",
-            archive_base64=base64.b64encode(package.archive(portable=True)).decode(),
+            archive_url=uploaded.url,
         ),
     )
     version = imported.versions[0]
+    _, stored = await env.skills.raw(env.context, version.version_id)
+    assert stored["content"]["package_url"] == uploaded.url
+    assert "artifact_id" not in stored["content"]
     artifact = await env.skills.export(env.context, version.version_id)
     response = await env.client.get(artifact.download_path)
     assert response.status_code == 200
@@ -227,7 +232,11 @@ async def test_import_validation_export_scope_and_cross_channel(skills_env):
         SkillImport(
             skill_code="portable",
             owner="负责人",
-            archive_base64=base64.b64encode(response.content).decode(),
+            archive_url=(
+                await env.skills.files.upload(
+                    context, "skill.zip", "application/zip", response.content
+                )
+            ).url,
         ),
     )
     assert (
@@ -272,7 +281,11 @@ async def test_concurrent_codes_edits_and_invalid_import_leave_no_manifest(skill
     )
     response = await env.client.post(
         "/admin/v1/skills/imports",
-        json={"skill_code": "invalid", "owner": "负责人", "archive_base64": "abcd"},
+        json={
+            "skill_code": "invalid",
+            "owner": "负责人",
+            "archive_url": "https://other.example/skill.zip",
+        },
     )
     assert response.status_code == 422
     async with env.engine.connect() as connection:
@@ -282,8 +295,8 @@ async def test_concurrent_codes_edits_and_invalid_import_leave_no_manifest(skill
         artifacts = await repository("artifacts", env.context.scope).find(
             connection, state="STAGED"
         )
-    assert len(artifacts) >= 2
-    assert await env.client._transport.app.state.core.artifacts.cleanup_orphans(env.context) >= 2
+    assert artifacts == []
+    assert await env.client._transport.app.state.core.artifacts.cleanup_orphans(env.context) == 0
 
 
 async def test_dependency_rebinding_unauthorized_tools_and_missing_capabilities(skills_env):
@@ -366,7 +379,11 @@ async def test_dependency_rebinding_unauthorized_tools_and_missing_capabilities(
     imported = await env.skills.import_package(
         other_context,
         SkillImport(
-            skill_code="sum_skill", owner="负责人", archive_base64=base64.b64encode(data).decode()
+            skill_code="sum_skill",
+            owner="负责人",
+            archive_url=(
+                await env.skills.files.upload(other_context, "skill.zip", "application/zip", data)
+            ).url,
         ),
     )
     check = await env.skills.validate(other_context, imported.versions[0].version_id)
@@ -388,12 +405,16 @@ async def test_deletion_blocks_packages_and_schema_is_compliant(skills_env):
     env = skills_env
     detail = await env.skills.create(env.context, body())
     version = detail.versions[0]
+    _, stored = await env.skills.raw(env.context, version.version_id)
+    package_url = stored["content"]["package_url"]
+    package_bytes = await env.skills.files.read(env.context, package_url)
     await env.skills.deletion.mark(
         env.context, ContentRef("skill", detail.skill.skill_id), "manual"
     )
     with pytest.raises(ServiceError) as error:
         await env.skills.version(env.context, version.version_id)
     assert error.value.code == "CONTENT_DELETED"
+    assert await env.skills.files.read(env.context, package_url) == package_bytes
     sync_engine = create_engine(Settings().database_url.get_secret_value())
     try:
         with sync_engine.connect() as connection:
@@ -412,18 +433,20 @@ async def test_api_rejects_scope_override_and_corrupt_objects(skills_env):
     assert response.status_code == 201
     version_id = response.json()["versions"][0]["version_id"]
     _, version = await env.skills.raw(env.context, version_id)
-    async with env.engine.connect() as connection:
-        artifact = await repository("artifacts", env.context.scope).get(
-            connection, version["content"]["artifact_id"]
-        )
-    await env.store.put(artifact["object_key"], b"corrupted", "application/zip")
+    key = env.store.key_from_url(version["content"]["package_url"])
+    altered = validate_files(
+        {"SKILL.md": entry("变更包", "其他内容", "与登记摘要不同")}, SkillSettings()
+    )
+    await env.store.put(key, altered.archive(), "application/zip")
     response = await env.client.post(
         f"/admin/v1/skill-versions/{version_id}/tests", json={"revision": 1}
     )
-    assert response.status_code == 503 and response.json()["error"]["code"] == "ARTIFACT_CORRUPT"
+    assert (
+        response.status_code == 503 and response.json()["error"]["code"] == "SKILL_PACKAGE_CORRUPT"
+    )
 
 
-async def test_file_deleted_after_read_is_not_returned_to_runtime(skills_env):
+async def test_skill_deleted_after_read_is_not_returned_to_runtime(skills_env):
     from creativity_service.core.deletion import DeletionService
     from creativity_service.modules.skills.authorization import PackageAuthorization
 
@@ -440,7 +463,7 @@ async def test_file_deleted_after_read_is_not_returned_to_runtime(skills_env):
 
     async def read_then_delete(context, skill, paths, purpose):
         files = await original(context, skill, paths, purpose)
-        await deletion.mark(context, ContentRef("artifact", skill.definition.artifact_id), "manual")
+        await deletion.mark(context, ContentRef("skill", skill.skill_id), "manual")
         return files
 
     env.skills.read_files = read_then_delete

@@ -10,6 +10,7 @@ from creativity_service.core.context import Authorization, DenyAuthorization
 from creativity_service.core.database.tables import metadata
 from creativity_service.core.deletion import CleanupRegistry, DeletionService, RecoveryService
 from creativity_service.core.deletion.handlers import register_core_handlers
+from creativity_service.core.files import FileService
 from creativity_service.core.security.credentials import CredentialService, KeyProvider
 from creativity_service.core.versioning import VersionService, VersionValidator
 
@@ -22,6 +23,7 @@ class CoreServices:
     deletion: DeletionService
     recovery: RecoveryService
     cleanup: CleanupRegistry
+    files: FileService
 
 
 def build_core_services(
@@ -51,4 +53,5 @@ def build_core_services(
         DeletionService(engine, authorization),
         RecoveryService(engine, authorization),
         registry,
+        FileService(store, authorization),
     )

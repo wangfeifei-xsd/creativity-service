@@ -9,6 +9,7 @@ from creativity_service.core.artifacts import ArtifactService
 from creativity_service.core.context import AuthContext, Authorization, Scope
 from creativity_service.core.contracts import VisibleAction
 from creativity_service.core.database.soft_delete import active_rows
+from creativity_service.core.files import FileService
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.conversations.hooks import ConversationHooks
 from creativity_service.modules.conversations.ports import (
@@ -60,6 +61,7 @@ class ConversationKernel:
             retention_days,
         )
         self.hooks = ConversationHooks()
+        self.files = FileService(artifacts.store, artifacts.authorization)
         self.retention = retention
 
     def row_context(self, context: AuthContext, row: dict[str, Any]) -> AuthContext:
@@ -190,18 +192,10 @@ class ConversationKernel:
             context,
             "artifact",
             "new",
-            ["artifact:upload", "artifact:download"],
+            ["artifact:upload"],
             policy=policy,
         )
-        # 会话附件在发送时须可读取，避免允许上传后才发现无权使用。
-        if (
-            "conversation:write" in permissions
-            and {
-                "artifact:upload",
-                "artifact:download",
-            }
-            <= attachment_permissions
-        ):
+        if "conversation:write" in permissions and "artifact:upload" in attachment_permissions:
             actions.append(VisibleAction(action_key="upload", label="上传附件"))
         return actions
 

@@ -11,14 +11,12 @@ from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import unquote, urlsplit, urlunsplit
 
-import boto3
 import httpx
-from botocore.config import Config as BotoConfig
-from botocore.exceptions import ClientError
 from pydantic import SecretStr
 from redis import Redis
 from sqlalchemy import create_engine, make_url, text
 
+from creativity_service.core.artifacts import OSSObjectStore
 from creativity_service.core.config import Settings
 from creativity_service.core.environment import environment_files
 
@@ -121,9 +119,6 @@ class DockerRuntime:
             DEV_MYSQL_PASSWORD=database.password or "",
             DEV_MYSQL_DB=database.database or "",
             DEV_MYSQL_PORT=str(database.port or 3306),
-            CREATIVITY_S3_ACCESS_KEY_ID=settings.s3_access_key_id.get_secret_value(),
-            CREATIVITY_S3_SECRET_ACCESS_KEY=settings.s3_secret_access_key.get_secret_value(),
-            CREATIVITY_S3_BUCKET=settings.s3_bucket,
         )
 
     def run(
@@ -146,7 +141,8 @@ class DockerRuntime:
         output = result.stdout + result.stderr
         for secret in (
             self.environment["DEV_MYSQL_PASSWORD"],
-            self.environment["CREATIVITY_S3_SECRET_ACCESS_KEY"],
+            self.settings.oss_access_key_secret.get_secret_value(),
+            self.settings.oss_access_key_id.get_secret_value(),
             self.environment.get("DEV_REDIS_PASSWORD", ""),
             self.environment.get("CREATIVITY_QDRANT_API_KEY", ""),
         ):
@@ -210,7 +206,6 @@ class DockerRuntime:
         variables = {
             "mysql": "DEV_MYSQL_PORT",
             "redis": "DEV_REDIS_PORT",
-            "minio": "DEV_S3_PORT",
             "qdrant": "DEV_QDRANT_PORT",
         }
         self.environment[variables[service]] = str(port)
@@ -260,7 +255,7 @@ def prepare_vector(settings: Settings, docker: DockerRuntime, *, check_only: boo
             if settings.qdrant_api_key.get_secret_value()
             else {}
         )
-        with httpx.Client(timeout=3, trust_env=False) as client:
+        with httpx.Client(timeout=settings.qdrant_timeout_seconds, trust_env=False) as client:
             response = client.get(
                 redis_address(settings.qdrant_uri, host, port) + "/collections",
                 headers=headers,
@@ -336,59 +331,22 @@ def prepare_redis(settings: Settings, docker: DockerRuntime, *, check_only: bool
     return settings.model_copy(update=updates)
 
 
-def prepare_storage(settings: Settings, docker: DockerRuntime, *, check_only: bool) -> Settings:
-    parsed = urlsplit(settings.s3_endpoint_url)
-    port = parsed.port or (443 if parsed.scheme == "https" else 80)
-
-    def probe(host: str, target_port: int) -> None:
-        endpoint = urlunsplit(
-            parsed._replace(netloc=f"{'[' + host + ']' if ':' in host else host}:{target_port}")
-        )
-        client = boto3.client(
-            "s3",
-            endpoint_url=endpoint,
-            region_name=settings.s3_region,
-            aws_access_key_id=settings.s3_access_key_id.get_secret_value(),
-            aws_secret_access_key=settings.s3_secret_access_key.get_secret_value(),
-            config=BotoConfig(
-                connect_timeout=2,
-                read_timeout=2,
-                retries={"max_attempts": 0},
-                s3={"addressing_style": "path"},
-            ),
-        )
-        try:
-            try:
-                client.head_bucket(Bucket=settings.s3_bucket)
-            except ClientError as exc:
-                if (
-                    exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode") != 404
-                    or check_only
-                    or not is_local(host)
-                ):
-                    raise
-                client.create_bucket(Bucket=settings.s3_bucket)
-                client.head_bucket(Bucket=settings.s3_bucket)
-        finally:
-            client.close()
-
-    host, port = ensure_endpoint(
-        "对象存储",
-        parsed.hostname or "",
-        port,
-        9000,
-        probe,
-        lambda port: docker.start("minio", port),
-        check_only=check_only,
-    )
-    endpoint = urlunsplit(
-        parsed._replace(netloc=f"{'[' + host + ']' if ':' in host else host}:{port}")
-    )
-    return settings.model_copy(update={"s3_endpoint_url": endpoint})
+def prepare_storage(settings: Settings) -> Settings:
+    store = OSSObjectStore(settings)
+    try:
+        store.check()
+    except Exception:
+        raise StartupError(
+            "阿里云 OSS 连接校验失败；请检查端点、地域、桶、凭据及当前环境前缀的列举权限。"
+        ) from None
+    finally:
+        store.close()
+    logger.info("阿里云 OSS 已就绪：%s/%s", settings.oss_bucket, store.prefix)
+    return settings
 
 
 def prepare_dependencies(root: Path, settings: Settings, *, check_only: bool = False) -> Settings:
     docker = DockerRuntime(root, settings)
     settings = prepare_database(settings, docker, check_only=check_only)
     settings = prepare_redis(settings, docker, check_only=check_only)
-    return prepare_storage(settings, docker, check_only=check_only)
+    return prepare_storage(settings)

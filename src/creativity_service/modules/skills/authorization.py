@@ -56,7 +56,7 @@ class SkillAuthorization:
 
 
 class PackageAuthorization:
-    """仅由技能服务创建，存储范围由已登记产物确定，不能扩大调用身份的权限。"""
+    """仅由技能服务创建，文件限定本渠道且沿用原身份的技能权限。"""
 
     def __init__(
         self, authorization: IamAuthorization, original: AuthContext, skill_id: str, action: str

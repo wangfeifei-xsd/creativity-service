@@ -304,7 +304,7 @@ async def test_ses_a05_delete_blocks_read_execution_and_artifacts_immediately(en
     artifact = await env.conversations.upload(
         env.context, env.cid, "资料.txt", "text/plain", b"secret"
     )
-    receipt = await submit(env, attachments=[AttachmentPart(artifact_id=artifact.artifact_id)])
+    receipt = await submit(env, attachments=[AttachmentPart(url=artifact.url)])
     if running:
         await env.runs.claim_lease(
             TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=receipt.run.run_id),
@@ -318,13 +318,13 @@ async def test_ses_a05_delete_blocks_read_execution_and_artifacts_immediately(en
         env.conversations.detail(env.context, env.cid),
         env.conversations.messages(env.context, env.cid),
         submit(env, "two"),
-        env.conversations.download(env.context, env.cid, artifact.artifact_id),
         env.runs.get_run(env.context, receipt.run.run_id),
     ):
         with pytest.raises(ServiceError) as error:
             await action
         assert error.value.status in {404, 410}
     assert (await env.conversations.list_conversations(env.context)).items == []
+    assert await env.conversations.files.read(env.context, artifact.url) == b"secret"
     await Recovery(env.runs).scan(env.context.scope.channel_id)
     await env.conversations.clean(env.context, ContentRef("conversation", env.cid))
     assert await records(env, "messages") == []
@@ -364,8 +364,13 @@ async def test_foreign_agent_and_attachment_are_rejected(env):
     await RecoveryService(env.engine, env.authorization).initialize_fresh(foreign)
     with pytest.raises(ServiceError, match="当前渠道"):
         await env.conversations.create(foreign, ConversationCreate(agent_code="test_agent"))
-    with pytest.raises(ServiceError, match="附件不存在"):
-        await submit(env, attachments=[AttachmentPart(artifact_id="missing")])
+    with pytest.raises(ServiceError, match="当前渠道"):
+        await submit(
+            env,
+            attachments=[
+                AttachmentPart(url="https://files.example.test/channels/foreign/files/file/missing")
+            ],
+        )
     assert not await records(env, "messages")
 
 

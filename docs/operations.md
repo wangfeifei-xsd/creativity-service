@@ -24,7 +24,7 @@
 
 ## 删除与保留
 
-删除先持久化独立意图及不可用标记，再异步清理会话、运行内容、记忆、工具证据、文件、样本和缓存。任务失败可重试，标记仍继续阻断读取与恢复；归档、停用和关闭记忆不等于删除。
+删除先持久化独立意图及不可用标记，再异步清理会话、运行内容、记忆、工具证据、样本和缓存。通用上传文件及其 URL 不参与业务删除传播，不执行对象删除或孤儿扫描。任务失败可重试，标记仍继续阻断读取与恢复；归档、停用和关闭记忆不等于删除。
 
 | 接口 | 用途 |
 | --- | --- |
@@ -35,7 +35,7 @@
 
 上述接口分别提供 `/admin/v1` 与 `/api/v1` 前缀。Worker 与 Beat 必须运行；人工触发扫描使用 `uv run creativity-lifecycle sweep --channel CHANNEL_ID`。
 
-默认保留期：会话 90 天，运行内容 30 天，元数据 365 天，SSE 24 小时，临时对象 1 小时，导出 7 天；渠道策略可配置，记忆使用自身有效期。待结算用量、删除标记和恢复屏障有独立保留规则。
+默认保留期：会话 90 天，运行内容 30 天，元数据 365 天，SSE 24 小时，暂存登记窗口 1 小时，导出可访问期 7 天；渠道策略可配置，记忆使用自身有效期。上述文件期限仅适用于历史受控产物元数据，通用上传返回的 URL 不设业务有效期，OSS 文件不设应用清理周期。待结算用量、删除标记和恢复屏障有独立保留规则。
 
 ## 备份与恢复
 
@@ -55,4 +55,4 @@ uv run creativity-lifecycle restore-check --channel CHANNEL_ID --minimum-sequenc
 uv run creativity-lifecycle restore-replay --channel CHANNEL_ID --minimum-sequence LATEST_SEQUENCE --output cleanup-proof.json
 ```
 
-已有内容而清单丢失时不能从旧数据库重新生成空清单。缺失、水位不足、清理失败或出现新删除意图都会阻止开放。清单和证明格式见 [生命周期数据结构](../src/creativity_service/modules/data_lifecycle/schemas.py)。
+已有内容而清单丢失时不能从旧数据库重新生成空清单。缺失、水位不足、清理失败或出现新删除意图都会阻止开放。恢复重放处理业务状态，不修改通用文件及其 URL；清理证明不表示对象已物理擦除。清单和证明格式见 [生命周期数据结构](../src/creativity_service/modules/data_lifecycle/schemas.py)。

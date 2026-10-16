@@ -84,7 +84,7 @@ async def test_full_graph_removes_contents_and_preserves_independent_memory(env,
                 connection, env.context.scope.channel_id, "artifacts", id=artifact.artifact_id
             )
         )[0]["state"] == "DELETED"
-    assert env.conversations.artifacts.store.data == {}
+    assert list(env.conversations.artifacts.store.data.values()) == [b"private content"]
     await drain(lifecycle, env.context.scope.channel_id)
     with pytest.raises(ServiceError, match="删除"):
         await env.conversations.artifacts.download(env.context, artifact.artifact_id)
@@ -94,13 +94,12 @@ async def test_cleanup_failure_keeps_guard_and_retry_is_idempotent(env, lifecycl
     artifact = await env.conversations.artifacts.upload(
         env.context, "文件.txt", "text/plain", b"private", [ContentRef("run", env.run_id)]
     )
-    store = env.conversations.artifacts.store
-    original = store.delete
+    original = lifecycle.handlers.registry.handlers["artifact"]
 
-    async def failing(key):
+    async def failing(context, ref):
         raise OSError("不可写入原文到错误状态")
 
-    store.delete = failing
+    lifecycle.handlers.registry.handlers["artifact"] = failing
     job = await env.conversations.delete(env.context, env.cid)
     await lifecycle.sweep(env.context.scope.channel_id)
     progress = await lifecycle.progress(env.context, job.deletion_id)
@@ -108,7 +107,7 @@ async def test_cleanup_failure_keeps_guard_and_retry_is_idempotent(env, lifecycl
     assert progress["proof_digests"] == []
     with pytest.raises(ServiceError):
         await env.conversations.artifacts.download(env.context, artifact.artifact_id)
-    store.delete = original
+    lifecycle.handlers.registry.handlers["artifact"] = original
     await lifecycle.retry(env.context, job.deletion_id)
     await asyncio.gather(
         lifecycle.sweep(env.context.scope.channel_id), lifecycle.sweep(env.context.scope.channel_id)
@@ -140,7 +139,7 @@ async def test_cleanup_completes_when_conversation_metadata_is_already_absent(en
         assert not await rows(connection, env.context.scope.channel_id, "conversations", id=env.cid)
 
 
-async def test_late_upload_cannot_recreate_deleted_object(env, lifecycle):
+async def test_late_upload_retains_object_without_restoring_access(env, lifecycle):
     started, finish = asyncio.Event(), asyncio.Event()
     store = env.conversations.artifacts.store
     original = store.put
@@ -163,7 +162,12 @@ async def test_late_upload_cannot_recreate_deleted_object(env, lifecycle):
     with pytest.raises(ServiceError) as error:
         await upload
     assert error.value.code == "CONTENT_DELETED"
-    assert store.data == {}
+    assert list(store.data.values()) == [b"private"]
+    async with env.engine.connect() as connection:
+        (row,) = await rows(connection, env.context.scope.channel_id, "artifacts")
+    assert row["is_deleted"] and row["state"] == "DELETED"
+    with pytest.raises(ServiceError, match="已删除"):
+        await env.conversations.artifacts.download(env.context, row["id"])
 
 
 async def test_restore_old_database_and_objects_replays_latest_manifest(env, lifecycle):
@@ -190,7 +194,7 @@ async def test_restore_old_database_and_objects_replays_latest_manifest(env, lif
     assert error.value.code == "RECOVERY_BLOCKED"
     proof = await replay_restore(lifecycle, channel_id, manifest["manifest"]["sequence"])
     assert proof["proof_digests"]
-    assert env.conversations.artifacts.store.data == {}
+    assert env.conversations.artifacts.store.data == objects
     async with env.engine.connect() as connection:
         assert await rows(connection, channel_id, "run_contents") == []
     with pytest.raises(ServiceError) as error:
@@ -285,18 +289,19 @@ async def test_recovery_rejects_stale_or_unavailable_ledger(env, lifecycle, monk
     assert failure.value.code == "DELETION_LEDGER_UNAVAILABLE"
 
 
-async def test_real_orphan_objects_and_cache_remain_channel_scoped(env, lifecycle):
-    from creativity_service.core.artifacts import S3ObjectStore
+async def test_real_oss_objects_retained_through_retention_and_restore(env, lifecycle):
     from creativity_service.core.config import Settings
     from creativity_service.core.contracts import ToolResult
     from creativity_service.core.infrastructure import Infrastructure
-    from creativity_service.modules.data_lifecycle.objects import sweep_objects
+    from creativity_service.modules.channels.schemas import RetentionPolicy
+    from creativity_service.modules.data_lifecycle.repository import put
+    from creativity_service.modules.data_lifecycle.retention import scan_retention
     from creativity_service.modules.tools.execution import RedisToolCache
     from creativity_service.modules.tools.repositories import ToolRepository
     from creativity_service.modules.tools.schemas import ToolExecution
 
     infrastructure = Infrastructure(Settings())
-    store = S3ObjectStore(infrastructure.s3, infrastructure.bucket)
+    store = infrastructure.object_store
     channel_id = env.context.scope.channel_id
     own = f"channels/{channel_id}/orphan"
     foreign = f"channels/{channel_id}b/orphan"
@@ -308,7 +313,28 @@ async def test_real_orphan_objects_and_cache_remain_channel_scoped(env, lifecycl
         await store.put(own, b"private", "text/plain")
         await store.put(foreign, b"other", "text/plain")
         lifecycle.handlers.store = store
-        assert await sweep_objects(lifecycle, channel_id, restoring=True) == 1
+        async with transaction(
+            env.engine, env.context.scope, [content_key(env.context.scope)]
+        ) as uow:
+            await put(
+                uow,
+                "channels",
+                channel_id,
+                {
+                    "channel_code": channel_id,
+                    "name": "文件保留测试渠道",
+                    "owner": "测试负责人",
+                    "status": "ACTIVE",
+                    "retention_policy": RetentionPolicy().model_dump(),
+                    "budget_policy_refs": [],
+                    "rate_limit_policy_refs": [],
+                },
+            )
+        await scan_retention(lifecycle, channel_id)
+        manifest = await backup_manifest(lifecycle, channel_id)
+        await block_restore(channel_id)
+        await replay_restore(lifecycle, channel_id, manifest["manifest"]["sequence"])
+        assert await store.get(own, 100) == b"private"
         assert await store.get(foreign, 100) == b"other"
         value = ToolResult(
             scope=env.context.scope,
@@ -361,8 +387,6 @@ async def test_real_orphan_objects_and_cache_remain_channel_scoped(env, lifecycl
             is None
         )
     finally:
-        await store.delete(own)
-        await store.delete(foreign)
         await cache.delete(key)
         await infrastructure.close()
 
@@ -421,7 +445,7 @@ async def test_memory_refresh_before_planning_cannot_revive_derived_file(env, li
     assert failure.value.code == "CONTENT_DELETED"
     await drain(lifecycle, env.context.scope.channel_id)
     assert (await lifecycle.progress(env.context, job.deletion_id))["status"] == "COMPLETED"
-    assert env.conversations.artifacts.store.data == {}
+    assert list(env.conversations.artifacts.store.data.values()) == [b"private memory"]
 
 
 async def test_backup_initialization_preserves_concurrent_restore_barrier(

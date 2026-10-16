@@ -207,19 +207,6 @@ class ConversationHooks:
         if row["active_run_id"]:
             raise ServiceError("SESSION_BUSY", "会话正在处理上一条消息", 409)
         parts = request_parts(request)
-        artifact_repo = Repository(core_metadata.tables["artifacts"], context.scope)
-        for part in parts:
-            if part["type"] == "attachment":
-                artifact = await artifact_repo.get(uow.connection, part["artifact_id"])
-                if (
-                    not artifact
-                    or artifact["state"] != "AVAILABLE"
-                    or artifact["expires_at"] <= utcnow()
-                ):
-                    raise ServiceError("NOT_FOUND", "附件不存在或已失效", 404)
-                await DeletionGuard(context.scope).check(
-                    uow, [ContentRef("artifact", artifact["id"])]
-                )
         turns = await repo.rows(
             uow.connection, "conversation_turns", context.scope, conversation_id=conversation_id
         )
@@ -295,14 +282,6 @@ class ConversationHooks:
                 ContentRef("conversation", conversation_id),
                 ContentRef("message", message_id),
             )
-        for part in parts:
-            if part["type"] == "attachment":
-                await self.link(
-                    uow,
-                    context,
-                    ContentRef("artifact", part["artifact_id"]),
-                    ContentRef("message", user_id),
-                )
         await repo.save(
             uow,
             "conversations",

@@ -114,9 +114,14 @@ async def import_skill(env, name, bindings=None):
     env.client._transport.app.state.core = build_core_services(
         env.engine, env.skills.store, env.iam.authorization
     )
-    encoded = base64.b64encode(build_package(name)).decode()
+    uploaded = await env.client.post(
+        "/admin/v1/files/upload",
+        files={"file": (f"{name}.zip", build_package(name), "application/zip")},
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    archive_url = uploaded.json()["url"]
     preview = await env.client.post(
-        "/admin/v1/skills/imports/preview", json={"archive_base64": encoded}
+        "/admin/v1/skills/imports/preview", json={"archive_url": archive_url}
     )
     assert preview.status_code == 200, preview.text
     assert "references/" in json.dumps(preview.json()["files"])
@@ -125,7 +130,7 @@ async def import_skill(env, name, bindings=None):
         json={
             "skill_code": name.replace("-", "_"),
             "owner": "配置交付验证",
-            "archive_base64": encoded,
+            "archive_url": archive_url,
             "tool_bindings": bindings or {},
         },
     )
@@ -418,13 +423,16 @@ async def test_imported_bindings_cannot_reference_foreign_channel_or_package_ids
         target.token.access_token, "management"
     )
     package = build_package("archive-answer")
+    uploaded = await env.skills.files.upload(
+        target_context, "archive-answer.zip", "application/zip", package
+    )
     with pytest.raises(ServiceError):
         await env.skills.import_package(
             target_context,
             SkillImport(
                 skill_code="foreign",
                 owner="配置交付验证",
-                archive_base64=base64.b64encode(package).decode(),
+                archive_url=uploaded.url,
                 tool_bindings={"archive.find-notes": tool.version_id},
             ),
         )
@@ -448,10 +456,10 @@ async def test_skill_binding_rechecks_permission_revoked_during_upload(runtime_e
     tool = await create_tool(env)
     await env.tools.management.freeze(env.context, tool.version_id, tool.draft_revision)
     await publish_resource(env, "tool", tool.version_id)
-    original = env.skills.store.put
+    original = env.skills.store.put_public
 
     async def revoke_after_upload(key, data, content_type):
-        await original(key, data, content_type)
+        url = await original(key, data, content_type)
         async with env.engine.connect() as connection:
             grants = await iam_rows(connection, "resource_grants", env.context.scope.channel_id)
         for grant in grants:
@@ -468,8 +476,9 @@ async def test_skill_binding_rechecks_permission_revoked_during_upload(runtime_e
                     }
                 ),
             )
+        return url
 
-    monkeypatch.setattr(env.skills.store, "put", revoke_after_upload)
+    monkeypatch.setattr(env.skills.store, "put_public", revoke_after_upload)
     with pytest.raises(ServiceError, match="授权不足"):
         await env.skills.create(
             env.context,

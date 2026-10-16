@@ -31,7 +31,7 @@ Creativity AI 能力平台的后端服务，提供模型接入、Agent 编排、
 | API 与数据校验 | FastAPI、Pydantic |
 | 数据库与迁移 | MySQL 8、SQLAlchemy、Alembic；向量索引使用 Qdrant 1.19 |
 | 缓存与任务 | Redis 7.4、Celery |
-| 对象存储 | S3 兼容接口，本地使用 MinIO |
+| 对象存储 | 阿里云 OSS 官方 SDK、V4 签名与私有对象 |
 | 模型与编排 | LiteLLM、LangGraph、MCP SDK |
 | 可观测性 | JSON 日志、OpenTelemetry |
 | 工程检查 | Ruff、mypy、pytest |
@@ -59,7 +59,7 @@ Creativity AI 能力平台的后端服务，提供模型接入、Agent 编排、
 ./scripts/start-local.sh
 ```
 
-脚本读取 `.env.dev` 并准备 Python 依赖，检查并复用 MySQL 8、Redis、Qdrant 和对象存储，缺少时启动对应 Docker 服务，再执行迁移、初始化系统渠道，启动 API、Worker 和调度器。日志写入 `log/`，默认每个文件 10 MiB、保留 5 份历史。依赖识别、命令参数和日志说明见 [本地启动文档](docs/local-development.md)。
+脚本读取 `.env.dev` 并准备 Python 依赖，检查并复用 MySQL 8、Redis、Qdrant，缺少时启动对应 Docker 服务；对象存储连接已配置的阿里云 OSS，再执行迁移、初始化系统渠道，启动 API、Worker 和调度器。日志写入 `log/`，默认每个文件 10 MiB、保留 5 份历史。依赖识别、命令参数和日志说明见 [本地启动文档](docs/local-development.md)。
 
 ### 2. 初始化管理员
 
@@ -109,7 +109,7 @@ curl -fsS http://127.0.0.1:8000/health/ready
 
 就绪检查会报告数据库、Redis 和对象存储状态，必要依赖不可用时返回 HTTP 503。管理接口使用 `/admin/v1` 前缀，业务调用接口使用 `/api/v1` 前缀；认证及调用示例见 [统一 API 接入指南](docs/integration.md#unified-api)。
 
-结束开发时按 `Ctrl+C`，或在另一个终端执行 `./scripts/stop-local.sh`（也可用 `make local-stop`），一键脚本会停止本次启动的 API、Worker 和调度器并释放启动锁。Docker 依赖继续保留；需要同时停止应用和项目 Docker 依赖时执行 `./scripts/stop-local.sh --stop-infra`，数据库和对象存储的命名卷会保留。
+结束开发时按 `Ctrl+C`，或在另一个终端执行 `./scripts/stop-local.sh`（也可用 `make local-stop`），一键脚本会停止本次启动的 API、Worker 和调度器并释放启动锁。Docker 依赖继续保留；需要同时停止应用和项目 Docker 依赖时执行 `./scripts/stop-local.sh --stop-infra`，数据库、Redis 和向量存储的命名卷会保留。
 
 ## 配置
 
@@ -121,12 +121,12 @@ curl -fsS http://127.0.0.1:8000/health/ready
 | `CREATIVITY_DATABASE_URL` | MySQL 连接地址 |
 | `CREATIVITY_REDIS_CACHE_URL`、`CREATIVITY_REDIS_AUTH_URL` | 缓存与认证 Redis 连接 |
 | `CREATIVITY_CELERY_BROKER_URL`、`CREATIVITY_CELERY_RESULT_URL` | 任务队列与结果 Redis 连接 |
-| `CREATIVITY_S3_*` | 对象存储端点、区域、凭据与存储桶 |
+| `CREATIVITY_OSS_*` | 阿里云 OSS 端点、地域、凭据、桶与服务前缀，见 [OSS 配置](deploy/oss/README.md) |
 | `CREATIVITY_CORS_ORIGINS` | 允许的浏览器来源，使用 JSON 数组 |
 | `CREATIVITY_DELETION_LEDGER_PATH` | 删除意图清单的持久化目录 |
 | `CREATIVITY_OTEL_ENABLED`、`CREATIVITY_OTEL_EXPORTER_OTLP_ENDPOINT` | 追踪导出开关及 OTLP HTTP 端点 |
 
-本地默认端口为 MySQL `3306`、Qdrant `6333`、Redis `56379`、MinIO API `59000`、MinIO 控制台 `59001`。缓存、认证、任务队列和任务结果分别使用独立的 Redis 数据库。
+本地默认端口为 MySQL `3306`、Qdrant `6333`、Redis `56379`；对象存储使用阿里云 OSS。缓存、认证、任务队列和任务结果分别使用独立的 Redis 数据库。
 
 本地配置统一维护在 `.env.dev`，该文件包含本机连接与密钥，保持 Git 忽略。删除清单的共享持久卷要求见 [数据生命周期文档](docs/operations.md#data-lifecycle)；向量检索、MCP OAuth、脚本执行和外部身份等可选能力见 [扩展配置](docs/configuration.md#enhancements)。
 

@@ -135,5 +135,5 @@ def test_deployment_templates_require_real_connection_configuration(settings, en
     with pytest.raises(ValidationError) as failure:
         Settings(_env_file=f".env.{environment}")
     fields = {error["loc"][0] for error in failure.value.errors()}
-    assert {"database_url", "s3_access_key_id", "s3_secret_access_key"} <= fields
+    assert {"database_url", "oss_access_key_id", "oss_access_key_secret"} <= fields
     assert ("qdrant_uri" in fields) == (environment == "prod")

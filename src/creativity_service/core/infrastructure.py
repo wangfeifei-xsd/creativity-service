@@ -4,14 +4,13 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Literal
 
-import boto3
-from botocore.config import Config
-from botocore.exceptions import ClientError
+from alibabacloud_oss_v2.exceptions import ServiceError as OSSServiceError
 from pydantic import BaseModel, Field
 from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from creativity_service.core.artifacts import OSSObjectStore
 from creativity_service.core.config import Settings
 
 
@@ -50,20 +49,7 @@ class Infrastructure:
                 ("celery_result", settings.celery_result_url),
             )
         }
-        self.s3 = boto3.client(
-            "s3",
-            endpoint_url=settings.s3_endpoint_url,
-            region_name=settings.s3_region,
-            aws_access_key_id=settings.s3_access_key_id.get_secret_value(),
-            aws_secret_access_key=settings.s3_secret_access_key.get_secret_value(),
-            config=Config(
-                connect_timeout=self.timeout,
-                read_timeout=self.timeout,
-                retries={"max_attempts": 0},
-                s3={"addressing_style": "path"},
-            ),
-        )
-        self.bucket = settings.s3_bucket
+        self.object_store = OSSObjectStore(settings)
 
     async def check_database(self) -> None:
         async with self.engine.connect() as connection:
@@ -72,7 +58,7 @@ class Infrastructure:
                 raise RuntimeError("业务数据库要求 MySQL 8")
 
     async def check_storage(self) -> None:
-        await asyncio.to_thread(self.s3.head_bucket, Bucket=self.bucket)
+        await asyncio.to_thread(self.object_store.check)
 
     async def check_readiness(self) -> ReadinessResponse:
         checks: dict[str, Callable[[], Awaitable[object]]] = {
@@ -89,8 +75,8 @@ class Infrastructure:
                 return DependencyStatus(status="available", message="连接正常")
             except TimeoutError:
                 return DependencyStatus(status="unavailable", message="连接超时")
-            except ClientError as exc:
-                status = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+            except OSSServiceError as exc:
+                status = exc.status_code
                 message = {403: "对象存储认证失败或无桶访问权限", 404: "对象存储桶不存在"}.get(
                     status or 0, "对象存储暂不可用"
                 )
@@ -108,4 +94,4 @@ class Infrastructure:
         await self.engine.dispose()
         for client in self.redis_clients.values():
             await client.aclose()
-        self.s3.close()
+        self.object_store.close()

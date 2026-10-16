@@ -174,9 +174,6 @@ async def scan_retention(
                     )
                 )
             removed += len(expired_rows)
-    from creativity_service.modules.data_lifecycle.objects import sweep_objects
-
-    objects = await sweep_objects(service, channel_id, policy.temporary_hours, limit)
     if service.handlers.redis is not None:
         from creativity_service.modules.tools.execution import RedisToolCache
 
@@ -189,5 +186,4 @@ async def scan_retention(
     return {
         "registered": min(len(selected), limit),
         "metadata_removed": removed,
-        "orphan_objects": objects,
     }

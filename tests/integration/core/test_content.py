@@ -1,10 +1,10 @@
-"""内容授权、删除竞争、孤儿回收及恢复核对。"""
+"""内容授权、删除竞争、暂存失效、原件保留及恢复核对。"""
 
 from datetime import timedelta
 
 import pytest
 
-from creativity_service.core.artifacts import ArtifactService, S3ObjectStore
+from creativity_service.core.artifacts import ArtifactService
 from creativity_service.core.config import Settings
 from creativity_service.core.database import Repository, transaction
 from creativity_service.core.database.tables import metadata
@@ -20,11 +20,12 @@ from creativity_service.core.deletion.handlers import register_core_handlers
 from creativity_service.core.infrastructure import Infrastructure
 from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError, utcnow
+from tests.support.file_store import FileURLStore
 
 pytestmark = pytest.mark.integration
 
 
-class MemoryStore:
+class MemoryStore(FileURLStore):
     def __init__(self):
         self.objects = {}
         self.on_put = None
@@ -40,9 +41,6 @@ class MemoryStore:
         if self.on_get:
             await self.on_get()
         return value
-
-    async def delete(self, key):
-        self.objects.pop(key, None)
 
 
 async def test_late_upload_blocked_when_source_deleted(engine, context, authorization):
@@ -60,6 +58,7 @@ async def test_late_upload_blocked_when_source_deleted(engine, context, authoriz
     async with engine.connect() as connection:
         rows = await Repository(metadata.tables["artifacts"], context.scope).find(connection)
     assert len(rows) == 1 and rows[0]["state"] == "STAGED"
+    assert store.objects[rows[0]["object_key"]] == b"private"
     with pytest.raises(ServiceError):
         await artifacts.download(context, rows[0]["id"])
 
@@ -93,7 +92,9 @@ async def test_realtime_authorization_and_transitive_source_deletion(
     registry = CleanupRegistry()
     register_core_handlers(registry, engine, service, authorization)
     await registry.clean(context, ContentRef("artifact", second.artifact_id))
-    assert b"derived" not in store.objects.values()
+    assert b"derived" in store.objects.values()
+    with pytest.raises(ServiceError, match="已删除"):
+        await service.download(context, second.artifact_id)
 
 
 async def test_expired_staging_collected_and_upload_cannot_register(engine, context, authorization):
@@ -120,8 +121,15 @@ async def test_expired_staging_collected_and_upload_cannot_register(engine, cont
             uow, row["id"], row["revision"], {"upload_expires_at": utcnow() - timedelta(seconds=1)}
         )
     assert await service.cleanup_orphans(context) == 1
-    assert not store.objects
-    assert await service.cleanup_orphans(context) == 1
+    assert store.objects[row["object_key"]] == b"orphan"
+    async with engine.connect() as connection:
+        deleted = await Repository(
+            metadata.tables["artifacts"], context.scope, include_deleted=True
+        ).get(connection, row["id"])
+    assert deleted["is_deleted"] and deleted["state"] == "DELETED"
+    with pytest.raises(ServiceError):
+        await service.download(context, row["id"])
+    assert await service.cleanup_orphans(context) == 0
 
 
 async def test_restore_barrier_requires_current_independent_proof(engine, context, authorization):
@@ -156,11 +164,9 @@ async def test_restore_barrier_requires_current_independent_proof(engine, contex
         await service.download(context, artifact.artifact_id)
 
 
-async def test_real_s3_private_upload_download_cleanup(engine, context, authorization):
+async def test_real_oss_private_upload_download_cleanup(engine, context, authorization):
     infrastructure = Infrastructure(Settings())
-    service = ArtifactService(
-        engine, S3ObjectStore(infrastructure.s3, infrastructure.bucket), authorization
-    )
+    service = ArtifactService(engine, infrastructure.object_store, authorization)
     source = ContentRef("message", "source_real")
     try:
         artifact = await service.upload(
@@ -169,6 +175,14 @@ async def test_real_s3_private_upload_download_cleanup(engine, context, authoriz
         assert (await service.download(context, artifact.artifact_id))[0] == "测试文件".encode()
         await DeletionService(engine, authorization).mark(context, source, "USER_REQUEST")
         await service.clean(context, ContentRef("artifact", artifact.artifact_id))
+        async with engine.connect() as connection:
+            row = await Repository(
+                metadata.tables["artifacts"], context.scope, include_deleted=True
+            ).get(connection, artifact.artifact_id)
+        assert row["is_deleted"] and row["state"] == "DELETED"
+        assert await infrastructure.object_store.get(row["object_key"], 100) == "测试文件".encode()
+        with pytest.raises(ServiceError, match="已删除"):
+            await service.download(context, artifact.artifact_id)
     finally:
         await infrastructure.close()
 

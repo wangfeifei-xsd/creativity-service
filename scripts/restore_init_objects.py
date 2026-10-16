@@ -1,16 +1,17 @@
 """从初始化 SQL 中恢复技能对象；只写入数据库登记且摘要一致的缺失对象。"""
 
 import argparse
+import asyncio
 import hashlib
 import json
 import re
 from pathlib import Path
 from typing import Any
 
-import boto3
-from botocore.exceptions import ClientError
+from alibabacloud_oss_v2.exceptions import ServiceError as OSSServiceError
 from sqlalchemy import create_engine, select, text
 
+from creativity_service.core.artifacts import OSSObjectStore
 from creativity_service.core.config import Settings
 from creativity_service.storage import metadata
 from scripts.render_weather_seed import OBJECT_MARKER, object_bytes
@@ -28,6 +29,36 @@ def archived_objects(path: Path) -> list[dict[str, Any]]:
     for item in items:
         object_bytes(item)
     return items
+
+
+async def restore_objects(
+    settings: Settings, items: list[dict[str, Any]], *, check_only: bool
+) -> None:
+    """只恢复缺失对象；并发写入时仍核验内容，不能覆盖已有文件。"""
+    store = OSSObjectStore(settings)
+    try:
+        for item in items:
+            data = object_bytes(item)
+            try:
+                existing = await store.get(item["object_key"], item["size_bytes"])
+            except OSSServiceError as exc:
+                if exc.code != "NoSuchKey":
+                    raise
+                if check_only:
+                    raise ValueError("技能对象尚未恢复") from exc
+                try:
+                    await store.put(
+                        item["object_key"], data, item["content_type"], forbid_overwrite=True
+                    )
+                except OSSServiceError as conflict:
+                    if conflict.code != "FileAlreadyExists":
+                        raise
+                existing = await store.get(item["object_key"], item["size_bytes"])
+            if len(existing) != len(data) or hashlib.sha256(existing).hexdigest() != item["sha256"]:
+                raise ValueError("目标技能对象内容不同，未覆盖；请核对对象存储环境")
+            print(f"技能对象已核验：{item['id']}")
+    finally:
+        store.close()
 
 
 def main() -> None:
@@ -66,41 +97,7 @@ def main() -> None:
                 )
             ):
                 raise ValueError("对象元数据不匹配；请先向目标空库导入完整初始化 SQL")
-        client = boto3.client(
-            "s3",
-            endpoint_url=settings.s3_endpoint_url,
-            region_name=settings.s3_region,
-            aws_access_key_id=settings.s3_access_key_id.get_secret_value(),
-            aws_secret_access_key=settings.s3_secret_access_key.get_secret_value(),
-        )
-        for item in items:
-            data = object_bytes(item)
-            try:
-                response = client.get_object(Bucket=settings.s3_bucket, Key=item["object_key"])
-                try:
-                    existing = response["Body"].read(item["size_bytes"] + 1)
-                finally:
-                    response["Body"].close()
-            except ClientError as exc:
-                if exc.response["Error"]["Code"] not in {"NoSuchKey", "404"}:
-                    raise
-                if args.check:
-                    raise ValueError("技能对象尚未恢复") from exc
-                client.put_object(
-                    Bucket=settings.s3_bucket,
-                    Key=item["object_key"],
-                    Body=data,
-                    ContentType=item["content_type"],
-                    IfNoneMatch="*",
-                )
-                response = client.get_object(Bucket=settings.s3_bucket, Key=item["object_key"])
-                try:
-                    existing = response["Body"].read(item["size_bytes"] + 1)
-                finally:
-                    response["Body"].close()
-            if len(existing) != len(data) or hashlib.sha256(existing).hexdigest() != item["sha256"]:
-                raise ValueError("目标技能对象内容不同，未覆盖；请核对对象存储环境")
-            print(f"技能对象已核验：{item['id']}")
+        asyncio.run(restore_objects(settings, items, check_only=args.check))
     finally:
         engine.dispose()
 

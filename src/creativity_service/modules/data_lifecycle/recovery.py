@@ -95,10 +95,6 @@ async def replay_restore(
             proofs = await rows(connection, channel_id, "deletion_receipts")
         if any(j["state"] != "COMPLETED" for j in jobs):
             raise ServiceError("RECOVERY_CLEANUP_PENDING", "恢复清理尚未完成", 503)
-        from creativity_service.modules.data_lifecycle.objects import sweep_objects
-
-        while await sweep_objects(service, channel_id, limit=500, restoring=True):
-            pass
         latest = await ledger.operate(channel_id, required=True)
         if digest(latest) != digest(manifest):
             raise ServiceError(

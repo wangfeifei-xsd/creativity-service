@@ -1,0 +1,23 @@
+{
+  "Version": "1",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["oss:ListObjects"],
+      "Resource": ["acs:oss:*:*:playmate-dev"],
+      "Condition": {
+        "StringLike": {
+          "oss:Prefix": ["creativity/dev/channels/*", "creativity/test/channels/*"]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["oss:PutObject", "oss:GetObject", "oss:PutObjectAcl"],
+      "Resource": [
+        "acs:oss:*:*:playmate-dev/creativity/dev/channels/*",
+        "acs:oss:*:*:playmate-dev/creativity/test/channels/*"
+      ]
+    }
+  ]
+}

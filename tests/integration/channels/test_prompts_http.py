@@ -6,13 +6,14 @@ import pytest
 
 from creativity_service.modules.iam.schemas import ChannelContextInput
 from creativity_service.modules.prompts.assembly import build_prompt_service
+from tests.support.file_store import FileURLStore
 
 from .conftest import channel_body, login, provision
 
 pytestmark = pytest.mark.integration
 
 
-class MemoryStore:
+class MemoryStore(FileURLStore):
     def __init__(self):
         self.objects = {}
 

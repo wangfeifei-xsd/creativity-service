@@ -1,6 +1,5 @@
 """独立 Worker 的生产依赖装配，与 API 使用同一模块服务和执行入口。"""
 
-from creativity_service.core.artifacts import S3ObjectStore
 from creativity_service.core.infrastructure import Infrastructure
 from creativity_service.core.services import build_core_services
 from creativity_service.integrations.sandbox import ContainerSandbox
@@ -32,7 +31,7 @@ def worker_services(
     current_subjects: CurrentSubjectReader | None = None,
 ) -> RunService:
     engine = infrastructure.engine
-    store = S3ObjectStore(infrastructure.s3, infrastructure.bucket)
+    store = infrastructure.object_store
     core = build_core_services(engine, store, iam.authorization)
     budgets = BudgetService(engine)
     runs = build_run_service(engine, iam, core.versions, budgets, UsageService(engine, budgets))

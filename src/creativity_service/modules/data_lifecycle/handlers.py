@@ -121,7 +121,6 @@ class ContentHandlers:
             sync = VectorSync(self.engine)
             await sync.sync(context.scope, [ref.resource_id])
             await sync.require_synced(context.scope, [ref.resource_id], "DELETE")
-        object_key = None
         async with transaction(
             self.engine,
             context.scope,
@@ -278,7 +277,6 @@ class ContentHandlers:
                     "authorization_scope": {},
                 }
             elif ref.resource_type == "usage_export":
-                object_key = row["object_key"]
                 values = {
                     "is_deleted": True,
                     "state": "DELETED",
@@ -354,5 +352,3 @@ class ContentHandlers:
             else:
                 raise ServiceError("CLEANUP_HANDLER_MISSING", "内容处理器未实现", 503)
             await put(uow, name, row["id"], values)
-        if object_key:
-            await self.store.delete(object_key)

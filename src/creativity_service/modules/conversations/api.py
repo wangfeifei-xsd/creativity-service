@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from creativity_service.core.artifacts import MAX_FILE_BYTES
 from creativity_service.core.context import AuthContext, require_http_context
 from creativity_service.core.contracts import Artifact, ResultEnvelope
+from creativity_service.core.files import UploadedFile
 from creativity_service.core.primitives import ServiceError, unavailable
 from creativity_service.modules.conversations.schemas import (
     BranchInput,
@@ -164,6 +165,7 @@ async def deletion(
 @router.post(
     "/conversations/{conversation_id}/attachments",
     status_code=201,
+    deprecated=True,
     openapi_extra={
         "requestBody": {
             "required": True,
@@ -180,7 +182,7 @@ async def upload(
     context: Context,
     conversations: Conversations,
     name: Annotated[str, Query(min_length=1, max_length=255)],
-) -> Artifact:
+) -> UploadedFile:
     data = bytearray()
     async for chunk in request.stream():
         if len(data) + len(chunk) > MAX_FILE_BYTES:

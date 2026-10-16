@@ -8,6 +8,7 @@ from creativity_service.core.contracts import Artifact, ResultEnvelope
 from creativity_service.core.database import Repository, transaction
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard
+from creativity_service.core.files import UploadedFile
 from creativity_service.core.primitives import (
     ServiceError,
     canonical_json,
@@ -154,9 +155,7 @@ class ConversationService(
         if not body.content.strip():
             raise ServiceError("MESSAGE_CONTENT_REQUIRED", "请填写消息正文", 422)
         for attachment in body.attachments:
-            await self.artifacts.authorization.require(
-                context, "artifact:download", attachment.artifact_id
-            )
+            self.files.key(context, attachment.url)
         async with transaction(
             self.engine, context.scope, self.hooks.keys(context, conversation_id)
         ) as uow:
@@ -205,23 +204,15 @@ class ConversationService(
 
     async def upload(
         self, context: AuthContext, conversation_id: str, name: str, content_type: str, data: bytes
-    ) -> Artifact:
+    ) -> UploadedFile:
         context = await self.access(context, conversation_id, "conversation:write")
-        await self.artifacts.authorization.require(context, "artifact:download", "new")
         async with transaction(
             self.engine, context.scope, self.hooks.keys(context, conversation_id)
         ) as uow:
             row = await self.hooks.current(uow, context, conversation_id)
             if row["status"] != "ACTIVE":
                 raise ServiceError("SESSION_ARCHIVED", "会话已归档，请先恢复", 409)
-        artifact = await self.artifacts.upload(
-            context, name, content_type, data, [ContentRef("conversation", conversation_id)]
-        )
-        return artifact.model_copy(
-            update={
-                "download_path": self.download_path(context, conversation_id, artifact.artifact_id)
-            }
-        )
+        return await self.files.upload(context, name, content_type, data)
 
     @staticmethod
     def download_path(context: AuthContext, conversation_id: str, artifact_id: str) -> str:

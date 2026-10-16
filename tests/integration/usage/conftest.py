@@ -8,7 +8,10 @@ from tests.integration.channels.conftest import channel_env, provision
 __all__ = ["channel_env"]
 
 
-class MemoryStore:
+from tests.support.file_store import FileURLStore
+
+
+class MemoryStore(FileURLStore):
     def __init__(self):
         self.values = {}
 
@@ -17,9 +20,6 @@ class MemoryStore:
 
     async def get(self, key, max_bytes):
         return self.values[key]
-
-    async def delete(self, key):
-        self.values.pop(key, None)
 
 
 @pytest.fixture

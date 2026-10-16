@@ -58,9 +58,10 @@ def validate_guidance(seed: dict[str, Any], base: dict[str, Any]) -> None:
         if not rows or len({row["id"] for row in rows}) != len(rows):
             raise ValueError(f"{name} 归档为空或标识重复")
         for row in rows:
-            if set(row) != set(metadata.tables[name].c.keys()):
+            values = typed_archive_values(metadata.tables[name], row)
+            if set(values) != set(metadata.tables[name].c.keys()):
                 raise ValueError(f"{name} 字段与模型不一致")
-            validate_row(metadata.tables[name], typed_archive_values(metadata.tables[name], row))
+            validate_row(metadata.tables[name], values)
             if row["channel_id"] != source["channel_id"] or row.get("environment", "dev") != "dev":
                 raise ValueError("订单协助归档不能混入其他渠道或环境")
     index = {

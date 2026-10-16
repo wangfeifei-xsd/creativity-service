@@ -503,22 +503,21 @@
       "AttachmentPart": {
         "additionalProperties": false,
         "properties": {
-          "artifact_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Artifact Id",
-            "type": "string"
-          },
           "type": {
             "const": "attachment",
             "default": "attachment",
             "title": "Type",
             "type": "string"
+          },
+          "url": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
           }
         },
         "required": [
-          "artifact_id"
+          "url"
         ],
         "title": "AttachmentPart",
         "type": "object"
@@ -722,22 +721,21 @@
       "AttachmentPart": {
         "additionalProperties": false,
         "properties": {
-          "artifact_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Artifact Id",
-            "type": "string"
-          },
           "type": {
             "const": "attachment",
             "default": "attachment",
             "title": "Type",
             "type": "string"
+          },
+          "url": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
           }
         },
         "required": [
-          "artifact_id"
+          "url"
         ],
         "title": "AttachmentPart",
         "type": "object"
@@ -807,28 +805,18 @@
       "AttachmentView": {
         "additionalProperties": false,
         "properties": {
-          "artifact_id": {
-            "title": "Artifact Id",
-            "type": "string"
-          },
-          "download_path": {
-            "title": "Download Path",
-            "type": "string"
-          },
           "name": {
             "title": "Name",
             "type": "string"
           },
-          "size_bytes": {
-            "title": "Size Bytes",
-            "type": "integer"
+          "url": {
+            "title": "Url",
+            "type": "string"
           }
         },
         "required": [
-          "artifact_id",
-          "name",
-          "size_bytes",
-          "download_path"
+          "url",
+          "name"
         ],
         "title": "AttachmentView",
         "type": "object"

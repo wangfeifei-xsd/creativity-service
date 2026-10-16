@@ -23,7 +23,7 @@ def test_missing_config_fails_before_startup(settings, monkeypatch, tmp_path):
     with pytest.raises(ValidationError) as exc:
         create_app()
     assert "database_url" in str(exc.value)
-    assert "s3_secret_access_key" in str(exc.value)
+    assert "oss_access_key_secret" in str(exc.value)
 
 
 def test_redis_namespaces_must_be_distinct(settings):
@@ -165,6 +165,7 @@ async def test_readiness_timeout_is_bounded(settings, monkeypatch):
         await asyncio.sleep(1)
 
     monkeypatch.setattr(infrastructure, "check_database", slow)
+    monkeypatch.setattr(infrastructure, "check_storage", AsyncMock())
     try:
         result = await infrastructure.check_readiness()
         assert result.checks["database"].message == "连接超时"

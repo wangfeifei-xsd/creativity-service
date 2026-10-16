@@ -55,7 +55,7 @@ def export_settings(settings: Settings) -> None:
     os.environ["CREATIVITY_ENVIRONMENT"] = settings.environment
     for name in ("database_url", *REDIS_FIELDS):
         os.environ[f"CREATIVITY_{name.upper()}"] = getattr(settings, name).get_secret_value()
-    os.environ["CREATIVITY_S3_ENDPOINT_URL"] = settings.s3_endpoint_url
+    os.environ["CREATIVITY_OSS_ENDPOINT"] = settings.oss_endpoint
     os.environ["CREATIVITY_QDRANT_URI"] = settings.qdrant_uri
     os.environ["CREATIVITY_LOG_DIRECTORY"] = str(settings.log_directory.resolve())
 
@@ -173,7 +173,8 @@ def serve(settings: Settings, port: int, *, reload: bool) -> None:
         for role, args in commands.items():
             children.append(start_child(role, args, settings))
         deadline = time.monotonic() + 45
-        with httpx.Client(timeout=2, trust_env=False) as client:
+        # HTTP 等待时间覆盖服务端探测预算，避免云端依赖正常时被启动器提前截断。
+        with httpx.Client(timeout=settings.health_timeout_seconds + 1, trust_env=False) as client:
             while time.monotonic() < deadline:
                 check_children(children)
                 try:

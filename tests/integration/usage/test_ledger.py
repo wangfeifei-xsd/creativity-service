@@ -308,7 +308,7 @@ async def test_platform_count_atomic_and_release_only_concurrency(usage_env):
     assert {r["target_channel_id"] for r in occupancies} == {env.scope.channel_id}
 
 
-async def test_export_real_permissions_and_csv_formula_protection(usage_env):
+async def test_export_real_permissions_and_csv_formula_protection(usage_env, monkeypatch):
     env = usage_env
     p = await prepare(
         env, plan().model_copy(update={"names": {"model": "=恶意公式", "agent": "正常智能体"}})
@@ -346,6 +346,57 @@ async def test_export_real_permissions_and_csv_formula_protection(usage_env):
     assert "'=恶意公式" in data.decode("utf-8-sig")
     assert len(env.store.values) == 1
     assert (await env.usage.exports.list_exports(session))[0].metadata["unpriced"] == 1
+
+    from creativity_service.core.deletion import ContentRef, DeletionService
+    from tests.integration.core.conftest import TestAuthorization
+
+    # 文件清理使用内部任务授权；前面的导出与下载仍经过真实 IAM。
+    cleanup_authorization = TestAuthorization()
+    ref = ContentRef("usage_export", job.id)
+    await DeletionService(env.engine, cleanup_authorization).mark(env.context, ref, "USER_REQUEST")
+    with monkeypatch.context() as cleanup:
+        cleanup.setattr(env.iam.authorization, "require", cleanup_authorization.require)
+        await env.usage.exports.clean(env.context, ref)
+    assert list(env.store.values.values()) == [data]
+    assert await env.usage.exports.list_exports(session) == []
+    with pytest.raises(ServiceError) as failure:
+        await env.usage.exports.download(session, job.id)
+    assert failure.value.code == "NOT_FOUND"
+
+
+@pytest.mark.parametrize("platform", [False, True])
+async def test_failed_export_keeps_uploaded_file_unavailable(usage_env, monkeypatch, platform):
+    env = usage_env
+    query = UsageFilter(
+        start_at=utcnow() - timedelta(days=1), end_at=utcnow() + timedelta(minutes=1)
+    )
+    if platform:
+        session = env.admin
+        channel_id = "system"
+        job = await env.usage.exports.create_platform(session, [env.scope.channel_id], query)
+        download = env.usage.exports.platform_download
+    else:
+        channel = await provision(env, "failed-export", independent_actions=["data:export"])
+        session = channel.manager
+        channel_id = session.context.scope.channel_id
+        job = await env.usage.exports.create(session, query)
+        download = env.usage.exports.download
+    original = env.store.put
+
+    async def interrupted(key, data, content_type):
+        await original(key, data, content_type)
+        raise OSError("模拟对象已写入但上传响应丢失")
+
+    monkeypatch.setattr(env.store, "put", interrupted)
+    with pytest.raises(OSError, match="响应丢失"):
+        await env.usage.exports.process(channel_id, job.id)
+    assert len(env.store.values) == 1
+    async with env.engine.connect() as connection:
+        (row,) = await rows(connection, "usage_exports", channel_id, id=job.id)
+    assert row["state"] == "FAILED" and row["object_key"] is None
+    with pytest.raises(ServiceError) as failure:
+        await download(session, job.id)
+    assert failure.value.code == "EXPORT_UNAVAILABLE"
 
 
 async def test_budget_versions_alert_resolve_retrigger_and_repricing(usage_env):

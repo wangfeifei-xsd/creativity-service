@@ -18,6 +18,7 @@ from creativity_service.core.database import Repository, UnitOfWork, transaction
 from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.deletion import ContentRef, DeletionGuard, DeletionService, content_key
+from creativity_service.core.files import FileService
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
@@ -37,7 +38,6 @@ from creativity_service.modules.skills.packages import (
     MAX_ARCHIVE,
     Package,
     check_export,
-    decode_archive,
     entry,
     unpack,
     validate_files,
@@ -71,7 +71,6 @@ from creativity_service.modules.skills.schemas import (
     SkillVersionView,
     SkillView,
 )
-from creativity_service.modules.skills.tables import metadata
 from creativity_service.modules.tools.schemas import ToolDefinition
 from creativity_service.modules.tools.services import ToolService
 from creativity_service.modules.tools.tables import metadata as tool_metadata
@@ -139,19 +138,24 @@ class SkillVersionValidator:
             )
         )
         artifacts = core_metadata.tables["artifacts"]
-        stored = [
-            dict(row)
-            for row in (
-                await uow.connection.execute(
-                    active_rows(
-                        select(artifacts).where(
-                            artifacts.c.channel_id == scope.channel_id,
-                            artifacts.c.id.in_([d.artifact_id for d in definitions]),
+        artifact_ids = [d.artifact_id for d in definitions if d.artifact_id]
+        stored = (
+            [
+                dict(row)
+                for row in (
+                    await uow.connection.execute(
+                        active_rows(
+                            select(artifacts).where(
+                                artifacts.c.channel_id == scope.channel_id,
+                                artifacts.c.id.in_(artifact_ids),
+                            )
                         )
                     )
-                )
-            ).mappings()
-        ]
+                ).mappings()
+            ]
+            if artifact_ids
+            else []
+        )
         indexed_artifacts = {row["id"]: row for row in stored}
         if len(indexed_artifacts) != len(stored):
             raise ServiceError("STORAGE_INVARIANT_BROKEN", "技能包标识重复", 503)
@@ -225,13 +229,16 @@ class SkillVersionValidator:
             row = skills.get(version.resource_id)
             if version.resource_type != "skill" or not row or row["status"] != "ACTIVE":
                 raise ServiceError("SKILL_UNAVAILABLE", "技能不存在或已停用", 409)
-            artifact = indexed_artifacts.get(definition.artifact_id)
-            if (
-                not artifact
-                or artifact["state"] != "AVAILABLE"
-                or artifact["expires_at"] <= utcnow()
-            ):
-                raise ServiceError("SKILL_PACKAGE_CORRUPT", "技能包文件不存在或已失效", 409)
+            if definition.package_url:
+                self.service.files.key(context, definition.package_url)
+            else:
+                artifact = indexed_artifacts.get(definition.artifact_id)
+                if (
+                    not artifact
+                    or artifact["state"] != "AVAILABLE"
+                    or artifact["expires_at"] <= utcnow()
+                ):
+                    raise ServiceError("SKILL_PACKAGE_CORRUPT", "技能包文件不存在或已失效", 409)
             ids, _, issues = await resolve_dependencies(
                 uow.connection, context, definition, self.service.tools, loaded=data
             )
@@ -255,12 +262,12 @@ class SkillVersionValidator:
                 actual[f.relative_path]["sha256"] != f.sha256
                 or actual[f.relative_path]["size_bytes"] != f.size_bytes
                 or actual[f.relative_path]["artifact_id"] != definition.artifact_id
+                or actual[f.relative_path]["package_url"] != definition.package_url
                 for f in definition.files
             ):
                 raise ServiceError("SKILL_PACKAGE_CORRUPT", "技能包清单不一致", 503)
             refs.extend(
                 [
-                    ContentRef("artifact", definition.artifact_id),
                     ContentRef("skill", row["id"]),
                     *[ContentRef("version", v) for v in ids],
                 ]
@@ -290,6 +297,7 @@ class SkillService:
             store,
             tools,
         )
+        self.files = FileService(store, authorization)
         self.access = SkillAuthorization(engine, authorization)
         self.versions = SkillVersions(engine, self.access, SkillVersionValidator(self))
         self.loader = SkillLoader(self)
@@ -337,6 +345,15 @@ class SkillService:
             await DeletionGuard(context.scope).check(uow, [ContentRef("skill", skill["id"])])
         return skill, version
 
+    async def check_package_reference(
+        self, context: AuthContext, definition: SkillDefinition
+    ) -> None:
+        if definition.package_url:
+            self.files.key(context, definition.package_url)
+        else:
+            assert definition.artifact_id is not None
+            await self.artifact_context(context, definition.artifact_id)
+
     async def artifact_context(self, context: AuthContext, artifact_id: str) -> AuthContext:
         """从渠道内存储记录恢复范围，并在返回上下文前复核文件删除与恢复屏障。"""
         table = core_metadata.tables["artifacts"]
@@ -373,11 +390,15 @@ class SkillService:
         action: str = "skill:manage",
     ) -> Package:
         await self.require(context, action, skill_id)
-        # 配置在渠道内跨环境共享；存储归属只从服务端产物记录读取。
-        storage_context = await self.artifact_context(context, definition.artifact_id)
-        data, _, _ = await self.artifacts(context, skill_id, action).download(
-            storage_context, definition.artifact_id
-        )
+        if definition.package_url:
+            data = await self.files.read(context, definition.package_url, MAX_ARCHIVE)
+        else:
+            # 历史配置保留原引用，不重写已受理运行的冻结证据。
+            assert definition.artifact_id is not None
+            storage_context = await self.artifact_context(context, definition.artifact_id)
+            data, _, _ = await self.artifacts(context, skill_id, action).download(
+                storage_context, definition.artifact_id
+            )
         async with self.engine.connect() as connection:
             bindings = await local_bindings(connection, context, definition)
         package = await asyncio.to_thread(
@@ -397,80 +418,6 @@ class SkillService:
             raise ServiceError("SKILL_PACKAGE_CORRUPT", "技能包摘要与实际文件不一致", 503)
         return package
 
-    async def orphan(self, context: AuthContext, artifact_id: str) -> None:
-        """补偿未登记或已替换包；保留加载快照仍引用的旧包，其他包交公共回收处理器。"""
-        artifacts = core_metadata.tables["artifacts"]
-        async with self.engine.connect() as connection:
-            stored = (
-                (
-                    await connection.execute(
-                        active_rows(
-                            select(artifacts).where(
-                                artifacts.c.channel_id == context.scope.channel_id,
-                                artifacts.c.id == artifact_id,
-                            )
-                        )
-                    )
-                )
-                .mappings()
-                .all()
-            )
-        if not stored:
-            return
-        if len(stored) != 1:
-            raise ServiceError("STORAGE_INVARIANT_BROKEN", "包产物标识重复", 503)
-        storage_scope = Scope.model_validate({key: stored[0][key] for key in Scope.model_fields})
-        table = metadata.tables["skill_tests"]
-        async with transaction(
-            self.engine,
-            storage_scope,
-            [
-                content_key(storage_scope),
-                record_key(context.scope.channel_id, "artifacts", artifact_id),
-            ],
-        ) as uow:
-            versions = await repository("resource_versions", context.scope).find(
-                uow.connection, resource_type="skill"
-            )
-            tests = (
-                (
-                    await uow.connection.execute(
-                        active_rows(
-                            select(table.c.context_snapshot).where(
-                                table.c.channel_id == context.scope.channel_id
-                            )
-                        )
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            if any(v["content"].get("artifact_id") == artifact_id for v in versions) or any(
-                t.get("definition", {}).get("artifact_id") == artifact_id for t in tests
-            ):
-                return
-            snapshots = core_metadata.tables["release_snapshots"]
-            if await uow.connection.scalar(
-                active_rows(
-                    select(snapshots.c.id)
-                    .where(
-                        snapshots.c.channel_id == context.scope.channel_id,
-                        snapshots.c.versions.contains([{"content": {"artifact_id": artifact_id}}]),
-                    )
-                    .limit(1)
-                )
-            ):
-                return
-            repo = repository("artifacts", storage_scope)
-            row = await repo.get(uow.connection, artifact_id)
-            if row and row["state"] == "AVAILABLE":
-                await repo.change(
-                    uow,
-                    artifact_id,
-                    row["revision"],
-                    {"state": "STAGED", "upload_expires_at": utcnow()},
-                )
-
     async def write_package(
         self,
         context: AuthContext,
@@ -481,6 +428,7 @@ class SkillService:
         *,
         resource: dict[str, Any] | None = None,
         revision: int | None = None,
+        package_url: str | None = None,
     ) -> None:
         action_id = "new" if resource is not None else skill_id
         await self.require(context, "skill:manage", action_id)
@@ -504,169 +452,161 @@ class SkillService:
         archive = await asyncio.to_thread(package.archive)
         if len(archive) > MAX_ARCHIVE:
             raise ServiceError("SKILL_FORMAT_INVALID", "技能包压缩后超过 8 MiB", 422)
-        artifact = await self.artifacts(context, action_id).upload(
-            context,
-            "skill-package.zip",
-            "application/zip",
-            archive,
-            [ContentRef("skill", skill_id), ContentRef("version", version_id)],
-            retention_seconds=36500 * 86400,
-        )
+        if package_url is None:
+            uploaded = await FileService(
+                self.store,
+                PackageAuthorization(self.authorization, context, action_id, "skill:manage"),
+            ).upload(context, "skill-package.zip", "application/zip", archive)
+            package_url = uploaded.url
+        self.files.key(context, package_url)
         scope, audit_id = context.scope, new_id("audit")
-        try:
-            await self.require(context, "skill:manage", action_id)
-            await self.require(context, "version:edit", action_id)
-            async with self.engine.connect() as connection:
-                old_files = await repository("skill_files", scope).find(
-                    connection, version_id=version_id
-                )
-            file_ids = {f.relative_path: new_id("skill_file") for f in package.manifest}
-            link_id = digest(["skill-version", version_id])
-            file_links = {path: new_id("source") for path in file_ids}
-            keys = [
-                content_key(scope),
-                policy_key(scope.channel_id),
-                policy_key("system"),
-                *[
-                    record_key(scope.channel_id, "resource_versions", t.version_id)
-                    for t in selected_tools
+        await self.require(context, "skill:manage", action_id)
+        await self.require(context, "version:edit", action_id)
+        async with self.engine.connect() as connection:
+            old_files = await repository("skill_files", scope).find(
+                connection, version_id=version_id
+            )
+        file_ids = {f.relative_path: new_id("skill_file") for f in package.manifest}
+        link_id = digest(["skill-version", version_id])
+        file_links = {path: new_id("source") for path in file_ids}
+        keys = [
+            content_key(scope),
+            policy_key(scope.channel_id),
+            policy_key("system"),
+            *[
+                record_key(scope.channel_id, "resource_versions", t.version_id)
+                for t in selected_tools
+            ],
+            *[record_key(scope.channel_id, "tools", t.resource_id) for t in selected_tools],
+            record_key(scope.channel_id, "skills", skill_id),
+            record_key(scope.channel_id, "resource_versions", version_id),
+            record_key(scope.channel_id, "audit_events", audit_id),
+            record_key(scope.channel_id, "source_links", link_id),
+            *[record_key(scope.channel_id, "source_links", item) for item in file_links.values()],
+            ResourceKey(scope.channel_id, "version-label", ("skill", skill_id, label)),
+            *[
+                record_key(scope.channel_id, "skill_files", f)
+                for f in [*file_ids.values(), *[f["id"] for f in old_files]]
+            ],
+        ]
+        if resource:
+            keys.append(ResourceKey(scope.channel_id, "skill-code", (resource["skill_code"],)))
+        async with transaction(self.engine, scope, keys) as uow:
+            guard = DeletionGuard(scope)
+            await guard.check(
+                uow,
+                [
+                    ContentRef("skill", skill_id),
+                    ContentRef("version", version_id),
                 ],
-                *[record_key(scope.channel_id, "tools", t.resource_id) for t in selected_tools],
-                record_key(scope.channel_id, "skills", skill_id),
-                record_key(scope.channel_id, "resource_versions", version_id),
-                record_key(scope.channel_id, "audit_events", audit_id),
-                record_key(scope.channel_id, "source_links", link_id),
-                *[
-                    record_key(scope.channel_id, "source_links", item)
-                    for item in file_links.values()
-                ],
-                ResourceKey(scope.channel_id, "version-label", ("skill", skill_id, label)),
-                *[
-                    record_key(scope.channel_id, "skill_files", f)
-                    for f in [*file_ids.values(), *[f["id"] for f in old_files]]
-                ],
-            ]
+            )
+            repo = repository("resource_versions", scope)
+            current = await repo.get(uow.connection, version_id)
+            if revision is not None:
+                if not current or current["revision"] != revision:
+                    raise ServiceError("REVISION_CONFLICT", "技能草稿已变更，请刷新", 409)
+                from creativity_service.modules.resources.configuration import require_edit
+
+                await require_edit(uow, context, "skill", skill_id)
+                if current["state"] == "PUBLISHED":
+                    await locked_require(uow, context, "release:publish", "skill", skill_id)
+                elif current["state"] != "DRAFT":
+                    raise ServiceError("SKILL_UNAVAILABLE", "资源已经删除", 409)
+            elif await repo.find(
+                uow.connection,
+                resource_type="skill",
+                resource_id=skill_id,
+                id=skill_id,
+                version_label=label,
+            ):
+                raise ServiceError("VERSION_LABEL_CONFLICT", "版本名称已存在", 409)
             if resource:
-                keys.append(ResourceKey(scope.channel_id, "skill-code", (resource["skill_code"],)))
-            async with transaction(self.engine, scope, keys) as uow:
-                guard = DeletionGuard(scope)
-                await guard.check(
-                    uow,
-                    [
-                        ContentRef("skill", skill_id),
-                        ContentRef("version", version_id),
-                        ContentRef("artifact", artifact.artifact_id),
-                    ],
+                skills = repository("skills", scope)
+                if await skills.find(uow.connection, skill_code=resource["skill_code"]):
+                    raise ServiceError("CODE_EXISTS", "技能编码已存在", 409)
+                await skills.add(uow, skill_id, {**resource, "status": "ACTIVE"})
+            elif not await repository("skills", scope).get(uow.connection, skill_id):
+                raise ServiceError("NOT_FOUND", "技能不存在", 404)
+            ids, _, issues = await resolve_dependencies(
+                uow.connection, context, package.settings, self.tools
+            )
+            invalid_bindings = [i for i in issues if i.path in package.settings.tool_bindings]
+            if invalid_bindings:
+                raise ServiceError(
+                    "SKILL_DEPENDENCY_MISSING",
+                    "；".join(i.message for i in invalid_bindings),
+                    422,
                 )
-                repo = repository("resource_versions", scope)
-                current = await repo.get(uow.connection, version_id)
-                if revision is not None:
-                    if not current or current["revision"] != revision:
-                        raise ServiceError("REVISION_CONFLICT", "技能草稿已变更，请刷新", 409)
-                    from creativity_service.modules.resources.configuration import require_edit
+            from creativity_service.modules.resources.configuration import require_dependencies
 
-                    await require_edit(uow, context, "skill", skill_id)
-                    if current["state"] == "PUBLISHED":
-                        await locked_require(uow, context, "release:publish", "skill", skill_id)
-                    elif current["state"] != "DRAFT":
-                        raise ServiceError("SKILL_UNAVAILABLE", "资源已经删除", 409)
-                elif await repo.find(
-                    uow.connection,
-                    resource_type="skill",
-                    resource_id=skill_id,
-                    id=skill_id,
-                    version_label=label,
-                ):
-                    raise ServiceError("VERSION_LABEL_CONFLICT", "版本名称已存在", 409)
-                if resource:
-                    skills = repository("skills", scope)
-                    if await skills.find(uow.connection, skill_code=resource["skill_code"]):
-                        raise ServiceError("CODE_EXISTS", "技能编码已存在", 409)
-                    await skills.add(uow, skill_id, {**resource, "status": "ACTIVE"})
-                elif not await repository("skills", scope).get(uow.connection, skill_id):
-                    raise ServiceError("NOT_FOUND", "技能不存在", 404)
-                ids, _, issues = await resolve_dependencies(
-                    uow.connection, context, package.settings, self.tools
-                )
-                invalid_bindings = [i for i in issues if i.path in package.settings.tool_bindings]
-                if invalid_bindings:
-                    raise ServiceError(
-                        "SKILL_DEPENDENCY_MISSING",
-                        "；".join(i.message for i in invalid_bindings),
-                        422,
-                    )
-                from creativity_service.modules.resources.configuration import require_dependencies
-
-                await require_dependencies(uow, scope, ids)
-                await self.check_tool_permissions(uow, context, ids)
-                definition = SkillDefinition(
-                    **package.settings.model_dump(),
-                    package_hash=package.package_hash,
-                    metadata=package.metadata,
-                    files=package.manifest,
-                    artifact_id=artifact.artifact_id,
-                    required_tool_versions=tuple(ids),
-                )
-                content = definition.model_dump(mode="json")
-                values = {
-                    "content": content,
-                    "content_digest": digest({"content": content, "output_schema": {}}),
-                    "dependencies": ids,
-                    "dependencies_digest": digest(ids),
-                    "output_schema": {},
-                }
-                if current:
-                    await repo.change(uow, version_id, current["revision"], values)
-                else:
-                    await repo.add(
-                        uow,
-                        version_id,
-                        {
-                            **values,
-                            "resource_type": "skill",
-                            "resource_id": skill_id,
-                            "version_label": "当前配置",
-                            "state": "DRAFT",
-                            "created_by": context.principal_id,
-                        },
-                    )
-                    await guard.link(
-                        uow,
-                        link_id,
-                        ContentRef("skill", skill_id),
-                        ContentRef("version", version_id),
-                    )
-                for old_file in old_files:
-                    await repository("skill_files", scope).remove(uow, old_file["id"])
-                for file in package.manifest:
-                    await repository("skill_files", scope).add(
-                        uow,
-                        file_ids[file.relative_path],
-                        {
-                            **file.model_dump(),
-                            "version_id": version_id,
-                            "artifact_id": artifact.artifact_id,
-                        },
-                    )
-                    await guard.link(
-                        uow,
-                        file_links[file.relative_path],
-                        ContentRef("version", version_id),
-                        ContentRef("skill_file", file_ids[file.relative_path]),
-                    )
-                await append_audit(
+            await require_dependencies(uow, scope, ids)
+            await self.check_tool_permissions(uow, context, ids)
+            definition = SkillDefinition(
+                **package.settings.model_dump(),
+                package_hash=package.package_hash,
+                metadata=package.metadata,
+                files=package.manifest,
+                package_url=package_url,
+                required_tool_versions=tuple(ids),
+            )
+            content = definition.model_dump(mode="json", exclude_none=True)
+            values = {
+                "content": content,
+                "content_digest": digest({"content": content, "output_schema": {}}),
+                "dependencies": ids,
+                "dependencies_digest": digest(ids),
+                "output_schema": {},
+            }
+            if current:
+                await repo.change(uow, version_id, current["revision"], values)
+            else:
+                await repo.add(
                     uow,
-                    context,
-                    audit_id,
-                    "skill.package.save",
-                    "skill",
-                    skill_id,
-                    {"version_id": version_id, "content_digest": package.package_hash},
+                    version_id,
+                    {
+                        **values,
+                        "resource_type": "skill",
+                        "resource_id": skill_id,
+                        "version_label": "当前配置",
+                        "state": "DRAFT",
+                        "created_by": context.principal_id,
+                    },
                 )
-        except BaseException:
-            await self.orphan(context, artifact.artifact_id)
-            raise
-        # 已受理运行与评测候选继续持有旧包，交由证据留存流程回收。
+                await guard.link(
+                    uow,
+                    link_id,
+                    ContentRef("skill", skill_id),
+                    ContentRef("version", version_id),
+                )
+            for old_file in old_files:
+                await repository("skill_files", scope).remove(uow, old_file["id"])
+            for file in package.manifest:
+                await repository("skill_files", scope).add(
+                    uow,
+                    file_ids[file.relative_path],
+                    {
+                        **file.model_dump(),
+                        "version_id": version_id,
+                        "artifact_id": None,
+                        "package_url": package_url,
+                    },
+                )
+                await guard.link(
+                    uow,
+                    file_links[file.relative_path],
+                    ContentRef("version", version_id),
+                    ContentRef("skill_file", file_ids[file.relative_path]),
+                )
+            await append_audit(
+                uow,
+                context,
+                audit_id,
+                "skill.package.save",
+                "skill",
+                skill_id,
+                {"version_id": version_id, "content_digest": package.package_hash},
+            )
+        # 新旧包均保留；业务事务失败或配置替换不修改已上传文件。
 
     async def create(self, context: AuthContext, body: SkillCreate) -> SkillDetail:
         package = validate_files(
@@ -688,7 +628,8 @@ class SkillService:
 
     async def import_package(self, context: AuthContext, body: SkillImport) -> SkillDetail:
         await self.require(context, "skill:manage", "new")
-        package = await asyncio.to_thread(unpack, decode_archive(body.archive_base64))
+        data = await self.files.read(context, body.archive_url, MAX_ARCHIVE)
+        package = await asyncio.to_thread(unpack, data)
         package = validate_files(
             package.files, package.settings.model_copy(update={"tool_bindings": body.tool_bindings})
         )
@@ -699,6 +640,7 @@ class SkillService:
             skill_id,
             "当前配置",
             package,
+            package_url=body.archive_url,
             resource={
                 "skill_code": body.skill_code,
                 "name": body.name or package.metadata["name"],
@@ -713,7 +655,8 @@ class SkillService:
         self, context: AuthContext, body: SkillImportPreviewInput
     ) -> SkillImportPreview:
         await self.require(context, "skill:manage", "new")
-        package = await asyncio.to_thread(unpack, decode_archive(body.archive_base64))
+        data = await self.files.read(context, body.archive_url, MAX_ARCHIVE)
+        package = await asyncio.to_thread(unpack, data)
         return SkillImportPreview(
             metadata=package.metadata,
             files=list(package.manifest),
@@ -1104,7 +1047,7 @@ class SkillService:
 
     async def recheck(self, context: AuthContext, skill: ResolvedSkill, purpose: str) -> None:
         current = await self.resolve(context, skill.version_id, purpose)
-        await self.artifact_context(context, skill.definition.artifact_id)
+        await self.check_package_reference(context, skill.definition)
         if not current.active or current.revision != skill.revision:
             raise ServiceError("SKILL_UNAVAILABLE", "技能状态或版本内容已变化", 409)
 

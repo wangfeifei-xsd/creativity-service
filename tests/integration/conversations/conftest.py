@@ -18,7 +18,10 @@ from tests.integration.runs.conftest import env as run_env
 __all__ = ["authorization", "context", "database_schema", "engine", "validator", "run_env"]
 
 
-class Store:
+from tests.support.file_store import FileURLStore
+
+
+class Store(FileURLStore):
     def __init__(self):
         self.data = {}
 
@@ -29,10 +32,6 @@ class Store:
     async def get(self, key, max_bytes):
         assert_external_io_allowed()
         return self.data[key]
-
-    async def delete(self, key):
-        assert_external_io_allowed()
-        self.data.pop(key, None)
 
 
 class Directory:

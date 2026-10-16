@@ -25,7 +25,7 @@
 
 ## skill_files
 
-技能版本文件清单。状态：已实现；归属：渠道；归档修订：0015_skills。
+技能版本文件清单。状态：已实现；归属：渠道；归档修订：0052_file_urls。
 
 | 字段 | 存储类型（长度/精度） | 中文说明 | 业务必填 | 取值来源 | 敏感级别 |
 | --- | --- | --- | --- | --- | --- |
@@ -39,10 +39,11 @@
 | `content_type` | `varchar(128)` | 媒体类型 | 是 | 服务层校验后的业务输入 | 内部 |
 | `size_bytes` | `bigint` | 文件字节数 | 是 | 服务层校验后的业务输入 | 内部 |
 | `sha256` | `varchar(64)` | 文件摘要 | 是 | 服务层校验后的业务输入 | 内部 |
-| `artifact_id` | `varchar(64)` | 受控内容引用 | 是 | 服务层校验后的业务输入 | 内部 |
+| `artifact_id` | `varchar(64)` | 受控内容引用 | 否 | 服务层校验后的业务输入 | 内部 |
 | `loadable` | `boolean` | 当前是否可加载 | 是 | 服务层校验后的业务输入 | 内部 |
 | `unavailable_reason` | `longtext` | 不可加载原因 | 否 | 服务层校验后的业务输入 | 内部 |
 | `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
+| `package_url` | `varchar(2048)` | 技能归档包文件地址 | 否 | 通用文件上传返回的 OSS 地址 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, version_id, relative_path)`。
 

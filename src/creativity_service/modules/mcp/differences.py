@@ -25,9 +25,7 @@ class McpDiscoveryStaleError(ServiceError):
             difference_fields(remote_contract(selected), remote_contract(latest))
             if latest
             else [{"path": ["remote_tool"], "message": "原值：存在\n新值：最新发现中已移除"}]
-        ) or [
-            {"path": [], "message": "工具定义字段一致，但快照契约摘要不同，请重新发现工具。"}
-        ]
+        ) or [{"path": [], "message": "工具定义字段一致，但快照契约摘要不同，请重新发现工具。"}]
 
 
 def explain_rebind(

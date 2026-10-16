@@ -38,6 +38,9 @@ OVERRIDE_TABLES = frozenset(
 def typed_archive_values(table: Table, source: dict[str, Any]) -> dict[str, Any]:
     """还原冻结时间、精确金额和密文字节，保持配置时间。"""
     row = dict(source)
+    if table.name == "skill_files" and "package_url" in table.c:
+        # 历史归档仍引用原产物，新增 URL 字段显式为空，不改动冻结包及其摘要。
+        row.setdefault("package_url", None)
     for column in table.c:
         value = row.get(column.name)
         if value is None:

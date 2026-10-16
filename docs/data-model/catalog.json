@@ -8920,7 +8920,7 @@
           "name": "artifact_id",
           "type": "varchar(64)",
           "comment": "受控内容引用",
-          "required": true,
+          "required": false,
           "source": "服务层校验后的业务输入",
           "sensitivity": "内部"
         },
@@ -8947,6 +8947,14 @@
           "required": true,
           "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
+        },
+        {
+          "name": "package_url",
+          "type": "varchar(2048)",
+          "comment": "技能归档包文件地址",
+          "required": false,
+          "source": "通用文件上传返回的 OSS 地址",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [
@@ -8961,7 +8969,7 @@
         ]
       ],
       "status": "已实现",
-      "revision": "0015_skills",
+      "revision": "0052_file_urls",
       "scope": "渠道",
       "control_purpose": null,
       "content": true,

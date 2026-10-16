@@ -251,7 +251,7 @@ class UsageExports:
                     },
                 )
         except Exception as exc:
-            await self.store.delete(key)
+            # 已上传原件保留；任务失败后不再提供下载。
             async with transaction(self.engine, scope, [ledger_key(channel_id)]) as uow:
                 current = await required(uow.connection, "usage_exports", channel_id, id=export_id)
                 if current["state"] == "RUNNING" and current["metadata"].get("worker") == worker:
@@ -326,8 +326,6 @@ class UsageExports:
                 },
                 include_deleted=True,
             )
-        if row["object_key"] and self.store:
-            await self.store.delete(row["object_key"])
 
     async def create_platform(
         self, session: AdminSession, channel_ids: list[str], query: UsageFilter
@@ -505,7 +503,7 @@ class UsageExports:
                     },
                 )
         except Exception as exc:
-            await self.store.delete(key)
+            # 已上传原件保留；任务失败后不再提供下载。
             async with transaction(self.engine, scope, [ledger_key("system")]) as uow:
                 current = await required(uow.connection, "usage_exports", "system", id=export_id)
                 if current["state"] == "RUNNING" and current["metadata"].get("worker") == worker:
