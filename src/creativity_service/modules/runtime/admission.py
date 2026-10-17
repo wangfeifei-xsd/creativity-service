@@ -24,6 +24,7 @@ from creativity_service.core.primitives import (
 )
 from creativity_service.core.versioning import version_view
 from creativity_service.integrations.models.contracts import ModelRequest
+from creativity_service.modules.agents.dependency_loading import dependency_rows
 from creativity_service.modules.agents.runtime import AgentRunResolver, PreparedAgentResolver
 from creativity_service.modules.agents.schemas import AgentDefinition, FrozenExecutionSpec, Purpose
 from creativity_service.modules.agents.services import AgentService
@@ -116,8 +117,12 @@ class FrozenResolver:
             [payload["runtime"], payload["source_refs"]]
         ):
             raise ServiceError("SNAPSHOT_INVALID", "测试描述摘要不符", 403)
-        repo = Repository(metadata.tables["resource_versions"], context.scope)
-        rows = await repo.get_many(uow.connection, [v.version_id for v in spec.versions])
+        rows = {
+            row["id"]: row
+            for row in await dependency_rows(
+                uow.connection, context.scope, [v.version_id for v in spec.versions], limit=1000
+            )
+        }
         for version in spec.versions:
             row = rows.get(version.version_id)
             if row is None or version_view(row) != version.model_copy(
@@ -294,37 +299,29 @@ class RuntimeAdmission:
         from creativity_service.modules.resources.configuration import TABLES
         from creativity_service.storage import metadata as storage_metadata
 
-        result: dict[str, ResourceVersion] = {}
-        pending = list(ids)
         async with transaction(
             self.runs.engine, context.scope, [content_key(context.scope)]
         ) as uow:
-            repo = Repository(metadata.tables["resource_versions"], context.scope)
-            while pending:
-                batch = sorted(set(pending) - result.keys())
-                pending = []
-                if len(result) + len(batch) > 1000:
-                    raise ServiceError("DEPENDENCY_INVALID", "测试依赖数量超过上限", 422)
-                rows = await repo.get_many(uow.connection, batch)
-                if set(batch) - rows.keys() or any(r["state"] == "RETIRED" for r in rows.values()):
-                    raise ServiceError("DEPENDENCY_INVALID", "测试依赖不可用", 422)
-                await DeletionGuard(context.scope).check(
-                    uow, [ContentRef("version", identifier) for identifier in batch]
+            rows = await dependency_rows(uow.connection, context.scope, ids, limit=1000)
+            if any(row["state"] == "RETIRED" for row in rows):
+                raise ServiceError("DEPENDENCY_INVALID", "测试依赖不可用", 422)
+            await DeletionGuard(context.scope).check(
+                uow, [ContentRef("version", row["id"]) for row in rows]
+            )
+            parents = {
+                kind: await Repository(
+                    storage_metadata.tables[TABLES[kind]], context.scope
+                ).get_many(
+                    uow.connection,
+                    [r["resource_id"] for r in rows if r["resource_type"] == kind],
                 )
-                parents = {
-                    kind: await Repository(
-                        storage_metadata.tables[TABLES[kind]], context.scope
-                    ).get_many(
-                        uow.connection,
-                        [r["resource_id"] for r in rows.values() if r["resource_type"] == kind],
-                    )
-                    for kind in {r["resource_type"] for r in rows.values()} & TABLES.keys()
-                }
-                for identifier, row in rows.items():
-                    version = version_view(row)
-                    parent = parents.get(row["resource_type"], {}).get(row["resource_id"])
-                    if parent:
-                        version = version.model_copy(update={"resource_name": parent["name"]})
-                    result[identifier] = version
-                    pending.extend(version.dependency_version_ids)
-        return list(result.values())
+                for kind in {r["resource_type"] for r in rows} & TABLES.keys()
+            }
+            result = []
+            for row in rows:
+                version = version_view(row)
+                parent = parents.get(row["resource_type"], {}).get(row["resource_id"])
+                if parent:
+                    version = version.model_copy(update={"resource_name": parent["name"]})
+                result.append(version)
+            return result

@@ -12,7 +12,7 @@
 
 生成类能力验证优先使用模型默认参数中的 `max_tokens`，未配置时显式设置为 1024 Token，预算预占与实际发送采用同一上限；向量生成不设置生成输出上限。
 
-API 和 Worker 的连接凭据、加密密钥与 HTTP 出站许可应一致；HTTPS 无需配置出站许可，见 [出站地址策略](../../技术方案.md#outbound)。完整可选环境变量见 [Settings](../src/creativity_service/core/config.py)，模型字段见 [模型契约](../contracts/internal/models.json)；供应商的实际兼容结果需单独验收。
+API 和 Worker 的连接凭据与加密密钥应一致；HTTP 与 HTTPS 均无需配置出站许可，历史目的地配置仅保留读取兼容，见 [出站地址策略](../../技术方案.md#outbound)。完整可选环境变量见 [Settings](../src/creativity_service/core/config.py)，模型字段见 [模型契约](../contracts/internal/models.json)；供应商的实际兼容结果需单独验收。
 
 视觉理解可在模型详情的“验证”中选择，默认仍为文本生成和用量口径。验证经统一运行时发送随机图形图片，识别颜色、形状和顺序后记录当前配置的能力证据；不要求原生结构化输出，单独验证不会覆盖其他能力。Chat Completions 与 Anthropic Messages 接受用户消息中的文本及 `image_url` 内容块，图片使用 PNG、JPEG 或静态 WebP 的 Base64 data URL；每张最多 5 MiB、1600 万像素，每次最多 10 张且合计不超过 20 MiB。适配器不下载外部图片地址或读取本地文件，业务图片调用同样检查视觉能力证据。协议夹具通过不代表具体供应商或模型已通过真实视觉验证。
 
@@ -53,7 +53,7 @@ Web 先通过通用文件接口上传技能包，再以返回的 URL 请求预�
 | 向量检索与三层记忆 | [向量环境](../deploy/vector.md)、[记忆策略](runtime.md#memory) |
 | 暂停恢复与业务写工具 | Agent 等待节点、工具写入策略和状态核查工具；审批需 `run:approve` 权限 |
 | Skills 脚本与 MCP stdio | `CREATIVITY_SANDBOX_PROFILES`；准备固定摘要镜像，参考 [构建文件](../deploy/Dockerfile.sandbox) |
-| MCP OAuth、外部身份与角色 | 连接或身份配置，同时核对回调；HTTP 地址另需出站许可，MCP 凭据直接存储 |
+| MCP OAuth、外部身份与角色 | 连接或身份配置，同时核对回调；MCP 凭据直接存储 |
 | 调度、批量、Webhook、告警、供应商账单 | 对应管理模块；Worker 与 Beat 配套运行 |
 | 多语言客户端 | [SDK](../sdks/README.md) |
 

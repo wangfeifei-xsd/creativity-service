@@ -2,7 +2,7 @@
 
 import pytest
 
-from creativity_service.core.security.outbound import Destination, OutboundPolicy
+from creativity_service.core.security.outbound import OutboundPolicy
 from creativity_service.modules.mcp.assembly import build_mcp_service
 from tests.integration.tools.conftest import channel_env, tools_env
 from tests.mcp_fixture import mcp_source
@@ -18,19 +18,7 @@ async def mcp_env(tools_env, mcp_source):
         env.engine,
         env.iam.authorization,
         env.tools,
-        outbound=OutboundPolicy(
-            (
-                Destination(
-                    env.context.scope.channel_id,
-                    "test",
-                    "mcp",
-                    "127.0.0.1",
-                    port=mcp_source.port,
-                    scheme="http",
-                    allowed_networks=("127.0.0.1/32",),
-                ),
-            )
-        ),
+        outbound=OutboundPolicy(()),
     )
     env.client._transport.app.state.mcp = env.mcp
     return env

@@ -8297,8 +8297,8 @@
           "name": "owner",
           "type": "varchar(128)",
           "comment": "负责人",
-          "required": true,
-          "source": "服务层校验后的业务输入",
+          "required": false,
+          "source": "历史兼容备注；新界面不再填写",
           "sensitivity": "内部"
         },
         {

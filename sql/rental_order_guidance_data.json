@@ -1,12 +1,17 @@
 {
   "source": {
-    "description": "只归档当前可用配置及必要依赖，不包含运行、用量、测试或操作历史；订单协助 MCP 契约、导入与绑定摘要已按当前中文字段标题同步。 2026年10月13日将订单协助单次运行 Token 上限调整为 256,000，为较大输入的保守预估和最大输出预留额度。；失败收尾工具与流程按本地源端契约同步，JSON 输出能力仍须实际验证后启用",
+    "description": "只归档当前可用配置及必要依赖，不包含运行、用量、测试或操作历史；订单协助 MCP 契约、导入与绑定摘要已按当前中文字段标题同步。 2026年10月13日将订单协助单次运行 Token 上限调整为 256,000，为较大输入的保守预估和最大输出预留额度。；失败收尾工具与流程按本地源端契约同步，JSON 输出能力仍须实际验证后启用；保留开发环境权限、恢复屏障与通用模型路由发布映射，移除天气示例。",
     "captured_at": "2026-10-09T04:14:38.279520+00:00",
     "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
     "environment": "dev",
     "agent_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
     "schedule_id": "schedule_c5d9759946694e249864d9f24c22ccb6",
-    "mcp_connection_id": "mcp_799886052a5241f4828df8660c16e249"
+    "mcp_connection_id": "mcp_799886052a5241f4828df8660c16e249",
+    "additional_mcp": {
+      "connection_id": "mcp_958f6660827343b29ed5f9d90ed44c64",
+      "captured_at": "2026-10-17T14:13:48.185922+08:00",
+      "description": "从开发环境只读采集陪玩服务的当前连接、鉴权与最新发现配置，不导入本地工具、运行或检查历史。"
+    }
   },
   "tables": {
     "agents": [
@@ -114,6 +119,20 @@
         "state": "ACTIVE",
         "secret_value": "K5AeVvucuvhoXTC897_LrViQqCyTHLrEVKg-JPzbVwM",
         "is_deleted": false
+      },
+      {
+        "id": "credential_b43c6dabe68346c4ac7016cb2011e1ca",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-17T05:03:19.195773+00:00",
+        "updated_at": "2026-10-17T05:03:19.195773+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "purpose": "mcp",
+        "ciphertext": null,
+        "key_version": null,
+        "state": "ACTIVE",
+        "secret_value": "SYYK4ONjfv-ucmrNKhJ2gjdzSzKU1hG_mdtBmTR7vYo",
+        "is_deleted": false
       }
     ],
     "mcp_connections": [
@@ -151,6 +170,43 @@
           "mode": "client_credentials",
           "app_id": "mcp_6fdbf12abe384dad8d1fbef2b72cd8be",
           "token_endpoint": "http://127.0.0.1:32701/mcp/token"
+        },
+        "is_deleted": false
+      },
+      {
+        "id": "mcp_958f6660827343b29ed5f9d90ed44c64",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-17T05:01:56.380611+00:00",
+        "updated_at": "2026-10-17T05:07:01.034615+00:00",
+        "revision": 10,
+        "environment": "dev",
+        "name": "陪玩服务 - 测试环境",
+        "transport": "streamable_http",
+        "endpoint": "http://localhost:32689/api/mcp",
+        "credential_ref": "credential_b43c6dabe68346c4ac7016cb2011e1ca",
+        "timeouts": {
+          "connect_seconds": 10,
+          "operation_seconds": 30
+        },
+        "status": "ENABLED",
+        "health_status": "HEALTHY",
+        "configuration_revision": 5,
+        "credential_revision": 1,
+        "tested_revision": 5,
+        "discovered_revision": 5,
+        "failure_count": 0,
+        "health_policy": {
+          "interval_seconds": 300,
+          "failure_threshold": 3
+        },
+        "last_check_at": "2026-10-17T05:06:42.868658+00:00",
+        "auth_failed": false,
+        "health_actor_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "next_check_at": "2026-10-17T05:11:42.868680+00:00",
+        "authentication": {
+          "mode": "client_credentials",
+          "app_id": "mcp_7c2c319d4ec44f6b83ae998486f22be2",
+          "token_endpoint": "http://localhost:32689/api/mcp/token"
         },
         "is_deleted": false
       }
@@ -615,6 +671,112 @@
         "negotiated_version": "2025-11-25",
         "credential_revision": 1,
         "is_deleted": false
+      },
+      {
+        "id": "discovery_fbd7b02f5def41779d4b2e89858226c3",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-17T05:06:42.866301+00:00",
+        "updated_at": "2026-10-17T05:06:42.866301+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "connection_id": "mcp_958f6660827343b29ed5f9d90ed44c64",
+        "connection_revision": 5,
+        "tool_definitions": [
+          {
+            "name": "playmate_catalog.list_available_services",
+            "title": "查询已上架可用服务项目",
+            "purpose": "business",
+            "annotations": {
+              "readOnlyHint": true,
+              "openWorldHint": false,
+              "idempotentHint": true,
+              "destructiveHint": false
+            },
+            "description": "查询指定租户已上架且有可售规格的服务项目。tenantId 必填；同一应用可查询不同租户。价格是每个计价单位的整组报价。hasMore 为 true 时须原样使用 nextCursor 继续查询，空页也可能有续页，直至 hasMore 为 false。",
+            "schema_hash": "abdbe2986d68fca44c382176ee88661a430ab01ce66b027e234a899c05b61b9e",
+            "input_schema": {
+              "type": "object",
+              "required": [
+                "tenantId"
+              ],
+              "properties": {
+                "cursor": {
+                  "type": "string",
+                  "maxLength": 4096,
+                  "minLength": 1
+                },
+                "keyword": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "gameCode": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "pageSize": {
+                  "type": "integer",
+                  "default": 20,
+                  "maximum": 50,
+                  "minimum": 1
+                },
+                "tenantId": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$",
+                  "description": "本次查询的租户 ID，必须显式提供"
+                },
+                "categoryCode": {
+                  "type": "string",
+                  "maxLength": 100
+                }
+              },
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "required": [
+                "tenantId",
+                "items",
+                "returnedCount",
+                "hasMore",
+                "nextCursor",
+                "observedAt"
+              ],
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "hasMore": {
+                  "type": "boolean"
+                },
+                "tenantId": {
+                  "type": "string"
+                },
+                "nextCursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "observedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "returnedCount": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        ],
+        "schema_hashes": {
+          "playmate_catalog.list_available_services": "abdbe2986d68fca44c382176ee88661a430ab01ce66b027e234a899c05b61b9e"
+        },
+        "negotiated_version": "2025-11-25",
+        "credential_revision": 1,
+        "is_deleted": false
       }
     ],
     "mcp_imports": [
@@ -1039,7 +1201,7 @@
         "created_at": "2026-10-06T19:37:51.701558+00:00",
         "updated_at": "2026-10-08T11:42:26.174976+00:00",
         "revision": 4,
-        "code": "daily_weather_route",
+        "code": "general_model_route",
         "name": "通用模型路由",
         "status": "ACTIVE",
         "is_deleted": false
@@ -1252,6 +1414,20 @@
         "resource_type": "tool",
         "resource_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
         "version_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "release_note": "发布资源",
+        "is_deleted": false
+      },
+      {
+        "id": "bcfb3fe346878a00b4bf498d897789045d9cf7c4d0bd59c6e0b77ecd009d8828",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-06T19:38:25.527570+00:00",
+        "updated_at": "2026-10-06T19:38:25.527570+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "resource_type": "model_route",
+        "resource_id": "route_0595b357c65e4c879af695163ee5d129",
+        "version_id": "route_0595b357c65e4c879af695163ee5d129",
         "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
         "release_note": "发布资源",
         "is_deleted": false
@@ -5156,6 +5332,172 @@
         "source_type": "mcp",
         "owner": "租号运营",
         "status": "ACTIVE",
+        "is_deleted": false
+      }
+    ],
+    "channel_environments": [
+      {
+        "id": "env_252ada3e9cb7f574a1c60bb7827a7ff89113986b",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-06T01:29:06.195986+00:00",
+        "updated_at": "2026-10-06T01:29:06.195986+00:00",
+        "revision": 1,
+        "environment": "dev",
+        "name": "开发环境",
+        "status": "ACTIVE",
+        "release_policy": {
+          "approval_required": true
+        },
+        "retention_policy": {
+          "sse_hours": 24,
+          "export_days": 7,
+          "metadata_days": 365,
+          "retention_days": 90,
+          "temporary_hours": 1,
+          "run_content_days": 30
+        },
+        "is_deleted": false
+      }
+    ],
+    "channel_memberships": [
+      {
+        "id": "member_0c7dceb596f7b92e0129bf2cc33457e9aaaf0417",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "revision": 1,
+        "user_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "roles": [
+          "channel_admin"
+        ],
+        "environments": [
+          "dev"
+        ],
+        "status": "ACTIVE",
+        "granted_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "created_at": "2026-10-07T03:58:03.305617+08:00",
+        "updated_at": "2026-10-07T03:58:03.305623+08:00",
+        "is_deleted": false
+      }
+    ],
+    "resource_grants": [
+      {
+        "id": "initial_member_0c7dceb596f7b92e0129bf2cc33457e9aaaf0417",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "revision": 1,
+        "grantee_type": "account",
+        "grantee_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "resource_type": "channel",
+        "resource_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "allowed_actions": [
+          "agent:manage",
+          "analysis:run",
+          "artifact:cleanup",
+          "artifact:download",
+          "artifact:upload",
+          "audit:read",
+          "budget:manage",
+          "channel:manage",
+          "client:manage",
+          "content:cleanup",
+          "content:delete",
+          "content:derive",
+          "conversation:read",
+          "conversation:write",
+          "credential:use",
+          "credential:write",
+          "environment:manage",
+          "evaluation:content",
+          "evaluation:manage",
+          "evaluation:read",
+          "evaluation:review",
+          "feedback:manage",
+          "grant:manage",
+          "grant:read",
+          "integration:manage",
+          "key:manage",
+          "mcp:manage",
+          "membership:manage",
+          "membership:read",
+          "memory:delete",
+          "memory:preferences",
+          "memory:read",
+          "memory:write",
+          "metric:read",
+          "model:manage",
+          "prompt:manage",
+          "recovery:block",
+          "recovery:complete",
+          "recovery:initialize",
+          "release:publish",
+          "report:read",
+          "run:content",
+          "run:create",
+          "run:read",
+          "skill:manage",
+          "snapshot:read",
+          "tool:manage",
+          "usage:read",
+          "version:edit",
+          "version:freeze",
+          "version:read"
+        ],
+        "environments": [
+          "dev"
+        ],
+        "created_at": "2026-10-07T03:58:03.305628+08:00",
+        "updated_at": "2026-10-07T03:58:03.305630+08:00",
+        "is_deleted": false
+      },
+      {
+        "id": "initial_content_3df0ed85e6f013f92c934573cfdd43f910c92d0f",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-07T03:58:03.309760+08:00",
+        "updated_at": "2026-10-07T03:58:03.309760+08:00",
+        "revision": 1,
+        "grantee_type": "account",
+        "grantee_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "resource_type": "conversation",
+        "resource_id": "*",
+        "environments": [
+          "dev"
+        ],
+        "allowed_actions": [
+          "data:read_sensitive"
+        ],
+        "is_deleted": false
+      },
+      {
+        "id": "initial_content_7fcc18ad5e093f5307b8874b5ed9237158431eea",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-07T03:58:03.309760+08:00",
+        "updated_at": "2026-10-07T03:58:03.309760+08:00",
+        "revision": 1,
+        "grantee_type": "account",
+        "grantee_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "resource_type": "memory",
+        "resource_id": "*",
+        "environments": [
+          "dev"
+        ],
+        "allowed_actions": [
+          "data:read_sensitive"
+        ],
+        "is_deleted": false
+      }
+    ],
+    "recovery_barriers": [
+      {
+        "id": "67063cdddc6abc0c4827de56f1ef0f4c03baf66c16343121bb91ae379708c1e9",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "environment": "dev",
+        "subject_type": null,
+        "subject_id": null,
+        "created_at": "2026-10-07T03:58:03.309760+08:00",
+        "updated_at": "2026-10-07T03:58:03.309760+08:00",
+        "revision": 1,
+        "state": "READY",
+        "recovery_id": "init_sql_46bf8e4cf552b3ca93baac12148e7ccf567f0f1f",
+        "marker_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "verified_at": "2026-10-07T03:58:03.309760+08:00",
         "is_deleted": false
       }
     ]

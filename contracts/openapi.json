@@ -9702,10 +9702,17 @@
             "type": "object"
           },
           "owner": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Owner",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "deprecated": true,
+            "title": "Owner"
           },
           "remote_tool_name": {
             "maxLength": 256,
@@ -9714,6 +9721,9 @@
             "type": "string"
           },
           "required_scopes": {
+            "default": [
+              "run:create"
+            ],
             "items": {
               "type": "string"
             },
@@ -9758,10 +9768,8 @@
           "remote_tool_name",
           "name",
           "description",
-          "owner",
           "version_label",
           "effect_type",
-          "required_scopes",
           "timeout_seconds",
           "max_result_size",
           "output_schema"
@@ -18479,10 +18487,17 @@
             "type": "string"
           },
           "owner": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Owner",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "deprecated": true,
+            "title": "Owner"
           },
           "source_type": {
             "enum": [
@@ -18504,8 +18519,7 @@
           "tool_code",
           "name",
           "description",
-          "source_type",
-          "owner"
+          "source_type"
         ],
         "title": "ToolCreate",
         "type": "object"
@@ -18707,10 +18721,17 @@
             "type": "string"
           },
           "owner": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Owner",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "deprecated": true,
+            "title": "Owner"
           },
           "revision": {
             "minimum": 1.0,
@@ -18721,8 +18742,7 @@
         "required": [
           "revision",
           "name",
-          "description",
-          "owner"
+          "description"
         ],
         "title": "ToolEdit",
         "type": "object"
@@ -19153,8 +19173,16 @@
             "type": "string"
           },
           "owner": {
-            "title": "Owner",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "deprecated": true,
+            "title": "Owner"
           },
           "revision": {
             "minimum": 1.0,

@@ -199,7 +199,8 @@ def setup():
 
 
 @pytest.mark.parametrize(
-    "field", ["channel_id", "club_id", "userId", "tenant_user_id", "access_token", "url", "headers"]
+    "field",
+    ["channel_id", "subject_id", "environment", "_meta", "access_token", "url", "headers"],
 )
 async def test_tol_a01_trusted_fields_never_reach_source(setup, field):
     call = setup.call.model_copy(update={"arguments": {"query": "价格", field: "override"}})
@@ -207,6 +208,67 @@ async def test_tol_a01_trusted_fields_never_reach_source(setup, field):
         await setup.executor.execute(context(), call)
     assert not setup.adapter.requests and not setup.runs.starts
     assert next(iter(setup.repository.records.values()))["state"] == "DENIED"
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "tenantId",
+        "tenant_id",
+        "clubId",
+        "club_id",
+        "userId",
+        "user_id",
+        "tenantUserId",
+        "tenant_user_id",
+    ],
+)
+async def test_business_identifiers_do_not_replace_authenticated_identity(setup, field):
+    contract = definition(
+        input_schema={
+            "type": "object",
+            "properties": {field: {"type": "string"}},
+            "required": [field],
+            "additionalProperties": False,
+        },
+        model_fields_allowed=[field],
+    )
+    validate_definition(contract)
+    setup.repository.definition = contract
+    arguments = {field: "business-record-42"}
+    result = await setup.executor.execute(
+        context(), setup.call.model_copy(update={"arguments": arguments})
+    )
+    assert setup.adapter.requests[0].arguments == arguments
+    assert setup.adapter.requests[0].context == context()
+    assert result.scope == context().scope
+
+
+@pytest.mark.parametrize(
+    "schema,allowed,message",
+    [
+        ({"type": "array"}, [], "JSON 对象"),
+        ({"type": "object"}, [], "additionalProperties"),
+        (
+            {"type": "object", "properties": {"query": {}}, "additionalProperties": False},
+            ["query", "query"],
+            "不能重复",
+        ),
+        (
+            {"type": "object", "properties": {"query": {}}, "additionalProperties": False},
+            [],
+            "须与输入结构中的字段一致",
+        ),
+        (
+            {"type": "object", "properties": {"channel_id": {}}, "additionalProperties": False},
+            ["channel_id"],
+            "参数 channel_id 由平台管理",
+        ),
+    ],
+)
+def test_input_definition_errors_identify_the_actual_problem(schema, allowed, message):
+    with pytest.raises(ServiceError, match=message):
+        validate_definition(definition(input_schema=schema, model_fields_allowed=allowed))
 
 
 async def test_tol_a02_invalid_price_and_evidence_do_not_become_facts(setup):

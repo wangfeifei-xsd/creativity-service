@@ -1,6 +1,6 @@
-"""不可变路由、正式发布门禁和每次尝试前的当前状态核验。"""
+"""共享路由解析当前模型配置，每次调用继续核验授权及可用状态。"""
 
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from creativity_service.core.auth.authentication import AdminSession
 from creativity_service.core.context import AuthContext
@@ -13,9 +13,11 @@ from creativity_service.core.versioning import version_view
 from creativity_service.modules.iam.reading import require_action
 from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.iam.schemas import AccessAction
+from creativity_service.modules.models.configuration import resolve_routes
 from creativity_service.modules.models.policy import (
     PROTOCOLS,
     attempt_order,
+    configuration_digest,
     require_capabilities,
     validate_parameters,
 )
@@ -100,20 +102,21 @@ class ModelRouting:
                 uow.connection, resource_type="model_route", resource_id=identifier
             )
             released_ids = {row["version_id"] for row in releases}
+            resources: dict[str, dict[str, dict[str, Any]]] = {}
+            rows = list(
+                (
+                    await resolve_routes(
+                        uow.connection, scope, {row["id"]: row for row in rows}, resources=resources
+                    )
+                ).values()
+            )
             snapshots = {
                 row["id"]: [FrozenModel.model_validate(s) for s in row["content"]["models"]]
                 for row in rows
             }
             # 本次列表只读取候选引用，不逐版本查库或复用完整发布流程。
-            candidates = [s for items in snapshots.values() for s in items]
-            models = await repository(scope, "models").get_many(
-                uow.connection,
-                [s.model_id for s in candidates] if permission_reason is None else [],
-            )
-            connections = await repository(scope, "model_connections").get_many(
-                uow.connection,
-                [s.connection_id for s in candidates] if permission_reason is None else [],
-            )
+            models = resources.get("model", {})
+            connections = resources.get("model_connection", {})
             result = []
             for row in rows:
                 reason = permission_reason
@@ -254,14 +257,26 @@ class ModelRouting:
         version: ResourceVersion,
         operation: Literal["freeze", "release"],
     ) -> None:
-        content = cast(dict[str, Any], version.content)
+        resources: dict[str, dict[str, dict[str, Any]]] = {}
+        rows = await resolve_routes(
+            uow.connection,
+            context.scope,
+            {
+                version.version_id: {
+                    "id": version.version_id,
+                    "resource_id": version.resource_id,
+                    "resource_type": version.resource_type,
+                    "content": version.content,
+                    "content_digest": version.content_digest,
+                    "output_schema": version.output_schema,
+                }
+            },
+            resources=resources,
+        )
+        content = rows[version.version_id]["content"]
         snapshots = [FrozenModel.model_validate(value) for value in content["models"]]
-        models = await repository(context.scope, "models").get_many(
-            uow.connection, [s.model_id for s in snapshots]
-        )
-        connections = await repository(context.scope, "model_connections").get_many(
-            uow.connection, [s.connection_id for s in snapshots]
-        )
+        models = resources.get("model", {})
+        connections = resources.get("model_connection", {})
         for snapshot in snapshots:
             model, connection = (
                 models.get(snapshot.model_id),
@@ -305,8 +320,6 @@ class ModelRouting:
         ):
             raise ServiceError("SCOPE_MISMATCH", "路由连接不属于当前渠道环境", 403)
         current = self.service.snapshot(context, model, connection)
-        if current.config_digest != snapshot.config_digest:
-            raise ServiceError("MODEL_CONFIGURATION_STALE", "路由引用的模型配置已变更", 409)
         self.validate_current(model, connection, current, capabilities)
 
     async def release(
@@ -339,12 +352,16 @@ class ModelRouting:
             ):
                 raise ServiceError("MODEL_ROUTE_INVALID", "路由版本不可发布", 422)
             await DeletionGuard(context.scope).check(uow, [ContentRef("version", body.version_id)])
+            resources: dict[str, dict[str, dict[str, Any]]] = {}
+            row = (
+                await resolve_routes(
+                    uow.connection, context.scope, {row["id"]: row}, resources=resources
+                )
+            )[row["id"]]
             snapshots = [FrozenModel.model_validate(s) for s in row["content"]["models"]]
             for s in snapshots:
-                model = await required(uow.connection, context.scope, "models", s.model_id)
-                conn = await required(
-                    uow.connection, context.scope, "model_connections", s.connection_id
-                )
+                model = resources["model"][s.model_id]
+                conn = resources["model_connection"][s.connection_id]
                 self.validate_release_candidate(
                     context, s, model, conn, row["content"]["required_capabilities"]
                 )
@@ -416,15 +433,36 @@ class ModelRouting:
             )
             current = service.snapshot(context, model, conn)
             if current.config_digest != frozen.config_digest:
-                raise ServiceError("MODEL_CONFIGURATION_STALE", "模型配置已变化，需要重新冻结", 409)
+                previous = await required(
+                    uow.connection, context.scope, "resource_versions", frozen.connection_version_id
+                )
+                original = {**previous["content"], "id": previous["resource_id"]}
+                if (
+                    previous["resource_type"] != "model_connection"
+                    or previous["resource_id"] != conn["id"]
+                    or any(
+                        original[k] != conn[k]
+                        for k in ("protocol", "endpoint", "validation_revision")
+                    )
+                    or configuration_digest(model, original) != frozen.config_digest
+                ):
+                    raise ServiceError(
+                        "MODEL_CONFIGURATION_STALE",
+                        f"模型“{model['name']}”的配置在任务开始后发生变化，请重新运行",
+                        409,
+                    )
             self.validate_current(model, conn, current, [] if debug else capabilities)
         # 当前授权在所有可能等待的数据库读取后再次核验；凭据边界还会复核一次。
         await service.iam.authorization.boundary(context, "run:create", "model", frozen.model_id)
         return frozen.model_copy(
             update={
                 "scope": context.scope,
-                "connection_version_id": current.connection_version_id,
-                "connection_revision": current.connection_revision,
+                "connection_version_id": current.connection_version_id
+                if current.config_digest == frozen.config_digest
+                else frozen.connection_version_id,
+                "connection_revision": current.connection_revision
+                if current.config_digest == frozen.config_digest
+                else frozen.connection_revision,
                 "provider_credential_id": current.provider_credential_id,
                 # 目的地只能取已加载并校验的当前连接，不能由调用快照覆盖。
                 "endpoint": current.endpoint,
@@ -467,6 +505,9 @@ class ModelRouting:
             version = await required(uow.connection, context.scope, "resource_versions", version_id)
             if version["state"] != "PUBLISHED" or version["resource_type"] != "model_route":
                 raise ServiceError("MODEL_ROUTE_INVALID", "模型路由版本不可用", 422)
+            version = (await resolve_routes(uow.connection, context.scope, {version_id: version}))[
+                version_id
+            ]
             content = version["content"]
         candidates = []
         for data in content["models"]:

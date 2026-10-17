@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from pydantic import SecretBytes
-from sqlalchemy import insert, select, update
+from sqlalchemy import bindparam, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from creativity_service.core.auth.authentication import AdminSession
@@ -32,6 +32,7 @@ from creativity_service.modules.iam.reading import resource_state
 from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.iam.schemas import AccessAction, GrantInput, GrantView
 from creativity_service.modules.iam.services import IamServices
+from creativity_service.modules.models.configuration import model_snapshot
 from creativity_service.modules.models.policy import (
     CAPABILITY_LABELS,
     CAPABILITY_NAMES,
@@ -294,6 +295,11 @@ class ModelService:
         keys = version_keys(
             context.scope.channel_id, version_id, "model_connection", identifier, []
         )
+        async with self.engine.connect() as database:
+            related = await repository(context.scope, "models").find(
+                database, connection_id=identifier
+            )
+        keys += [record_key(context.scope.channel_id, "models", m["id"]) for m in related]
         async with self.mutation(session, "model_connections", identifier, keys) as (uow, context):
             credential = await required(
                 uow.connection, context.scope, "credentials", body.credential_ref
@@ -314,9 +320,7 @@ class ModelService:
                 existing["validation_revision"] if existing else 1
             ) + int(
                 existing is not None
-                and any(
-                    existing[k] != values[k] for k in ("protocol", "endpoint", "timeout_seconds")
-                )
+                and any(existing[k] != values[k] for k in ("protocol", "endpoint"))
             )
             if existing:
                 if body.revision is None:
@@ -326,6 +330,61 @@ class ModelService:
                 if body.revision is not None:
                     raise ServiceError("NOT_FOUND", "连接不存在", 404)
                 row = await repo.add(uow, identifier, values)
+            if (
+                existing
+                and existing["timeout_seconds"] != row["timeout_seconds"]
+                and existing["validation_revision"] == row["validation_revision"]
+            ):
+                # 等待时长不改变模型能力，只延续变更前仍有效的证据，不恢复已过期验证。
+                model_repo = repository(context.scope, "models")
+                models = await model_repo.find(uow.connection, connection_id=identifier)
+                if {m["id"] for m in models} - {m["id"] for m in related}:
+                    raise ServiceError("REVISION_CONFLICT", "连接关联的模型已变化，请重试", 409)
+                updates = []
+                now = utcnow()
+                for model in models:
+                    previous_digest = configuration_digest(model, existing)
+                    current_digest = configuration_digest(model, row)
+                    capabilities = {
+                        name: {**evidence, "config_digest": current_digest}
+                        if evidence.get("config_digest") == previous_digest
+                        else evidence
+                        for name, evidence in model["capabilities"].items()
+                    }
+                    if capabilities != model["capabilities"]:
+                        uow.require_lock(
+                            record_key(context.scope.channel_id, "models", model["id"])
+                        )
+                        validate_row(
+                            model_repo.table,
+                            {
+                                **model,
+                                "capabilities": capabilities,
+                                "revision": model["revision"] + 1,
+                                "updated_at": now,
+                            },
+                        )
+                        updates.append(
+                            {
+                                "model_identifier": model["id"],
+                                "evidence": capabilities,
+                                "next_revision": model["revision"] + 1,
+                            }
+                        )
+                if updates:
+                    await uow.connection.execute(
+                        update(model_repo.table)
+                        .where(
+                            model_repo.predicate(),
+                            model_repo.table.c.id == bindparam("model_identifier"),
+                        )
+                        .values(
+                            capabilities=bindparam("evidence"),
+                            revision=bindparam("next_revision"),
+                            updated_at=now,
+                        ),
+                        updates,
+                    )
             await freeze(
                 uow,
                 context,
@@ -647,24 +706,7 @@ class ModelService:
     def snapshot(
         self, context: AuthContext, model: dict[str, Any], connection: dict[str, Any]
     ) -> FrozenModel:
-        return FrozenModel(
-            scope=context.scope,
-            model_id=model["id"],
-            model_version_id=model["current_version_id"],
-            model_revision=model["revision"],
-            model_name=model["name"],
-            connection_id=connection["id"],
-            connection_version_id=connection["current_version_id"],
-            connection_revision=connection["revision"],
-            provider_credential_id=connection["credential_ref"],
-            protocol=connection["protocol"],
-            endpoint=connection["endpoint"],
-            provider_model_name=model["provider_model_name"],
-            timeout_seconds=connection["timeout_seconds"],
-            parameters=model["parameters"],
-            parameter_allowlist=model["parameter_allowlist"],
-            config_digest=configuration_digest(model, connection),
-        )
+        return model_snapshot(context.scope, model, connection)
 
     async def price(self, session: AdminSession, model_id: str) -> PriceView:
         context = await self.context(session)

@@ -16,9 +16,9 @@ from alembic import command
 from creativity_service.core.config import Settings
 from creativity_service.core.database.audit import audit_database
 from creativity_service.storage import metadata
+from scripts.render_archive import typed_archive_values
 from scripts.render_gpt_seed import load_gpt, merge_gpt
 from scripts.render_order_guidance_seed import load_guidance, merge_guidance
-from scripts.render_weather_seed import load_weather, merged_tables, typed_archive_values
 
 pytestmark = pytest.mark.integration
 SCHEMA = Path("sql/init.sql").read_text()
@@ -77,11 +77,9 @@ def test_mysql_archive_preserves_configuration_and_indexes_inside_create_table(i
     execute_script(env.engine, SCHEMA)
     execute_script(env.engine, DATA)
     base = json.loads(Path("sql/init_data.json").read_text())["tables"]
-    weather = load_weather(base)["tables"]
-    combined = merged_tables(base, weather)
-    guidance = load_guidance(combined)["tables"]
-    gpt = load_gpt(merge_guidance(combined, guidance))["tables"]
-    archived = merge_gpt(merge_guidance(weather, guidance), gpt)
+    guidance = load_guidance(base)["tables"]
+    gpt = load_gpt(merge_guidance(base, guidance))["tables"]
+    archived = merge_gpt(guidance, gpt)
     with env.engine.connect() as conn:
         assert audit_database(conn, env.name) == []
         assert conn.exec_driver_sql("SELECT count(*) FROM transaction_lock_slots").scalar() == 12288
@@ -97,6 +95,9 @@ def test_mysql_archive_preserves_configuration_and_indexes_inside_create_table(i
         for name in ("runs", "usage_records", "audit_events", "memory_index_tasks"):
             assert conn.exec_driver_sql(f"SELECT count(*) FROM `{name}`").scalar() == 0
         before = counts(conn)
+        assert before["models"] == before["model_connections"] == before["mcp_connections"] == 2
+        assert before["agents"] == before["skills"] == before["prompts"] == before["artifacts"] == 1
+        assert before["prompt_samples"] == 0
     # 两个独立连接同时重放，只能观察到已经完成的数据，不产生重复记录。
     with ThreadPoolExecutor(max_workers=2) as pool:
         list(pool.map(lambda _: execute_script(env.engine, DATA), range(2)))

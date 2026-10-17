@@ -8,14 +8,12 @@ from creativity_service.core.primitives import ServiceError, digest
 from scripts import render_init_sql
 from scripts.render_gpt_seed import load_gpt, merge_gpt, validate_gpt
 from scripts.render_order_guidance_seed import load_guidance, merge_guidance
-from scripts.render_weather_seed import load_weather, merged_tables
 
 
 @pytest.fixture
 def archived_base():
     base = json.loads(render_init_sql.SEED.read_text())["tables"]
-    combined = merged_tables(base, load_weather(base)["tables"])
-    return merge_guidance(combined, load_guidance(combined)["tables"])
+    return merge_guidance(base, load_guidance(base)["tables"])
 
 
 def test_gpt_archive_restores_published_text_route_and_transitive_connection(archived_base):

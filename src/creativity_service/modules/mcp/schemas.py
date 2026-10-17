@@ -131,10 +131,10 @@ class McpImportInput(Contract):
     remote_tool_name: str = Field(min_length=1, max_length=256)
     name: str = Field(min_length=1, max_length=128)
     description: str = Field(min_length=1, max_length=4000)
-    owner: str = Field(min_length=1, max_length=128)
+    owner: str | None = Field(default=None, max_length=128, deprecated=True)
     version_label: str = Field(min_length=1, max_length=64)
     effect_type: EffectType
-    required_scopes: tuple[str, ...] = Field(min_length=1)
+    required_scopes: tuple[str, ...] = Field(default=("run:create",), min_length=1)
     timeout_seconds: int = Field(ge=1, le=120, strict=True)
     max_result_size: int = Field(ge=256, le=2097152, strict=True)
     output_schema: dict[str, Any]

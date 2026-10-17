@@ -19,7 +19,8 @@ from creativity_service.core.primitives import (
 )
 from creativity_service.core.versioning import version_view
 from creativity_service.modules.agents.access import locked_require
-from creativity_service.modules.agents.repositories import dependency_rows, repository, required
+from creativity_service.modules.agents.dependency_loading import dependency_rows
+from creativity_service.modules.agents.repositories import repository, required
 from creativity_service.modules.agents.schemas import AgentDefinition, FrozenExecutionSpec
 from creativity_service.modules.agents.services import AgentService
 from creativity_service.modules.runs.schemas import ExecutionPolicy, ResolvedDefinition, StepPolicy
@@ -305,9 +306,13 @@ class PreparedAgentResolver:
         if version["state"] != "PUBLISHED" or version["content_digest"] != spec.content_digest:
             raise ServiceError("AGENT_NOT_RELEASED", "正式运行只能使用当前发布的不可变版本", 409)
         # 跨越事务边界后按本批版本重新读取；只准备锁集合，不信任事务外的可变状态。
-        current = await repository("resource_versions", context.scope).get_many(
-            uow.connection, [row["id"] for row in self.dependencies]
-        )
+        resources: dict[str, dict[str, dict[str, Any]]] = {}
+        current = {
+            row["id"]: row
+            for row in await dependency_rows(
+                uow.connection, context.scope, spec.definition.dependency_ids(), resources=resources
+            )
+        }
         if any(current.get(row["id"]) != row for row in self.dependencies):
             raise ServiceError("REVISION_CONFLICT", "依赖版本已变化，请重新受理", 409)
         validation, dependencies, manifest = await agents.inspect_in(
@@ -318,6 +323,7 @@ class PreparedAgentResolver:
             "production",
             require_evaluation=False,
             loaded_dependencies=[current[row["id"]] for row in self.dependencies],
+            loaded_resources=resources,
             defer_budget=True,
         )
         agents.require_valid(validation)

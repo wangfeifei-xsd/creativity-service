@@ -10,10 +10,13 @@ import pytest
 from pydantic import SecretBytes
 
 from creativity_service.core.primitives import ServiceError
-from creativity_service.core.security.outbound import Destination, OutboundPolicy
+from creativity_service.core.security.outbound import OutboundPolicy
 from creativity_service.integrations.outbound import HttpResponse
 from creativity_service.modules.mcp.client_credentials import ClientCredentials
+from tests.mcp_fixture import mcp_source
 from tests.test_tools import context
+
+__all__ = ["mcp_source"]
 
 
 def connection():
@@ -115,22 +118,15 @@ async def test_invalid_credentials_never_reach_mcp(value):
     operation.assert_not_awaited()
 
 
-async def test_http_token_destination_requires_separate_oauth_allowlist():
+async def test_http_token_exchange_works_without_allowlist(mcp_source):
     ctx = context()
-    policy = OutboundPolicy(
-        (
-            Destination(
-                ctx.scope.channel_id,
-                ctx.scope.environment,
-                "mcp",
-                "rental.example",
-                port=80,
-                scheme="http",
-            ),
-        )
-    )
     row = connection()
-    row["authentication"]["token_endpoint"] = "http://rental.example/mcp/token"
-    with pytest.raises(ServiceError) as error:
-        await ClientCredentials(policy).call(ctx, row, SecretBytes(b"secret"), AsyncMock())
-    assert error.value.code == "DESTINATION_FORBIDDEN"
+    row["endpoint"] = mcp_source.endpoint
+    row["authentication"]["app_id"] = mcp_source.app_id
+    row["authentication"]["token_endpoint"] = f"http://127.0.0.1:{mcp_source.port}/token"
+    operation = AsyncMock(return_value="ok")
+    result = await ClientCredentials(OutboundPolicy(())).call(
+        ctx, row, SecretBytes(mcp_source.app_secret.encode()), operation
+    )
+    assert result == "ok" and mcp_source.token_exchanges == 1
+    assert operation.call_args.args[0].get_secret_value().decode() == mcp_source.token

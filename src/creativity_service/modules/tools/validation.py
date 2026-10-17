@@ -30,13 +30,11 @@ def artifact_references(value: Any) -> set[str]:
     return found
 
 
+# 仅保留平台身份、凭据和执行控制字段；源系统的租户、组织、用户编号属于业务参数。
+# 业务编号不会写入 AuthContext 或 MCP 的受信身份元数据，访问权限由源服务校验。
 TRUSTED_FIELDS = frozenset(
     {
         "channelid",
-        "tenantid",
-        "clubid",
-        "userid",
-        "tenantuserid",
         "subjectid",
         "subjecttype",
         "datascopeid",
@@ -147,15 +145,30 @@ def validate_definition(definition: ToolDefinition) -> None:
         validate_schema(schema)
     schema = definition.input_schema
     allowed = definition.model_fields_allowed
-    if (
-        schema.get("type") != "object"
-        or schema.get("additionalProperties") is not False
-        or set(schema.get("properties", {})) != set(allowed)
-        or len(allowed) != len(set(allowed))
-        or any(trusted_field(k) for k in allowed)
-    ):
+    if schema.get("type") != "object":
+        raise ServiceError("TOOL_INPUT_INVALID", "工具输入结构须为 JSON 对象", 422)
+    if schema.get("additionalProperties") is not False:
         raise ServiceError(
-            "TOOL_INPUT_INVALID", "输入须为封闭对象，字段与模型白名单一致且不含受信字段", 422
+            "TOOL_INPUT_INVALID",
+            "输入结构须设置 additionalProperties 为 false，禁止未定义的参数",
+            422,
+        )
+    if len(allowed) != len(set(allowed)):
+        raise ServiceError("TOOL_INPUT_INVALID", "模型可填写的参数列表不能重复", 422)
+    if set(schema.get("properties", {})) != set(allowed):
+        raise ServiceError(
+            "TOOL_INPUT_INVALID", "模型可填写的参数列表须与输入结构中的字段一致", 422
+        )
+    reserved = [name for name in allowed if trusted_field(name)]
+    if reserved:
+        names = "、".join(reserved[:20])
+        raise ToolValidationError(
+            "TOOL_INPUT_INVALID",
+            f"参数 {names} 由平台管理，不能定义为业务输入",
+            [
+                {"path": ["input_schema", "properties", name], "message": "此字段由服务端提供"}
+                for name in reserved[:20]
+            ],
         )
     if not definition.environments or not definition.required_scopes:
         raise ServiceError("TOOL_INPUT_INVALID", "须明确环境与必要授权", 422)
@@ -195,7 +208,7 @@ def validate_arguments(arguments: dict[str, Any], definition: ToolDefinition) ->
                 if trusted_field(name):
                     raise ToolValidationError(
                         "TOOL_INPUT_INVALID",
-                        "不能覆盖受信身份或执行目标",
+                        f"参数 {name} 由平台管理，不能通过工具输入覆盖受信身份或执行目标",
                         [{"path": [*path, name], "message": "此字段由服务端注入"}],
                     )
                 check(nested, [*path, name], depth + 1)

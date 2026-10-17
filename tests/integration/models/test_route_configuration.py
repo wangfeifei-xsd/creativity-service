@@ -149,6 +149,50 @@ async def test_route_publish_action_explains_missing_environment_permission(chan
     )
 
 
+async def test_current_model_defaults_are_combined_with_route_overrides(channel_env):
+    tenant, services, _, _, body, model = await setup(channel_env, publish=True)
+    await complete(services, tenant, model)
+    route = await services.routing.create(
+        tenant.manager, RouteInput(code="current", name="当前配置路由")
+    )
+    version = await services.routing.create_version(
+        tenant.manager,
+        route.id,
+        RouteVersionInput(primary_model=model.id, parameters={"max_tokens": 80}),
+    )
+    await publish_resource(
+        services, tenant.manager, route.id, ReleaseInput(version_id=version.version_id)
+    )
+    current = await services.configuration.detail(tenant.manager, model.id)
+    await services.configuration.save_model(
+        tenant.manager,
+        body.model_copy(
+            update={
+                "revision": current.revision,
+                "parameters": {"max_tokens": 200, "temperature": 0.3},
+                "parameter_allowlist": ["max_tokens", "temperature"],
+            }
+        ),
+        model.id,
+    )
+    with pytest.raises(ServiceError) as unverified:
+        await services.routing.resolve_route(tenant.manager.context, route.id)
+    assert unverified.value.code == "MODEL_CAPABILITY_UNSUPPORTED"
+    await complete(services, tenant, model)
+    resolved, _ = await services.routing.resolve_route(tenant.manager.context, route.id)
+    assert resolved[0].parameters == {"max_tokens": 80, "temperature": 0.3}
+    assert resolved[0].model_version_id != version.content["models"][0]["model_version_id"]
+    assert version.content["models"][0]["parameters"] == {"max_tokens": 80}
+    current = await services.configuration.detail(tenant.manager, model.id)
+    await services.configuration.save_model(
+        tenant.manager,
+        body.model_copy(update={"revision": current.revision, "status": "DISABLED"}),
+        model.id,
+    )
+    with pytest.raises(ServiceError, match="停用"):
+        await services.routing.resolve_route(tenant.manager.context, route.id)
+
+
 async def test_route_candidate_reads_are_batched_and_cross_channel_references_rejected(channel_env):
     env = channel_env
     tenant, services, _, _, model_body, model = await setup(env, publish=True)

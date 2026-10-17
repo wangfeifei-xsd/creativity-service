@@ -7,7 +7,8 @@ from creativity_service.core.locking import record_key
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id
 from creativity_service.modules.agents.access import locked_require
-from creativity_service.modules.agents.repositories import dependency_rows, repository, required
+from creativity_service.modules.agents.dependency_loading import dependency_rows
+from creativity_service.modules.agents.repositories import repository, required
 from creativity_service.modules.agents.schemas import (
     AgentDefinition,
     AgentDetail,

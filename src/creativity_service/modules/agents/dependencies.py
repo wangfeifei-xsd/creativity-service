@@ -12,10 +12,10 @@ from creativity_service.core.locking import record_key
 from creativity_service.core.primitives import ServiceError, digest
 from creativity_service.core.versioning import version_view
 from creativity_service.modules.agents.access import locked_policy
+from creativity_service.modules.agents.dependency_loading import dependency_rows
 from creativity_service.modules.agents.repositories import (
     RESOURCE_TABLES,
     TABLES,
-    dependency_rows,
     repository,
 )
 from creativity_service.modules.agents.schemas import AgentDefinition, Purpose
@@ -67,10 +67,11 @@ class DependencyResolver:
                     422,
                 )
         identifiers = definition.dependency_ids()
+        resources = resources if resources is not None else {}
         rows = (
             loaded
             if loaded is not None
-            else await dependency_rows(uow.connection, scope, identifiers)
+            else await dependency_rows(uow.connection, scope, identifiers, resources=resources)
         )
         indexed = {r["id"]: r for r in rows}
         from creativity_service.modules.resources.configuration import require_dependencies
@@ -109,15 +110,14 @@ class DependencyResolver:
         ):
             if not bindings.model_route_version:
                 raise ServiceError("DEPENDENCY_INVALID", "记忆建议需要配置默认模型路由", 422)
-        parents = {
-            kind: await repository(table, scope).get_many(
-                uow.connection, [row["resource_id"] for row in rows if row["resource_type"] == kind]
-            )
-            for kind, table in RESOURCE_TABLES.items()
-            if any(row["resource_type"] == kind for row in rows)
-        }
-        if resources is not None:
-            resources.update(parents)
+        parents = resources
+        for kind, table in RESOURCE_TABLES.items():
+            ids = {row["resource_id"] for row in rows if row["resource_type"] == kind}
+            if ids:
+                cached = parents.setdefault(kind, {})
+                cached.update(
+                    await repository(table, scope).get_many(uow.connection, ids - cached.keys())
+                )
         policy = await locked_policy(uow, context)
         mcp_tools = [
             ToolDefinition.model_validate(row["content"])
@@ -325,9 +325,7 @@ class DependencyResolver:
                 configuration_digest(model, connection) != model_snapshot.config_digest
                 or connection["credential_ref"] != model_snapshot.provider_credential_id
             ):
-                raise ServiceError(
-                    "DEPENDENCY_INVALID", "模型或凭据配置已变化，请重新冻结路由", 422
-                )
+                raise ServiceError("DEPENDENCY_INVALID", "模型连接配置刚刚发生变化，请重试", 422)
             credential = credentials.get(connection["credential_ref"])
             if credential is None or credential["state"] != "ACTIVE":
                 raise ServiceError("DEPENDENCY_INVALID", "模型连接凭据已撤销", 422)
@@ -349,8 +347,11 @@ class DependencyResolver:
                 ):
                     raise ServiceError("CAPABILITY_MISMATCH", "模型已明确不支持所需能力", 422)
             except (ServiceError, KeyError) as exc:
+                reason = exc.message if isinstance(exc, ServiceError) else "所需能力未通过验证"
                 raise ServiceError(
-                    "CAPABILITY_MISMATCH", "模型所需能力未通过当前配置的真实验证", 422
+                    "CAPABILITY_MISMATCH",
+                    f"模型“{model['name']}”：{reason}。请到模型配置中验证相应能力后重试",
+                    422,
                 ) from exc
         policies: dict[str, Any] = {}
         if definition.context.memory_policy:

@@ -16,11 +16,16 @@ from creativity_service.core.primitives import digest
 from creativity_service.modules.agents.schemas import AgentDefinition
 from creativity_service.modules.integrations.automation import owner
 from creativity_service.modules.integrations.automation_schemas import ScheduleCreate
+from creativity_service.modules.mcp.schemas import (
+    McpAuthentication,
+    McpAuthenticationInput,
+    McpCreate,
+)
 from creativity_service.modules.mcp.transport import remote_tool
 from creativity_service.modules.skills.schemas import SkillDefinition
 from creativity_service.modules.tools.schemas import ToolDefinition
 from creativity_service.storage import metadata
-from scripts.render_weather_seed import (
+from scripts.render_archive import (
     object_bytes,
     typed_archive_values,
     validate_configuration_references,
@@ -30,10 +35,12 @@ GUIDANCE_SEED = Path(__file__).resolve().parents[1] / "sql/rental_order_guidance
 GUIDANCE_TABLES = frozenset(
     "agents resource_versions resource_references release_mappings source_links tools "
     "prompts skills skill_files artifacts automation_schedules credentials mcp_connections "
-    "mcp_discoveries mcp_imports model_routes model_connections models".split()
+    "mcp_discoveries mcp_imports model_routes model_connections models "
+    "channel_environments channel_memberships resource_grants recovery_barriers".split()
 )
 OVERRIDE_TABLES = frozenset(
-    "credentials mcp_connections model_connections model_routes models resource_versions".split()
+    "credentials mcp_connections model_connections model_routes models resource_versions "
+    "channel_memberships resource_grants".split()
 )
 
 
@@ -68,6 +75,7 @@ def validate_guidance(seed: dict[str, Any], base: dict[str, Any]) -> None:
         name: {row["id"]: row for row in rows}
         for name, rows in merge_guidance(base, tables).items()
     }
+    validate_workspace(tables, index, base)
     versions = index["resource_versions"]
     for row in tables["resource_versions"]:
         if not set(row["dependencies"]) <= versions.keys():
@@ -112,26 +120,9 @@ def validate_guidance(seed: dict[str, Any], base: dict[str, Any]) -> None:
         or identity.granted_actions
     ):
         raise ValueError("订单协助巡检身份或配置不一致")
-    # SQL 导入不经过内容创建服务，沿用同渠道已核验屏障。
-    for name, rows in tables.items():
-        if "environment" not in metadata.tables[name].c:
-            continue
-        for row in rows:
-            scope = Scope.model_validate({key: row.get(key) for key in Scope.model_fields})
-            barrier = index["recovery_barriers"].get(barrier_id(scope), {})
-            if barrier.get("state") != "READY" or barrier.get("marker_digest") != digest([]):
-                raise ValueError("订单协助恢复屏障缺失")
     connection = index["mcp_connections"][source["mcp_connection_id"]]
-    credential = index["credentials"].get(connection["credential_ref"], {})
-    if (
-        connection["status"] != "ENABLED"
-        or connection["tested_revision"] != connection["configuration_revision"]
-        or connection["discovered_revision"] != connection["configuration_revision"]
-        or credential.get("revision") != connection["credential_revision"]
-        or credential.get("purpose") != "mcp"
-        or not credential.get("secret_value")
-    ):
-        raise ValueError("订单协助 MCP 鉴权或验证修订不完整")
+    for archived_connection in tables["mcp_connections"]:
+        validate_mcp_configuration(archived_connection, index)
     if len(tables["tools"]) != 7 or len(tables["mcp_imports"]) != 7:
         raise ValueError("订单协助七个工具必须完整归档")
     for tool in tables["tools"]:
@@ -190,6 +181,90 @@ def validate_guidance(seed: dict[str, Any], base: dict[str, Any]) -> None:
                 raise ValueError("订单协助写工具预授权不完整")
     validate_objects(seed, index)
     validate_configuration_references(index)
+
+
+def validate_workspace(tables: dict[str, Any], index: dict[str, Any], base: dict[str, Any]) -> None:
+    """恢复开发环境授权和完整删除屏障，避免业务配置依赖已移除的示例。"""
+    scopes = {
+        barrier_id(scope): scope
+        for name, rows in tables.items()
+        if name != "recovery_barriers" and "environment" in metadata.tables[name].c
+        for row in rows
+        if row.get("environment")
+        for scope in [Scope(**{key: row.get(key) for key in Scope.model_fields})]
+    }
+    barriers = index["recovery_barriers"]
+    if barriers.keys() != scopes.keys():
+        raise ValueError("初始化内容范围的恢复屏障缺失或多余")
+    for identifier, scope in scopes.items():
+        row = barriers[identifier]
+        if (
+            any(row[key] != value for key, value in scope.model_dump().items())
+            or row["state"] != "READY"
+            or row["marker_digest"] != digest([])
+            or row["verified_at"] is None
+        ):
+            raise ValueError("初始化恢复屏障范围、状态或删除摘要不正确")
+    for row in tables["resource_grants"]:
+        if row["environments"] != ["dev"] or row["resource_type"] == "run":
+            raise ValueError("初始化授权只能开放开发环境配置，不能引用历史运行")
+    admin = base["platform_accounts"][0]["id"]
+    content_grants = [
+        row
+        for row in tables["resource_grants"]
+        if row["resource_type"] in {"conversation", "memory"}
+    ]
+    if len(content_grants) != 2 or {row["resource_type"] for row in content_grants} != {
+        "conversation",
+        "memory",
+    }:
+        raise ValueError("初始管理员的会话与记忆原文授权缺失或重复")
+    if any(
+        row["grantee_type"] != "account"
+        or row["grantee_id"] != admin
+        or row["resource_id"] != "*"
+        or row["allowed_actions"] != ["data:read_sensitive"]
+        for row in content_grants
+    ):
+        raise ValueError("会话与记忆原文授权只能授予初始管理员及指定资源类型")
+
+
+def validate_mcp_configuration(connection: dict[str, Any], index: dict[str, Any]) -> None:
+    """连接、鉴权与发现配置须来自同一渠道环境和配置修订。"""
+    McpCreate.model_validate({key: connection[key] for key in McpCreate.model_fields})
+    authentication = McpAuthentication.model_validate(connection["authentication"])
+    credential = index["credentials"].get(connection["credential_ref"], {})
+    if (
+        connection["status"] != "ENABLED"
+        or connection["tested_revision"] != connection["configuration_revision"]
+        or connection["discovered_revision"] != connection["configuration_revision"]
+        or credential.get("revision") != connection["credential_revision"]
+        or credential.get("purpose") != "mcp"
+        or credential.get("state") != "ACTIVE"
+        or credential.get("is_deleted") is not False
+        or credential.get("channel_id") != connection["channel_id"]
+        or credential.get("environment") != connection["environment"]
+        or credential.get("ciphertext") is not None
+        or credential.get("key_version") is not None
+        or not credential.get("secret_value")
+        or authentication.mode != "client_credentials"
+    ):
+        raise ValueError("归档 MCP 鉴权或验证修订不完整")
+    McpAuthenticationInput.model_validate(
+        {
+            "revision": connection["revision"],
+            "app_id": authentication.app_id,
+            "token_endpoint": authentication.token_endpoint,
+            "app_secret": credential["secret_value"],
+        }
+    )
+    if not any(
+        row["connection_id"] == connection["id"]
+        and row["connection_revision"] == connection["configuration_revision"]
+        and row["credential_revision"] == connection["credential_revision"]
+        for row in index["mcp_discoveries"].values()
+    ):
+        raise ValueError("归档 MCP 缺少匹配当前配置的发现快照")
 
 
 def validate_objects(seed: dict[str, Any], index: dict[str, Any]) -> None:

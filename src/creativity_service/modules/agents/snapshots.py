@@ -51,6 +51,7 @@ class AgentSnapshots(AgentKernel):
         *,
         require_evaluation: bool = True,
         loaded_dependencies: list[dict[str, Any]] | None = None,
+        loaded_resources: dict[str, dict[str, dict[str, Any]]] | None = None,
         defer_budget: bool = False,
     ) -> tuple[AgentValidation, list[dict[str, Any]], dict[str, Any]]:
         definition = AgentDefinition.model_validate(version["content"])
@@ -74,7 +75,7 @@ class AgentSnapshots(AgentKernel):
                 {},
             )
         rows: list[dict[str, Any]] = []
-        resources: dict[str, dict[str, dict[str, Any]]] = {}
+        resources = loaded_resources if loaded_resources is not None else {}
         manifest: dict[str, Any] = {}
         dependencies_digest = candidate_digest = None
         try:

@@ -1,4 +1,4 @@
-"""连接装配：HTTPS 地址直接配置，HTTP 仍须明确出站许可。"""
+"""连接装配：HTTP 与 HTTPS 地址直接配置，无需出站许可。"""
 
 from typing import Any
 

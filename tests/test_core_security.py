@@ -1,58 +1,35 @@
-"""HTTP 出站地址、重定向和请求头继续按范围明确登记。"""
+"""出站重定向逐次解析，限制次数且不转发来源请求头。"""
+
+from unittest.mock import AsyncMock
 
 import pytest
 
 from creativity_service.core.context import Scope
 from creativity_service.core.primitives import ServiceError
-from creativity_service.core.security.outbound import Destination, OutboundPolicy
+from creativity_service.core.security.outbound import OutboundPolicy
 
 
-async def public_resolver(host, port):
-    return ["93.184.216.34"]
-
-
-async def test_http_outbound_requires_scope_purpose_dns_and_safe_headers():
+@pytest.mark.parametrize("scheme", ["http", "https"])
+async def test_outbound_redirect_resolves_target_and_drops_source_headers(scheme):
     scope = Scope(channel_id="first", environment="prod")
-    rule = Destination(
-        "first", "prod", "model", "api.example.com", port=80, scheme="http", path_prefix="/v1"
-    )
-    policy = OutboundPolicy((rule,), public_resolver)
+    resolver = AsyncMock(side_effect=[["127.0.0.1"], ["10.0.0.1"]])
+    policy = OutboundPolicy((), resolver)
     target = await policy.validate(
-        scope, "model", "http://api.example.com/v1/messages", {"Accept": "application/json"}
+        scope, "mcp", f"{scheme}://api.example.com/v1", {"X-Request-ID": "original"}
     )
-    assert target.addresses == ("93.184.216.34",)
-    for purpose, url, headers in [
-        ("mcp", target.url, {}),
-        ("model", "http://other.example.com/v1/messages", {}),
-        ("model", "http://api.example.com/v1/../admin", {}),
-        ("model", target.url, {"Authorization": "secret"}),
-        ("model", target.url, {"Accept": "x\r\nAuthorization: secret"}),
-    ]:
-        with pytest.raises(ServiceError):
-            await policy.validate(scope, purpose, url, headers)
-    with pytest.raises(ServiceError):
-        await policy.redirect(scope, "model", target, "http://untrusted.example.com/v1", 1)
-    for other in [
-        scope.model_copy(update={"channel_id": "other"}),
-        scope.model_copy(update={"environment": "dev"}),
-    ]:
-        with pytest.raises(ServiceError):
-            await policy.validate_configuration(other, "model", target.url)
-
-    async def rebound(host, port):
-        return ["127.0.0.1"]
-
-    with pytest.raises(ServiceError):
-        await OutboundPolicy((rule,), rebound).validate(scope, "model", target.url)
-    private = Destination(
-        "first",
-        "prod",
-        "model",
-        "api.example.com",
-        port=80,
-        scheme="http",
-        allowed_networks=("127.0.0.1/32",),
+    redirected = await policy.redirect(
+        scope, "mcp", target, "http://other.example.com:32688/api/mcp", 1
     )
-    assert (
-        await OutboundPolicy((private,), rebound).validate(scope, "model", target.url)
-    ).addresses == ("127.0.0.1",)
+    assert redirected.hostname == "other.example.com" and redirected.port == 32688
+    assert redirected.addresses == ("10.0.0.1",) and redirected.headers == {}
+    assert target.headers == {"x-request-id": "original"}
+    resolver.assert_awaited_with("other.example.com", 32688)
+    for hop in [0, 4]:
+        with pytest.raises(ServiceError) as error:
+            await policy.redirect(scope, "mcp", target, "/other", hop)
+        assert error.value.code == "REDIRECT_LIMIT"
+    for url in ["file:///etc/hosts", "ftp://other.example.com/mcp"]:
+        with pytest.raises(ServiceError) as error:
+            await policy.redirect(scope, "mcp", target, url, 1)
+        assert error.value.code == "DESTINATION_FORBIDDEN"
+    assert resolver.await_count == 2

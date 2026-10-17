@@ -27,10 +27,8 @@ def import_body(snapshot):
         remote_tool_name="lookup",
         name="目录查询",
         description="查询授权范围内目录",
-        owner="平台管理员",
         version_label="初始版本",
         effect_type="READ_ONLY",
-        required_scopes=("run:create",),
         timeout_seconds=5,
         max_result_size=2048,
         subject_required=False,
@@ -78,6 +76,7 @@ async def test_discovery_does_not_grant_and_atomic_repeat_import(mcp_env):
         and detail.versions[0].version.state == "DRAFT"
         and detail.release_version_id is None
     )
+    assert detail.versions[0].definition.required_scopes == ("run:create",)
     assert len(await env.mcp.rows(env.context, "mcp_imports")) == 1
     env.source.schema_revision = 2
     changed = await env.mcp.probe(env.context, conn.connection_id, True)
@@ -91,6 +90,87 @@ async def test_discovery_does_not_grant_and_atomic_repeat_import(mcp_env):
     }
     with pytest.raises(ServiceError):
         await env.mcp.check_binding(env.context, view.definition)
+
+
+async def test_import_api_defaults_permissions_and_rejects_empty_permissions(mcp_env):
+    env = mcp_env
+    conn, snapshot = await ready(env)
+    path = f"/admin/v1/mcp-connections/{conn.connection_id}/imports"
+    body = import_body(snapshot).model_dump(mode="json", exclude_unset=True)
+    assert "owner" not in body and "required_scopes" not in body
+    response = await env.client.post(path, json={**body, "required_scopes": []})
+    assert response.status_code == 422
+    response = await env.client.post(path, json=body)
+    assert response.status_code == 201
+    detail = await env.tools.management.detail(env.context, response.json()["local_tool_id"])
+    assert detail.versions[0].definition.required_scopes == ("run:create",)
+
+
+async def test_business_ids_import_and_execute_without_overriding_platform_identity(mcp_env):
+    from tests.test_tools import MemoryRuns
+
+    env = mcp_env
+    env.source.tool_overrides = {
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "tenantId": {"type": "string"},
+                "filters": {
+                    "type": "object",
+                    "properties": {"userId": {"type": "string"}, "clubId": {"type": "string"}},
+                    "additionalProperties": False,
+                },
+            },
+            "required": ["tenantId"],
+            "additionalProperties": False,
+        }
+    }
+    conn, snapshot = await ready(env)
+    response = await env.client.post(
+        f"/admin/v1/mcp-connections/{conn.connection_id}/imports",
+        json=import_body(snapshot).model_dump(mode="json"),
+    )
+    assert response.status_code == 201, response.text
+    imported = response.json()
+    frozen = await env.tools.management.freeze(env.context, imported["imported_version"], 1)
+    runs = MemoryRuns()
+    runs.allowed = {frozen.version.version_id}
+    env.tools.executor.runs = runs
+
+    for tenant_id in ("42", "43"):
+        arguments = {"tenantId": tenant_id, "filters": {"userId": "reader-7", "clubId": "club-9"}}
+        call = ToolExecution(
+            run_id="run_business_ids",
+            step_id=f"step_business_{tenant_id}",
+            tool_version_id=frozen.version.version_id,
+            arguments=arguments,
+        )
+        result = await env.tools.executor.execute(env.context, call)
+        assert result.data == {"value": "可用"}
+        assert result.scope == env.context.scope
+        dispatched = [
+            message for message, *_ in env.source.calls if message["method"] == "tools/call"
+        ]
+        params = dispatched[-1]["params"]
+        assert params["arguments"] == arguments
+        identity = params["_meta"]["creativity.identity"]
+        assert all(identity[key] == value for key, value in env.context.scope.model_dump().items())
+        assert identity["principal_id"] == env.context.principal_id
+        assert "tenantId" not in identity
+
+    before = len(env.source.calls)
+    for arguments in (
+        {"tenantId": "42", "channel_id": "forged"},
+        {"tenantId": "42", "filters": {"subject_id": "forged"}},
+        {"tenantId": "42", "_meta": {"creativity.identity": {"channel_id": "forged"}}},
+    ):
+        with pytest.raises(ServiceError, match="由平台管理") as error:
+            await env.tools.executor.execute(
+                env.context, call.model_copy(update={"arguments": arguments})
+            )
+        assert error.value.code == "TOOL_INPUT_INVALID"
+    assert len(env.source.calls) == before
+    assert len(runs.starts) == 2
 
 
 async def test_cross_scope_same_name_credential_rotation_and_revocation(mcp_env, caplog):

@@ -15,7 +15,7 @@ from creativity_service.core.config import Settings
 from creativity_service.core.primitives import ServiceError
 from creativity_service.development import dependencies
 from scripts import restore_init_objects
-from scripts.render_weather_seed import object_bytes
+from scripts.render_archive import object_bytes
 
 
 @pytest.fixture

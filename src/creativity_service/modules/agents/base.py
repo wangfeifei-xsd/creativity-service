@@ -13,9 +13,9 @@ from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import ServiceError, digest
 from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.agents.dependencies import DependencyResolver
+from creativity_service.modules.agents.dependency_loading import dependency_rows
 from creativity_service.modules.agents.repositories import (
     RESOURCE_TABLES,
-    dependency_rows,
     repository,
     required,
 )

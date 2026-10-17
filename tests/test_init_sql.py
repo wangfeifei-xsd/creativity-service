@@ -16,7 +16,6 @@ from creativity_service.modules.models.schemas import ProviderView
 from scripts import render_init_sql
 from scripts.render_gpt_seed import load_gpt, merge_gpt
 from scripts.render_order_guidance_seed import load_guidance, merge_guidance, validate_guidance
-from scripts.render_weather_seed import load_weather, merged_tables, validate_weather
 from scripts.restore_init_objects import archived_objects
 
 
@@ -161,9 +160,7 @@ def test_seed_contains_platform_and_channel_concurrency_limits_with_frozen_versi
     data = render_init_sql.render_data()
     assert data.count("INSERT INTO platform_limits ") == 1
     assert data.count("INSERT INTO budget_policies ") == len(tenants)
-    weather = load_weather(tables)
-    combined = merged_tables(tables, weather["tables"])
-    combined = merge_guidance(combined, load_guidance(combined)["tables"])
+    combined = merge_guidance(tables, load_guidance(tables)["tables"])
     combined = merge_gpt(combined, load_gpt(combined)["tables"])
     assert data.count("INSERT INTO resource_versions ") == len(combined["resource_versions"])
     assert "platform_quota_occupancies" not in data
@@ -433,24 +430,6 @@ def test_check_detects_stale_data_archive_independently(tmp_path, monkeypatch):
     render_init_sql.main()
 
 
-@pytest.mark.parametrize("fault", ["dependency", "source", "runtime", "object"])
-def test_weather_archive_rejects_incomplete_configuration(fault):
-    base = json.loads(render_init_sql.SEED.read_text())["tables"]
-    weather = load_weather(base)
-    tables = weather["tables"]
-    if fault == "dependency":
-        tables["resource_versions"][0]["dependencies"].append("missing-version")
-    elif fault == "source":
-        tables["source_links"][0]["derived_type"] = "run"
-        tables["source_links"][0]["derived_id"] = "historical-run"
-    elif fault == "runtime":
-        tables["resource_versions"][0]["resource_type"] = "runtime"
-    else:
-        weather["objects"][0]["base64"] = "AA=="
-    with pytest.raises(ValueError):
-        validate_weather(weather, base)
-
-
 HISTORY_TABLES = """
     admissions agent_candidates agent_release_records attempts audit_events evidence_refs
     mcp_checks model_tests prompt_tests release_snapshots resource_uses run_contents
@@ -459,16 +438,13 @@ HISTORY_TABLES = """
 
 
 @pytest.mark.parametrize("table", HISTORY_TABLES)
-@pytest.mark.parametrize("archive", ["base", "weather", "guidance"])
+@pytest.mark.parametrize("archive", ["base", "guidance"])
 def test_initial_archive_rejects_historical_records(archive, table):
     base = json.loads(render_init_sql.SEED.read_text())
     if archive == "base":
         seed, validate, args = base, render_init_sql.validate_seed, []
-    elif archive == "weather":
-        seed, validate, args = load_weather(base["tables"]), validate_weather, [base["tables"]]
     else:
-        combined = merged_tables(base["tables"], load_weather(base["tables"])["tables"])
-        seed, validate, args = load_guidance(combined), validate_guidance, [combined]
+        seed, validate, args = load_guidance(base["tables"]), validate_guidance, [base["tables"]]
     seed["tables"][table] = [{"id": "historical-record"}]
     with pytest.raises(ValueError, match="表清单|初始化数据只能包含"):
         validate(seed, *args)
@@ -480,25 +456,64 @@ def test_generated_sql_contains_configuration_without_history():
         assert f"INSERT INTO {name} " not in sql
     assert "INSERT INTO automation_schedules " in sql
     assert "INSERT INTO mcp_imports " in sql
+    assert sql.count("INSERT INTO models ") == 2
+    assert sql.count("INSERT INTO mcp_connections ") == 2
+    assert sql.count("INSERT INTO agents ") == 1
+    assert sql.count("INSERT INTO skills ") == 1
+    assert sql.count("INSERT INTO prompts ") == 1
+    assert sql.count("INSERT INTO tools ") == 7
+    assert "INSERT INTO prompt_samples " not in sql
+    assert "weather" not in sql.lower() and "天气" not in sql
+    assert "陪玩服务 - 测试环境" in sql
+    assert "订单协助助手" in sql
+
+
+@pytest.mark.parametrize("fault", ["credential", "revision", "discovery", "environment"])
+def test_playmate_mcp_archive_requires_matching_configuration(fault):
+    base = json.loads(render_init_sql.SEED.read_text())["tables"]
+    guidance = load_guidance(base)
+    tables = guidance["tables"]
+    identifier = guidance["source"]["additional_mcp"]["connection_id"]
+    connection = next(row for row in tables["mcp_connections"] if row["id"] == identifier)
+    assert connection["name"] == "陪玩服务 - 测试环境"
+    assert connection["endpoint"] == "http://localhost:32689/api/mcp"
+    if fault == "credential":
+        connection["credential_ref"] = "missing-credential"
+    elif fault == "revision":
+        connection["credential_revision"] += 1
+    elif fault == "discovery":
+        tables["mcp_discoveries"] = [
+            row for row in tables["mcp_discoveries"] if row["connection_id"] != identifier
+        ]
+    else:
+        connection["environment"] = "prod"
+    with pytest.raises(ValueError):
+        validate_guidance(guidance, base)
 
 
 def test_sql_contains_complete_skill_object_without_external_file_dependency():
     base = json.loads(render_init_sql.SEED.read_text())["tables"]
-    weather = load_weather(base)
-    guidance = load_guidance(merged_tables(base, weather["tables"]))
-    assert archived_objects(render_init_sql.DATA_ARCHIVE) == [
-        *weather["objects"],
-        *guidance["objects"],
-    ]
+    guidance = load_guidance(base)
+    assert archived_objects(render_init_sql.DATA_ARCHIVE) == guidance["objects"]
 
 
 @pytest.mark.parametrize(
-    "fault", ["dependency", "binding", "identity", "scope", "object", "queue", "capability"]
+    "fault",
+    [
+        "dependency",
+        "binding",
+        "identity",
+        "scope",
+        "object",
+        "queue",
+        "capability",
+        "source",
+        "runtime",
+    ],
 )
 def test_order_guidance_archive_rejects_incomplete_restore(fault):
     base = json.loads(render_init_sql.SEED.read_text())["tables"]
-    combined = merged_tables(base, load_weather(base)["tables"])
-    guidance = load_guidance(combined)
+    guidance = load_guidance(base)
     tables = guidance["tables"]
     if fault == "dependency":
         tables["resource_versions"][0]["dependencies"].append("missing-version")
@@ -514,8 +529,12 @@ def test_order_guidance_archive_rejects_incomplete_restore(fault):
         tables["automation_items"] = []
     elif fault == "capability":
         tables["models"][0]["capabilities"]["text"]["test_id"] = "missing-test"
+    elif fault == "source":
+        tables["source_links"][0].update(derived_type="run", derived_id="historical-run")
+    elif fault == "runtime":
+        tables["resource_versions"][0]["resource_type"] = "runtime"
     with pytest.raises(ValueError):
-        validate_guidance(guidance, combined)
+        validate_guidance(guidance, base)
 
 
 @pytest.mark.parametrize(
@@ -524,8 +543,7 @@ def test_order_guidance_archive_rejects_incomplete_restore(fault):
 )
 def test_order_guidance_archive_rejects_mcp_contract_drift(fault):
     base = json.loads(render_init_sql.SEED.read_text())["tables"]
-    combined = merged_tables(base, load_weather(base)["tables"])
-    guidance = load_guidance(combined)
+    guidance = load_guidance(base)
     tables = guidance["tables"]
     discovery = tables["mcp_discoveries"][0]
     remote = next(
@@ -568,14 +586,14 @@ def test_order_guidance_archive_rejects_mcp_contract_drift(fault):
         {"content": version["content"], "output_schema": version["output_schema"]}
     )
     with pytest.raises(ValueError, match="工具契约"):
-        validate_guidance(guidance, combined)
+        validate_guidance(guidance, base)
 
 
 @pytest.mark.parametrize("fault", ["missing", "scope", "blocked", "digest", "unverified"])
-def test_weather_archive_requires_verified_content_barriers(fault):
+def test_order_guidance_archive_requires_verified_content_barriers(fault):
     base = json.loads(render_init_sql.SEED.read_text())["tables"]
-    weather = load_weather(base)
-    barrier = weather["tables"]["recovery_barriers"][0]
+    guidance = load_guidance(base)
+    barrier = guidance["tables"]["recovery_barriers"][0]
     if fault == "missing":
         barrier["id"] = "wrong-scope"
     elif fault == "scope":
@@ -587,4 +605,4 @@ def test_weather_archive_requires_verified_content_barriers(fault):
     else:
         barrier["verified_at"] = None
     with pytest.raises(ValueError, match="恢复屏障"):
-        validate_weather(weather, base)
+        validate_guidance(guidance, base)

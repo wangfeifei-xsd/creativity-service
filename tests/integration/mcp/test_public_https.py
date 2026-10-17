@@ -1,4 +1,4 @@
-"""默认装配允许 HTTPS 离线保存，真实 IAM 与数据库继续隔离连接和凭据。"""
+"""默认装配允许 HTTP 与 HTTPS 离线保存，真实 IAM 与数据库隔离连接和凭据。"""
 
 from unittest.mock import AsyncMock
 
@@ -23,15 +23,18 @@ def public_mcp_env(tools_env, monkeypatch):
     return env
 
 
-@pytest.mark.parametrize("host", ["gadev.g-buddy.cn", "10.0.0.1", "198.18.0.253", "[::1]"])
-async def test_https_connection_and_token_endpoint_save_without_dns_or_allowlist(
-    public_mcp_env, host
+@pytest.mark.parametrize("scheme", ["http", "https"])
+@pytest.mark.parametrize(
+    "host", ["gadev.g-buddy.cn", "127.0.0.1:32688", "10.0.0.1", "198.18.0.253", "[::1]"]
+)
+async def test_connection_and_token_endpoint_save_without_dns_or_allowlist(
+    public_mcp_env, scheme, host
 ):
     env = public_mcp_env
     assert env.mcp.outbound.destinations == ()
     created = await env.client.post(
         "/admin/v1/mcp-connections",
-        json={"name": "租号服务", "endpoint": f"https://{host}/mcp"},
+        json={"name": "测试服务", "endpoint": f"{scheme}://{host}/api/mcp"},
     )
     assert created.status_code == 201, created.text
     connection = created.json()
@@ -40,8 +43,8 @@ async def test_https_connection_and_token_endpoint_save_without_dns_or_allowlist
         path,
         json={
             "revision": connection["revision"],
-            "name": "租号服务",
-            "endpoint": f"https://{host}:8443/mcp",
+            "name": "测试服务",
+            "endpoint": f"{scheme}://{host}/api/updated/mcp",
         },
     )
     assert updated.status_code == 200, updated.text
@@ -49,7 +52,7 @@ async def test_https_connection_and_token_endpoint_save_without_dns_or_allowlist
         f"{path}/authentication",
         json={
             "revision": updated.json()["revision"],
-            "token_endpoint": f"https://{host}/mcp/token",
+            "token_endpoint": f"{scheme}://{host}/mcp/token",
             "app_id": "rental-app",
             "app_secret": "rental-application-secret",
         },
@@ -71,9 +74,10 @@ async def test_https_connection_and_token_endpoint_save_without_dns_or_allowlist
         assert target.addresses == ("198.18.0.253", "127.0.0.1")
 
 
-async def test_public_connection_keeps_management_and_channel_permissions(public_mcp_env):
+@pytest.mark.parametrize("scheme", ["http", "https"])
+async def test_public_connection_keeps_management_and_channel_permissions(public_mcp_env, scheme):
     env = public_mcp_env
-    body = McpCreate(name="渠道独立连接", endpoint="https://rental.example/api/mcp")
+    body = McpCreate(name="渠道独立连接", endpoint=f"{scheme}://rental.example/api/mcp")
     conn = await env.mcp.create(env.context, body)
     foreign = await provision(env, "second")
     other = await env.iam.authentication.authenticate(foreign.token.access_token, "management")
@@ -93,7 +97,7 @@ async def test_public_connection_keeps_management_and_channel_permissions(public
                     revision=conn.revision,
                     app_id="other-app",
                     app_secret="other-application-secret",
-                    token_endpoint="https://auth.rental.example/token",
+                    token_endpoint=f"{scheme}://auth.rental.example/token",
                 ),
             )
         assert error.value.status in {403, 404}

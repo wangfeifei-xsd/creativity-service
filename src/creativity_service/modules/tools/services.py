@@ -174,6 +174,7 @@ class ToolService:
     async def edit(self, context: AuthContext, tool_id: str, body: ToolEdit) -> ToolView:
         await self.require(context, "tool:manage", tool_id)
         scope, audit_id = context.scope, new_id("audit")
+        changes = body.model_dump(exclude={"revision"}, exclude_unset=True)
         async with transaction(
             self.engine,
             scope,
@@ -190,7 +191,7 @@ class ToolService:
 
             await require_edit(uow, context, "tool", tool_id)
             row = await Repository(metadata.tables["tools"], scope).change(
-                uow, tool_id, body.revision, body.model_dump(exclude={"revision"})
+                uow, tool_id, body.revision, changes
             )
             await append_audit(
                 uow,
@@ -199,7 +200,7 @@ class ToolService:
                 "tool.edit",
                 "tool",
                 tool_id,
-                changed_fields=("name", "description", "owner"),
+                changed_fields=tuple(changes),
             )
         return await self.view(context, row, [])
 

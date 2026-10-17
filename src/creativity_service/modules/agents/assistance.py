@@ -24,10 +24,12 @@ from creativity_service.modules.agents.builtin import (
     BUILTIN_NAME,
     builtin_definition,
 )
-from creativity_service.modules.agents.repositories import dependency_rows, repository, required
+from creativity_service.modules.agents.dependency_loading import dependency_rows
+from creativity_service.modules.agents.repositories import repository, required
 from creativity_service.modules.agents.schemas import AgentCreate, AgentDefinition
 from creativity_service.modules.agents.services import AgentService
 from creativity_service.modules.agents.validation import static_issues
+from creativity_service.modules.models.configuration import resolve_routes
 from creativity_service.modules.runs.repositories import required as run_required
 from creativity_service.modules.runs.schemas import AdmissionReceipt
 from creativity_service.modules.runtime.admission import RuntimeAdmission
@@ -167,6 +169,7 @@ class AgentAssistance:
             rows = await repository("resource_versions", context.scope).get_many(
                 connection, [d.version_id for d in dependencies]
             )
+            rows = await resolve_routes(connection, context.scope, rows)
         catalog = []
         for dependency in dependencies:
             content = rows[dependency.version_id]["content"]

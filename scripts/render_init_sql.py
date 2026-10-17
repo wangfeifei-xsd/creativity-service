@@ -31,16 +31,11 @@ from creativity_service.modules.models.policy import validate_endpoint
 from creativity_service.modules.models.schemas import ProviderInput
 from creativity_service.modules.usage.pricing import timezone
 from creativity_service.storage import metadata
+from scripts.render_archive import OBJECT_MARKER, typed_archive_values
 from scripts.render_gpt_seed import load_gpt, merge_gpt
 from scripts.render_init_mcp import validate_initial_mcp
 from scripts.render_init_models import MODEL_SEED_TABLES, validate_initial_models
 from scripts.render_order_guidance_seed import load_guidance, merge_guidance
-from scripts.render_weather_seed import (
-    OBJECT_MARKER,
-    load_weather,
-    merged_tables,
-    typed_archive_values,
-)
 
 ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE = ROOT / "sql/init.sql"
@@ -401,25 +396,23 @@ def render_data() -> str:
     model_version, revision, version = model()
     seed = json.loads(SEED.read_text(encoding="utf-8"))
     validate_seed(seed)
-    weather = load_weather(seed["tables"])
-    combined = merged_tables(seed["tables"], weather["tables"])
-    guidance = load_guidance(combined)
-    archived = merge_guidance(weather["tables"], guidance["tables"])
-    gpt = load_gpt(merge_guidance(combined, guidance["tables"]))
-    archived = merge_gpt(archived, gpt["tables"])
+    guidance = load_guidance(seed["tables"])
+    gpt = load_gpt(merge_guidance(seed["tables"], guidance["tables"]))
+    archived = merge_gpt(guidance["tables"], gpt["tables"])
     lines = [
         "-- Creativity 初始化数据归档，必须在配套 sql/init.sql 建表后执行。",
         f"-- 模型版本：{model_version}；完成后登记迁移基线：{revision}。",
         "-- 数据源：sql/init_data.json，冻结控制面配置、预置渠道、模型和 MCP 连接及并发策略。",
         "-- 包含 admin 账号、两种管理员的菜单关联、账号角色关联及历史兼容角色。",
-        "-- 天气配置数据源：sql/weather_data.json；仅保留配置及必要依赖。",
         "-- 订单协助配置源：sql/rental_order_guidance_data.json；包含完整配置及模型能力摘要。",
+        "-- 订单协助归档包含开发环境权限、内容恢复屏障及陪玩 MCP 配置。",
         "-- GTP 配置数据源：sql/gpt_data.json；包含连接、模型、已发布路由及必要版本依赖。",
-        "-- 预置渠道的首位管理员复用 admin，天气示例仅开放开发环境。",
+        "-- 预置渠道的首位管理员复用 admin，业务配置仅开放开发环境。",
         "-- 初始密码仅存安全摘要，首次登录须改密；不复制其他账号或接入凭据。",
         "-- 平台并发上限归系统渠道，各渠道并发策略及冻结版本归对应业务渠道。",
         "-- 包含开发环境 DeepSeek V4 Flash、GPT-6.1 Sol 及密文凭据；解密主密钥另行配置。",
-        "-- 租号服务归档已验证连接、appSecret 原文与六个工具；不包含临时 Token。",
+        "-- 租号服务归档已验证连接、appSecret 原文与七个工具；不包含临时 Token。",
+        "-- 陪玩服务归档当前连接、appSecret 原文与最新发现配置，不导入本地工具。",
         "-- 订单协助巡检保留启用与每 60 秒配置；不导入历史巡检队列或订单执行账本。",
         "-- 不导入使用、运行、用量、测试、审计或发布操作记录；模型仅保留已验证能力摘要。",
         "-- 技能对象字节随本 SQL 注释封存，导入后运行 scripts.restore_init_objects 恢复对象存储。",
@@ -448,8 +441,8 @@ def render_data() -> str:
         "iam_menus": "初始化当前环境菜单目录，保留层级、页面、按钮及启停排序。",
         "builtin_roles": "初始化数据库角色目录，menu_ids 保存角色与菜单关联。",
         "platform_accounts": "初始化 admin；role_id 与 platform_roles 保存账号与角色关联。",
-        "channel_memberships": "首位管理员基础成员种子；天气归档补齐开发环境。",
-        "resource_grants": "初始授权基础种子；天气归档限定开发环境。",
+        "channel_memberships": "首位管理员基础成员种子；订单协助归档补齐开发环境。",
+        "resource_grants": "初始授权基础种子；订单协助归档限定开发环境。",
         "platform_limits": "初始化平台并发上限，导入时生效；不复制实际运行占用。",
         "resource_versions": "初始化各业务渠道并发策略、模型及连接的冻结版本及内容摘要。",
         "budget_policies": "初始化各业务渠道并发硬上限，不复制用量、预占或预算提醒。",
@@ -488,7 +481,7 @@ def render_data() -> str:
                 lines,
                 insert(table).from_select(list(table.c.keys()), select(*values).where(pending)),
             )
-    lines.append("-- 天气助手、订单协助及 GTP 配置：保留发布配置、依赖和已验证能力摘要。")
+    lines.append("-- 订单协助、陪玩 MCP 及 GTP 配置：保留发布配置、依赖和已验证能力摘要。")
     for name, rows in sorted(archived.items()):
         table = metadata.tables[name]
         lines.append(f"-- 业务配置归档 {name}：{len(rows)} 条。")
@@ -511,7 +504,7 @@ def render_data() -> str:
                 lines,
                 insert(table).from_select(list(table.c.keys()), select(*values).where(pending)),
             )
-    for item in [*weather["objects"], *guidance["objects"]]:
+    for item in guidance["objects"]:
         lines.append(OBJECT_MARKER + json.dumps(item, ensure_ascii=False, sort_keys=True))
     lines.append("")
     lines.append("-- 最后登记迁移完成标记；失败回滚时不留下半份初始化数据。")

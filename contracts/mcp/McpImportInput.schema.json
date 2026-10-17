@@ -42,10 +42,18 @@
       "type": "string"
     },
     "owner": {
-      "maxLength": 128,
-      "minLength": 1,
-      "title": "Owner",
-      "type": "string"
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "deprecated": true,
+      "title": "Owner"
     },
     "version_label": {
       "maxLength": 64,
@@ -63,6 +71,9 @@
       "type": "string"
     },
     "required_scopes": {
+      "default": [
+        "run:create"
+      ],
       "items": {
         "type": "string"
       },
@@ -98,10 +109,8 @@
     "remote_tool_name",
     "name",
     "description",
-    "owner",
     "version_label",
     "effect_type",
-    "required_scopes",
     "timeout_seconds",
     "max_result_size",
     "output_schema"

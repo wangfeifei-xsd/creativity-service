@@ -16,7 +16,7 @@ from creativity_service.modules.models.schemas import (
     RouteVersionInput,
 )
 from creativity_service.storage import metadata
-from scripts.render_weather_seed import typed_archive_values, validate_configuration_references
+from scripts.render_archive import typed_archive_values, validate_configuration_references
 
 GPT_SEED = Path(__file__).resolve().parents[1] / "sql/gpt_data.json"
 GPT_TABLES = frozenset(
@@ -31,7 +31,7 @@ RESOURCE_TABLES = {
 
 
 def merge_gpt(base: dict[str, Any], additions: dict[str, Any]) -> dict[str, Any]:
-    """追加独立模型配置，拒绝覆盖天气、订单协助及基础种子的既有记录。"""
+    """追加独立模型配置，拒绝覆盖订单协助及基础种子的既有记录。"""
     result = {name: {row["id"]: row for row in rows} for name, rows in base.items()}
     for name, rows in additions.items():
         current = result.setdefault(name, {})

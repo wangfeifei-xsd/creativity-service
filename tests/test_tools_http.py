@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 from creativity_service.core.context import AuthContext, Scope
-from creativity_service.core.primitives import ServiceError, utcnow
+from creativity_service.core.primitives import utcnow
 from creativity_service.core.security.outbound import Destination, OutboundPolicy
 from creativity_service.integrations.tools import AdapterRequest, ToolAdapterError
 from creativity_service.integrations.tools.http import HttpToolAdapter
@@ -137,12 +137,12 @@ async def test_http_size_redirect_and_retry_mapping(source, path, code, retryabl
     assert len(calls) == 1
 
 
-async def test_http_unregistered_host_never_reaches_source(source):
+async def test_http_local_destination_works_without_allowlist(source):
     port, calls = source
-    tool = HttpToolAdapter(f"http://127.0.0.1:{port}/query", "GET", OutboundPolicy(()))
-    with pytest.raises(ServiceError) as error:
-        await tool.invoke(request())
-    assert error.value.code == "DESTINATION_FORBIDDEN" and not calls
+    tool = HttpToolAdapter(f"http://127.0.0.1:{port}/query", "POST", OutboundPolicy(()))
+    result = await tool.invoke(request())
+    assert result.data == {"value": "价格"}
+    assert len(calls) == 1 and calls[0]["arguments"] == {"query": "价格"}
 
 
 async def test_http_timeout_closes_inflight_connection():

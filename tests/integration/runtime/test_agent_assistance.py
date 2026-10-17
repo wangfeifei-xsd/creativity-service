@@ -14,7 +14,12 @@ from creativity_service.modules.agents.assistance_schemas import AssistanceReque
 from creativity_service.modules.agents.builtin import BUILTIN_CODE, BUILTIN_ID
 from creativity_service.modules.agents.schemas import AgentEdit
 from creativity_service.modules.models.repositories import repository
-from creativity_service.modules.models.schemas import RouteVersionInput
+from creativity_service.modules.models.schemas import (
+    ConnectionInput,
+    CredentialInput,
+    RouteVersionInput,
+)
+from creativity_service.modules.runtime.storage import load_spec
 from creativity_service.workers.executor import execute_message
 from tests.models.test_protocols import adapter as protocol_adapter
 
@@ -113,6 +118,93 @@ async def test_create_from_server_proposal_is_atomic_and_idempotent(runtime_env)
     assert "provider_credential" not in request.messages[1]["content"]
 
 
+@pytest.mark.parametrize("change", ["timeout", "credential"])
+async def test_connection_changes_apply_without_resaving_route(runtime_env, change):
+    env = runtime_env
+    first, _ = await generate(env, proposal(env))
+    first_row = await env.runs.load(
+        TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=first.run_id)
+    )
+    original = await load_spec(env.runs, first_row)
+    old_model = env.adapter.calls[0][0]
+    connection = (await env.models.configuration.connections(env.tenant.manager)).items[0]
+    changes = {"timeout_seconds": 180}
+    if change == "credential":
+        changes = {
+            "credential_ref": await env.models.configuration.store_credential(
+                env.tenant.manager, CredentialInput(secret="rotated-test-only-credential")
+            )
+        }
+    await env.models.configuration.save_connection(
+        env.tenant.manager,
+        ConnectionInput(
+            **{k: getattr(connection, k) for k in ConnectionInput.model_fields}
+        ).model_copy(update=changes),
+        connection.id,
+    )
+    second, turn = await generate(env, proposal(env), key="after-connection-change")
+    assert turn.reply.proposal is not None
+    assert len(env.adapter.calls) == 2
+    current = env.adapter.calls[-1][0]
+    assert current.connection_version_id != old_model.connection_version_id
+    if change == "timeout":
+        assert old_model.timeout_seconds == 60 and current.timeout_seconds == 180
+    else:
+        assert current.provider_credential_id == changes["credential_ref"]
+        assert current.provider_credential_id != old_model.provider_credential_id
+    assert await load_spec(env.runs, first_row) == original
+    saved = await env.runtime.assistance.apply(env.context, second.run_id)
+    assert saved.agent_id
+
+
+async def test_queued_run_keeps_timeout_and_new_run_uses_updated_connection(runtime_env):
+    from creativity_service.core.primitives import RunInput
+    from creativity_service.modules.models.schemas import FrozenModel
+    from tests.integration.runtime.test_execution import admitted
+
+    env = runtime_env
+    definition = env.definition.model_copy(
+        update={
+            "limits": env.definition.limits.model_copy(update={"deadline_seconds": 360}),
+            "steps": tuple(
+                s.model_copy(update={"timeout_seconds": 300}) for s in env.definition.steps
+            ),
+        }
+    )
+    first, message = await admitted(env, definition=definition, purpose="production")
+    row = await env.runs.load(message)
+    original = await load_spec(env.runs, row)
+    connection = (await env.models.configuration.connections(env.tenant.manager)).items[0]
+    await env.models.configuration.save_connection(
+        env.tenant.manager,
+        ConnectionInput(
+            **{k: getattr(connection, k) for k in ConnectionInput.model_fields}
+        ).model_copy(update={"timeout_seconds": 180}),
+        connection.id,
+    )
+    route = next(v for v in original.versions if v.resource_type == "model_route")
+    frozen = FrozenModel.model_validate(route.content["models"][0])
+    prepared = await env.models.routing.prepare_attempt(env.context, frozen, ["text"])
+    assert prepared.timeout_seconds == frozen.timeout_seconds
+    assert await env.models.routing.prepare_attempt(env.context, prepared, ["text"]) == prepared
+    second = await env.runs.admit_run(
+        env.context,
+        RunInput(agent_code=env.body.agent_code, input={"request": "再次处理"}),
+        "updated-connection",
+    )
+    for receipt in (first, second):
+        await execute_message(
+            env.runs,
+            TaskEnvelope(channel_id=env.context.scope.channel_id, run_id=receipt.run_id),
+            "connection-worker",
+            env.runtime,
+        )
+        result = await env.runs.get_run(env.context, receipt.run_id)
+        assert result.state == "SUCCEEDED", result.error
+    assert [call[0].timeout_seconds for call in env.adapter.calls] == [60, 180]
+    assert await load_spec(env.runs, row) == original
+
+
 async def test_followup_keeps_context_and_needs_input_cannot_save(runtime_env):
     env = runtime_env
     first, _ = await generate(env)
@@ -165,6 +257,81 @@ async def test_invalid_dependency_is_repaired_without_creating_resources(runtime
     assert turn.reply.proposal.definition.bindings.model_route_version == env.route_id
     assert not (await env.agents.list_agents(env.context)).items
     assert (await env.runs.get_run(env.context, receipt.run_id)).usage_summary["attempt_count"] == 2
+
+
+async def test_business_tenant_input_and_tool_dependency_produce_a_saveable_proposal(runtime_env):
+    from creativity_service.integrations.tools import AdapterRegistration
+    from creativity_service.modules.tools.schemas import (
+        ToolCreate,
+        ToolDefinition,
+        ToolRelease,
+        ToolVersionCreate,
+    )
+    from tests.test_tools import FixtureAdapter
+
+    env = runtime_env
+    adapter = FixtureAdapter()
+    env.tools.registry.register(
+        AdapterRegistration(
+            "business_catalog", "业务目录", "builtin", "1", "READ_ONLY", adapter, sensitive=False
+        )
+    )
+    tool = await env.tools.management.create(
+        env.context,
+        ToolCreate(
+            tool_code="business_catalog",
+            name="业务目录",
+            description="查询指定业务租户的目录",
+            source_type="builtin",
+        ),
+    )
+    draft = await env.tools.management.create_version(
+        env.context,
+        tool.tool_id,
+        ToolVersionCreate(
+            definition=ToolDefinition(
+                input_schema={
+                    "type": "object",
+                    "properties": {"tenantId": {"type": "string", "title": "业务租户编号"}},
+                    "required": ["tenantId"],
+                    "additionalProperties": False,
+                },
+                output_schema={"type": "object"},
+                model_fields_allowed=("tenantId",),
+                binding={"adapter_key": "business_catalog", "implementation_version": "1"},
+                effect_type="READ_ONLY",
+                environments=("test",),
+                subject_requirements={"required": False},
+            )
+        ),
+    )
+    frozen = await env.tools.management.freeze(
+        env.context, draft.version.version_id, draft.revision
+    )
+    await env.tools.management.release(
+        env.context, tool.tool_id, ToolRelease(version_id=frozen.version.version_id)
+    )
+    value = proposal(env)
+    definition = value["definition"]
+    definition.update(workflow_type="tool_loop", entrypoint="tool_loop.v1")
+    definition["bindings"]["tool_ids"] = [frozen.version.version_id]
+    definition["input_schema"]["properties"]["tenantId"] = {
+        "type": "string",
+        "title": "业务租户编号",
+    }
+    definition["input_schema"]["required"].append("tenantId")
+    step = definition["steps"][0]
+    step["inputs"]["tenantId"] = {"source": "input", "path": "tenantId"}
+    step["input_schema"]["properties"]["tenantId"] = {"type": "string", "title": "业务租户编号"}
+
+    receipt, turn = await generate(env, value)
+    assert turn.reply.proposal is not None
+    assert len(env.adapter.calls) == 1
+    assert not adapter.requests
+    saved = await env.runtime.assistance.apply(env.context, receipt.run_id)
+    detail = await env.agents.detail(env.context, saved.agent_id)
+    assert "tenantId" in detail.versions[0].definition.input_schema["required"]
+    assert detail.versions[0].definition.bindings.tool_versions == (frozen.version.version_id,)
 
 
 async def test_unexecutable_token_budget_is_repaired_before_showing_proposal(runtime_env):

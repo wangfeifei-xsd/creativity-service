@@ -6,7 +6,7 @@ import pytest
 
 from creativity_service.core.context import Scope
 from creativity_service.core.primitives import ServiceError
-from creativity_service.core.security.outbound import Destination, OutboundPolicy
+from creativity_service.core.security.outbound import OutboundPolicy
 from creativity_service.modules.mcp.schemas import McpTimeouts
 from creativity_service.modules.mcp.transport import McpTransport, SessionKey
 from tests.mcp_fixture import mcp_source
@@ -16,20 +16,7 @@ __all__ = ["mcp_source"]
 
 def transport(source):
     scopes = [Scope(channel_id=f"channel_{name}", environment="test") for name in ["a", "b"]]
-    policy = OutboundPolicy(
-        tuple(
-            Destination(
-                s.channel_id,
-                "test",
-                "mcp",
-                "127.0.0.1",
-                port=source.port,
-                scheme="http",
-                allowed_networks=("127.0.0.1/32",),
-            )
-            for s in scopes
-        )
-    )
+    policy = OutboundPolicy(())
     return McpTransport(policy), scopes
 
 

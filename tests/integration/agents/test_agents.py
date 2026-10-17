@@ -407,7 +407,7 @@ async def test_shared_route_debug_checks_each_use_and_freezes_one_dependency(age
                 "capabilities": {**row["capabilities"], "text": {"state": "UNSUPPORTED"}},
             },
         )
-    with pytest.raises(ServiceError, match="模型所需能力"):
+    with pytest.raises(ServiceError, match="夹具模型.*不支持所需能力"):
         await env.agents.freeze_candidate(env.context, version_id, 2)
 
 
@@ -891,7 +891,7 @@ async def test_node_dependencies_check_publication_type_and_capabilities(agent_e
             "steps": (env.definition.steps[0].model_copy(update={"prompt_id": "missing_prompt"}),),
         }
     )
-    with pytest.raises(ServiceError, match="已发布"):
+    with pytest.raises(ServiceError, match="不存在或已不可用"):
         await env.agents.create(
             env.context,
             env.body.model_copy(

@@ -455,7 +455,7 @@ async def test_route_release_hard_price_gate_and_stale_revision(channel_env):
             "publish",
             await mutation(route.id),
         )
-    assert stale.value.code == "MODEL_CONFIGURATION_STALE"
+    assert stale.value.code == "MODEL_CAPABILITY_UNSUPPORTED"
 
 
 async def test_restoring_endpoint_does_not_revive_old_evidence(channel_env):
@@ -471,6 +471,14 @@ async def test_restoring_endpoint_does_not_revive_old_evidence(channel_env):
     )
     await services.configuration.save_connection(
         tenant.manager, original.model_copy(update={"revision": changed.revision}), connection.id
+    )
+    actual = await services.configuration.detail(tenant.manager, model.id)
+    assert all(c.state == "UNVERIFIED" for c in actual.capabilities)
+    current = (await services.configuration.connections(tenant.manager)).items[0]
+    await services.configuration.save_connection(
+        tenant.manager,
+        original.model_copy(update={"revision": current.revision, "timeout_seconds": 180}),
+        connection.id,
     )
     actual = await services.configuration.detail(tenant.manager, model.id)
     assert all(c.state == "UNVERIFIED" for c in actual.capabilities)
@@ -568,7 +576,7 @@ async def test_connection_page_saves_and_freezes_endpoint_without_network_io(
     assert calls == []
     changed = await services.configuration.detail(tenant.manager, model.id)
     assert all(c.state == "UNVERIFIED" for c in changed.capabilities)
-    with pytest.raises(ServiceError, match="模型配置已变化"):
+    with pytest.raises(ServiceError, match="配置在任务开始后发生变化"):
         await services.routing.prepare_attempt(tenant.manager.context, frozen, ["text"])
     history = await services.configuration.history(
         tenant.manager, "model_connection", connection.id

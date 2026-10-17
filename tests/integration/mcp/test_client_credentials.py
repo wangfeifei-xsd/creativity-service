@@ -5,31 +5,14 @@ import asyncio
 import pytest
 
 from creativity_service.core.primitives import ServiceError
-from creativity_service.core.security.outbound import Destination
 from creativity_service.modules.mcp.schemas import McpAuthenticationInput, McpCreate
 
 pytestmark = pytest.mark.integration
 
 
-@pytest.fixture(autouse=True)
-def allow_application_token_endpoint(mcp_env):
-    env = mcp_env
-    env.mcp.outbound.destinations += (
-        Destination(
-            env.context.scope.channel_id,
-            "test",
-            "oauth",
-            "127.0.0.1",
-            port=env.source.port,
-            scheme="http",
-            allowed_networks=("127.0.0.1/32",),
-            path_prefix="/token",
-        ),
-    )
-
-
 async def test_configure_exchange_discover_and_keep_secret_scoped(mcp_env, caplog):
     env = mcp_env
+    assert env.mcp.outbound.destinations == ()
     conn = await env.mcp.create(
         env.context, McpCreate(name="租号服务", endpoint=env.source.endpoint)
     )

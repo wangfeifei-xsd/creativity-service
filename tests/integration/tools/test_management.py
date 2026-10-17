@@ -27,7 +27,6 @@ async def test_create_race_freeze_release_and_disabled_metadata(tools_env):
         tool_code="duplicate",
         name="并发工具",
         description="验证渠道内编码互斥",
-        owner="负责人",
         source_type="builtin",
     )
     results = await asyncio.gather(
@@ -79,6 +78,13 @@ async def test_management_api_schema_errors_and_no_arbitrary_execution_route(too
     env = tools_env
     response = await env.client.get("/admin/v1/tools")
     assert response.status_code == 200 and response.json()["items"][0]["name"] == "精确求和"
+    response = await env.client.patch(
+        f"/admin/v1/tools/{env.tool.tool_id}",
+        json={"revision": env.tool.revision, "name": "精确求和", "description": "更新用途"},
+    )
+    assert response.status_code == 200
+    # 新界面不提交负责人，修改用途时仍保留旧客户端写入的历史备注。
+    assert response.json()["owner"] == "平台管理员"
     path = f"/admin/v1/tool-versions/{env.version.version.version_id}/tests"
     response = await env.client.post(
         path, json={"revision": 1, "arguments": {"values": ["1.00"], "channel_id": "evil"}}

@@ -46,13 +46,13 @@ Token 到期后重新交换并签名查询原运行。创建响应丢失时保�
 
 ## MCP 工具与主体复核
 
-具有本渠道连接管理权限的成员可直接保存 HTTPS 的 MCP 地址与鉴权地址，无需追加环境白名单，保存不依赖 DNS 或网络可用性；内网、本机及代理虚拟地址均可使用，统一行为见 [出站地址策略](../../技术方案.md#outbound)。HTTP 目的地仍须在 API 和 Worker 的 `CREATIVITY_MCP_DESTINATIONS` 中配置一致的渠道、环境及精确许可。MCP 鉴权不需要加密主密钥。创建连接、配置鉴权、发现远端工具，导入业务工具草稿并测试发布。Agent 绑定具体工具版本，远端 schema 或连接修订变化后重新验证发布。
+具有本渠道连接管理权限的成员可直接保存 HTTP 或 HTTPS 的 MCP 地址与鉴权地址，无需追加环境白名单，保存不依赖 DNS 或网络可用性；内网、本机及代理虚拟地址均可使用，统一行为见 [出站地址策略](../../技术方案.md#outbound)。`CREATIVITY_MCP_DESTINATIONS` 仅保留历史配置读取兼容，不再限制目的地。MCP 鉴权不需要加密主密钥。创建连接、配置鉴权、发现远端工具，导入业务工具草稿并测试发布。Agent 绑定具体工具版本，远端 schema 或连接修订变化后重新验证发布。
 
 更新凭据后，先重新测试、发现并启用连接，再在远程工具的导入窗口选择原有工具执行“重新绑定”。契约与影响类型相同时，仅更新发现绑定，保留原工具的权限、预授权、输出校验和执行策略；当前配置转为未发布，重新发布后才能恢复 Agent 调用。契约发生变化时拒绝覆盖，须创建独立工具并重新配置 Agent。重复提交同一发现的导入保持幂等。
 
 MCP 的 appSecret、静态 Token、OAuth 令牌和 PKCE verifier 直接保存在同渠道、同环境的 `credentials.secret_value`，无需配置解密主密钥。连接通过凭据引用读取，管理响应与日志不回显原文。初始化归档可直接携带配置凭据；不同环境修改连接地址与凭据后，手动测试、发现并启用。短期 Token 和 OAuth 临时授权不作为初始配置归档。
 
-服务间鉴权使用 `POST /admin/v1/mcp-connections/{id}/authentication`，提交当前 revision、token_endpoint、app_id 和 app_secret。密钥原文存入独立凭据记录，连接仅保存鉴权方式、地址与应用标识；同一应用可省略密钥以保留现值。平台以 client_credentials 表单交换短期 Token，缓存按渠道、环境、连接与凭据修订隔离，到期前续取。HTTPS 令牌端点可直接配置；HTTP 令牌端点仍须以 `purpose=oauth` 单独加入出站许可。业务收到无效 Token 时清理缓存，不自动重放该业务，下一次调用重新交换。传输选择 streamable_http，独立于 oauth 用户授权码模式。
+服务间鉴权使用 `POST /admin/v1/mcp-connections/{id}/authentication`，提交当前 revision、token_endpoint、app_id 和 app_secret。密钥原文存入独立凭据记录，连接仅保存鉴权方式、地址与应用标识；同一应用可省略密钥以保留现值。平台以 client_credentials 表单交换短期 Token，缓存按渠道、环境、连接与凭据修订隔离，到期前续取。HTTP 与 HTTPS 令牌端点均可直接配置。业务收到无效 Token 时清理缓存，不自动重放该业务，下一次调用重新交换。传输选择 streamable_http，独立于 oauth 用户授权码模式。
 
 `streamable_http` 支持完整 JSON 和 SSE 响应，源服务可以按场景选择，无需增加旧版 `/sse` 连接。租号服务基础连接正文见 [配置示例](../examples/mcp/gamerental.connection.json)，当前只提供握手与空工具目录，业务工具和主体复核后续配置。
 

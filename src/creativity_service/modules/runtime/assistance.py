@@ -78,7 +78,11 @@ async def execute_assistance(
                     "role": "assistant",
                     "content": json.dumps(value["structured"], ensure_ascii=False),
                 },
-                {"role": "user", "content": "请修正以下配置问题，无法满足时追问用户：" + reason},
+                {
+                    "role": "user",
+                    "content": "请自行修正以下配置问题，保留用户已明确的业务输入和目标；"
+                    "只有缺少必要业务信息或可用能力时才追问，不要求用户解释平台校验规则：" + reason,
+                },
             ]
             continue
         await engine.runs.finish_run(

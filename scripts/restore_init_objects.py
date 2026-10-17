@@ -14,7 +14,7 @@ from sqlalchemy import create_engine, select, text
 from creativity_service.core.artifacts import OSSObjectStore
 from creativity_service.core.config import Settings
 from creativity_service.storage import metadata
-from scripts.render_weather_seed import OBJECT_MARKER, object_bytes
+from scripts.render_archive import OBJECT_MARKER, object_bytes
 
 
 def archived_objects(path: Path) -> list[dict[str, Any]]:

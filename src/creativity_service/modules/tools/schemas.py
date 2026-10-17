@@ -22,14 +22,15 @@ class ToolCreate(Contract):
     name: str = Field(min_length=1, max_length=128)
     description: str = Field(min_length=1, max_length=4000)
     source_type: SourceType
-    owner: str = Field(min_length=1, max_length=128)
+    # 兼容旧客户端的备注字段，新界面不再维护负责人，也不据此授权。
+    owner: str | None = Field(default=None, max_length=128, deprecated=True)
 
 
 class ToolEdit(Contract):
     revision: Revision
     name: str = Field(min_length=1, max_length=128)
     description: str = Field(min_length=1, max_length=4000)
-    owner: str = Field(min_length=1, max_length=128)
+    owner: str | None = Field(default=None, max_length=128, deprecated=True)
 
 
 class ScriptBinding(Contract):
@@ -144,7 +145,7 @@ class ToolView(Contract):
     description: str
     source_type: SourceType
     source_label: str
-    owner: str
+    owner: str | None = Field(deprecated=True)
     revision: Revision
     status: DisplayStatus
     effect_types: list[EffectType]
