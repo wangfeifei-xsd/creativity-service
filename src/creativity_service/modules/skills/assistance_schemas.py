@@ -9,7 +9,7 @@ from creativity_service.modules.skills.schemas import SkillCreate
 
 
 class SkillAssistanceRequest(Contract):
-    message: str = Field(min_length=1, max_length=8000)
+    message: str = Field(min_length=1)
     idempotency_key: Identifier
     model_route_id: Identifier | None = None
     skill_id: Identifier | None = None

@@ -11,7 +11,7 @@ from creativity_service.core.deletion import ContentRef, DeletionGuard, content_
 from creativity_service.core.files import FileService
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.observability.audit import append_audit
-from creativity_service.core.primitives import ServiceError, canonical_json, digest
+from creativity_service.core.primitives import ServiceError, digest
 from creativity_service.modules.agents.access import locked_policy
 from creativity_service.modules.agents.repositories import repository
 from creativity_service.modules.agents.services import AgentService
@@ -222,10 +222,6 @@ class SkillAssistance:
             tools=[t.model_dump(mode="json") for t in tools],
             agents=[a.model_dump(mode="json") for a in agents],
         )
-        if len(canonical_json(values)) > 160000:
-            raise ServiceError(
-                "ASSISTANCE_CONTEXT_LIMIT", "当前技能与对话过长，请精简内容或开始新对话", 422
-            )
         capacities = [m["context_limit"] for m in models.values() if m["context_limit"] is not None]
         config = builtin_definition(route_id, min([32000, *capacities]))
         keys = self.keys(context, body.skill_id or "new")

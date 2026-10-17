@@ -14,6 +14,8 @@ Compose 优先使用 `docker compose` 插件，也支持 PATH 中的独立 `dock
 
 API 默认地址为 `http://127.0.0.1:8000`，启用源码热重载。管理员仍通过 `uv run creativity-iam init-admin --login-name admin --display-name 管理员` 交互设置密码；前端按其自身 README 启动。
 
+Worker 与定时调度器不会随源码修改自动重载。修改运行执行器、智能体或技能助手、模型适配、后台任务及服务装配后，执行 `./scripts/stop-local.sh`，再运行 `./scripts/start-local.sh`，使 API、Worker 与调度器使用同一份代码。只刷新页面或等待 API 热重载会保留旧 Worker，可能出现请求已受理、执行却提示“测试描述类型不可用”等错误。验证这类功能时须通过当前页面提交并检查实际后台执行结果，不能只依赖进程内测试。
+
 ## 依赖复用
 
 先使用 `.env.dev` 或进程环境中配置的地址和凭据验证真实连接，加载规则见 [工程配置](development.md#bootstrap)。地址可用就直接复用，不执行 Docker 启动或重建。
