@@ -22,7 +22,7 @@ from creativity_service.modules.agents.schemas import AgentDefinition, Purpose
 from creativity_service.modules.agents.validation import (
     compatible,
     schema_field,
-    validate_prompt_binding,
+    validate_prompt_dependencies,
 )
 from creativity_service.modules.mcp.bindings import require_current_binding
 from creativity_service.modules.memory.base import MemoryKernel
@@ -159,6 +159,10 @@ class DependencyResolver:
                 policy.require(context, "run:create", kind, resource["id"])
             if row["state"] == "DRAFT":
                 policy.require(context, "version:edit", kind, resource["id"])
+            if kind == "prompt" and row["id"] in identifiers:
+                validate_prompt_dependencies(
+                    PromptContent.model_validate(row["content"]), definition
+                )
             if kind == "tool":
                 if row["id"] not in bindings.tool_versions:
                     raise ServiceError(
@@ -211,8 +215,6 @@ class DependencyResolver:
                         for path in loading.selected_files
                     ):
                         raise ServiceError("DEPENDENCY_INVALID", "技能所选资料缺失或不可加载", 422)
-                if skill.allowed_agents and agent_id not in skill.allowed_agents:
-                    raise ServiceError("DEPENDENCY_INVALID", "技能未授权此智能体", 403)
                 if not set(skill.required_tool_versions) <= set(bindings.tool_versions):
                     raise ServiceError("DEPENDENCY_INVALID", "技能不能扩大智能体工具白名单", 422)
                 capabilities.update(skill.required_model_capabilities)
@@ -229,20 +231,6 @@ class DependencyResolver:
             known_versions=indexed,
             resources=parents,
         )
-        # 默认提示词读取运行输入；节点提示词读取映射后的步骤输入。
-        prompt_uses = (
-            [(bindings.prompt_version, definition.input_schema, "默认提示词")]
-            if bindings.prompt_version
-            else []
-        )
-        prompt_uses.extend(
-            (step.prompt_id, step.input_schema, f"步骤“{step.name}”的提示词")
-            for step in definition.steps
-            if step.kind == "model" and step.prompt_id
-        )
-        for prompt_id, input_schema, label in prompt_uses:
-            prompt = PromptContent.model_validate(indexed[prompt_id]["content"])
-            validate_prompt_binding(prompt, definition, input_schema, label)
         snapshots: list[FrozenModel] = []
         model_uses: list[tuple[FrozenModel, set[str]]] = []
         for route_id in definition.model_route_ids():

@@ -32,8 +32,15 @@ class SkillSettings(Contract):
     loading_mode: Literal["mandatory", "on_demand"] = "on_demand"
     priority: int = Field(default=0, ge=-1000, le=1000, strict=True)
     context_budget: int = Field(default=16000, ge=1, le=200000, strict=True)
-    allowed_agents: tuple[Identifier, ...] = Field(default=(), max_length=64)
     conflict_groups: tuple[str, ...] = Field(default=(), max_length=32)
+
+    @model_validator(mode="before")
+    @classmethod
+    def discard_legacy_agent_limits(cls, value: Any) -> Any:
+        # 历史技能包和运行快照可能包含旧名单；读取时丢弃，不再参与配置或授权。
+        if isinstance(value, dict) and "allowed_agents" in value:
+            return {key: item for key, item in value.items() if key != "allowed_agents"}
+        return value
 
 
 class SkillFileInput(Contract):
@@ -290,8 +297,3 @@ class SkillToolOption(SkillToolRequirement):
     name: str
     available: bool
     reason: str | None
-
-
-class SkillAgentOption(Contract):
-    agent_id: Identifier
-    name: str

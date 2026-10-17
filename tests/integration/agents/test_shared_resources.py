@@ -21,11 +21,11 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.parametrize(
-    ("input_type", "variable_type", "valid"),
-    [("integer", "number", True), ("number", "integer", False), ("string", "number", False)],
+    ("input_type", "variable_type"),
+    [("integer", "number"), ("number", "integer"), ("string", "number"), (None, "string")],
 )
-async def test_prompt_required_variable_uses_schema_compatibility(
-    agent_env, input_type, variable_type, valid
+async def test_prompt_variables_do_not_block_agent_publication(
+    agent_env, input_type, variable_type
 ):
     env = agent_env
     prompt = await env.prompts.version_detail(env.context, env.prompt_id)
@@ -43,9 +43,12 @@ async def test_prompt_required_variable_uses_schema_compatibility(
                 **env.definition.input_schema,
                 "properties": {
                     **env.definition.input_schema["properties"],
-                    "quantity": {"type": input_type, "title": "数量"},
+                    **({"quantity": {"type": input_type, "title": "数量"}} if input_type else {}),
                 },
-                "required": [*env.definition.input_schema.get("required", []), "quantity"],
+                "required": [
+                    *env.definition.input_schema.get("required", []),
+                    *(["quantity"] if input_type else []),
+                ],
             }
         }
     )
@@ -58,9 +61,10 @@ async def test_prompt_required_variable_uses_schema_compatibility(
         draft.version_id,
         AgentValidateInput(revision=draft.revision, purpose="production"),
     )
-    assert result.valid is valid, result
-    if not valid:
-        assert any("提示词变量“数量”" in i.message for c in result.checks for i in c.issues)
+    assert result.valid, result
+    await publish(env, detail)
+    snapshot = await env.agents.resolve_published(env.context, env.body.agent_code)
+    assert snapshot.definition == definition
 
 
 async def test_skill_number_variable_accepts_integer_input_but_rejects_text(agent_env):

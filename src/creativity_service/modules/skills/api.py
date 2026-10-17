@@ -17,7 +17,6 @@ from creativity_service.modules.skills.assistance_schemas import (
     SkillAssistanceTurn,
 )
 from creativity_service.modules.skills.schemas import (
-    SkillAgentOption,
     SkillCreate,
     SkillDetail,
     SkillEdit,
@@ -71,11 +70,6 @@ async def preview_import(
     context: Context, service: Services, body: SkillImportPreviewInput
 ) -> SkillImportPreview:
     return await service.preview_import(context, body)
-
-
-@router.get("/skills/agent-options", response_model=list[SkillAgentOption])
-async def agent_options(context: Context, service: Services) -> list[SkillAgentOption]:
-    return await service.agent_options(context)
 
 
 @router.get("/skills/tool-options", response_model=list[SkillToolOption])

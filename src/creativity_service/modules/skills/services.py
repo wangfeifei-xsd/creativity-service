@@ -45,7 +45,6 @@ from creativity_service.modules.skills.packages import (
 from creativity_service.modules.skills.persistence import PackageWrite
 from creativity_service.modules.skills.repositories import repository
 from creativity_service.modules.skills.schemas import (
-    SkillAgentOption,
     SkillBinding,
     SkillCreate,
     SkillDefinition,
@@ -187,25 +186,6 @@ class SkillVersionValidator:
                 [v["resource_id"] for v in tool_versions.values() if v["resource_type"] == "tool"],
             )
         )
-        agent_ids = {identifier for d in definitions for identifier in d.allowed_agents}
-        version_repo = repository("resource_versions", scope)
-        known_agents = (
-            set(
-                await uow.connection.scalars(
-                    active_rows(
-                        select(version_repo.table.c.resource_id)
-                        .where(
-                            version_repo.predicate(),
-                            version_repo.table.c.resource_type == "agent",
-                            version_repo.table.c.resource_id.in_(agent_ids),
-                        )
-                        .distinct()
-                    )
-                )
-            )
-            if agent_ids
-            else set()
-        )
         needs_models = any(d.required_model_capabilities for d in definitions)
         models = (
             await Repository(models_metadata.tables["models"], scope).find(
@@ -220,7 +200,6 @@ class SkillVersionValidator:
         data = {
             "versions": tool_versions,
             "tools": tool_rows,
-            "agents": known_agents,
             "models": models,
             "connections": connections,
         }
@@ -1201,27 +1180,3 @@ class SkillService:
                 )
             )
         return result
-
-    async def agent_options(
-        self, context: AuthContext, *, limit: int | None = None
-    ) -> list[SkillAgentOption]:
-        from creativity_service.modules.agents.repositories import repository as resources
-
-        policy = await self.authorization.read_policy(context)
-        async with self.engine.connect() as connection:
-            repo = resources("agents", context.scope)
-            statement = active_rows(
-                select(repo.table).where(repo.predicate()).order_by(repo.table.c.id)
-            )
-            if limit is not None:
-                statement = statement.limit(limit + 1)
-            found = [dict(row) for row in (await connection.execute(statement)).mappings()]
-            if limit is not None and len(found) > limit:
-                raise ServiceError("ASSISTANCE_CATALOG_LIMIT", "智能体目录超过智能协助上限", 422)
-            agents = {row["id"]: row for row in found}
-        return [
-            SkillAgentOption(agent_id=identifier, name=row["name"])
-            for identifier, row in sorted(agents.items())
-            if "agent:manage"
-            in policy.actions("agent", identifier, resource_state(context, "agent", row))
-        ]

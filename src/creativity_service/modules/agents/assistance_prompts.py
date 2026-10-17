@@ -9,7 +9,7 @@ from creativity_service.modules.agents.assistance_schemas import (
     AssistanceSavedPrompt,
 )
 from creativity_service.modules.agents.schemas import AgentDefinition
-from creativity_service.modules.agents.validation import validate_prompt_binding
+from creativity_service.modules.agents.validation import validate_prompt_dependencies
 from creativity_service.modules.prompts.creation import NewPrompt, validate_new_prompt
 from creativity_service.modules.prompts.schemas import PromptCreate
 
@@ -42,7 +42,7 @@ def validate_prompt_drafts(output: AssistanceOutput) -> None:
         return
     if proposal is None:
         raise ServiceError("ASSISTANCE_INVALID", "待补充信息时不能创建提示词", 422)
-    steps = {step.key: step for step in proposal.definition.steps if step.kind == "model"}
+    steps = {step.key for step in proposal.definition.steps if step.kind == "model"}
     names: set[str] = set()
     targets: set[str] = set()
     for draft in drafts:
@@ -68,10 +68,7 @@ def validate_prompt_drafts(output: AssistanceOutput) -> None:
             or any(message.template.strip() for message in draft.content.message_templates)
         ):
             raise ServiceError("ASSISTANCE_INVALID", "提取的提示词内容不能为空", 422)
-        step = steps[draft.step_key]
-        validate_prompt_binding(
-            draft.content, proposal.definition, step.input_schema, f"步骤“{step.name}”的提示词"
-        )
+        validate_prompt_dependencies(draft.content, proposal.definition)
 
 
 def require_prompt_publication(

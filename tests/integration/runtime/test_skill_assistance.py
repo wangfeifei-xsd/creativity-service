@@ -113,6 +113,11 @@ async def test_create_preview_usage_and_concurrent_idempotent_save(runtime_env):
     assert (await env.runs.get_run(env.context, receipt.run_id)).usage_summary["input_tokens"] > 0
     assert not env.adapter.calls[0][1].tools
     assert "技能配置助手" in env.adapter.calls[0][1].messages[0]["content"]
+    _, descriptor, values, _ = await env.runtime.skill_assistance.record(
+        env.context, receipt.run_id
+    )
+    assert "agents" not in values and "allowed_agents" not in descriptor
+    assert "allowed_agents" not in detail.versions[0].settings.model_dump()
 
 
 async def test_edit_preserves_references_metadata_and_does_not_replay_over_later_edits(runtime_env):

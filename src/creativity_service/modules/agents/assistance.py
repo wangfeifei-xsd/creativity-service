@@ -197,7 +197,6 @@ class AgentAssistance:
                     "input_variables",
                     "required_tool_versions",
                     "required_model_capabilities",
-                    "allowed_agents",
                 )
                 if k in content
             }

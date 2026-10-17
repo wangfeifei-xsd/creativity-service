@@ -66,20 +66,9 @@ def compatible(source: dict[str, Any] | bool, target: dict[str, Any] | bool) -> 
     return True
 
 
-def validate_prompt_binding(
-    prompt: PromptContent,
-    definition: AgentDefinition,
-    input_schema: dict[str, Any],
-    label: str,
-) -> None:
-    """已发布依赖和待创建提示词共用输入来源检查，不需要提前落库。"""
+def validate_prompt_dependencies(prompt: PromptContent, definition: AgentDefinition) -> None:
+    """检查提示词声明的工具与记忆依赖；输入变量在实际渲染时按声明取值。"""
     for variable in prompt.variables:
-        if variable.source == "input" and variable.required:
-            source = schema_field(input_schema, variable.name)
-            if source is None or not compatible(source, {"type": variable.type}):
-                raise ServiceError(
-                    "FLOW_INVALID", f"{label}变量“{variable.display_name}”缺少兼容输入", 422
-                )
         if variable.source == "tool" and not definition.bindings.tool_versions:
             raise ServiceError("DEPENDENCY_INVALID", "提示词声明工具来源但未选择工具", 422)
         if variable.source == "memory" and not definition.context.memory_policy:

@@ -191,9 +191,7 @@ class Package:
         files = dict(self.files)
         if portable:
             # 导出只携带契约要求，目标渠道必须重新显式选择工具，不能继承本地绑定。
-            settings = self.settings.model_dump(
-                mode="json", exclude={"allowed_agents", "tool_bindings"}
-            )
+            settings = self.settings.model_dump(mode="json", exclude={"tool_bindings"})
             files[PORTABLE] = canonical_json({"format": "skill-package-v1", "settings": settings})
         out = io.BytesIO()
         with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -224,8 +222,8 @@ def validate_files(files: dict[str, bytes], settings: SkillSettings | None = Non
             if set(value) != {"format", "settings"} or value["format"] != "skill-package-v1":
                 raise ValueError("格式不符")
             portable_settings = SkillSettings.model_validate(value["settings"])
-            if portable_settings.allowed_agents or portable_settings.tool_bindings:
-                raise invalid("导入包不能携带来源渠道授权或工具绑定")
+            if portable_settings.tool_bindings:
+                raise invalid("导入包不能携带来源渠道工具绑定")
             if settings is None:
                 settings = portable_settings
         except (ValueError, TypeError) as exc:

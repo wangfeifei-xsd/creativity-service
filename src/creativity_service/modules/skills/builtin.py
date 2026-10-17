@@ -22,7 +22,7 @@ tool_requirements 使用该工具的 tool_code、source_type 以及原始输入�
 普通方法、分类或检查规则无需工具；不能将技能文字当成真实查询或执行能力。
 输入变量通过 settings.input_variables 声明中文 label、value_type 和 required，
 正文只有已声明变量才使用 {{变量名}}；示例里不要使用未声明的占位变量。
-settings.allowed_agents 只能选自 agents 中的 agent_id；留空不代表新增权限。
+技能可由不同智能体复用，不生成或询问授权智能体名单，不因新建智能体而限制技能使用。
 模型能力按实际需要声明；加载方式默认 on_demand；context_budget 以 UTF-8 字节计，须足够完整正文。
 修改时保留 skill_code、未涉及的配置与业务规则，返回完整正文；保留对已有参考文件的引用。
 reference_files 是现有包的文件清单，参考内容见 references；未提供正文的文件不能声称已读取。

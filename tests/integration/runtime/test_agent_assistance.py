@@ -118,6 +118,66 @@ async def test_create_from_server_proposal_is_atomic_and_idempotent(runtime_env)
     assert "provider_credential" not in request.messages[1]["content"]
 
 
+async def test_existing_skill_with_legacy_agent_list_can_be_used_by_new_agent(runtime_env):
+    from creativity_service.core.database import transaction
+    from creativity_service.core.locking import record_key
+    from creativity_service.core.primitives import digest
+    from creativity_service.modules.resources.schemas import ResourceMutation
+    from creativity_service.modules.resources.services import ResourceManagement
+    from creativity_service.modules.skills.schemas import SkillCreate
+    from creativity_service.modules.skills.services import SkillVersionValidator
+
+    env = runtime_env
+    created = await env.skills.create(
+        env.context,
+        SkillCreate(
+            skill_code="shared_review",
+            name="通用检查",
+            description="供不同智能体复用的检查方法",
+            owner="客服团队",
+            instructions="核对输入事实后给出处理建议。",
+        ),
+    )
+    skill_id = created.skill.skill_id
+    repo = repository(env.context.scope, "resource_versions")
+    async with transaction(
+        env.engine,
+        env.context.scope,
+        [record_key(env.context.scope.channel_id, "resource_versions", skill_id)],
+    ) as uow:
+        row = await repo.get(uow.connection, skill_id)
+        content = {**row["content"], "allowed_agents": ["old_agent_no_longer_present"]}
+        await repo.change(
+            uow,
+            skill_id,
+            row["revision"],
+            {
+                "content": content,
+                "content_digest": digest({"content": content, "output_schema": {}}),
+            },
+        )
+    resources = ResourceManagement(
+        env.engine, env.iam.authorization, {"skill": SkillVersionValidator(env.skills)}
+    )
+    await resources.mutate(
+        env.context,
+        "skill",
+        skill_id,
+        "publish",
+        ResourceMutation(revision=1, configuration_revision=2),
+    )
+    value = proposal(env)
+    value["definition"]["bindings"]["skill_ids"] = [skill_id]
+    receipt, turn = await generate(env, value)
+    assert turn.reply.proposal.definition.bindings.skill_versions == (skill_id,)
+    _, _, values, _ = await env.runtime.assistance.record(env.context, receipt.run_id)
+    catalog_skill = next(item for item in values["resources"] if item["version_id"] == skill_id)
+    assert "allowed_agents" not in catalog_skill["configuration"]
+    saved = await env.runtime.assistance.apply(env.context, receipt.run_id)
+    detail = await env.agents.detail(env.context, saved.agent_id)
+    assert detail.versions[0].definition.bindings.skill_versions == (skill_id,)
+
+
 @pytest.mark.parametrize("change", ["timeout", "credential"])
 async def test_connection_changes_apply_without_resaving_route(runtime_env, change):
     env = runtime_env

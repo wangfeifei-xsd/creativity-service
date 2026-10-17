@@ -105,10 +105,6 @@ class SkillLoader:
                     SkillIssue(code="SKILL_CONFLICT", message="同一技能不能同时绑定多个版本")
                 )
             resources.add(skill.skill_id)
-            if definition.allowed_agents and request.agent_id not in definition.allowed_agents:
-                issues.append(
-                    SkillIssue(code="SKILL_FORBIDDEN", message="当前智能体未获准加载此技能")
-                )
             if set(definition.required_tool_versions) - set(request.authorized_tool_versions):
                 issues.append(
                     SkillIssue(

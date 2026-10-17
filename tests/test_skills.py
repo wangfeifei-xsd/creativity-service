@@ -205,6 +205,48 @@ async def test_discovery_does_not_read_any_files_and_selected_only_loads_request
     assert port.rechecks == ["version_a", "version_a"]
 
 
+@pytest.mark.parametrize("agent_id", [None, "new_agent"])
+async def test_legacy_agent_list_does_not_limit_skill_loading(agent_id):
+    port = MemoryPort()
+    skill = port.skills["version_a"]
+    legacy = {**skill.definition.model_dump(), "allowed_agents": ["old_agent"]}
+    definition = SkillDefinition.model_validate(legacy)
+    port.skills["version_a"] = replace(skill, definition=definition)
+    result = await SkillLoader(port).load(
+        context(),
+        SkillLoadRequest(
+            agent_id=agent_id,
+            bindings=(SkillBinding(version_id="version_a", selected=True),),
+        ),
+    )
+    assert result.complete and not result.issues
+    assert [file.path for file in result.loaded] == ["SKILL.md"]
+    assert "allowed_agents" not in definition.model_dump()
+    assert "allowed_agents" not in SkillSettings.model_json_schema()["properties"]
+    assert legacy["allowed_agents"] == ["old_agent"]
+
+
+def test_import_discards_legacy_agent_list_and_export_does_not_restore_it():
+    package = unpack(
+        archive(
+            [
+                ("SKILL.md", content()),
+                (
+                    PORTABLE,
+                    json.dumps(
+                        {
+                            "format": "skill-package-v1",
+                            "settings": {"allowed_agents": ["old_agent"]},
+                        }
+                    ).encode(),
+                ),
+            ]
+        )
+    )
+    with zipfile.ZipFile(io.BytesIO(package.archive(portable=True))) as bundle:
+        assert "allowed_agents" not in json.loads(bundle.read(PORTABLE))["settings"]
+
+
 async def test_budget_omission_and_unsupported_scripts_are_explicit():
     port = MemoryPort(SkillSettings(loading_mode="mandatory", context_budget=8))
     result = await SkillLoader(port).load(

@@ -17776,14 +17776,6 @@
           "sensitivity": "内部"
         },
         {
-          "name": "allowed_agents",
-          "type": "jsonb",
-          "comment": "授权智能体范围",
-          "required": true,
-          "source": "服务层校验后的业务输入",
-          "sensitivity": "敏感内容"
-        },
-        {
           "name": "metadata",
           "type": "jsonb",
           "comment": "入口元数据与兼容字段",

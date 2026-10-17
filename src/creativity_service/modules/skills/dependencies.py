@@ -3,12 +3,10 @@
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import Repository
-from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.models.policy import configuration_digest
 from creativity_service.modules.models.tables import metadata as model_metadata
@@ -161,32 +159,6 @@ async def resolve_dependencies(
                 SkillIssue(
                     code="SKILL_DEPENDENCY_MISSING", message=reason, path=requirement.tool_code
                 )
-            )
-    if loaded is not None:
-        known_agents = loaded["agents"]
-    else:
-        table = repository("resource_versions", context.scope)
-        known_agents = (
-            set(
-                await connection.scalars(
-                    active_rows(
-                        select(table.table.c.resource_id)
-                        .where(
-                            table.predicate(),
-                            table.table.c.resource_type == "agent",
-                            table.table.c.resource_id.in_(settings.allowed_agents),
-                        )
-                        .distinct()
-                    )
-                )
-            )
-            if settings.allowed_agents
-            else set()
-        )
-    for agent_id in settings.allowed_agents:
-        if agent_id not in known_agents:
-            issues.append(
-                SkillIssue(code="SKILL_DEPENDENCY_MISSING", message="授权智能体须属于当前渠道")
             )
     variable_names = [v.name for v in settings.input_variables]
     if len(variable_names) != len(set(variable_names)):

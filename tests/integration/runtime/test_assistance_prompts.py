@@ -15,8 +15,10 @@ from creativity_service.modules.agents.repositories import repository
 from creativity_service.modules.agents.schemas import AgentTestInput
 from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.iam.tables import metadata
+from creativity_service.modules.prompts.schemas import PromptContent
 from creativity_service.modules.resources.configuration import reference_rows
 from creativity_service.workers.executor import execute_message
+from tests.integration.agents.test_agents import publish
 from tests.integration.runtime.test_agent_assistance import output, proposal
 
 pytestmark = pytest.mark.integration
@@ -230,7 +232,7 @@ async def test_save_failure_leaves_no_extracted_resources(runtime_env, monkeypat
 
 
 @pytest.mark.parametrize(
-    "invalid", ["template", "step", "missing_step", "duplicate_step", "input", "long_instructions"]
+    "invalid", ["template", "step", "missing_step", "duplicate_step", "long_instructions"]
 )
 async def test_invalid_extraction_is_repaired_before_showing_plan(runtime_env, invalid):
     env = runtime_env
@@ -246,8 +248,6 @@ async def test_invalid_extraction_is_repaired_before_showing_plan(runtime_env, i
         bad["data"]["prompt_drafts"][0].pop("step_key")
     elif invalid == "duplicate_step":
         bad["data"]["prompt_drafts"][1]["step_key"] = "answer"
-    elif invalid == "input":
-        bad["data"]["prompt_drafts"][1]["content"]["variables"][0]["type"] = "integer"
     else:
         instructions = "先提取业务事实，再按规则分析，最后验证结果。" * 65
         valid["data"]["proposal"]["definition"]["instructions"] = instructions
@@ -258,6 +258,32 @@ async def test_invalid_extraction_is_repaired_before_showing_plan(runtime_env, i
     assert len(env.adapter.calls) == 2
     assert len(turn.reply.prompt_drafts) == 2
     assert not await extracted_prompts(env)
+
+
+@pytest.mark.parametrize("mismatch", ["missing", "type"])
+async def test_prompt_input_mismatch_does_not_block_generation_save_or_publication(
+    runtime_env, mismatch
+):
+    env = runtime_env
+    value = candidate(env)
+    content = value["data"]["prompt_drafts"][1]["content"]
+    if mismatch == "missing":
+        content["variables"][0].update(name="validation_result", display_name="需求有效性判断")
+        content["message_templates"][0]["template"] = "需求有效性判断：{{validation_result}}"
+    else:
+        content["variables"][0]["type"] = "integer"
+    expected = PromptContent.model_validate(content)
+    receipt, turn = await generate_candidate(env, value)
+    assert len(env.adapter.calls) == 1
+    assert turn.reply.prompt_drafts[1].content == expected
+    saved = await env.runtime.assistance.apply(env.context, receipt.run_id)
+    detail = await env.agents.detail(env.context, saved.agent_id)
+    await publish(env, detail)
+    snapshot = await env.agents.resolve_published(env.context, detail.agent.agent_code)
+    prompt = next(
+        item for item in snapshot.versions if item.version_id == saved.prompts[1].prompt_id
+    )
+    assert prompt.content == expected.model_dump(mode="json")
 
 
 async def test_single_model_step_is_inferred_for_legacy_prompt_candidate(runtime_env):

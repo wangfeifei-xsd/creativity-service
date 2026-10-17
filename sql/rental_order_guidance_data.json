@@ -2651,7 +2651,6 @@
           "loading_mode": "on_demand",
           "package_hash": "88b14a2dd4c4c343ece0bb7ce695d4f94b3c43b022d489bf560eb536949a800a",
           "tool_bindings": {},
-          "allowed_agents": [],
           "context_budget": 16000,
           "conflict_groups": [],
           "input_variables": [],
@@ -2659,7 +2658,7 @@
           "required_tool_versions": [],
           "required_model_capabilities": []
         },
-        "content_digest": "8bb5ba63585bd8e6b7ee9ffc60de91dac0bae324c72e460ec40b9d42f6e7db5d",
+        "content_digest": "e69cffbd17299d7fe331f0dc0e1dcbc3fc4855d4a3d56e47e367e0f0f26269a8",
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {},
@@ -4501,7 +4500,7 @@
           "version_90734e0e8b794bc5851101ab2bdfcb0f",
           "version_ab199b3f3d1d4d62bde6f40d1362a959"
         ],
-        "dependencies_digest": "714908f0f943ba95097f50b316ca9bb94c00d50d5c9525fbaa5387ae697d253a",
+        "dependencies_digest": "61d4c6b25be2f9c011c32c8a2c4a98b1c561c52a0a0ca69dc41ed1dd925fdcff",
         "output_schema": {
           "type": "object",
           "required": [

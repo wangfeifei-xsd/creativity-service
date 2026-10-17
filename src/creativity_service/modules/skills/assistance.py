@@ -196,8 +196,7 @@ class SkillAssistance:
         tools = [
             t for t in await self.skills.tool_options(context, versions=catalog) if t.available
         ]
-        agents = await self.skills.agent_options(context, limit=128)
-        if len(tools) + len(agents) > 128:
+        if len(tools) > 128:
             raise ServiceError(
                 "ASSISTANCE_CATALOG_LIMIT", "可用资源超过智能协助目录上限（128 个）", 422
             )
@@ -215,12 +214,10 @@ class SkillAssistance:
             route_id=route_id,
             allowed_tools=[t.version_id for t in tools],
             tool_digests={t.version_id: rows[t.version_id]["content_digest"] for t in tools},
-            allowed_agents=[a.agent_id for a in agents],
         )
         values.update(
             message=body.message.strip(),
             tools=[t.model_dump(mode="json") for t in tools],
-            agents=[a.model_dump(mode="json") for a in agents],
         )
         capacities = [m["context_limit"] for m in models.values() if m["context_limit"] is not None]
         config = builtin_definition(route_id, min([32000, *capacities]))
@@ -308,22 +305,11 @@ class SkillAssistance:
         ids = list(set(proposal.settings.tool_bindings.values()))
         if not set(ids) <= set(descriptor["allowed_tools"]):
             raise ServiceError("DEPENDENCY_INVALID", "技能引用了可用目录之外的工具", 422)
-        if not set(proposal.settings.allowed_agents) <= set(descriptor["allowed_agents"]):
-            raise ServiceError("DEPENDENCY_INVALID", "技能引用了可用目录之外的智能体", 422)
-        policy = await locked_policy(uow, context)
-        for identifier in proposal.settings.allowed_agents:
-            policy.require(context, "agent:manage", "agent", identifier)
         await require_dependencies(uow, context.scope, ids)
         rows = await repository("resource_versions", context.scope).get_many(uow.connection, ids)
         await DeletionGuard(context.scope).check(
             uow,
-            [
-                *[ContentRef("tool", row["resource_id"]) for row in rows.values()],
-                *[
-                    ContentRef("agent", identifier)
-                    for identifier in proposal.settings.allowed_agents
-                ],
-            ],
+            [ContentRef("tool", row["resource_id"]) for row in rows.values()],
         )
         if any(
             row["content_digest"] != descriptor["tool_digests"].get(row["id"])
