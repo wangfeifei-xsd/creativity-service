@@ -35,7 +35,7 @@
         "protocol": "chat_completions",
         "endpoint": "https://api.masterhuang.top",
         "credential_ref": "credential_0c769d412a39419695511363d4c66f1f",
-        "timeout_seconds": 60,
+        "timeout_seconds": 600,
         "status": "ACTIVE",
         "health_status": "HEALTHY",
         "provider_id": "provider_openai",
@@ -78,42 +78,42 @@
             "reason": null,
             "evidence": "live",
             "verified_at": "2026-10-14T08:43:34.689113+00:00",
-            "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b"
+            "config_digest": "c3c624a6d8b2c885dac40991374e35953758c904e4478aaa5bf3af0d6521c0d7"
           },
           "tools": {
             "state": "UNSUPPORTED",
             "reason": "当前配置未通过该用例验证",
             "evidence": "live",
             "verified_at": "2026-10-14T08:17:41.100074+00:00",
-            "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b"
+            "config_digest": "c3c624a6d8b2c885dac40991374e35953758c904e4478aaa5bf3af0d6521c0d7"
           },
           "embedding": {
             "state": "UNSUPPORTED",
             "reason": "当前配置未通过该用例验证",
             "evidence": "live",
             "verified_at": "2026-10-14T08:17:41.100074+00:00",
-            "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b"
+            "config_digest": "c3c624a6d8b2c885dac40991374e35953758c904e4478aaa5bf3af0d6521c0d7"
           },
           "streaming": {
             "state": "UNSUPPORTED",
             "reason": "当前配置未通过该用例验证",
             "evidence": "live",
             "verified_at": "2026-10-14T08:17:41.100074+00:00",
-            "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b"
+            "config_digest": "c3c624a6d8b2c885dac40991374e35953758c904e4478aaa5bf3af0d6521c0d7"
           },
           "json_output": {
             "state": "UNSUPPORTED",
             "reason": "当前配置未通过该用例验证",
             "evidence": "live",
             "verified_at": "2026-10-14T08:17:41.100074+00:00",
-            "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b"
+            "config_digest": "c3c624a6d8b2c885dac40991374e35953758c904e4478aaa5bf3af0d6521c0d7"
           },
           "structured_output": {
             "state": "UNSUPPORTED",
             "reason": "当前配置未通过该用例验证",
             "evidence": "live",
             "verified_at": "2026-10-14T08:17:41.100074+00:00",
-            "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b"
+            "config_digest": "c3c624a6d8b2c885dac40991374e35953758c904e4478aaa5bf3af0d6521c0d7"
           }
         },
         "verified_at": "2026-10-14T08:43:34.689113+00:00",
@@ -180,10 +180,10 @@
               "protocol": "chat_completions",
               "model_name": "GPT-6.1 Sol",
               "parameters": {},
-              "config_digest": "6d3a4981efacb503a4c09c49d4e7ac76ba60a70ee45b22bc7d5c064aa2bd5d1b",
+              "config_digest": "c3c624a6d8b2c885dac40991374e35953758c904e4478aaa5bf3af0d6521c0d7",
               "connection_id": "connection_a1add463c6f14cdb9c26377e88bbafb5",
               "model_revision": 5,
-              "timeout_seconds": 60,
+              "timeout_seconds": 600,
               "model_version_id": "version_2f87b035e57a475eb666f6ef98d22e89",
               "connection_revision": 9,
               "parameter_allowlist": [
@@ -209,7 +209,7 @@
             "text"
           ]
         },
-        "content_digest": "43585f8c9dbbdddd44b7db56d33cb2c954829c91321c87b9c3b81e6980ed2d69",
+        "content_digest": "463693afc7e3515999b12a4bc260d2d1c7118c7d017ed403b81bcf6bcf7987b6",
         "dependencies": [
           "version_2f87b035e57a475eb666f6ef98d22e89",
           "version_719acda97f9245f18958556dec3e7ed5"
@@ -234,7 +234,7 @@
           "status": "ACTIVE",
           "model_code": "gtp",
           "parameters": {},
-          "config_digest": "7973edff78b0ee46cf48e380c0368ad8ba9e5888fbde1727bbadaa698fa7f4bf",
+          "config_digest": "ea20c50672a734c476cf8738a86daa0e8055fe3df92e0e86a4ab976796cc90d7",
           "connection_id": "connection_a1add463c6f14cdb9c26377e88bbafb5",
           "context_limit": null,
           "parameter_allowlist": [
@@ -244,11 +244,11 @@
           "validation_revision": 2,
           "connection_version_id": "version_43b2d8493a04467ea9e36b1846b6dad5"
         },
-        "content_digest": "7943d4d3a423f9412f82951ea83842ab828b55112563fec2072bb934d4dcbdda",
+        "content_digest": "5c977074de583d7010d88c9ee863bb6693a9e765513fa04fe699787e883a54cb",
         "dependencies": [
           "version_43b2d8493a04467ea9e36b1846b6dad5"
         ],
-        "dependencies_digest": "99f9fe58db38a3471e2899dcb68c0be4850319ae490bde77983e01fc5fce2fbc",
+        "dependencies_digest": "e3e26d952ccc3c7daa4df7b4fa06f1bec1fad5726ccb337a9cb24636a13742e8",
         "output_schema": {},
         "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
         "is_deleted": false
@@ -272,12 +272,12 @@
           "health_reason": null,
           "health_status": "UNKNOWN",
           "credential_ref": "credential_0c769d412a39419695511363d4c66f1f",
-          "timeout_seconds": 60,
+          "timeout_seconds": 600,
           "health_checked_at": null,
           "current_version_id": "version_43b2d8493a04467ea9e36b1846b6dad5",
           "validation_revision": 1
         },
-        "content_digest": "a6ae9477bfda170c1e74c971a6479dd6b288ec6ded0627a030f1d43558ff48c6",
+        "content_digest": "8c90dde92bb066cbe1c15a05a54dd4c2fd7ae50790570089c3fc2d721957d95e",
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {},
@@ -303,12 +303,12 @@
           "health_reason": null,
           "health_status": "UNKNOWN",
           "credential_ref": "credential_0c769d412a39419695511363d4c66f1f",
-          "timeout_seconds": 60,
+          "timeout_seconds": 600,
           "health_checked_at": null,
           "current_version_id": "version_719acda97f9245f18958556dec3e7ed5",
           "validation_revision": 3
         },
-        "content_digest": "0aecc08e2c06e2127d03ab34ba652cf71a38e76515ef80f42a3cedd79f5b390c",
+        "content_digest": "a8e4e28d905512a4061082cb91a704821a34256debdcd826c645b6b5a1c36325",
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {},

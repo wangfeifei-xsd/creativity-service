@@ -71,8 +71,10 @@ def install_runtime(
     )
     executor.debug = DebugExecutor(executor, evidence=evidence)
     from creativity_service.modules.agents.assistance import AgentAssistance
+    from creativity_service.modules.skills.assistance import SkillAssistance
 
     executor.assistance = AgentAssistance(agents, admission)
+    executor.skill_assistance = SkillAssistance(skills, agents, admission)
     executor.contexts.model_runner = executor.models
     agents.runner = AgentDebug(admission)
     models.configuration.executor = ModelDebug(admission)

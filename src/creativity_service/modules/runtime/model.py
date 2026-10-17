@@ -1,6 +1,7 @@
 """一次外部模型调用对应一个运行尝试和账本预占，适配器不拥有重试循环。"""
 
 import asyncio
+import json
 from contextlib import suppress
 from typing import Any
 
@@ -16,7 +17,7 @@ from creativity_service.modules.models.schemas import FrozenModel
 from creativity_service.modules.runs.repositories import rows
 from creativity_service.modules.runs.schemas import Lease
 from creativity_service.modules.runs.services import RunService
-from creativity_service.modules.runtime.storage import record_inputs
+from creativity_service.modules.runtime.storage import read_model_attempt, record_inputs
 from creativity_service.modules.usage.schemas import AttemptPlan
 
 
@@ -35,6 +36,28 @@ def plan_for(
         source_type="run",
         names={"agent": spec.agent_name, "model": model.model_name},
     )
+
+
+def repair_request(
+    request: ModelRequest, output: dict[str, Any], failure: ServiceError, context_limit: int
+) -> ModelRequest:
+    messages = [*request.messages]
+    if output.get("text"):
+        messages.append({"role": "assistant", "content": output["text"]})
+    messages.append(
+        {
+            "role": "user",
+            "content": "上次输出未通过校验："
+            + failure.message
+            + "\n请修正上一条输出，保留用户需求，仅返回符合指定 JSON Schema 的完整 JSON。"
+            "不要添加 Markdown、解释或多个 JSON 值。",
+        }
+    )
+    if len(messages) > 1000 or len(json.dumps(messages, ensure_ascii=False).encode()) > (
+        context_limit * 4
+    ):
+        raise ServiceError("CONTEXT_LIMIT_EXCEEDED", "修复反馈加入后实际上下文超过配置上限", 422)
+    return ModelRequest.model_validate({**request.model_dump(mode="json"), "messages": messages})
 
 
 class ModelRunner:
@@ -80,17 +103,13 @@ class ModelRunner:
             )
             if not previous[-1]["retryable"]:
                 raise last
+            stored_request, failed_output = await read_model_attempt(
+                self.runs, lease, f"{node_key}.attempt{number - 1}", previous[-1]["id"]
+            )
+            request = ModelRequest.model_validate(stored_request)
             if last.code == "MODEL_OUTPUT_INVALID":
-                request = request.model_copy(
-                    update={
-                        "messages": [
-                            *request.messages,
-                            {
-                                "role": "user",
-                                "content": "上次输出结构无效，请按指定 JSON 结构修复。",
-                            },
-                        ]
-                    }
+                request = repair_request(
+                    request, failed_output, last, spec.definition.context.context_limit
                 )
         while number < policy.max_retries + 1:
             route_index = number - repairs
@@ -364,28 +383,23 @@ class ModelRunner:
                 if repair:
                     repairs += 1
                     retryable = True
-                    request = request.model_copy(
-                        update={
-                            "messages": [
-                                *request.messages,
-                                {
-                                    "role": "user",
-                                    "content": "上次输出结构无效，请按指定 JSON 结构修复。",
-                                },
-                            ]
-                        }
-                    )
-                await self.runs.finish_attempt(
+                if not await self.runs.finish_attempt(
                     lease,
                     attempt.attempt_id,
                     "UNKNOWN" if failure.code == "MODEL_RESULT_UNKNOWN" else "FAILED",
                     source_request_id=source_id,
                     retryable=retryable,
+                    output=output if failure.code == "MODEL_OUTPUT_INVALID" else None,
                     error=self.runs.error(row, failure.code, failure.message),
-                )
+                ):
+                    raise ServiceError("RUN_INACTIVE", "运行已停止", 409)
                 last = failure
                 if not retryable:
                     raise failure
+                if repair:
+                    request = repair_request(
+                        request, output, failure, spec.definition.context.context_limit
+                    )
                 number += 1
                 continue
             await self.runs.ledger.finish_attempt(context.scope, attempt.attempt_id, "SUCCEEDED")

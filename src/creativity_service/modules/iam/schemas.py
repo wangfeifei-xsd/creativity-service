@@ -70,7 +70,12 @@ class PasswordReset(Contract):
 
 
 class PasswordChange(Contract):
-    current_password: SecretStr = Field(min_length=1, max_length=256)
+    current_password: SecretStr | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        description="首次强制改密时可省略；日常修改密码时必填",
+    )
     new_password: SecretStr = Field(min_length=12, max_length=256)
 
 

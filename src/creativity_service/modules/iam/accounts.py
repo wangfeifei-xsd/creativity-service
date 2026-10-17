@@ -596,11 +596,24 @@ class AccountService:
     async def change_password(self, session: AdminSession, body: PasswordChange) -> None:
         await self.authentication.revalidate_admin(session, allow_initial=True)
         account = await self.repository.credentials(session.account.login_name)
-        if account is None or not await self.passwords.verify(
-            body.current_password.get_secret_value(), account["password_hash"]
+        if (
+            account is None
+            or account["id"] != session.account.id
+            or account["status"] != "ACTIVE"
+            or account["credential_version"] != session.token.credential_version
         ):
-            raise ServiceError("PASSWORD_INCORRECT", "原密码不正确", 403)
-        if body.current_password.get_secret_value() == body.new_password.get_secret_value():
+            raise ServiceError("UNAUTHENTICATED", "当前身份已失效", 401)
+        # 初始凭据已在登录时验证，仅按当前账号状态免验原密码；写入事务继续复核凭据和修订。
+        if not account["must_change_password"]:
+            if body.current_password is None:
+                raise ServiceError("PASSWORD_REQUIRED", "请输入原密码", 422)
+            if not await self.passwords.verify(
+                body.current_password.get_secret_value(), account["password_hash"]
+            ):
+                raise ServiceError("PASSWORD_INCORRECT", "原密码不正确", 403)
+        if await self.passwords.verify(
+            body.new_password.get_secret_value(), account["password_hash"]
+        ):
             raise ServiceError("PASSWORD_UNCHANGED", "新密码不能与原密码相同", 422)
         hashed = await self.passwords.hash(body.new_password.get_secret_value())
         await self._replace_password(

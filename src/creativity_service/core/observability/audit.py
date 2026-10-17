@@ -4,6 +4,7 @@ from typing import Any
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import Repository, UnitOfWork
+from creativity_service.core.database.inserts import InsertBatch
 from creativity_service.core.database.tables import metadata
 
 
@@ -17,6 +18,7 @@ async def append_audit(
     summary: dict[str, Any] | None = None,
     *,
     changed_fields: tuple[str, ...] = (),
+    pending: InsertBatch | None = None,
 ) -> None:
     allowed = {"previous_version_id", "version_id", "revision", "content_digest", "state"}
     if set(summary or {}) - allowed:
@@ -40,4 +42,5 @@ async def append_audit(
                 **({"changed_fields": list(changed_fields)} if changed_fields else {}),
             },
         },
+        pending=pending,
     )

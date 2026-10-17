@@ -19,7 +19,11 @@ from creativity_service.modules.agents.repositories import (
     repository,
 )
 from creativity_service.modules.agents.schemas import AgentDefinition, Purpose
-from creativity_service.modules.agents.validation import compatible, schema_field
+from creativity_service.modules.agents.validation import (
+    compatible,
+    schema_field,
+    validate_prompt_binding,
+)
 from creativity_service.modules.mcp.bindings import require_current_binding
 from creativity_service.modules.memory.base import MemoryKernel
 from creativity_service.modules.memory.validation import validate_policy
@@ -238,21 +242,7 @@ class DependencyResolver:
         )
         for prompt_id, input_schema, label in prompt_uses:
             prompt = PromptContent.model_validate(indexed[prompt_id]["content"])
-            for prompt_variable in prompt.variables:
-                if prompt_variable.source == "input" and prompt_variable.required:
-                    source = schema_field(input_schema, prompt_variable.name)
-                    if source is None or not compatible(source, {"type": prompt_variable.type}):
-                        raise ServiceError(
-                            "FLOW_INVALID",
-                            f"{label}变量“{prompt_variable.display_name}”缺少兼容输入",
-                            422,
-                        )
-                if prompt_variable.source == "tool" and not bindings.tool_versions:
-                    raise ServiceError("DEPENDENCY_INVALID", "提示词声明工具来源但未选择工具", 422)
-                if prompt_variable.source == "memory" and not definition.context.memory_policy:
-                    raise ServiceError(
-                        "DEPENDENCY_INVALID", "提示词声明记忆来源但未配置记忆策略", 422
-                    )
+            validate_prompt_binding(prompt, definition, input_schema, label)
         snapshots: list[FrozenModel] = []
         model_uses: list[tuple[FrozenModel, set[str]]] = []
         for route_id in definition.model_route_ids():

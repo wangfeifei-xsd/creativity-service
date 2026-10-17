@@ -5,10 +5,11 @@ from typing import Any
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
-from creativity_service.core.primitives import canonical_json
+from creativity_service.core.primitives import ServiceError, canonical_json
 from creativity_service.core.schema_validation import check_schema
 from creativity_service.modules.agents.registry import ENTRYPOINTS, legacy_templates
 from creativity_service.modules.agents.schemas import AgentDefinition, AgentIssue
+from creativity_service.modules.prompts.schemas import PromptContent
 
 
 def schema_field(schema: dict[str, Any], path: str) -> dict[str, Any] | None:
@@ -63,6 +64,26 @@ def compatible(source: dict[str, Any] | bool, target: dict[str, Any] | bool) -> 
     if target.get("type") == "array" and "items" in target:
         return compatible(source.get("items", {}), target["items"])
     return True
+
+
+def validate_prompt_binding(
+    prompt: PromptContent,
+    definition: AgentDefinition,
+    input_schema: dict[str, Any],
+    label: str,
+) -> None:
+    """已发布依赖和待创建提示词共用输入来源检查，不需要提前落库。"""
+    for variable in prompt.variables:
+        if variable.source == "input" and variable.required:
+            source = schema_field(input_schema, variable.name)
+            if source is None or not compatible(source, {"type": variable.type}):
+                raise ServiceError(
+                    "FLOW_INVALID", f"{label}变量“{variable.display_name}”缺少兼容输入", 422
+                )
+        if variable.source == "tool" and not definition.bindings.tool_versions:
+            raise ServiceError("DEPENDENCY_INVALID", "提示词声明工具来源但未选择工具", 422)
+        if variable.source == "memory" and not definition.context.memory_policy:
+            raise ServiceError("DEPENDENCY_INVALID", "提示词声明记忆来源但未配置记忆策略", 422)
 
 
 def static_issues(definition: AgentDefinition) -> list[AgentIssue]:

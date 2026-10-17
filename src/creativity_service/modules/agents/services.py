@@ -4,17 +4,24 @@ from typing import Any
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork, transaction
+from creativity_service.core.database.soft_delete import soft_delete
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.locking import ResourceKey
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id
-from creativity_service.modules.agents.access import locked_require
+from creativity_service.modules.agents.access import locked_policy, locked_require
 from creativity_service.modules.agents.base import ENVIRONMENTS
+from creativity_service.modules.agents.deletion import (
+    deletion_action,
+    deletion_blocker,
+    deletion_checks,
+)
 from creativity_service.modules.agents.registry import legacy_templates, templates
 from creativity_service.modules.agents.repositories import RESOURCE_TABLES, repository, required
 from creativity_service.modules.agents.schemas import (
     AgentCreate,
     AgentDefinition,
+    AgentDeleteInput,
     AgentDetail,
     AgentDifference,
     AgentEdit,
@@ -92,7 +99,9 @@ class AgentService(AgentSnapshots):
         async with transaction(self.engine, context.scope, keys) as uow:
             await locked_require(uow, context, "agent:manage", "agent", "new")
             repo = repository("agents", context.scope)
-            if await repo.find(uow.connection, agent_code=body.agent_code):
+            if await repository("agents", context.scope, include_deleted=True).find(
+                uow.connection, agent_code=body.agent_code
+            ):
                 raise ServiceError("AGENT_CODE_CONFLICT", "智能体编码已存在", 409)
             await repo.add(
                 uow,
@@ -117,6 +126,38 @@ class AgentService(AgentSnapshots):
             )
             await append_audit(uow, context, audit_id, "agent.edit", "agent", agent_id)
         return await self.detail(context, agent_id)
+
+    async def delete(self, context: AuthContext, agent_id: str, body: AgentDeleteInput) -> None:
+        await self.require(context, "agent:manage", agent_id)
+        audit_id = new_id("audit")
+        async with transaction(
+            self.engine, context.scope, self.keys(context, agent_id, ("audit_events", audit_id))
+        ) as uow:
+            policy = await locked_policy(uow, context)
+            policy.require(context, "agent:manage", "agent", agent_id)
+            repo = repository("agents", context.scope)
+            agent = await repo.get(uow.connection, agent_id)
+            if agent is None:
+                raise ServiceError("NOT_FOUND", "智能体不存在或已删除", 404)
+            if agent["revision"] != body.revision:
+                raise ServiceError("REVISION_CONFLICT", "智能体已变更，请刷新后重试", 409)
+            check = (await deletion_checks(uow.connection, context.scope, [agent]))[agent_id]
+            blocker = deletion_blocker(policy, agent_id, check)
+            if blocker:
+                code, message = blocker
+                raise ServiceError(code, message, 403 if code == "FORBIDDEN" else 409)
+            await DeletionGuard(context.scope).check(uow, [ContentRef("agent", agent_id)])
+            await repo.change(uow, agent_id, body.revision, {"is_deleted": True})
+            # 内容图锁覆盖全部环境发布与引用写入；只移除生效映射，版本和运行快照保留追溯。
+            mappings = repository("release_mappings", context.scope).table
+            await uow.connection.execute(
+                soft_delete(mappings).where(
+                    mappings.c.channel_id == context.scope.channel_id,
+                    mappings.c.resource_type == "agent",
+                    mappings.c.resource_id == agent_id,
+                )
+            )
+            await append_audit(uow, context, audit_id, "agent.delete", "agent", agent_id)
 
     async def create_version(
         self, context: AuthContext, agent_id: str, body: AgentVersionCreate
@@ -214,6 +255,9 @@ class AgentService(AgentSnapshots):
             states = await repository("agent_environment_states", context.scope).get_many(
                 connection, [self.mapping_id(context, row["id"]) for row in rows]
             )
+            deletion = (
+                await deletion_checks(connection, context.scope, rows) if not published_only else {}
+            )
             if published_only:
                 mappings = await repository("release_mappings", context.scope).get_many(
                     connection, [self.mapping_id(context, row["id"]) for row in rows]
@@ -238,13 +282,18 @@ class AgentService(AgentSnapshots):
         for row in rows:
             allowed = policy.actions("agent", row["id"], resource_state(context, "agent", row))
             if "agent:manage" in allowed and (not published_only or "run:create" in allowed):
+                actions = (
+                    []
+                    if published_only
+                    else visible_actions(allowed, [("assist", "智能修改", "agent:manage")])
+                )
+                if not published_only:
+                    actions.append(deletion_action(policy, row["id"], deletion[row["id"]]))
                 result.append(
                     self.agent_summary(
                         row,
                         states.get(self.mapping_id(context, row["id"])),
-                        visible_actions(allowed, [("assist", "智能修改", "agent:manage")])
-                        if not published_only
-                        else [],
+                        actions,
                     )
                 )
         allowed_new = policy.actions("agent", "new")
@@ -276,6 +325,7 @@ class AgentService(AgentSnapshots):
             records = await repository("agent_release_records", context.scope).find(
                 uow.connection, agent_id=agent_id
             )
+            deletion = (await deletion_checks(uow.connection, context.scope, [agent]))[agent_id]
         versions.sort(key=lambda v: (v["created_at"], v["id"]))
         released = next((v for v in versions if mapping and v["id"] == mapping["version_id"]), None)
         draft = next((v for v in reversed(versions) if v["state"] == "DRAFT"), None)
@@ -302,8 +352,10 @@ class AgentService(AgentSnapshots):
             for k, label in labels.items()
             if draft and (not released or released["content"].get(k) != draft["content"].get(k))
         ]
+        view = await self.agent_view(context, agent, permissions)
+        view.actions.append(deletion_action(policy, agent_id, deletion))
         return AgentDetail(
-            agent=await self.agent_view(context, agent, permissions),
+            agent=view,
             versions=[await self.version_view(context, v, permissions) for v in versions],
             release_version_id=mapping["version_id"] if mapping else None,
             release_revision=mapping["revision"] if mapping else None,

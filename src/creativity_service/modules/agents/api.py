@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 
 from creativity_service.core.context import AuthContext, require_http_context
 from creativity_service.core.primitives import unavailable
@@ -15,6 +15,7 @@ from creativity_service.modules.agents.assistance_schemas import (
 )
 from creativity_service.modules.agents.schemas import (
     AgentCreate,
+    AgentDeleteInput,
     AgentDetail,
     AgentEdit,
     AgentList,
@@ -100,6 +101,14 @@ async def detail(context: Context, service: Services, agent_id: str) -> AgentDet
 @router.patch("/agents/{agent_id}", response_model=AgentDetail)
 async def edit(context: Context, service: Services, agent_id: str, body: AgentEdit) -> AgentDetail:
     return await service.edit(context, agent_id, body)
+
+
+@router.delete("/agents/{agent_id}", status_code=204)
+async def delete(
+    context: Context, service: Services, agent_id: str, body: AgentDeleteInput
+) -> Response:
+    await service.delete(context, agent_id, body)
+    return Response(status_code=204)
 
 
 @router.post("/agents/{agent_id}/versions", response_model=AgentVersionView, status_code=201)

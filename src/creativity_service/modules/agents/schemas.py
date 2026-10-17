@@ -9,6 +9,7 @@ from pydantic import AliasChoices, Field
 from creativity_service.core.context import Environment, Scope
 from creativity_service.core.contracts import DisplayStatus, ResourceVersion, VisibleAction
 from creativity_service.core.primitives import Contract, Digest, Identifier, Money, Revision
+from creativity_service.modules.iam.schemas import AccessAction
 from creativity_service.modules.memory.schemas import MemoryPolicy
 
 WorkflowType = Literal["structured", "template", "tool_loop", "stateful"]
@@ -292,6 +293,10 @@ class AgentReleaseInput(Contract):
     evaluation_refs: tuple[Identifier, ...] = Field(default=(), max_length=32)
 
 
+class AgentDeleteInput(Contract):
+    revision: Revision
+
+
 class AgentStateInput(Contract):
     revision: Revision
     operation: Literal["offline", "emergency_stop", "enable"]
@@ -306,7 +311,7 @@ class AgentView(Contract):
     owner: str
     revision: int
     status: DisplayStatus
-    actions: list[VisibleAction]
+    actions: list[AccessAction]
 
 
 class AgentVersionView(Contract):

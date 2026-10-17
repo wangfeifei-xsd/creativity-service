@@ -157,7 +157,7 @@ def test_image_format_size_and_message_boundaries(monkeypatch):
     url = case.images[0]
     assert validate_image_url(url) > 0
     assert CasesInput().cases == ["text", "usage"]
-    assert len(CasesInput(cases=list(CASES)).cases) == 7
+    assert len(CasesInput(cases=list(CASES)).cases) == 8
     for invalid in [
         {"role": "assistant", "content": image_content(url)},
         {"role": "user", "content": []},

@@ -249,7 +249,7 @@ def test_seed_contains_four_credential_free_provider_templates():
         assert provider.template_content == {
             "protocol": "chat_completions",
             "endpoint": endpoint,
-            "timeout_seconds": 60,
+            "timeout_seconds": 600,
         }
         assert validate_endpoint(provider.protocols[0], endpoint) == endpoint
     assert render_init_sql.render_data().count("INSERT INTO provider_catalog ") == 4

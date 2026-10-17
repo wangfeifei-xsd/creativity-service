@@ -80,7 +80,7 @@
         "template_content": {
           "protocol": "chat_completions",
           "endpoint": "https://api.deepseek.com",
-          "timeout_seconds": 60
+          "timeout_seconds": 600
         },
         "is_deleted": false
       },
@@ -96,7 +96,7 @@
         "template_content": {
           "protocol": "chat_completions",
           "endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-          "timeout_seconds": 60
+          "timeout_seconds": 600
         },
         "is_deleted": false
       },
@@ -112,7 +112,7 @@
         "template_content": {
           "protocol": "chat_completions",
           "endpoint": "https://ark.cn-beijing.volces.com/api/v3",
-          "timeout_seconds": 60
+          "timeout_seconds": 600
         },
         "is_deleted": false
       },
@@ -128,7 +128,7 @@
         "template_content": {
           "protocol": "chat_completions",
           "endpoint": "https://api.openai.com/v1",
-          "timeout_seconds": 60
+          "timeout_seconds": 600
         },
         "is_deleted": false
       }
@@ -1933,7 +1933,7 @@
           "parameters": {
             "max_tokens": 16384
           },
-          "config_digest": "b4874de58e4cf983673f9f61e390371e3da04722ca64df52ea858cf2f00e26a5",
+          "config_digest": "c77d45b5ff19434f5743525e11013f78af1da3127b17cf09c6fd5bb21b452c1e",
           "connection_id": "connection_3c0b1670eba5422184aa8bf86ebc2417",
           "context_limit": null,
           "parameter_allowlist": [
@@ -1943,11 +1943,11 @@
           "validation_revision": 1,
           "connection_version_id": "version_0e0ebbfa8c804ad29d8255ff33032d93"
         },
-        "content_digest": "7816335eff4dde846badf13d49f1550813c974c89b9f705ac46138b69d643eff",
+        "content_digest": "102b6ec6ab2e1ad438cfc0a755331bcfceb0a8511c354c77c48954d54d421e0a",
         "dependencies": [
           "version_0e0ebbfa8c804ad29d8255ff33032d93"
         ],
-        "dependencies_digest": "9ea95c0e3e7d89d12349af8adbc61fbfb8a99abb9dce2797bae57930d5076400",
+        "dependencies_digest": "866f78eef5feae73812e43e989b76e684b109e65926baa32407f87bd858834d4",
         "output_schema": {},
         "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
         "is_deleted": false
@@ -1969,12 +1969,12 @@
           "health_reason": null,
           "health_status": "UNKNOWN",
           "credential_ref": "credential_362142ee695842f5ac2775d471613d8a",
-          "timeout_seconds": 60,
+          "timeout_seconds": 600,
           "health_checked_at": null,
           "current_version_id": "version_0e0ebbfa8c804ad29d8255ff33032d93",
           "validation_revision": 1
         },
-        "content_digest": "410c6e2ba55fb4d6c7a6bad4b67a8619b6513273666524abdfbe73b64eb149c6",
+        "content_digest": "d004ac86a2d843ad1449d0835d2a677b8df27912bbcc96bf2ab69e8fae0f99f9",
         "dependencies": [],
         "dependencies_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "output_schema": {},
@@ -2041,7 +2041,7 @@
         "protocol": "chat_completions",
         "endpoint": "https://api.deepseek.com",
         "credential_ref": "credential_362142ee695842f5ac2775d471613d8a",
-        "timeout_seconds": 60,
+        "timeout_seconds": 600,
         "status": "ACTIVE",
         "health_status": "UNKNOWN",
         "provider_id": "provider_deepseek",
@@ -2137,7 +2137,7 @@
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
         "revision": 21,
         "environment": "dev",
-        "name": "租号服务",
+        "name": "租号服务 - 测试环境",
         "transport": "streamable_http",
         "endpoint": "http://127.0.0.1:32701/mcp",
         "credential_ref": "credential_5a2335522a8d4ce3960863486e90c178",

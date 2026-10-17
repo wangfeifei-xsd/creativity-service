@@ -5,13 +5,21 @@ import re
 from typing import Any
 
 from creativity_service.core.context import AuthContext, TaskEnvelope
-from creativity_service.core.contracts import ResultEnvelope
+from creativity_service.core.contracts import BusinessResult, ResultEnvelope
 from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.deletion import ContentRef, DeletionGuard
 from creativity_service.core.locking import ResourceKey
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, canonical_json, digest
-from creativity_service.modules.agents.access import locked_require
+from creativity_service.modules.agents.access import locked_policy, locked_require
+from creativity_service.modules.agents.assistance_prompts import (
+    bind_prompt_drafts,
+    new_prompts,
+    prepare_prompt_drafts,
+    require_prompt_publication,
+    saved_prompts,
+    validate_prompt_drafts,
+)
 from creativity_service.modules.agents.assistance_schemas import (
     AssistanceOutput,
     AssistanceRequest,
@@ -30,6 +38,11 @@ from creativity_service.modules.agents.schemas import AgentCreate, AgentDefiniti
 from creativity_service.modules.agents.services import AgentService
 from creativity_service.modules.agents.validation import static_issues
 from creativity_service.modules.models.configuration import resolve_routes
+from creativity_service.modules.prompts.creation import (
+    create_prompts_in,
+    creation_keys,
+    require_creation,
+)
 from creativity_service.modules.runs.repositories import required as run_required
 from creativity_service.modules.runs.schemas import AdmissionReceipt
 from creativity_service.modules.runtime.admission import RuntimeAdmission
@@ -222,7 +235,16 @@ class AgentAssistance:
         keys = self.agents.keys(context, body.agent_id or "new")
         keys += await self.agents.dependency_keys(context, config)
         async with transaction(self.agents.engine, context.scope, keys) as uow:
-            await locked_require(uow, context, "agent:manage", "agent", body.agent_id or "new")
+            policy = await locked_policy(uow, context)
+            policy.require(context, "agent:manage", "agent", body.agent_id or "new")
+            try:
+                policy.require(context, "prompt:manage", "prompt", "new")
+                require_prompt_publication(policy, context, ["new"])
+                values["can_create_prompts"] = True
+            except ServiceError as exc:
+                if exc.code != "FORBIDDEN":
+                    raise
+                values["can_create_prompts"] = False
             await self.agents.dependencies.resolve(uow, context, BUILTIN_ID, config, "production")
         frozen_versions = await self.admission.versions(context, [route_id])
         sources = [ContentRef("version", d.version_id) for d in dependencies]
@@ -323,28 +345,58 @@ class AgentAssistance:
         values: dict[str, Any],
     ) -> None:
         proposal = output.data.proposal
+        validate_prompt_drafts(output)
         if (output.business_status == "COMPLETED") != (proposal is not None):
             raise ServiceError("ASSISTANCE_INVALID", "完整方案与待补充状态不一致", 422)
         if proposal is None:
             return
         if values["base"] and proposal.agent_code != values["base"]["agent_code"]:
             raise ServiceError("ASSISTANCE_INVALID", "修改时不能更换智能体调用编码", 422)
+        if (
+            not descriptor.get("agent_id")
+            and values.get("can_create_prompts", True)
+            and len(proposal.definition.instructions) > 1200
+            and not output.data.prompt_drafts
+        ):
+            raise ServiceError(
+                "ASSISTANCE_INVALID",
+                "任务指令超过 1200 字，请在 prompt_drafts 中提取可复用提示词，并保留完整任务指令",
+                422,
+            )
         keys = self.agents.keys(context, descriptor.get("agent_id") or "new")
         keys += await self.agents.dependency_keys(context, proposal.definition)
         async with transaction(self.agents.engine, context.scope, keys) as uow:
-            await locked_require(
-                uow, context, "agent:manage", "agent", descriptor.get("agent_id") or "new"
-            )
+            policy = await locked_policy(uow, context)
+            policy.require(context, "agent:manage", "agent", descriptor.get("agent_id") or "new")
+            if output.data.prompt_drafts:
+                await require_creation(
+                    uow,
+                    context,
+                    [draft.content for draft in output.data.prompt_drafts],
+                    policy=policy,
+                )
+                require_prompt_publication(policy, context, ["new"])
             await self.validate_in(uow, context, proposal, descriptor)
+
+    async def validate_result(
+        self, context: AuthContext, value: Any, descriptor: dict[str, Any], values: dict[str, Any]
+    ) -> BusinessResult:
+        output = prepare_prompt_drafts(AssistanceOutput.model_validate(value))
+        await self.validate(context, output, descriptor, values)
+        return BusinessResult.model_validate(output.model_dump(mode="json", by_alias=True))
 
     async def apply(self, context: AuthContext, run_id: str) -> AssistanceSaved:
         row, descriptor, values, result = await self.record(context, run_id)
         if result.state != "SUCCEEDED" or result.result is None:
             raise ServiceError("ASSISTANCE_PENDING", "尚无可保存的完整方案", 409)
-        output = AssistanceOutput.model_validate(result.result.model_dump(mode="json"))
+        output = prepare_prompt_drafts(
+            AssistanceOutput.model_validate(result.result.model_dump(mode="json"))
+        )
         proposal = output.data.proposal
         if proposal is None:
             raise ServiceError("ASSISTANCE_NEEDS_INPUT", "请先补充信息生成完整方案", 422)
+        validate_prompt_drafts(output)
+        prompts = new_prompts(context, run_id, output.data.prompt_drafts)
         target = descriptor.get("agent_id")
         suffix = digest([context.scope.model_dump(), run_id])[:32]
         agent_id, version_id, audit_id = (
@@ -360,10 +412,13 @@ class AgentAssistance:
             ("source_links", digest([version_id, "agent", agent_id])),
         )
         keys += self.runs.keys(context, run_id)
+        if prompts:
+            keys += creation_keys(context.scope, prompts, publish=True)
         keys += await self.agents.dependency_keys(context, proposal.definition)
         keys.append(ResourceKey(context.scope.channel_id, "agent-code", (proposal.agent_code,)))
         async with transaction(self.agents.engine, context.scope, keys) as uow:
-            await locked_require(uow, context, "agent:manage", "agent", target or "new")
+            policy = await locked_policy(uow, context)
+            policy.require(context, "agent:manage", "agent", target or "new")
             await self.runs.guard(uow, row)
             existing = await repository(
                 "resource_versions", context.scope, include_deleted=True
@@ -374,7 +429,18 @@ class AgentAssistance:
                 await DeletionGuard(context.scope).check(
                     uow, [ContentRef("agent", agent_id), ContentRef("version", version_id)]
                 )
-                return AssistanceSaved(agent_id=agent_id, version_id=version_id)
+                available = (
+                    await repository("prompts", context.scope).get_many(
+                        uow.connection, [p.identifier for p in prompts]
+                    )
+                    if prompts
+                    else {}
+                )
+                return AssistanceSaved(
+                    agent_id=agent_id,
+                    version_id=version_id,
+                    prompts=saved_prompts([p for p in prompts if p.identifier in available]),
+                )
             repo = repository("agents", context.scope)
             if target:
                 agent = await required(uow.connection, context.scope, "agents", target)
@@ -399,6 +465,34 @@ class AgentAssistance:
                     raise ServiceError(
                         "AGENT_CODE_CONFLICT", "调用编码已存在，请让助手更换编码", 409
                     )
+            if prompts:
+                await require_creation(uow, context, [p.content for p in prompts], policy=policy)
+                require_prompt_publication(policy, context, [p.identifier for p in prompts])
+                await create_prompts_in(uow, context, prompts, publish=True)
+                proposal = proposal.model_copy(
+                    update={
+                        "definition": bind_prompt_drafts(
+                            proposal.definition, output.data.prompt_drafts, prompts
+                        )
+                    }
+                )
+                # 只把本事务新建的提示词加入受信目录；其他依赖仍核对生成时的摘要。
+                descriptor = {
+                    **descriptor,
+                    "allowed_resources": [
+                        *descriptor["allowed_resources"],
+                        *[p.identifier for p in prompts],
+                    ],
+                    "resource_digests": {
+                        **descriptor["resource_digests"],
+                        **{
+                            p.identifier: digest(
+                                {"content": p.content.model_dump(mode="json"), "output_schema": {}}
+                            )
+                            for p in prompts
+                        },
+                    },
+                }
             await self.validate_in(uow, context, proposal, descriptor)
             fields = proposal.model_dump(exclude={"definition", "version_label", "agent_code"})
             if target:
@@ -418,4 +512,6 @@ class AgentAssistance:
                 uow, context, agent_id, version_id, label, proposal.definition
             )
             await append_audit(uow, context, audit_id, "agent.assistance.apply", "agent", agent_id)
-        return AssistanceSaved(agent_id=agent_id, version_id=version_id)
+        return AssistanceSaved(
+            agent_id=agent_id, version_id=version_id, prompts=saved_prompts(prompts)
+        )

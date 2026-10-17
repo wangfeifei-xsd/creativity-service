@@ -621,6 +621,14 @@ class ExecutionService(RunKernel):
                         attempt["step_id"],
                         {"output_ref": await self.content(uow, row, "attempt_output", output)},
                     )
+                elif state == "FAILED" and output is not None:
+                    # 失败正文与尝试同事务保存，供结构修复恢复；绝不写入成功输出引用。
+                    await save(
+                        uow,
+                        "run_contents",
+                        "failure_" + attempt_id,
+                        {"run_id": row["id"], "kind": "attempt_failure", "payload": output},
+                    )
                 await save(
                     uow,
                     "attempts",

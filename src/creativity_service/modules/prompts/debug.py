@@ -1,17 +1,17 @@
-"""冻结调试描述并对接统一运行；发布只认可受信运行和用量证据。"""
+"""保留历史调试接口及固定快照读取，不参与提示词发布。"""
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.contracts import DisplayStatus, ResourceVersion
 from creativity_service.core.contracts.display import display_status
-from creativity_service.core.database import UnitOfWork, assert_external_io_allowed, transaction
+from creativity_service.core.database import assert_external_io_allowed, transaction
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import record_key
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import ServiceError, digest, new_id, unavailable
 from creativity_service.core.versioning import version_view
-from creativity_service.modules.prompts.rendering import render, validate_content
+from creativity_service.modules.prompts.rendering import render
 from creativity_service.modules.prompts.repositories import repository
 from creativity_service.modules.prompts.schemas import (
     PromptContent,
@@ -52,74 +52,6 @@ def verify_evidence(
         or evidence.model_route_version != row["model_route_version"]
     ):
         raise ServiceError("PROMPT_EVIDENCE_INVALID", "调试证据与当前范围或冻结内容不符")
-
-
-class PromptVersionValidator:
-    def __init__(self, service: "PromptService") -> None:
-        self.service = service
-
-    async def validate(
-        self,
-        uow: UnitOfWork,
-        context: AuthContext,
-        version: ResourceVersion,
-        operation: Literal["freeze", "release"],
-    ) -> None:
-        uow.require_scope(context.scope)
-        if version.resource_type != "prompt":
-            raise ServiceError("PROMPT_VERSION_INVALID", "提示词门禁只接受提示词版本")
-        content = PromptContent.model_validate(version.content)
-        validate_content(content)
-        if version.dependency_version_ids or version.output_schema:
-            raise ServiceError(
-                "PROMPT_DEPENDENCY_INVALID", "提示词不能携带未声明的配置依赖或智能体输出结构"
-            )
-        resource = await repository("prompts", context.scope).get(
-            uow.connection, version.resource_id
-        )
-        if resource is None or resource["status"] != "ACTIVE":
-            raise ServiceError("PROMPT_UNAVAILABLE", "提示词资源不可用")
-        if self.service.evidence is None:
-            raise unavailable("统一调试测试证据服务")
-        tests = await repository("prompt_tests", context.scope).find(
-            uow.connection, version_id=version.version_id
-        )
-        for test in sorted(tests, key=lambda t: t["created_at"], reverse=True):
-            frozen = ResourceVersion.model_validate(test["frozen_version"])
-            if (
-                test["status"] != "SUBMITTED"
-                or not test["run_id"]
-                or frozen.content_digest != version.content_digest
-                or frozen.dependencies_digest != version.dependencies_digest
-            ):
-                continue
-            await DeletionGuard(context.scope).check(
-                uow,
-                [
-                    ContentRef("prompt_test", test["id"]),
-                    ContentRef("version", test["model_route_version"]),
-                ],
-            )
-            route = await repository("resource_versions", context.scope).get(
-                uow.connection, test["model_route_version"]
-            )
-            if (
-                route is None
-                or route["state"] != "PUBLISHED"
-                or route["resource_type"] != "model_route"
-            ):
-                continue
-            evidence = await self.service.evidence.read(uow, context, test)
-            if evidence is None:
-                continue
-            verify_evidence(context, test, evidence)
-            if (
-                evidence.status == "SUCCEEDED"
-                and evidence.constraints_passed
-                and evidence.usage_recorded
-            ):
-                return
-        raise ServiceError("PROMPT_TEST_REQUIRED", "缺少当前内容通过测试且已记录用量的真实调试证据")
 
 
 class PromptDebugService:

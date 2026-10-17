@@ -7,6 +7,15 @@ from fastapi import APIRouter, Depends, Query, Request
 from creativity_service.core.context import AuthContext, require_http_context
 from creativity_service.core.contracts import Artifact
 from creativity_service.core.primitives import unavailable
+from creativity_service.modules.runs.schemas import AdmissionReceipt
+from creativity_service.modules.skills.assistance import SkillAssistance
+from creativity_service.modules.skills.assistance_schemas import (
+    SkillAssistanceApply,
+    SkillAssistanceRequest,
+    SkillAssistanceRoute,
+    SkillAssistanceSaved,
+    SkillAssistanceTurn,
+)
 from creativity_service.modules.skills.schemas import (
     SkillAgentOption,
     SkillCreate,
@@ -72,6 +81,40 @@ async def agent_options(context: Context, service: Services) -> list[SkillAgentO
 @router.get("/skills/tool-options", response_model=list[SkillToolOption])
 async def tool_options(context: Context, service: Services) -> list[SkillToolOption]:
     return await service.tool_options(context)
+
+
+def assistance(request: Request) -> SkillAssistance:
+    runtime = getattr(request.app.state, "runtime", None)
+    value: SkillAssistance | None = getattr(runtime, "skill_assistance", None)
+    if value is None:
+        raise unavailable("技能智能协助")
+    return value
+
+
+@router.get("/skills/assistance/options", response_model=list[SkillAssistanceRoute])
+async def assistance_options(
+    context: Context, request: Request, skill_id: str | None = None
+) -> list[SkillAssistanceRoute]:
+    return await assistance(request).routes(context, skill_id)
+
+
+@router.post("/skills/assistance", response_model=AdmissionReceipt, status_code=202)
+async def assist(
+    context: Context, request: Request, body: SkillAssistanceRequest
+) -> AdmissionReceipt:
+    return await assistance(request).submit(context, body)
+
+
+@router.get("/skills/assistance/runs/{run_id}", response_model=SkillAssistanceTurn)
+async def assistance_turn(context: Context, request: Request, run_id: str) -> SkillAssistanceTurn:
+    return await assistance(request).turn(context, run_id)
+
+
+@router.post("/skills/assistance/runs/{run_id}/apply", response_model=SkillAssistanceSaved)
+async def assistance_apply(
+    context: Context, request: Request, run_id: str, body: SkillAssistanceApply | None = None
+) -> SkillAssistanceSaved:
+    return await assistance(request).apply(context, run_id)
 
 
 @router.get("/skills/{skill_id}", response_model=SkillDetail)

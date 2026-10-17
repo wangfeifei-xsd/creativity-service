@@ -31,6 +31,7 @@ from creativity_service.modules.tools.services import ToolService
 
 if TYPE_CHECKING:
     from creativity_service.modules.agents.assistance import AgentAssistance
+    from creativity_service.modules.skills.assistance import SkillAssistance
 
 
 class FlowState(TypedDict):
@@ -88,6 +89,7 @@ class RuntimeExecutor:
         self.authorization, self.registry = authorization, registry or StepRegistry()
         self.debug: DebugHandler | None = None
         self.assistance: AgentAssistance | None = None
+        self.skill_assistance: SkillAssistance | None = None
 
     async def tool(
         self,
@@ -288,7 +290,7 @@ class RuntimeExecutor:
             spec = await load_spec(self.runs, row)
             original = await read_input(self.runs, lease)
             descriptor = json.loads(spec.payload_json).get("runtime")
-            if descriptor and descriptor.get("kind") == "agent_assistance":
+            if descriptor and descriptor.get("kind") in {"agent_assistance", "skill_assistance"}:
                 from creativity_service.modules.runtime.assistance import execute_assistance
 
                 await execute_assistance(self, context, lease, spec, descriptor, original)

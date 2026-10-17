@@ -1,6 +1,5 @@
 """提示词业务入口：范围、权限、并发、内容校验和版本依赖均由服务层处理。"""
 
-import re
 from typing import Any
 
 from pydantic import ValidationError
@@ -13,7 +12,7 @@ from creativity_service.core.contracts.display import display_status
 from creativity_service.core.database import assert_external_io_allowed, transaction
 from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
-from creativity_service.core.locking import ResourceKey, record_key
+from creativity_service.core.locking import record_key
 from creativity_service.core.observability.audit import append_audit
 from creativity_service.core.primitives import (
     ServiceError,
@@ -33,6 +32,13 @@ from creativity_service.modules.iam.reading import (
 )
 from creativity_service.modules.iam.repositories import policy_key
 from creativity_service.modules.prompts.authorization import PromptAuthorization
+from creativity_service.modules.prompts.creation import (
+    NewPrompt,
+    create_prompts_in,
+    creation_keys,
+    require_creation,
+    validate_new_prompt,
+)
 from creativity_service.modules.prompts.differences import compare_content
 from creativity_service.modules.prompts.portable import export_text, import_text
 from creativity_service.modules.prompts.ports import (
@@ -70,13 +76,13 @@ from creativity_service.modules.prompts.schemas import (
     PromptVersionView,
     PromptView,
 )
+from creativity_service.modules.prompts.validation import PromptVersionValidator
 
 ENVIRONMENTS = {"dev": "开发", "test": "测试", "fat": "验收", "prod": "生产"}
 ACTION_LABELS = {
     "prompt:manage": "编辑提示词",
     "version:edit": "修改配置",
     "version:read": "查看配置",
-    "run:create": "调试",
     "release:publish": "发布",
     "data:export": "导出",
     "data:read_sensitive": "查看原文",
@@ -111,9 +117,7 @@ class PromptService:
         self.authorization = PromptAuthorization(engine, authorization)
         self.artifacts, self.runner, self.evidence = artifacts, runner, evidence
         self.context_provider = context_provider
-        from creativity_service.modules.prompts.debug import PromptVersionValidator
-
-        self.versions = VersionService(engine, self.authorization, PromptVersionValidator(self))
+        self.versions = VersionService(engine, self.authorization, PromptVersionValidator())
 
     async def allowed(self, context: AuthContext, action: str, resource_id: str) -> bool:
         try:
@@ -145,48 +149,15 @@ class PromptService:
     async def create(self, context: AuthContext, body: PromptCreate) -> PromptView:
         assert_external_io_allowed()
         await self.authorization.require(context, "prompt:manage", "new")
-        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]{0,63}", body.prompt_code):
-            raise ServiceError(
-                "PROMPT_CODE_INVALID",
-                "提示词编码须以字母开头，仅包含字母、数字、点、下划线或短横线",
-                422,
-            )
-        if not body.name.strip() or not body.purpose.strip():
-            raise ServiceError("PROMPT_INVALID", "名称和用途不能为空", 422)
-        scope, prompt_id, audit_id = context.scope, new_id("prompt"), new_id("audit")
-        repo = repository("prompts", scope)
-        keys = [
-            content_key(scope),
-            ResourceKey(scope.channel_id, "prompt-code", (body.prompt_code,)),
-            record_key(scope.channel_id, "prompts", prompt_id),
-            record_key(scope.channel_id, "resource_versions", prompt_id),
-            record_key(scope.channel_id, "audit_events", audit_id),
-        ]
-        async with transaction(self.engine, scope, keys) as uow:
-            await DeletionGuard(scope).check(uow, [ContentRef("prompt", prompt_id)])
-            if await repo.find(uow.connection, prompt_code=body.prompt_code):
-                raise ServiceError("PROMPT_CODE_CONFLICT", "提示词编码已存在")
-            await repo.add(
-                uow,
-                prompt_id,
-                {**body.model_dump(), "owner": context.principal_id, "status": "ACTIVE"},
-            )
-            from creativity_service.modules.resources.configuration import configuration_values
-
-            await repository("resource_versions", scope).add(
-                uow,
-                prompt_id,
-                configuration_values(
-                    "prompt",
-                    prompt_id,
-                    PromptContent().model_dump(mode="json"),
-                    [],
-                    {},
-                    context.principal_id,
-                ),
-            )
-            await append_audit(uow, context, audit_id, "prompt.create", "prompt", prompt_id)
-        return await self.detail(context, prompt_id)
+        prompt = NewPrompt(new_id("prompt"), new_id("audit"), body, PromptContent())
+        validate_new_prompt(body, prompt.content)
+        async with transaction(
+            self.engine, context.scope, creation_keys(context.scope, [prompt])
+        ) as uow:
+            if isinstance(self.authorization.authorization, IamAuthorization):
+                await require_creation(uow, context, [prompt.content])
+            await create_prompts_in(uow, context, [prompt])
+        return await self.detail(context, prompt.identifier)
 
     async def update(self, context: AuthContext, prompt_id: str, body: PromptUpdate) -> PromptView:
         await self.authorization.require(context, "prompt:manage", prompt_id)

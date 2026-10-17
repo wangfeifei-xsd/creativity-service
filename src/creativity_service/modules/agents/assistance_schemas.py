@@ -6,6 +6,7 @@ from pydantic import Field
 
 from creativity_service.core.primitives import Contract, Identifier
 from creativity_service.modules.agents.schemas import AgentCreate, AgentDefinition
+from creativity_service.modules.prompts.schemas import PromptContent
 
 
 class AssistanceRequest(Contract):
@@ -17,9 +18,17 @@ class AssistanceRequest(Contract):
     previous_run_id: Identifier | None = None
 
 
+class AssistancePromptDraft(Contract):
+    name: str = Field(min_length=1, max_length=128)
+    purpose: str = Field(min_length=1, max_length=512)
+    content: PromptContent
+    step_key: Identifier | None = None
+
+
 class AssistanceReply(Contract):
     message: str = Field(min_length=1, max_length=8000)
     proposal: AgentCreate | None = None
+    prompt_drafts: list[AssistancePromptDraft] = Field(default_factory=list, max_length=4)
 
 
 class AssistanceOutput(Contract):
@@ -39,9 +48,15 @@ class AssistanceTurn(Contract):
     base_definition: AgentDefinition | None = None
 
 
+class AssistanceSavedPrompt(Contract):
+    prompt_id: str
+    name: str
+
+
 class AssistanceSaved(Contract):
     agent_id: str
     version_id: str
+    prompts: list[AssistanceSavedPrompt] = Field(default_factory=list)
 
 
 class AssistanceApply(Contract):

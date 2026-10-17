@@ -21,7 +21,7 @@ from creativity_service.core.deletion import ContentRef, DeletionGuard, Deletion
 from creativity_service.core.files import FileService
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.observability.audit import append_audit
-from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
+from creativity_service.core.primitives import ServiceError, new_id, utcnow
 from creativity_service.core.versioning import VersionService
 from creativity_service.modules.agents.access import locked_policy, locked_require
 from creativity_service.modules.iam.authorization import IamAuthorization
@@ -42,6 +42,7 @@ from creativity_service.modules.skills.packages import (
     unpack,
     validate_files,
 )
+from creativity_service.modules.skills.persistence import PackageWrite
 from creativity_service.modules.skills.repositories import repository
 from creativity_service.modules.skills.schemas import (
     SkillAgentOption,
@@ -466,9 +467,7 @@ class SkillService:
             old_files = await repository("skill_files", scope).find(
                 connection, version_id=version_id
             )
-        file_ids = {f.relative_path: new_id("skill_file") for f in package.manifest}
-        link_id = digest(["skill-version", version_id])
-        file_links = {path: new_id("source") for path in file_ids}
+        writing = PackageWrite(skill_id, version_id, package, package_url, old_files, audit_id)
         keys = [
             content_key(scope),
             policy_key(scope.channel_id),
@@ -478,16 +477,8 @@ class SkillService:
                 for t in selected_tools
             ],
             *[record_key(scope.channel_id, "tools", t.resource_id) for t in selected_tools],
-            record_key(scope.channel_id, "skills", skill_id),
-            record_key(scope.channel_id, "resource_versions", version_id),
-            record_key(scope.channel_id, "audit_events", audit_id),
-            record_key(scope.channel_id, "source_links", link_id),
-            *[record_key(scope.channel_id, "source_links", item) for item in file_links.values()],
+            *writing.keys(scope),
             ResourceKey(scope.channel_id, "version-label", ("skill", skill_id, label)),
-            *[
-                record_key(scope.channel_id, "skill_files", f)
-                for f in [*file_ids.values(), *[f["id"] for f in old_files]]
-            ],
         ]
         if resource:
             keys.append(ResourceKey(scope.channel_id, "skill-code", (resource["skill_code"],)))
@@ -541,71 +532,7 @@ class SkillService:
 
             await require_dependencies(uow, scope, ids)
             await self.check_tool_permissions(uow, context, ids)
-            definition = SkillDefinition(
-                **package.settings.model_dump(),
-                package_hash=package.package_hash,
-                metadata=package.metadata,
-                files=package.manifest,
-                package_url=package_url,
-                required_tool_versions=tuple(ids),
-            )
-            content = definition.model_dump(mode="json", exclude_none=True)
-            values = {
-                "content": content,
-                "content_digest": digest({"content": content, "output_schema": {}}),
-                "dependencies": ids,
-                "dependencies_digest": digest(ids),
-                "output_schema": {},
-            }
-            if current:
-                await repo.change(uow, version_id, current["revision"], values)
-            else:
-                await repo.add(
-                    uow,
-                    version_id,
-                    {
-                        **values,
-                        "resource_type": "skill",
-                        "resource_id": skill_id,
-                        "version_label": "当前配置",
-                        "state": "DRAFT",
-                        "created_by": context.principal_id,
-                    },
-                )
-                await guard.link(
-                    uow,
-                    link_id,
-                    ContentRef("skill", skill_id),
-                    ContentRef("version", version_id),
-                )
-            for old_file in old_files:
-                await repository("skill_files", scope).remove(uow, old_file["id"])
-            for file in package.manifest:
-                await repository("skill_files", scope).add(
-                    uow,
-                    file_ids[file.relative_path],
-                    {
-                        **file.model_dump(),
-                        "version_id": version_id,
-                        "artifact_id": None,
-                        "package_url": package_url,
-                    },
-                )
-                await guard.link(
-                    uow,
-                    file_links[file.relative_path],
-                    ContentRef("version", version_id),
-                    ContentRef("skill_file", file_ids[file.relative_path]),
-                )
-            await append_audit(
-                uow,
-                context,
-                audit_id,
-                "skill.package.save",
-                "skill",
-                skill_id,
-                {"version_id": version_id, "content_digest": package.package_hash},
-            )
+            await writing.save_in(uow, context, ids, current)
         # 新旧包均保留；业务事务失败或配置替换不修改已上传文件。
 
     async def create(self, context: AuthContext, body: SkillCreate) -> SkillDetail:
@@ -668,15 +595,17 @@ class SkillService:
         self, uow: UnitOfWork, context: AuthContext, identifiers: list[str]
     ) -> None:
         """与绑定写入、冻结处于同一授权锁和事务，防止校验后撤销的竞态。"""
+        versions = await repository("resource_versions", context.scope).get_many(
+            uow.connection, identifiers
+        )
+        policy = await locked_policy(uow, context)
         for identifier in identifiers:
-            version = await repository("resource_versions", context.scope).get(
-                uow.connection, identifier
-            )
+            version = versions.get(identifier)
             if not version or version["resource_type"] != "tool":
                 raise ServiceError("SKILL_DEPENDENCY_MISSING", "工具版本不存在", 422)
             definition = ToolDefinition.model_validate(version["content"])
             for action in {"run:create", *definition.required_scopes}:
-                await locked_require(uow, context, action, "tool", version["resource_id"])
+                policy.require(context, action, "tool", version["resource_id"])
 
     async def view(
         self, context: AuthContext, row: dict[str, Any], permissions: frozenset[str] | None = None
@@ -695,6 +624,7 @@ class SkillService:
                 row["id"],
                 [
                     ("edit", "编辑技能", "skill:manage"),
+                    ("assist", "智能修改", "version:edit"),
                 ],
                 permissions,
             ),
@@ -720,12 +650,28 @@ class SkillService:
             )
             for row in rows:
                 if ContentRef("skill", row["id"]) not in blocked:
-                    items.append(await self.view(context, row, frozenset()))
+                    items.append(
+                        await self.view(
+                            context,
+                            row,
+                            policy.actions(
+                                "skill", row["id"], resource_state(context, "skill", row)
+                            ),
+                        )
+                    )
         return SkillList(
             items=items,
             actions=visible_actions(
                 policy.actions("skill", "new"),
-                [("create", "新增技能", "skill:manage"), ("import", "导入技能包", "skill:manage")],
+                [
+                    ("create", "新增技能", "skill:manage"),
+                    ("import", "导入技能包", "skill:manage"),
+                    *(
+                        [("assist", "智能创建", "version:edit")]
+                        if "skill:manage" in policy.actions("skill", "new")
+                        else []
+                    ),
+                ],
             ),
         )
 
@@ -1202,16 +1148,19 @@ class SkillService:
                 )
         return result
 
-    async def tool_options(self, context: AuthContext) -> list[SkillToolOption]:
+    async def tool_options(
+        self, context: AuthContext, *, versions: list[dict[str, Any]] | None = None
+    ) -> list[SkillToolOption]:
         from creativity_service.modules.agents.repositories import repository as resources
 
         policy = await self.authorization.read_policy(context)
         async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
-            versions = await repository("resource_versions", context.scope).find(
-                uow.connection, resource_type="tool", state="PUBLISHED"
-            )
-            mappings = await repository("release_mappings", context.scope).find(
-                uow.connection, resource_type="tool"
+            if versions is None:
+                versions = await repository("resource_versions", context.scope).find(
+                    uow.connection, resource_type="tool", state="PUBLISHED"
+                )
+            mappings = await repository("release_mappings", context.scope).find_many(
+                uow.connection, "version_id", [v["id"] for v in versions], resource_type="tool"
             )
             published = {r["version_id"] for r in mappings}
             versions = [v for v in versions if v["id"] == v["resource_id"] and v["id"] in published]
@@ -1253,17 +1202,23 @@ class SkillService:
             )
         return result
 
-    async def agent_options(self, context: AuthContext) -> list[SkillAgentOption]:
+    async def agent_options(
+        self, context: AuthContext, *, limit: int | None = None
+    ) -> list[SkillAgentOption]:
         from creativity_service.modules.agents.repositories import repository as resources
 
         policy = await self.authorization.read_policy(context)
         async with self.engine.connect() as connection:
-            versions = await repository("resource_versions", context.scope).find(
-                connection, resource_type="agent"
+            repo = resources("agents", context.scope)
+            statement = active_rows(
+                select(repo.table).where(repo.predicate()).order_by(repo.table.c.id)
             )
-            agents = await resources("agents", context.scope).get_many(
-                connection, [v["resource_id"] for v in versions]
-            )
+            if limit is not None:
+                statement = statement.limit(limit + 1)
+            found = [dict(row) for row in (await connection.execute(statement)).mappings()]
+            if limit is not None and len(found) > limit:
+                raise ServiceError("ASSISTANCE_CATALOG_LIMIT", "智能体目录超过智能协助上限", 422)
+            agents = {row["id"]: row for row in found}
         return [
             SkillAgentOption(agent_id=identifier, name=row["name"])
             for identifier, row in sorted(agents.items())

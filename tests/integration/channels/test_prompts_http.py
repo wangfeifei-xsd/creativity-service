@@ -27,6 +27,78 @@ class MemoryStore(FileURLStore):
         self.objects.pop(key, None)
 
 
+async def test_prompt_http_publish_without_debug(channel_env, channel):
+    env = channel_env
+    service = build_prompt_service(env.engine, env.iam.authorization, MemoryStore())
+    env.client._transport.app.state.prompts = service
+    assert service.runner is None and service.evidence is None
+    headers = {"Authorization": f"Bearer {channel.token.access_token}"}
+    created = await env.client.post(
+        "/admin/v1/prompts",
+        headers=headers,
+        json={"prompt_code": "direct", "name": "直接发布提示词", "purpose": "整理业务文本"},
+    )
+    assert created.status_code == 201, created.text
+    prompt_id = created.json()["prompt_id"]
+    config_path = f"/admin/v1/prompts/{prompt_id}/configuration"
+    current = await env.client.get(config_path, headers=headers)
+    revision = current.json()["revision"]
+    content = {
+        "instruction_blocks": {"system": "整理输入的业务文本"},
+        "message_templates": [{"source": "input", "template": "{{ text }}"}],
+        "variables": [{"name": "text", "display_name": "业务文本", "type": "string"}],
+    }
+    invalid = await env.client.patch(
+        config_path,
+        headers=headers,
+        json={"revision": revision, "content": {**content, "variables": []}},
+    )
+    assert invalid.status_code == 422, invalid.text
+    saved = await env.client.patch(
+        config_path, headers=headers, json={"revision": revision, "content": content}
+    )
+    assert saved.status_code == 200, saved.text
+    summary = await env.client.post(
+        "/admin/v1/resource-management/prompt/summaries",
+        headers=headers,
+        json={"resource_ids": [prompt_id]},
+    )
+    item = summary.json()[0]
+    assert item["status"]["value"] == "UNPUBLISHED"
+    publish_path = f"/admin/v1/resource-management/prompt/{prompt_id}/publish"
+    stale = await env.client.post(
+        publish_path,
+        headers=headers,
+        json={"revision": item["revision"], "configuration_revision": revision},
+    )
+    assert stale.status_code == 409, stale.text
+    published = await env.client.post(
+        publish_path,
+        headers=headers,
+        json={
+            "revision": item["revision"],
+            "configuration_revision": item["configuration_revision"],
+        },
+    )
+    assert published.status_code == 204, published.text
+    current = await env.client.get(config_path, headers=headers)
+    assert current.json()["version"]["state"] == "PUBLISHED"
+    changed = {**content, "instruction_blocks": {"system": "提炼输入文本的重点"}}
+    updated = await env.client.patch(
+        config_path,
+        headers=headers,
+        json={"revision": current.json()["revision"], "content": changed},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["version"]["state"] == "PUBLISHED"
+    assert (
+        updated.json()["version"]["content"]["instruction_blocks"]["system"] == "提炼输入文本的重点"
+    )
+    detail = await env.client.get(f"/admin/v1/prompts/{prompt_id}", headers=headers)
+    assert detail.json()["last_test_at"] is None
+    assert "run:create" not in {action["action_key"] for action in detail.json()["actions"]}
+
+
 async def test_prompt_http_permissions_export_and_channel_override(channel_env, channel):
     env = channel_env
     app = env.client._transport.app

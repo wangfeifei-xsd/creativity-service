@@ -50,6 +50,36 @@ async def read_input(runs: RunService, lease: Lease) -> dict[str, Any]:
         )
 
 
+async def read_model_attempt(
+    runs: RunService, lease: Lease, key: str, attempt_id: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """恢复最近实际请求和失败正文，读取仍受当前租约、渠道与删除屏障约束。"""
+    original = await runs.before_progress(lease)
+    context = runs.context(original)
+    async with transaction(runs.engine, context.scope, runs.keys(context, lease.run_id)) as uow:
+        row = await runs.locked_run(uow, lease.run_id)
+        await runs.valid_lease(uow, row, lease)
+        await runs.guard(uow, row)
+        if row["state"] != "RUNNING":
+            raise ServiceError("RUN_INACTIVE", "运行已停止", 409)
+        stored = await required(
+            uow.connection,
+            "run_contents",
+            context.scope.channel_id,
+            run_id=row["id"],
+            kind="inputs:" + key,
+        )
+        failed = await one(
+            uow.connection,
+            "run_contents",
+            context.scope.channel_id,
+            run_id=row["id"],
+            id="failure_" + attempt_id,
+            kind="attempt_failure",
+        )
+        return stored["payload"]["request"], failed["payload"] if failed else {}
+
+
 async def record_inputs(
     runs: RunService, lease: Lease, key: str, payload: dict[str, Any], refs: list[ContentRef]
 ) -> None:

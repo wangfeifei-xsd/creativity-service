@@ -29,6 +29,7 @@ from creativity_service.modules.budgets.services import BudgetService
 from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.iam.reading import visible_actions
 from creativity_service.modules.iam.repositories import policy_key
+from creativity_service.modules.iam.schemas import AccessAction
 from creativity_service.modules.integrations.repositories import configuration_key
 from creativity_service.modules.memory.repositories import policy_key as memory_key
 from creativity_service.modules.models.repositories import model_key
@@ -244,7 +245,12 @@ class AgentKernel:
             agent_id=row["id"],
             **{k: row[k] for k in ("agent_code", "name", "description", "owner", "revision")},
             status=status(state["status"] if state else row["status"]),
-            actions=actions,
+            actions=[
+                action
+                if isinstance(action, AccessAction)
+                else AccessAction(**action.model_dump(), enabled=True)
+                for action in actions
+            ],
         )
 
     async def version_view(

@@ -17,7 +17,7 @@ from creativity_service.modules.iam.schemas import (
 )
 from tests.support.captcha import captcha_token
 
-from .conftest import INITIAL, PASSWORD, create_user, login
+from .conftest import INITIAL, PASSWORD, create_user, enter, login, provision
 
 pytestmark = pytest.mark.integration
 
@@ -44,13 +44,26 @@ async def test_initial_credentials_only_allow_change_and_logout(iam_env):
         response = await client.get(f"/admin/v1/{path}", headers=headers)
         assert response.status_code == 403
         assert response.json()["error"]["code"] == "PASSWORD_CHANGE_REQUIRED"
+    for password, code in ((INITIAL, "PASSWORD_UNCHANGED"), ("short", "VALIDATION_ERROR")):
+        response = await client.post(
+            "/admin/v1/auth/change-password", headers=headers, json={"new_password": password}
+        )
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == code
     response = await client.post(
         "/admin/v1/auth/change-password",
         headers=headers,
-        json={"current_password": INITIAL, "new_password": PASSWORD},
+        json={"new_password": PASSWORD},
     )
     assert response.status_code == 204
     assert (await client.get("/admin/v1/auth/session", headers=headers)).status_code == 401
+    assert (
+        await client.post(
+            "/admin/v1/auth/change-password",
+            headers=headers,
+            json={"new_password": "Another-password-9012"},
+        )
+    ).status_code == 401
     response, _ = await login(iam, "first-admin")
     assert not response.must_change_password
     async with engine.connect() as connection:
@@ -59,6 +72,109 @@ async def test_initial_credentials_only_allow_change_and_logout(iam_env):
     assert accounts[0]["password_hash"].startswith("pbkdf2_sha256$600000$")
     assert INITIAL not in str(accounts) and PASSWORD not in str(accounts)
     assert INITIAL not in json.dumps(audit, default=str) and PASSWORD not in str(audit)
+
+
+@pytest.mark.parametrize("channel_session", [False, True])
+async def test_password_change_requires_current_password_and_revokes_all_sessions(
+    iam_env, admin, channel_session
+):
+    iam, client, _, _, _ = iam_env
+    account, (response, session) = await create_user(iam, admin[1])
+    if channel_session:
+        await provision(iam, admin[1], "channel_a", account.user_id)
+        _, session = await login(iam, account.login_name)
+        response, session = await enter(iam, session)
+    other, _ = await login(iam, account.login_name)
+    headers = {"Authorization": f"Bearer {response.access_token}"}
+    new_password = "Personal-password-9012"
+    for body, status, code in (
+        ({"new_password": new_password}, 422, "PASSWORD_REQUIRED"),
+        ({"current_password": None, "new_password": new_password}, 422, "PASSWORD_REQUIRED"),
+        (
+            {"current_password": "incorrect-password", "new_password": new_password},
+            403,
+            "PASSWORD_INCORRECT",
+        ),
+        (
+            {"current_password": PASSWORD, "new_password": PASSWORD},
+            422,
+            "PASSWORD_UNCHANGED",
+        ),
+        (
+            {"new_password": new_password, "must_change_password": True},
+            422,
+            "VALIDATION_ERROR",
+        ),
+    ):
+        denied = await client.post("/admin/v1/auth/change-password", headers=headers, json=body)
+        assert denied.status_code == status
+        assert denied.json()["error"]["code"] == code
+    changed = await client.post(
+        "/admin/v1/auth/change-password",
+        headers=headers,
+        json={"current_password": PASSWORD, "new_password": new_password},
+    )
+    assert changed.status_code == 204
+    for token in (response.access_token, other.access_token):
+        assert (
+            await client.get("/admin/v1/auth/session", headers={"Authorization": f"Bearer {token}"})
+        ).status_code == 401
+    with pytest.raises(ServiceError) as exc:
+        await login(iam, account.login_name, PASSWORD)
+    assert exc.value.status == 401
+    fresh, _ = await login(iam, account.login_name, new_password)
+    assert not fresh.must_change_password
+
+
+async def test_reset_password_can_be_changed_without_current_password(iam_env, admin):
+    iam, client, _, _, _ = iam_env
+    account, (old, _) = await create_user(iam, admin[1])
+    current = await iam.accounts.repository.account(account.user_id)
+    reset_password = "Reset-password-9012"
+    await iam.accounts.reset(
+        admin[1],
+        account.user_id,
+        PasswordReset(revision=current.revision, initial_password=reset_password),
+    )
+    response, _ = await login(iam, account.login_name, reset_password, initial=True)
+    changed = await client.post(
+        "/admin/v1/auth/change-password",
+        headers={"Authorization": f"Bearer {response.access_token}"},
+        json={"new_password": PASSWORD},
+    )
+    assert changed.status_code == 204
+    for token in (old.access_token, response.access_token):
+        assert (
+            await client.get("/admin/v1/auth/session", headers={"Authorization": f"Bearer {token}"})
+        ).status_code == 401
+    fresh, _ = await login(iam, account.login_name)
+    assert not fresh.must_change_password
+
+
+async def test_concurrent_initial_password_changes_accept_once(iam_env):
+    iam, client, _, _, _ = iam_env
+    account = await iam.accounts.initialize_admin(
+        AccountCreate(login_name="first-admin", display_name="管理员", initial_password=INITIAL)
+    )
+    response, _ = await login(iam, account.login_name, INITIAL, initial=True)
+    headers = {"Authorization": f"Bearer {response.access_token}"}
+    passwords = [PASSWORD, "Concurrent-password-9012"]
+    results = await asyncio.gather(
+        *(
+            client.post(
+                "/admin/v1/auth/change-password", headers=headers, json={"new_password": password}
+            )
+            for password in passwords
+        )
+    )
+    assert sorted(result.status_code for result in results) == [204, 401]
+    winner = next(
+        password
+        for password, result in zip(passwords, results, strict=True)
+        if result.status_code == 204
+    )
+    fresh, _ = await login(iam, account.login_name, winner)
+    assert not fresh.must_change_password
 
 
 async def test_concurrent_normalized_login_names_accept_once(iam_env, admin):

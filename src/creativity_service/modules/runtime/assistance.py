@@ -7,9 +7,7 @@ from typing import Any, cast
 from pydantic import ValidationError
 
 from creativity_service.core.context import AuthContext
-from creativity_service.core.contracts import BusinessResult
 from creativity_service.core.primitives import ServiceError
-from creativity_service.modules.agents.assistance_schemas import AssistanceOutput
 from creativity_service.modules.agents.schemas import FrozenExecutionSpec
 from creativity_service.modules.models.schemas import FrozenModel
 from creativity_service.modules.runs.schemas import Lease
@@ -24,12 +22,21 @@ async def execute_assistance(
     descriptor: dict[str, Any],
     values: dict[str, Any],
 ) -> None:
-    service = engine.assistance
+    service = (
+        engine.skill_assistance
+        if descriptor.get("kind") == "skill_assistance"
+        else engine.assistance
+    )
     if service is None:
         raise ServiceError("ASSISTANCE_UNAVAILABLE", "智能协助尚未装配", 503)
     messages = [
         {"role": "system", "content": spec.definition.instructions},
-        {"role": "user", "content": json.dumps(values, ensure_ascii=False)},
+        {
+            "role": "user",
+            "content": json.dumps(
+                {k: v for k, v in values.items() if k != "base_package"}, ensure_ascii=False
+            ),
+        },
     ]
     if (
         len(json.dumps(messages, ensure_ascii=False).encode())
@@ -50,7 +57,7 @@ async def execute_assistance(
             16384, *(int(model.parameters.get("max_tokens", 0)) for model in models)
         )
     for attempt in range(2):
-        await service.require(context, descriptor.get("agent_id"))
+        await service.require(context, descriptor.get("skill_id") or descriptor.get("agent_id"))
         async with asyncio.timeout(spec.definition.steps[0].timeout_seconds):
             value = await engine.model(
                 context,
@@ -62,8 +69,7 @@ async def execute_assistance(
                 parameters=parameters,
             )
         try:
-            output = AssistanceOutput.model_validate(value["structured"])
-            await service.validate(context, output, descriptor, values)
+            output = await service.validate_result(context, value["structured"], descriptor, values)
         except (ServiceError, ValidationError) as exc:
             if isinstance(exc, ServiceError) and exc.status in {403, 404}:
                 raise
@@ -88,6 +94,6 @@ async def execute_assistance(
         await engine.runs.finish_run(
             lease,
             "SUCCEEDED",
-            BusinessResult.model_validate(output.model_dump(mode="json", by_alias=True)),
+            output,
         )
         return

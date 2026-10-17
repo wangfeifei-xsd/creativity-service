@@ -14,6 +14,7 @@ from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import RunInput, ServiceError, digest, new_id, utcnow
 from creativity_service.core.schema_validation import SchemaInputError, schema_errors
 from creativity_service.modules.agents.access import locked_require
+from creativity_service.modules.agents.deletion import require_undeleted_agents
 from creativity_service.modules.agents.repositories import repository as agent_repository
 from creativity_service.modules.iam.audit import append_event
 from creativity_service.modules.iam.authorization import IamAuthorization
@@ -529,6 +530,9 @@ class AutomationService:
             if previous and previous["request_digest"] != digest(body.model_dump(mode="json")):
                 raise ServiceError("IDEMPOTENCY_CONFLICT", "相同批次幂等键的内容不同", 409)
             if not previous:
+                await require_undeleted_agents(
+                    uow, context, [item.request.agent_code for _, item in items]
+                )
                 await add(
                     uow,
                     context,
@@ -611,6 +615,7 @@ class AutomationService:
                 )
                 if not parent or parent["state"] != "ACTIVE":
                     raise ServiceError("BATCH_CANCELLED", "批次已停止派发", 409)
+            await require_undeleted_agents(uow, context, [row["request"]["agent_code"]])
             row = await repo(context.scope, "automation_items").change(
                 uow,
                 identifier,

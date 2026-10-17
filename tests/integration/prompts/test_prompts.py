@@ -1,4 +1,4 @@
-"""PRM-A02/A03/A04/A06：真实事务、冻结证据、映射和固定依赖。"""
+"""提示词直接发布、真实事务、历史快照、映射和固定依赖。"""
 
 import asyncio
 
@@ -184,39 +184,34 @@ async def test_prm_a03_old_test_snapshot_and_result_stay_fixed(service, context)
     assert "忽略前文 {{ principal_id }}" in old.rendered.sections[1].text
     assert (await debug.submit(context, test.test_id)).run_id == test.run_id
     assert service.runner.calls == 1
-    with pytest.raises(ServiceError, match="缺少当前内容"):
-        await service.release(
-            context,
-            version.version.resource_id,
-            PromptReleaseRequest(
-                version_id=version.version.version_id, revision=version.revision + 1, note="发布"
-            ),
-        )
+    await service.release(
+        context,
+        version.version.resource_id,
+        PromptReleaseRequest(
+            version_id=version.version.version_id, revision=version.revision + 1, note="发布"
+        ),
+    )
+    assert (await service.read_version(context, version.version.version_id)).state == "PUBLISHED"
 
 
-async def test_missing_runner_and_evidence_fail_closed(service, context):
+async def test_missing_runner_only_blocks_legacy_debug_not_publish(service, context):
     _, version = await draft(service, context)
     body = await prepare_inputs(service, context, version)
     with pytest.raises(ServiceError) as unavailable:
         await PromptDebugService(service).start(context, version.version.version_id, body)
     assert unavailable.value.status == 503
-    with pytest.raises(ServiceError, match="测试证据"):
-        await service.release(
-            context,
-            version.version.resource_id,
-            PromptReleaseRequest(
-                version_id=version.version.version_id, revision=version.revision, note="发布"
-            ),
-        )
-    assert (await service.read_version(context, version.version.version_id)).state == "DRAFT"
+    await service.release(
+        context,
+        version.version.resource_id,
+        PromptReleaseRequest(
+            version_id=version.version.version_id, revision=version.revision, note="发布"
+        ),
+    )
+    assert (await service.read_version(context, version.version.version_id)).state == "PUBLISHED"
 
 
 async def test_published_configuration_edit_keeps_old_snapshot(service, context):
     resource, first = await draft(service, context)
-    service.runner, service.evidence = FixtureRunner(), FixtureEvidence()
-    await PromptDebugService(service).start(
-        context, first.version.version_id, await prepare_inputs(service, context, first)
-    )
     await service.release(
         context,
         resource.prompt_id,
@@ -284,50 +279,31 @@ async def test_channel_and_environment_isolation_and_sensitive_permissions(
     )
 
 
-async def test_wrong_or_unbilled_evidence_cannot_publish(service, context):
+async def test_publish_does_not_read_legacy_debug_evidence(service, context):
     resource, version = await draft(service, context)
     service.runner, service.evidence = FixtureRunner(), FixtureEvidence()
     await PromptDebugService(service).start(
         context, version.version.version_id, await prepare_inputs(service, context, version)
     )
 
-    class Unbilled(FixtureEvidence):
+    class UnavailableEvidence:
         async def read(self, uow, context, row):
-            return (await super().read(uow, context, row)).model_copy(
-                update={"usage_recorded": False}
-            )
+            raise AssertionError("发布提示词不应读取调试证据")
 
-    service.evidence = Unbilled()
-    with pytest.raises(ServiceError, match="真实调试证据"):
-        await service.release(
-            context,
-            resource.prompt_id,
-            PromptReleaseRequest(
-                version_id=version.version.version_id,
-                revision=version.revision,
-                note="缺少用量证据",
-            ),
-        )
-
-    class WrongSnapshot(FixtureEvidence):
-        async def read(self, uow, context, row):
-            return (await super().read(uow, context, row)).model_copy(
-                update={"descriptor_digest": "0" * 64}
-            )
-
-    service.evidence = WrongSnapshot()
-    with pytest.raises(ServiceError, match="冻结内容不符"):
-        await service.release(
-            context,
-            resource.prompt_id,
-            PromptReleaseRequest(
-                version_id=version.version.version_id, revision=version.revision, note="错误证据"
-            ),
-        )
-    assert (await service.read_version(context, version.version.version_id)).state == "DRAFT"
+    service.evidence = UnavailableEvidence()
+    await service.release(
+        context,
+        resource.prompt_id,
+        PromptReleaseRequest(
+            version_id=version.version.version_id, revision=version.revision, note="直接发布"
+        ),
+    )
+    assert (await service.read_version(context, version.version.version_id)).state == "PUBLISHED"
 
 
-async def test_deleting_sample_or_run_blocks_test_read_and_release(service, context, authorization):
+async def test_deleted_debug_run_blocks_history_read_but_not_publish(
+    service, context, authorization
+):
     from creativity_service.core.deletion import ContentRef, DeletionService
 
     resource, version = await draft(service, context)
@@ -340,15 +316,14 @@ async def test_deleting_sample_or_run_blocks_test_read_and_release(service, cont
     with pytest.raises(ServiceError) as deleted:
         await PromptDebugService(service).detail(context, test.test_id, True)
     assert deleted.value.status == 410
-    with pytest.raises(ServiceError) as blocked:
-        await service.release(
-            context,
-            resource.prompt_id,
-            PromptReleaseRequest(
-                version_id=version.version.version_id, revision=version.revision, note="已删来源"
-            ),
-        )
-    assert blocked.value.status == 410
+    await service.release(
+        context,
+        resource.prompt_id,
+        PromptReleaseRequest(
+            version_id=version.version.version_id, revision=version.revision, note="直接发布"
+        ),
+    )
+    assert (await service.read_version(context, version.version.version_id)).state == "PUBLISHED"
 
 
 async def test_context_sources_are_linked_to_frozen_test(service, context, authorization):
