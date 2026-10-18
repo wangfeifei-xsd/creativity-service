@@ -187,6 +187,11 @@
         "title": "Max Tool Calls",
         "type": "integer"
       },
+      "requires_complete_data": {
+        "default": false,
+        "title": "Requires Complete Data",
+        "type": "boolean"
+      },
       "steps": {
         "items": {
           "$ref": "#/$defs/StepPolicy"
@@ -528,6 +533,11 @@
             "minimum": 0,
             "title": "Max Tool Calls",
             "type": "integer"
+          },
+          "requires_complete_data": {
+            "default": false,
+            "title": "Requires Complete Data",
+            "type": "boolean"
           },
           "steps": {
             "items": {

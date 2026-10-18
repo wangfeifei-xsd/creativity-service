@@ -38,11 +38,20 @@ definition.instructions 必须保留完整执行规则，不能只写“使用�
 所有依赖必须选自目录，禁止编造资源。工具输入输出须遵循目录中的完整 schema 和超时。
 技能可由不同智能体复用，没有按智能体设置的技能使用名单；历史对话中的此类限制已废弃，
 不能据此拒绝绑定、要求用户提供其他技能版本或确认改用提示词。
+多阶段使用不同技能时，在 bindings.skill_loading 为每项技能填写 step_keys，指定实际使用它的模型节点。
+指定节点的技能变量按同名字段从该节点入参读取，类型须匹配资源目录中的 input_variables；
+工具或脚本产出的数据通过节点输入映射传给技能，不要求用户把这些中间结果填写为初始输入。
+step_keys 不能选择脚本、工具或计算节点；未指定时保持在全部模型节点加载并从运行入参读取变量。
+技能声明 object 变量时传入包含目录字段的对象，不将数组直接映射为 object。
 用户已明确的业务输入直接采用；工具 schema 中的 tenantId、clubId、userId 等业务编号是查询参数，
 按用户要求声明为运行输入并映射到工具，不把它们当作平台身份，也不要求用户解释受信注入方式。
 平台渠道和执行身份由服务端独立提供；字段白名单、封闭对象及 schema 修正由你处理，
 不能把这些配置实现问题当作业务信息缺失反复追问。用户确认继续时，根据已知需求生成完整方案。
 所有输入输出 properties（包括嵌套对象与数组元素）须有简洁中文 title；字段 key 保持稳定。
+所有输入输出结构必须内联展开，不使用 $ref、$dynamicRef 或 $id；不要用 $defs 缩写重复结构。
+步骤输入字段必须接受来源结构允许的全部值，不能增加来源未声明的 const、枚举或范围约束。
+例如来源为普通 boolean 时，目标也用 boolean；只允许成功时继续由条件连线控制，不能添加 const=true。
+所有能直接到 END 的步骤输出都须满足最终输出结构；最终状态枚举应包含各出口可能的全部状态。
 输入必填、类型、长度和枚举由 input_schema 校验；不要让模型重复计数或以同一结构约束拒绝已校验输入。
 修改时保留未涉及的字段、绑定、运行限制和行为；agent_code 保持原值，返回完整配置。
 基本字段 name、description、owner、version_label 使用中文。新建编码使用简短英文小写。
@@ -53,6 +62,32 @@ input 来源 path 对应智能体输入，step 来源指定前置步骤及字段
 步骤 dependency 必须绑定到对应工具或模型路由；工具须同时加入 bindings.tool_ids。
 模型步骤可用 dependency 和 prompt_id 单独选择路由与提示词，留空沿用 bindings 默认值。
 节点提示词的 input 变量读取本步骤输入映射；默认提示词的 input 变量读取智能体运行输入。
+确定性校验、整理入参、计数、比较和金额计算使用 kind=script 的独立“脚本处理”节点。
+脚本节点只有 script（source、profile_id、profile_digest），环境必须来自 python_environments。
+不能配置 dependency、prompt_id、operator、failure_handler、工具或技能；不会调用模型、加载提示词
+或技能，也不会调用工具。不要生成 input_script、output_script 或其他前后脚本、执行模式字段。
+source 定义同步 transform(value, context)，接收映射后的入参，返回 JSON 对象直接作为节点出参。
+input_schema 校验映射值，output_schema 校验脚本返回值，后续映射和条件读取最终出参。
+context.inputs 为本次入参，previous_output 为同节点上一轮结果（首次为 null），iteration 从 1 开始。
+业务校验未通过应正常返回失败标记及结论，不抛异常。建议出参使用业务结果封装，data 包含
+success（布尔）、conclusion（校验结论）、inputs（结构化后的入参），在 schema 声明各字段。
+成功边按 data.success=true 进入后续节点，后续分别映射 data.success 和 data.inputs；
+失败边可指向 END 或其他节点，保留 data.conclusion。直接结束须符合智能体最终业务输出契约，
+例如校验失败返回 NEEDS_INPUT 或 INSUFFICIENT_DATA。Python 语法、运行、超时及结构错误为技术失败，
+不自动重试，脚本节点使用 failure_policy=fail/partial、max_retries=0。需要校验示例可直接在一个
+脚本内完成校验、结构化和返回；不要再拆分“入参脚本”和“出参脚本”。
+全量查询使用独立只读 tool 节点的 pagination：cursor_input、items_path、has_more_path、cursor_path，
+可选 count_path（本页条数）、total_path（总条数），max_items 为累计条数上限。
+平台从首页持续翻页到 has_more=false；工具节点最终输出 complete（布尔）、received（整数）、
+page_count（整数）、total（整数或 null）和 pages（原始业务响应数组），在 output_schema 中声明。
+complete 固定为 true；received、page_count、total 的整数值非负。pages.items 保留工具原始输出契约，
+不可增加工具未保证的必填字段或取值约束；更严格的业务约束放入后续脚本检查。
+后续 script 节点映射查询结果及查询业务租户，核对每页租户、项目和规格并计算。
+至少检查查询失败、租户不一致、本页条数与列表不符、续页游标缺失或重复、项目和规格违规。
+平台检查调用失败、条数、游标和上限，脚本按实际工具契约检查业务数据。全量查询在末页前
+不会进入后续节点；达到次数、时间、条数或累计大小上限仍未查完时明确数据不完整，
+不能声称已从全部项目中选出最优项。无模型节点的纯脚本流程不需要模型、提示词、工具或技能绑定。
+没有获准 Python 环境时不能编造脚本环境；需要确定性计算但无可用工具时明确说明能力缺口。
 智能体最终输出包含并必填 business_status、schema_version、data、warnings、evidence_refs，
 类型分别为 string、string、object、array、array。business_status 声明枚举 COMPLETED、
 NEEDS_INPUT、NO_MATCH、INSUFFICIENT_DATA、PARTIAL 中适用的值。最后步骤输出匹配此结构。
@@ -87,12 +122,13 @@ def builtin_definition(route_id: str, context_limit: int = 32000) -> AgentDefini
         edges=(AgentEdge(source="generate", target="END"),),
         bindings=AgentBindings(model_route_version=route_id),
         limits=AgentLimits(
-            deadline_seconds=300,
+            # 生成与一次候选修复各有 240 秒，另外预留受理和校验时间。
+            deadline_seconds=540,
             token_limit=160000,
             max_model_rounds=6,
             max_tool_calls=0,
             max_iterations=2,
-            loop_timeout_seconds=300,
+            loop_timeout_seconds=540,
             output_repair_attempts=1,
         ),
         context=AgentContextPolicy(context_limit=context_limit),

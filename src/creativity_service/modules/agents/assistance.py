@@ -218,6 +218,7 @@ class AgentAssistance:
             "base": base,
             "history": history,
             "resources": catalog,
+            "python_environments": [p.model_dump(mode="json") for p in options.python_environments],
             "example": options.templates[0].definition.model_dump(mode="json", by_alias=True),
         }
         if len(canonical_json(values)) > 160000:
@@ -293,7 +294,11 @@ class AgentAssistance:
         definition = proposal.definition
         issues = static_issues(definition)
         if issues:
-            raise ServiceError("FLOW_INVALID", "；".join(i.message for i in issues[:6]), 422)
+            raise ServiceError(
+                "FLOW_INVALID",
+                "；".join(f"{i.path}：{i.message}" if i.path else i.message for i in issues[:6]),
+                422,
+            )
         schemas = [
             definition.input_schema,
             definition.output_schema,
@@ -331,7 +336,10 @@ class AgentAssistance:
             raise ServiceError(
                 "ASSISTANCE_INVALID",
                 "；".join(
-                    issue.message for c in check.checks if not c.passed for issue in c.issues
+                    f"{issue.path}：{issue.message}" if issue.path else issue.message
+                    for c in check.checks
+                    if not c.passed
+                    for issue in c.issues
                 ),
                 422,
             )

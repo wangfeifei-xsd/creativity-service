@@ -257,7 +257,8 @@ class ToolDebug:
         self, context: AuthContext, version_id: str, body: ToolTestInput
     ) -> ToolTestResult:
         versions = await self.admission.versions(context, [version_id])
-        target = versions[0]
+        # 依赖列表不保证目标在首位，写工具的状态查询依赖不能替代待调试工具。
+        target = next(version for version in versions if version.version_id == version_id)
         definition = ToolDefinition.model_validate(target.content)
         tool_versions: tuple[str, ...] = (version_id,)
         if definition.write_policy:

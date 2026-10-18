@@ -9,6 +9,7 @@ from creativity_service.core.primitives import ServiceError, canonical_json
 from creativity_service.core.schema_validation import check_schema
 from creativity_service.modules.agents.registry import ENTRYPOINTS, legacy_templates
 from creativity_service.modules.agents.schemas import AgentDefinition, AgentIssue
+from creativity_service.modules.agents.scripts import script_configuration_issues
 from creativity_service.modules.prompts.schemas import PromptContent
 
 
@@ -23,10 +24,18 @@ def schema_field(schema: dict[str, Any], path: str) -> dict[str, Any] | None:
 
 def compatible(source: dict[str, Any] | bool, target: dict[str, Any] | bool) -> bool:
     """首版只证明内联结构可赋值；无法证明的复杂组合要求保持相同契约。"""
-    if source == target or target is True or source is False or target == {}:
+    if target is True or source is False or target == {}:
         return True
     if not isinstance(source, dict) or not isinstance(target, dict):
-        return False
+        return source is target
+    # 状态枚举可收窄为最终契约的子集；用 JSON Schema 区分布尔值与数字。
+    finite = {key: target[key] for key in ("enum", "const") if key in target}
+    if finite:
+        choices = [source["const"]] if "const" in source else source.get("enum")
+        if choices is None or not all(Draft202012Validator(finite).is_valid(v) for v in choices):
+            return False
+    if source == target:
+        return True
     if source.get("type") != target.get("type") and not (
         source.get("type") == "integer" and target.get("type") == "number"
     ):
@@ -43,8 +52,11 @@ def compatible(source: dict[str, Any] | bool, target: dict[str, Any] | bool) -> 
         "readOnly",
         "writeOnly",
     }
-    if any(target[k] != source.get(k) for k in target.keys() - structural - annotations):
-        return False
+    for key in target.keys() - structural - annotations - {"enum", "const"}:
+        if key == "maxItems" and key in source and source[key] <= target[key]:
+            continue
+        if target[key] != source.get(key):
+            return False
     if target.get("type") == "object":
         if not set(target.get("required", [])) <= set(source.get("required", [])):
             return False
@@ -61,7 +73,8 @@ def compatible(source: dict[str, Any] | bool, target: dict[str, Any] | bool) -> 
             compatible(left.get(k, source.get("additionalProperties", True)), v)
             for k, v in right.items()
         )
-    if target.get("type") == "array" and "items" in target:
+    # 失败出口可声明空推荐列表；空数组没有需要满足元素约束的值。
+    if target.get("type") == "array" and "items" in target and source.get("maxItems") != 0:
         return compatible(source.get("items", {}), target["items"])
     return True
 
@@ -89,6 +102,16 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
         definition.bindings.skill_versions
     ):
         fail("技能加载配置必须唯一且引用已绑定的技能版本", "bindings.skill_loading")
+    model_keys = {step.key for step in definition.steps if step.kind == "model"}
+    for loading in definition.bindings.skill_loading:
+        if loading.step_keys is not None and (
+            len(loading.step_keys) != len(set(loading.step_keys))
+            or not set(loading.step_keys) <= model_keys
+        ):
+            fail(
+                "技能生效节点须为不重复的模型节点，不能选择脚本、工具或计算节点",
+                f"bindings.skill_loading.{loading.version_id}.step_keys",
+            )
     schemas = [
         ("input_schema", definition.input_schema),
         ("output_schema", definition.output_schema),
@@ -233,6 +256,14 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
     if set(nodes) - reached:
         fail("流程包含无法到达的步骤", "steps")
     for key, step in nodes.items():
+        if key.startswith("python_"):
+            fail("步骤标识不能使用脚本处理保留前缀", f"steps.{key}.key")
+        issues.extend(script_configuration_issues(step))
+        if step.pagination:
+            if step.kind != "tool" or key in handlers:
+                fail("全量分页须用于普通工具步骤", f"steps.{key}.pagination")
+            if step.pagination.cursor_input not in step.input_schema.get("properties", {}):
+                fail("续页参数须为输入结构中的顶层字段", f"steps.{key}.pagination")
         if step.operator and step.kind != "compute":
             fail("只有计算步骤可以选择通用算子", f"steps.{key}.operator")
         if step.operator == "object" and not compatible(step.input_schema, step.output_schema):
@@ -240,9 +271,10 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
         if "END" not in reachable(key):
             fail("步骤无法到达终止出口", f"steps.{key}")
         props = step.input_schema.get("properties", {})
+        supplied = set(step.inputs) | ({step.pagination.cursor_input} if step.pagination else set())
         if (
             set(step.inputs) - props.keys()
-            or not set(step.input_schema.get("required", [])) <= step.inputs.keys()
+            or not set(step.input_schema.get("required", [])) <= supplied
         ):
             fail("步骤输入须覆盖必填字段且不能引用未声明字段", f"steps.{key}.inputs")
         for field, source in step.inputs.items():

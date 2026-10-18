@@ -32,6 +32,7 @@ from creativity_service.modules.agents.schemas import (
     FrozenExecutionSpec,
     Purpose,
 )
+from creativity_service.modules.agents.scripts import script_issues
 from creativity_service.modules.agents.validation import static_issues
 from creativity_service.modules.releases.checks import (
     check_budget,
@@ -56,6 +57,9 @@ class AgentSnapshots(AgentKernel):
     ) -> tuple[AgentValidation, list[dict[str, Any]], dict[str, Any]]:
         definition = AgentDefinition.model_validate(version["content"])
         issues = static_issues(definition)
+        issues += script_issues(
+            definition, self.sandbox, context.scope.channel_id, check_config=False
+        )
         checks = [
             AgentCheck(key="authorization", label="当前授权与环境", passed=True),
             AgentCheck(key="flow", label="结构与流程终止", passed=not issues, issues=issues),

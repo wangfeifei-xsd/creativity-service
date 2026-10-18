@@ -295,6 +295,9 @@ class QueryService(RunKernel):
                         run_id=run_id,
                     )
                 )["payload"]
+                contents = await rows(
+                    uow.connection, "run_contents", context.scope.channel_id, run_id=run_id
+                )
                 actual_inputs = [
                     {
                         "name": next(
@@ -311,11 +314,43 @@ class QueryService(RunKernel):
                         or "结果来源",
                         "value": c["payload"],
                     }
-                    for c in await rows(
-                        uow.connection, "run_contents", context.scope.channel_id, run_id=run_id
-                    )
+                    for c in contents
                     if c["kind"].startswith("inputs:")
                 ]
+                script_names = {
+                    s.node_key: s.name
+                    for s in ExecutionPolicy.model_validate(row["execution_policy"]).steps
+                    if s.node_key.startswith("python_") and s.kind == "compute"
+                }
+                if script_names:
+                    # 复用已授权内容并批量装配脚本前后数据，不逐节点读取正文。
+                    payloads = {c["id"]: c["payload"] for c in contents}
+                    script_steps = await rows(
+                        uow.connection, "run_steps", context.scope.channel_id, run_id=run_id
+                    )
+                    script_steps = [s for s in script_steps if s["node_key"] in script_names]
+                    script_attempts = await Repository(
+                        metadata.tables["attempts"], context.scope
+                    ).find_many(
+                        uow.connection, "step_id", [s["id"] for s in script_steps], run_id=run_id
+                    )
+                    failures: dict[str, list[Any]] = {}
+                    for attempt in script_attempts:
+                        content = payloads.get("failure_" + attempt["id"])
+                        if content is not None:
+                            failures.setdefault(attempt["step_id"], []).append(content)
+                    actual_inputs.extend(
+                        {
+                            "name": script_names[s["node_key"]],
+                            "value": {
+                                "input": payloads.get(s["input_ref"]),
+                                "processed": payloads.get(s["output_ref"]),
+                                "errors": failures.get(s["id"], []),
+                            },
+                        }
+                        for s in sorted(script_steps, key=lambda item: item["sequence"])
+                        if s["node_key"] in script_names
+                    )
                 calls = await Repository(tool_metadata.tables["tool_calls"], context.scope).find(
                     uow.connection, run_id=run_id
                 )

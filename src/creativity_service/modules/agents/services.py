@@ -32,6 +32,7 @@ from creativity_service.modules.agents.schemas import (
     AgentVersionEdit,
     AgentVersionView,
 )
+from creativity_service.modules.agents.scripts import environment_options, script_issues
 from creativity_service.modules.agents.snapshots import AgentSnapshots
 from creativity_service.modules.iam.reading import require_action, resource_state, visible_actions
 
@@ -47,6 +48,9 @@ class AgentService(AgentSnapshots):
         definition: AgentDefinition,
     ) -> dict[str, Any]:
         repo = repository("resource_versions", context.scope)
+        problems = script_issues(definition, self.sandbox, context.scope.channel_id)
+        if problems:
+            raise ServiceError(problems[0].code, problems[0].message, 422)
         if await repo.find(
             uow.connection, resource_type="agent", resource_id=agent_id, version_label=label
         ):
@@ -214,6 +218,9 @@ class AgentService(AgentSnapshots):
             from creativity_service.modules.resources.configuration import require_dependencies
 
             await require_dependencies(uow, context.scope, body.definition.dependency_ids())
+            problems = script_issues(body.definition, self.sandbox, context.scope.channel_id)
+            if problems:
+                raise ServiceError(problems[0].code, problems[0].message, 422)
             content = body.definition.model_dump(mode="json")
             row = await repository("resource_versions", context.scope).change(
                 uow,
@@ -428,6 +435,7 @@ class AgentService(AgentSnapshots):
                 ):
                     result.append(self.dependency_summary(row, resources[kind][row["resource_id"]]))
         return AgentOptions(
+            python_environments=environment_options(self.sandbox, context.scope.channel_id),
             templates=templates(),
             legacy_templates=legacy_templates(),
             dependencies=result,

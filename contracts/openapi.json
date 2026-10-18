@@ -1536,6 +1536,13 @@
             "title": "Legacy Templates",
             "type": "array"
           },
+          "python_environments": {
+            "items": {
+              "$ref": "#/components/schemas/PythonEnvironment"
+            },
+            "title": "Python Environments",
+            "type": "array"
+          },
           "templates": {
             "items": {
               "$ref": "#/components/schemas/AgentTemplate"
@@ -1754,6 +1761,25 @@
             "title": "Skill Id",
             "type": "string"
           },
+          "step_keys": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                  "type": "string"
+                },
+                "maxItems": 64,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Keys"
+          },
           "trigger_reason": {
             "default": "配置选择",
             "maxLength": 256,
@@ -1865,7 +1891,8 @@
             "enum": [
               "model",
               "tool",
-              "compute"
+              "compute",
+              "script"
             ],
             "title": "Kind",
             "type": "string"
@@ -1904,6 +1931,16 @@
             "title": "Output Schema",
             "type": "object"
           },
+          "pagination": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StepPagination"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "prompt_id": {
             "anyOf": [
               {
@@ -1917,6 +1954,16 @@
               }
             ],
             "title": "Prompt Id"
+          },
+          "script": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NodePython"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "timeout_seconds": {
             "default": 30,
@@ -11404,6 +11451,36 @@
         "title": "NavigationItem",
         "type": "object"
       },
+      "NodePython": {
+        "additionalProperties": false,
+        "properties": {
+          "profile_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Profile Digest",
+            "type": "string"
+          },
+          "profile_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "source": {
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "profile_id",
+          "profile_digest"
+        ],
+        "title": "NodePython",
+        "type": "object"
+      },
       "OAuthCallback": {
         "additionalProperties": false,
         "properties": {
@@ -13293,6 +13370,44 @@
           "protocols"
         ],
         "title": "ProviderView",
+        "type": "object"
+      },
+      "PythonEnvironment": {
+        "additionalProperties": false,
+        "properties": {
+          "memory_mb": {
+            "title": "Memory Mb",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profile_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Profile Digest",
+            "type": "string"
+          },
+          "profile_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "seconds": {
+            "title": "Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "profile_id",
+          "profile_digest",
+          "name",
+          "seconds",
+          "memory_mb"
+        ],
+        "title": "PythonEnvironment",
         "type": "object"
       },
       "ReadinessResponse": {
@@ -18100,6 +18215,74 @@
           "amount"
         ],
         "title": "StatementLine",
+        "type": "object"
+      },
+      "StepPagination": {
+        "additionalProperties": false,
+        "properties": {
+          "count_path": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count Path"
+          },
+          "cursor_input": {
+            "default": "cursor",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Cursor Input",
+            "type": "string"
+          },
+          "cursor_path": {
+            "default": "cursor",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Cursor Path",
+            "type": "string"
+          },
+          "has_more_path": {
+            "default": "has_more",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Has More Path",
+            "type": "string"
+          },
+          "items_path": {
+            "default": "items",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Items Path",
+            "type": "string"
+          },
+          "max_items": {
+            "default": 1000,
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Max Items",
+            "type": "integer"
+          },
+          "total_path": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Path"
+          }
+        },
+        "title": "StepPagination",
         "type": "object"
       },
       "SubjectRequirements": {

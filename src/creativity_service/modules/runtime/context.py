@@ -200,18 +200,28 @@ class ContextBuilder:
             )
             loading = {s.version_id: s for s in config.bindings.skill_loading}
             for identifier in config.bindings.skill_versions:
+                skill_selection = loading.get(identifier)
+                scoped = skill_selection is not None and skill_selection.step_keys is not None
+                if (
+                    skill_selection
+                    and skill_selection.step_keys is not None
+                    and (step is None or step.key not in skill_selection.step_keys)
+                ):
+                    continue
                 definition = SkillDefinition.model_validate(versions[identifier].content)
+                # 明确指定节点时只读取映射入参，未指定的旧配置继续读取运行入参。
+                variables = input_value if scoped else declared_input
                 bindings.append(
                     SkillBinding(
                         **(
-                            loading[identifier].model_dump()
-                            if identifier in loading
+                            skill_selection.model_dump(exclude={"step_keys"})
+                            if skill_selection
                             else {"version_id": identifier}
                         ),
                         variables={
-                            v.name: declared_input[v.name]
+                            v.name: variables[v.name]
                             for v in definition.input_variables
-                            if v.name in declared_input
+                            if v.name in variables
                         },
                     )
                 )

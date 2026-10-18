@@ -18,7 +18,11 @@ from creativity_service.modules.agents.repositories import (
     TABLES,
     repository,
 )
-from creativity_service.modules.agents.schemas import AgentDefinition, Purpose
+from creativity_service.modules.agents.schemas import (
+    AgentDefinition,
+    Purpose,
+    pagination_output_schema,
+)
 from creativity_service.modules.agents.validation import (
     compatible,
     schema_field,
@@ -103,6 +107,7 @@ class DependencyResolver:
             if indexed[identifier]["resource_type"] != kind:
                 raise ServiceError("DEPENDENCY_INVALID", "依赖资源类型与选择位置不符", 422)
         capabilities = {"text"}
+        scoped_capabilities: dict[str, set[str]] = {}
         if definition.workflow_type == "tool_loop":
             capabilities.add("tools")
         memory_policy = definition.context.memory_policy
@@ -196,13 +201,33 @@ class DependencyResolver:
                         and step.dependency == row["id"]
                         and (
                             not compatible(step.input_schema, tool.input_schema)
-                            or not compatible(tool.output_schema, step.output_schema)
+                            or not compatible(
+                                pagination_output_schema(tool.output_schema)
+                                if step.pagination
+                                else tool.output_schema,
+                                step.output_schema,
+                            )
                             or step.timeout_seconds < tool.timeout_seconds
                         )
                     ):
                         raise ServiceError(
                             "FLOW_INVALID", f"{step.name}的输入、输出或超时与工具契约不符", 422
                         )
+                    if step.kind == "tool" and step.dependency == row["id"] and step.pagination:
+                        if tool.effect_type != "READ_ONLY":
+                            raise ServiceError("FLOW_INVALID", "全量分页只允许只读工具", 422)
+                        paging = step.pagination
+                        for path in (
+                            paging.items_path,
+                            paging.has_more_path,
+                            paging.cursor_path,
+                            paging.count_path,
+                            paging.total_path,
+                        ):
+                            if path and schema_field(tool.output_schema, path) is None:
+                                raise ServiceError(
+                                    "FLOW_INVALID", f"{step.name}的分页字段不存在于工具输出", 422
+                                )
             if kind == "skill":
                 skill = SkillDefinition.model_validate(row["content"])
                 loading = next(
@@ -217,13 +242,36 @@ class DependencyResolver:
                         raise ServiceError("DEPENDENCY_INVALID", "技能所选资料缺失或不可加载", 422)
                 if not set(skill.required_tool_versions) <= set(bindings.tool_versions):
                     raise ServiceError("DEPENDENCY_INVALID", "技能不能扩大智能体工具白名单", 422)
-                capabilities.update(skill.required_model_capabilities)
-                for variable in skill.input_variables:
-                    source = schema_field(definition.input_schema, variable.name)
-                    if variable.required and (
-                        not source or not compatible(source, {"type": variable.value_type})
-                    ):
-                        raise ServiceError("FLOW_INVALID", "技能必填变量缺少兼容的运行输入", 422)
+                inputs = [("运行输入", definition.input_schema)]
+                if loading and loading.step_keys is not None:
+                    targets = [
+                        step
+                        for step in definition.steps
+                        if step.kind == "model" and step.key in loading.step_keys
+                    ]
+                    if len(targets) != len(loading.step_keys):
+                        raise ServiceError("FLOW_INVALID", "技能生效节点须为不重复的模型节点", 422)
+                    inputs = [(f"节点“{step.name}”的输入", step.input_schema) for step in targets]
+                    for step in targets:
+                        route_id = step.dependency or bindings.model_route_version
+                        if route_id:
+                            scoped_capabilities.setdefault(route_id, set()).update(
+                                skill.required_model_capabilities
+                            )
+                else:
+                    capabilities.update(skill.required_model_capabilities)
+                for label, schema in inputs:
+                    for variable in skill.input_variables:
+                        source = schema_field(schema, variable.name)
+                        if variable.required and (
+                            not source or not compatible(source, {"type": variable.value_type})
+                        ):
+                            raise ServiceError(
+                                "FLOW_INVALID",
+                                f"技能“{row['resource_name']}”的必填变量“{variable.label}”"
+                                f"缺少兼容的{label}（{variable.name}）",
+                                422,
+                            )
         await SkillVersionValidator(self.skills).validate_many(
             uow,
             context,
@@ -239,7 +287,7 @@ class DependencyResolver:
             if not candidates:
                 raise ServiceError("DEPENDENCY_INVALID", "模型路由缺少具体候选模型", 422)
             declared = set(route.get("required_capabilities", []))
-            required = set(capabilities)
+            required = capabilities | scoped_capabilities.get(route_id, set())
             if (
                 route_id == bindings.model_route_version
                 and definition.context.conversation_enabled

@@ -62,6 +62,7 @@ class StepPolicy(Contract):
 
 
 class ExecutionPolicy(Contract):
+    requires_complete_data: bool = False
     frozen_spec_id: Identifier | None = None
     steps: tuple[StepPolicy, ...] = Field(min_length=1)
     workload: Literal["online", "analysis"] = "online"

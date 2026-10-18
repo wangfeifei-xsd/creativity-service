@@ -410,6 +410,21 @@ async def test_unexecutable_token_budget_is_repaired_before_showing_proposal(run
     assert "输出上限" in env.adapter.calls[1][1].messages[-1]["content"]
 
 
+async def test_schema_repair_identifies_the_invalid_step_input(runtime_env):
+    env = runtime_env
+    invalid = proposal(env)
+    step = invalid["definition"]["steps"][0]
+    field = next(iter(step["inputs"]))
+    step["input_schema"]["properties"][field]["const"] = "仅允许这一输入"
+    env.adapter.responses.append(output(invalid))
+    _, turn = await generate(env, proposal(env))
+    assert turn.reply.proposal is not None
+    assert len(env.adapter.calls) == 2
+    repair = env.adapter.calls[1][1].messages[-1]["content"]
+    assert f"steps.{step['key']}.inputs.{field}" in repair
+    assert "结构不兼容" in repair
+
+
 @pytest.mark.parametrize("configured_limit", [4096, 32768])
 async def test_full_proposal_has_its_own_output_budget(runtime_env, configured_limit):
     env = runtime_env

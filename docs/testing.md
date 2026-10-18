@@ -34,3 +34,7 @@ uv run python -m scripts.verify_acceptance --stage report --output .local/accept
 真实供应商兼容、实际用量及同候选评测需要配置真实服务。当前输出目录的 `providers.json` 保存 `combinations`，每项记录 `provider`、`protocol`、`model`、`status` 和 `run_ids`；至少两种实际供应商或协议组合验证后才可标记 `VERIFIED`。缺记录时生成未验证状态，保持发布阻断。
 
 真实供应商、同候选真实评测及受理性能仍有待完成；清理旧报告不代表验收通过。当前结论以本轮输出的 `release-gate.json` 为准。
+
+## 节点 Python 验证
+
+`tests/test_node_scripts.py` 覆盖静态语法、来源约束、环境隔离和分页规则。`tests/integration/runtime/test_node_scripts.py` 使用隔离 MySQL、真实 Docker 和查询/模型夹具验证单一脚本的入参与出参、成功及失败分支、技术错误阻断、全量分页、异常与运行上限；须通过 `CREATIVITY_SANDBOX_TEST_IMAGE` 指定本地固定摘要镜像，未提供时测试明确失败。底层容器隔离与清理复用 `tests/integration/runtime/test_sandbox.py`。前端交互覆盖在 `tests/agents.spec.ts` 中。

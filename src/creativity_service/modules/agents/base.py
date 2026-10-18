@@ -11,6 +11,7 @@ from creativity_service.core.database.reading import read_connection
 from creativity_service.core.deletion import ContentRef, DeletionGuard, content_key
 from creativity_service.core.locking import ResourceKey, record_key
 from creativity_service.core.primitives import ServiceError, digest
+from creativity_service.integrations.sandbox import ContainerSandbox
 from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.agents.dependencies import DependencyResolver
 from creativity_service.modules.agents.dependency_loading import dependency_rows
@@ -68,6 +69,7 @@ class AgentKernel:
         runner: AgentDebugRunner | None = None,
     ) -> None:
         self.engine, self.authorization = engine, authorization
+        self.sandbox = ContainerSandbox()
         self.dependencies = DependencyResolver(tools, skills)
         self.budgets, self.evaluation, self.runner = budgets, evaluation, runner
 

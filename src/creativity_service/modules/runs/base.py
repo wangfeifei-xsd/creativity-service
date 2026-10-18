@@ -299,8 +299,11 @@ class RunKernel:
             await self.transition(uow, row, "CANCELLED")
             return True
         if utcnow() >= row["deadline"]:
+            message = "运行已超过截止时间"
+            if row["execution_policy"].get("requires_complete_data"):
+                message += "，全量查询未确认完成，数据不完整"
             await self.transition(
-                uow, row, "TIMED_OUT", error=self.error(row, "RUN_DEADLINE", "运行已超过截止时间")
+                uow, row, "TIMED_OUT", error=self.error(row, "RUN_DEADLINE", message)
             )
             return True
         return False

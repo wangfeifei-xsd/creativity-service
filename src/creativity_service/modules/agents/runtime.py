@@ -22,6 +22,7 @@ from creativity_service.modules.agents.access import locked_require
 from creativity_service.modules.agents.dependency_loading import dependency_rows
 from creativity_service.modules.agents.repositories import repository, required
 from creativity_service.modules.agents.schemas import AgentDefinition, FrozenExecutionSpec
+from creativity_service.modules.agents.scripts import script_key
 from creativity_service.modules.agents.services import AgentService
 from creativity_service.modules.runs.schemas import ExecutionPolicy, ResolvedDefinition, StepPolicy
 from creativity_service.modules.tools.schemas import ToolDefinition
@@ -39,11 +40,12 @@ class AgentRunResolver:
         steps = []
         for step in config.steps:
             for iteration in range(config.limits.max_iterations):
+                node = step.key if iteration == 0 else f"{step.key}.i{iteration}"
                 steps.append(
                     StepPolicy(
-                        node_key=step.key if iteration == 0 else f"{step.key}.i{iteration}",
+                        node_key=script_key(node) if step.kind == "script" else node,
                         name=step.name,
-                        kind=step.kind,
+                        kind="compute" if step.kind == "script" else step.kind,
                         target_version_id=(step.dependency or config.bindings.model_route_version)
                         if step.kind == "model"
                         else step.dependency or spec.source_version_id,
@@ -107,6 +109,7 @@ class AgentRunResolver:
                 tuple(v) for v in json.loads(spec.payload_json).get("source_refs", [])
             ),
             policy=ExecutionPolicy(
+                requires_complete_data=any(step.pagination is not None for step in config.steps),
                 frozen_spec_id=spec.snapshot_id,
                 steps=tuple(steps),
                 timeout_seconds=config.limits.deadline_seconds,

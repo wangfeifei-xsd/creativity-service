@@ -14,6 +14,7 @@ from creativity_service.core.contracts import BusinessResult
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.integrations.checkpoints import SQLAlchemySaver
 from creativity_service.integrations.models.contracts import ModelRequest
+from creativity_service.integrations.sandbox import ContainerSandbox
 from creativity_service.modules.agents.schemas import AgentStep, FrozenExecutionSpec
 from creativity_service.modules.iam.authorization import IamAuthorization
 from creativity_service.modules.models.schemas import FrozenModel
@@ -22,6 +23,12 @@ from creativity_service.modules.runs.schemas import Lease
 from creativity_service.modules.runs.services import RunService
 from creativity_service.modules.runtime.context import ContextBuilder
 from creativity_service.modules.runtime.model import ModelRunner
+from creativity_service.modules.runtime.node_scripts import NodeScripts
+from creativity_service.modules.runtime.pagination import (
+    accumulate_page,
+    check_page,
+    page_arguments,
+)
 from creativity_service.modules.runtime.registry import StepRegistry
 from creativity_service.modules.runtime.storage import load_spec, read_input, record_inputs
 from creativity_service.modules.runtime.tools import BoundToolPort
@@ -61,7 +68,7 @@ def field(value: Any, path: str) -> Any:
 
 
 def step_input(
-    step: AgentStep, original: dict[str, Any], outputs: dict[str, Any]
+    step: AgentStep, original: dict[str, Any], outputs: dict[str, Any], *, validate: bool = True
 ) -> dict[str, Any]:
     values = {}
     for key, source in step.inputs.items():
@@ -70,7 +77,7 @@ def step_input(
         else:
             origin = original if source.source == "input" else outputs.get(source.step or "")
             values[key] = field(origin, source.path)
-    if not Draft202012Validator(step.input_schema).is_valid(values):
+    if validate and not Draft202012Validator(step.input_schema).is_valid(values):
         raise ServiceError("STEP_INPUT_INVALID", "步骤输入未通过结构校验", 422)
     return values
 
@@ -84,9 +91,12 @@ class RuntimeExecutor:
         tools: ToolService,
         authorization: IamAuthorization,
         registry: StepRegistry | None = None,
+        *,
+        sandbox: ContainerSandbox | None = None,
     ) -> None:
         self.runs, self.models, self.contexts, self.tools = runs, models, contexts, tools
         self.authorization, self.registry = authorization, registry or StepRegistry()
+        self.scripts = NodeScripts(runs, sandbox or ContainerSandbox())
         self.debug: DebugHandler | None = None
         self.assistance: AgentAssistance | None = None
         self.skill_assistance: SkillAssistance | None = None
@@ -328,12 +338,29 @@ class RuntimeExecutor:
                 if visit >= config.limits.max_iterations:
                     raise ServiceError("LOOP_LIMIT", "流程循环次数已达上限", 429)
                 key = step.key if visit == 0 else f"{step.key}.i{visit}"
-                values = step_input(step, original, state["outputs"])
-                if step.kind == "compute":
+                values = step_input(step, original, state["outputs"], validate=False)
+                script_context = {
+                    "inputs": values,
+                    "previous_output": state["outputs"].get(step.key),
+                    "iteration": visit + 1,
+                }
+                paging = state["outputs"].get("_pagination", {}).get(step.key, {})
+                if step.pagination:
+                    values = page_arguments(step.pagination, values, paging)
+                if not Draft202012Validator(step.input_schema).is_valid(values):
+                    raise ServiceError("STEP_INPUT_INVALID", "步骤输入未通过结构校验", 422)
+                if step.kind == "script":
+                    assert step.script is not None
+                    output = await self.scripts.execute(
+                        lease, key, step.script, values, script_context, step.output_schema
+                    )
+                elif step.kind == "compute":
                     output = await self.compute(context, lease, spec, step, key, values)
                 elif step.kind == "tool":
                     assert step.dependency is not None
                     value = await self.tool(context, lease, spec, key, step.dependency, values)
+                    if step.pagination and value.get("truncated"):
+                        raise ServiceError("DATA_INCOMPLETE", "工具响应已截断，数据不完整", 422)
                     output = value["data"]
                     # 工具观测时间、数据版本与来源证据属于本次查询事实，独立于配置快照。
                     state = {
@@ -417,6 +444,27 @@ class RuntimeExecutor:
                             "result": {},
                         }
                     output = value["structured"]
+                if step.pagination:
+                    paging = check_page(step.pagination, output, values, paging)
+                    output = accumulate_page(output, state["outputs"].get(step.key), paging)
+                    state = {
+                        **state,
+                        "outputs": {
+                            **state["outputs"],
+                            "_pagination": {
+                                **state["outputs"].get("_pagination", {}),
+                                step.key: paging,
+                            },
+                        },
+                    }
+                    if paging["has_more"]:
+                        # 完整性确认前持续续查，不把中途结果交给后续脚本或模型。
+                        return {
+                            "node": step.key,
+                            "visits": {**state["visits"], step.key: visit + 1},
+                            "outputs": {**state["outputs"], step.key: output},
+                            "result": {},
+                        }
                 if not isinstance(output, dict) or not Draft202012Validator(
                     step.output_schema
                 ).is_valid(output):
@@ -457,15 +505,31 @@ class RuntimeExecutor:
 
             async def advance(state: FlowState) -> FlowState:
                 nonlocal tool_count
+                step = next(s for s in config.steps if s.key == state["node"])
                 try:
-                    return await unsafe_advance(state)
+                    remaining = min(
+                        config.limits.loop_timeout_seconds - (utcnow() - started).total_seconds(),
+                        (row["deadline"] - utcnow()).total_seconds(),
+                    )
+                    if remaining <= 0:
+                        raise ServiceError("LOOP_TIMEOUT", "流程已超过运行时间限制", 429)
+                    async with asyncio.timeout(min(step.timeout_seconds, remaining)):
+                        return await unsafe_advance(state)
                 except (ServiceError, TimeoutError) as failure:
                     exc = (
                         failure
                         if isinstance(failure, ServiceError)
                         else ServiceError("STEP_TIMEOUT", "步骤执行超时", 504)
                     )
-                    step = next(s for s in config.steps if s.key == state["node"])
+                    if step.pagination:
+                        exc = ServiceError(
+                            "DATA_INCOMPLETE"
+                            if exc.code
+                            in {"LOOP_TIMEOUT", "LOOP_LIMIT", "CALL_LIMIT", "STEP_TIMEOUT"}
+                            else exc.code,
+                            f"全量查询未完成，数据不完整：{exc.message}",
+                            exc.status,
+                        )
                     if step.failure_handler and exc.status in {422, 429, 500, 502, 503, 504}:
                         handler = next(s for s in config.steps if s.key == step.failure_handler)
                         try:
@@ -517,9 +581,10 @@ class RuntimeExecutor:
                         schema_version="1.0",
                         business_status="PARTIAL",
                         data={
+                            **({"complete": False} if step.pagination else {}),
                             "steps": {
                                 k: v for k, v in state["outputs"].items() if not k.startswith("_")
-                            }
+                            },
                         },
                         warnings=(f"步骤{step.name}未完成：{exc.message}",),
                         evidence_refs=(),

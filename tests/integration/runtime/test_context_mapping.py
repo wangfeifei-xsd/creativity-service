@@ -4,7 +4,13 @@ import json
 
 import pytest
 
-from creativity_service.modules.agents.schemas import AgentEdge, AgentStep, InputSource
+from creativity_service.core.primitives import ServiceError
+from creativity_service.modules.agents.schemas import (
+    AgentEdge,
+    AgentSkillLoading,
+    AgentStep,
+    InputSource,
+)
 from creativity_service.modules.prompts.schemas import (
     InstructionBlocks,
     MessageTemplate,
@@ -13,12 +19,105 @@ from creativity_service.modules.prompts.schemas import (
     PromptVariable,
 )
 from creativity_service.modules.runs.repositories import rows
+from creativity_service.modules.skills.schemas import SkillCreate, SkillSettings, SkillVariable
 from creativity_service.workers.executor import execute_message
 from tests.integration.runtime.test_entries import create_tool
 from tests.integration.runtime.test_execution import admitted, pytestmark
 from tests.support.resources import publish_resource
 
 __all__ = ["pytestmark"]
+
+
+@pytest.mark.parametrize("scoped", [False, True])
+async def test_skill_scope_uses_node_inputs_and_preserves_legacy_global_inputs(runtime_env, scoped):
+    env = runtime_env
+    skill = await env.skills.create(
+        env.context,
+        SkillCreate(
+            skill_code="mapped_input",
+            name="节点资料解读",
+            description="处理选定资料",
+            owner="测试人员",
+            instructions="技能取值：{{request}}",
+            settings=SkillSettings(input_variables=(SkillVariable(name="request", label="资料"),)),
+        ),
+    )
+    identifier = skill.versions[0].version_id
+    await publish_resource(env, "skill", skill.skill.skill_id)
+    definition = prepared_flow(
+        env,
+        {"selected": "整理后的目录"},
+        {"request": InputSource(source="step", step="prepare", path="selected")},
+    )
+    first = env.definition.steps[0].model_copy(update={"key": "precheck", "name": "预检"})
+    definition = definition.model_copy(
+        update={
+            "start_step": first.key,
+            "steps": (first, *definition.steps),
+            "edges": (AgentEdge(source=first.key, target="prepare"), *definition.edges),
+            "bindings": definition.bindings.model_copy(
+                update={
+                    "prompt_version": None,
+                    "skill_versions": (identifier,),
+                    "skill_loading": (
+                        AgentSkillLoading(
+                            skill_id=identifier,
+                            selected=True,
+                            step_keys=("answer",) if scoped else None,
+                        ),
+                    ),
+                }
+            ),
+        }
+    )
+    receipt, message = await admitted(env, definition=definition)
+    await execute_message(env.runs, message, "scoped-skills", env.runtime)
+    result = await env.runs.get_run(env.context, receipt.run_id)
+    assert result.state == "SUCCEEDED", result.error
+    first_messages, last_messages = [call[1].messages for call in env.adapter.calls]
+    assert ("技能取值：请处理" in first_messages[0]["content"]) is (not scoped)
+    expected = "整理后的目录" if scoped else "请处理"
+    assert f"技能取值：{expected}" in last_messages[0]["content"]
+    if scoped:
+        assert "技能取值：请处理" not in last_messages[0]["content"]
+
+
+async def test_scoped_skill_rejects_incompatible_node_input(runtime_env):
+    env = runtime_env
+    skill = await env.skills.create(
+        env.context,
+        SkillCreate(
+            skill_code="catalog_input",
+            name="目录解读",
+            description="处理目录对象",
+            owner="测试人员",
+            instructions="核对目录",
+            settings=SkillSettings(
+                input_variables=(SkillVariable(name="request", label="目录", value_type="object"),)
+            ),
+        ),
+    )
+    identifier = skill.versions[0].version_id
+    await publish_resource(env, "skill", skill.skill.skill_id)
+    definition = env.definition.model_copy(
+        update={
+            "bindings": env.definition.bindings.model_copy(
+                update={
+                    "skill_versions": (identifier,),
+                    "skill_loading": (
+                        AgentSkillLoading(
+                            skill_id=identifier,
+                            selected=True,
+                            step_keys=("answer",),
+                        ),
+                    ),
+                }
+            )
+        }
+    )
+    with pytest.raises(ServiceError, match="目录.*节点"):
+        await admitted(env, definition=definition)
+    assert not env.adapter.calls
 
 
 def prepared_flow(env, data, inputs, *, workflow="template"):

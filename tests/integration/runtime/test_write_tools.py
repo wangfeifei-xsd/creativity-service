@@ -158,8 +158,17 @@ async def resume(env, message, decision):
 
 
 @pytest.mark.parametrize("outcome", ["SUCCEEDED", "UNKNOWN", "NOT_EXECUTED", "MALFORMED"])
-async def test_write_confirmation_and_source_resolution(runtime_env, outcome):
+async def test_write_confirmation_and_source_resolution(runtime_env, outcome, monkeypatch):
     env, source = runtime_env, Source(outcome)
+    admission = env.tools.management.runs.admission
+    load_versions = admission.versions
+
+    async def dependencies_first(context, identifiers):
+        versions = await load_versions(context, identifiers)
+        return sorted(versions, key=lambda version: version.version_id in identifiers)
+
+    # 固定依赖排在目标前，避免随机标识顺序掩盖调试目标解析错误。
+    monkeypatch.setattr(admission, "versions", dependencies_first)
     receipt, message = await prepare(env, source)
     await execute_message(env.runs, message, "worker", env.runtime)
     assert not source.writes

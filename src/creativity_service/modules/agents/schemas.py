@@ -23,16 +23,57 @@ class InputSource(Contract):
     value: Any = None
 
 
+class NodePython(Contract):
+    source: str = Field(min_length=1, max_length=32000)
+    profile_id: Identifier
+    profile_digest: Digest
+
+
+class PythonEnvironment(Contract):
+    profile_id: Identifier
+    profile_digest: Digest
+    name: str
+    seconds: int
+    memory_mb: int
+
+
+class StepPagination(Contract):
+    cursor_input: str = Field(default="cursor", min_length=1, max_length=128)
+    items_path: str = Field(default="items", min_length=1, max_length=256)
+    has_more_path: str = Field(default="has_more", min_length=1, max_length=256)
+    cursor_path: str = Field(default="cursor", min_length=1, max_length=256)
+    count_path: str | None = Field(default=None, min_length=1, max_length=256)
+    total_path: str | None = Field(default=None, min_length=1, max_length=256)
+    max_items: int = Field(default=1000, ge=1, le=10000, strict=True)
+
+
+def pagination_output_schema(page_schema: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "complete": {"type": "boolean", "const": True, "title": "查询完整"},
+            "received": {"type": "integer", "minimum": 0, "title": "累计条数"},
+            "page_count": {"type": "integer", "minimum": 0, "title": "已查页数"},
+            "total": {"type": ["integer", "null"], "minimum": 0, "title": "总条数"},
+            "pages": {"type": "array", "title": "原始页面", "items": page_schema},
+        },
+        "required": ["complete", "received", "page_count", "total", "pages"],
+        "additionalProperties": False,
+    }
+
+
 class AgentStep(Contract):
     key: Identifier
     name: str = Field(min_length=1, max_length=128)
-    kind: Literal["model", "tool", "compute"]
+    kind: Literal["model", "tool", "compute", "script"]
     operator: Literal["object", "input", "approval"] | None = None
     dependency: Identifier | None = None
     prompt_id: Identifier | None = None
     inputs: dict[str, InputSource] = Field(default_factory=dict, max_length=100)
     input_schema: dict[str, Any]
     output_schema: dict[str, Any]
+    script: NodePython | None = None
+    pagination: StepPagination | None = None
     timeout_seconds: int = Field(default=30, ge=1, le=3600, strict=True)
     failure_policy: Literal["fail", "partial", "retry"] = "retry"
     max_retries: int = Field(default=2, ge=0, le=2, strict=True)
@@ -79,6 +120,7 @@ class AgentSkillLoading(Contract):
     loading_mode: Literal["mandatory", "on_demand"] | None = None
     priority: int | None = Field(default=None, ge=-1000, le=1000, strict=True)
     trigger_reason: str = Field(default="配置选择", min_length=1, max_length=256)
+    step_keys: tuple[Identifier, ...] | None = Field(default=None, min_length=1, max_length=64)
 
 
 class AgentBindings(Contract):
@@ -370,5 +412,6 @@ class AgentOptions(Contract):
     templates: list[AgentTemplate]
     legacy_templates: list[AgentTemplate] = Field(default_factory=list)
     dependencies: list[AgentDependency]
+    python_environments: list[PythonEnvironment] = Field(default_factory=list)
     environment: Environment
     environment_label: str

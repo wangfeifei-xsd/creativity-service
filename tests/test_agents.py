@@ -15,6 +15,7 @@ from creativity_service.modules.agents.schemas import (
     AgentDefinition,
     AgentEdge,
     AgentLimits,
+    AgentSkillLoading,
     AgentStep,
     FrozenExecutionSpec,
     InputSource,
@@ -145,6 +146,88 @@ def test_unproven_schema_constraints_and_boolean_subschemas():
 )
 def test_integer_mapping_accepts_numeric_titles_and_preserves_constraints(source, target, expected):
     assert compatible(source, target) is expected
+
+
+@pytest.mark.parametrize(
+    ("source", "target", "expected"),
+    [
+        (
+            {"type": "string", "enum": ["NEEDS_INPUT"]},
+            {"type": "string", "enum": ["COMPLETED", "NEEDS_INPUT"]},
+            True,
+        ),
+        (
+            {"type": "string", "enum": ["COMPLETED", "PARTIAL"]},
+            {"type": "string", "enum": ["COMPLETED", "NEEDS_INPUT"]},
+            False,
+        ),
+        ({"type": "string", "const": "1.0"}, {"type": "string", "enum": ["1.0"]}, True),
+        ({"type": "boolean", "enum": [True]}, {"type": "boolean", "const": True}, True),
+        ({"type": "boolean"}, {"type": "boolean", "const": True}, False),
+        ({"enum": [True]}, {"enum": [1]}, False),
+        ({"const": True}, {"const": 1}, False),
+        (
+            {"type": "array", "items": {"type": "string", "enum": ["通过"]}},
+            {"type": "array", "items": {"type": "string", "enum": ["通过", "失败"]}},
+            True,
+        ),
+        (
+            {"type": "string", "enum": ["通过"]},
+            {"type": "string", "enum": ["通过", "失败"], "maxLength": 1},
+            False,
+        ),
+    ],
+)
+def test_finite_source_values_must_be_a_subset_of_target(source, target, expected):
+    assert compatible(source, target) is expected
+
+
+def test_failure_exit_accepts_a_subset_of_final_business_states():
+    definition = changed()
+    step = definition.steps[0].model_copy(deep=True)
+    definition = definition.model_copy(update={"steps": (step,)})
+    step.output_schema["properties"]["business_status"]["enum"] = ["NEEDS_INPUT"]
+    assert not static_issues(definition)
+    step.output_schema["properties"]["business_status"]["enum"].append("UNKNOWN")
+    assert any(i.path == f"steps.{step.key}.output_schema" for i in static_issues(definition))
+
+
+def test_empty_failure_recommendations_satisfy_optional_final_recommendations():
+    empty = {"type": "array", "maxItems": 0, "items": {"type": "object"}}
+    target = {
+        "type": "array",
+        "maxItems": 1,
+        "items": {
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+    }
+    assert compatible(empty, target)
+    assert not compatible(empty, {**target, "minItems": 1})
+    assert not compatible({**empty, "maxItems": 2}, target)
+    assert not compatible({**empty, "maxItems": 1}, target)
+
+
+@pytest.mark.parametrize("targets", [("missing",), ("answer", "answer"), ("script",)])
+def test_skill_scope_rejects_missing_duplicate_or_non_model_nodes(targets):
+    definition = changed()
+    if targets == ("script",):
+        definition = definition.model_copy(
+            update={"steps": (definition.steps[0].model_copy(update={"kind": "script"}),)}
+        )
+        targets = (definition.steps[0].key,)
+    definition = definition.model_copy(
+        update={
+            "bindings": AgentBindings(
+                skill_ids=("skill",),
+                skill_loading=(AgentSkillLoading(skill_id="skill", step_keys=targets),),
+            )
+        }
+    )
+    assert any(
+        i.path == "bindings.skill_loading.skill.step_keys" for i in static_issues(definition)
+    )
 
 
 def test_integer_input_mapping_with_display_names_passes_flow_validation():
@@ -379,6 +462,8 @@ def test_legacy_definition_golden_files_and_importable_examples():
             assert step.pop("operator") is None
             assert step.pop("prompt_id") is None
             assert step.pop("failure_handler") is None
+            for field in ("script", "pagination"):
+                assert step.pop(field) is None
         assert json.loads(stored.read_text()) == current
     for path in Path("examples/agents").glob("*.json"):
         body = AgentCreate.model_validate_json(path.read_text())

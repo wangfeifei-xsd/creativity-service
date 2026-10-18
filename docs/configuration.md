@@ -38,6 +38,8 @@ Web 先通过通用文件接口上传技能包，再以返回的 URL 请求预�
 
 选择通用执行入口 `structured.v1`、`workflow.v1`、`tool_loop.v1` 或 `stateful.v1`，配置输入输出 schema、模型路由、提示词、工具和 Skills，并设置会话、记忆和调用限额。校验与调试使用固定候选；发布环境映射只引用已验证的具体版本。
 
+选择“脚本处理”节点后进入“Python 脚本”，配置唯一的处理脚本；模型、工具与固定计算节点不附加脚本。只读工具节点可另行启用全量分页。执行环境来自 `CREATIVITY_SANDBOX_PROFILES` 中明确授权当前渠道、模式为 `python` 的配置，API 与 Worker 必须一致。环境固定镜像摘要，命令为 `["python3", "-I", "-B"]`，不得配置凭据注入；环境未配置时页面明确提示。函数接口、数据边界与分页配置见 [节点 Python 处理](runtime.md#node-python)。
+
 业务后端使用 `agent_code` 调用。结果内容符合 Agent 的输出 schema，领域字段由配置定义。正式发布需要 [评测门禁](operations.md#evaluations)；变更内容或依赖后重新评测。
 
 不再使用的智能体可先下线或紧急停用，再从列表或详情删除。删除要求全部配置或发布环境均停用，且无定时计划（包括暂停计划）、待派发任务或未结束运行；操作者须有相关环境的智能体管理权限。不满足条件时按钮展示具体原因，提交时按当前修订和引用重新检查。删除后各环境不可再调用或选择该智能体，保留历史版本、发布记录、运行结果及用量，调用编码不可复用。
@@ -58,7 +60,7 @@ Web 先通过通用文件接口上传技能包，再以返回的 URL 请求预�
 | --- | --- |
 | 向量检索与三层记忆 | [向量环境](../deploy/vector.md)、[记忆策略](runtime.md#memory) |
 | 暂停恢复与业务写工具 | Agent 等待节点、工具写入策略和状态核查工具；审批需 `run:approve` 权限 |
-| Skills 脚本与 MCP stdio | `CREATIVITY_SANDBOX_PROFILES`；准备固定摘要镜像，参考 [构建文件](../deploy/Dockerfile.sandbox) |
+| 节点 Python、Skills 脚本与 MCP stdio | `CREATIVITY_SANDBOX_PROFILES`；准备固定摘要镜像，参考 [构建文件](../deploy/Dockerfile.sandbox) |
 | MCP OAuth、外部身份与角色 | 连接或身份配置，同时核对回调；MCP 凭据直接存储 |
 | 调度、批量、Webhook、告警、供应商账单 | 对应管理模块；Worker 与 Beat 配套运行 |
 | 多语言客户端 | [SDK](../sdks/README.md) |

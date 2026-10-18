@@ -48,12 +48,11 @@ def install_runtime(
     evidence: str = "live",
     registry: StepRegistry | None = None,
 ) -> RuntimeExecutor:
-    from creativity_service.integrations.sandbox import ContainerSandbox
     from creativity_service.integrations.tools.script import resolve_script
     from creativity_service.modules.integrations.automation_assembly import install_automation
 
     install_automation(runs, authorization)
-    sandbox = ContainerSandbox()
+    sandbox = agents.sandbox
     tools.registry.register_resolver(
         lambda scope, binding: resolve_script(skills, sandbox, scope, binding)
     )
@@ -68,6 +67,7 @@ def install_runtime(
         tools,
         authorization,
         registry,
+        sandbox=sandbox,
     )
     executor.debug = DebugExecutor(executor, evidence=evidence)
     from creativity_service.modules.agents.assistance import AgentAssistance

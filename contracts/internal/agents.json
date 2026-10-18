@@ -317,6 +317,26 @@
             "title": "Skill Id",
             "type": "string"
           },
+          "step_keys": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                  "type": "string"
+                },
+                "maxItems": 64,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Step Keys"
+          },
           "trigger_reason": {
             "default": "配置选择",
             "maxLength": 256,
@@ -398,7 +418,8 @@
             "enum": [
               "model",
               "tool",
-              "compute"
+              "compute",
+              "script"
             ],
             "title": "Kind",
             "type": "string"
@@ -438,6 +459,17 @@
             "title": "Output Schema",
             "type": "object"
           },
+          "pagination": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/StepPagination"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "prompt_id": {
             "anyOf": [
               {
@@ -452,6 +484,17 @@
             ],
             "default": null,
             "title": "Prompt Id"
+          },
+          "script": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/NodePython"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "timeout_seconds": {
             "default": 30,
@@ -605,6 +648,106 @@
           "currency"
         ],
         "title": "Money",
+        "type": "object"
+      },
+      "NodePython": {
+        "additionalProperties": false,
+        "properties": {
+          "profile_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Profile Digest",
+            "type": "string"
+          },
+          "profile_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "source": {
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "profile_id",
+          "profile_digest"
+        ],
+        "title": "NodePython",
+        "type": "object"
+      },
+      "StepPagination": {
+        "additionalProperties": false,
+        "properties": {
+          "count_path": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Count Path"
+          },
+          "cursor_input": {
+            "default": "cursor",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Cursor Input",
+            "type": "string"
+          },
+          "cursor_path": {
+            "default": "cursor",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Cursor Path",
+            "type": "string"
+          },
+          "has_more_path": {
+            "default": "has_more",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Has More Path",
+            "type": "string"
+          },
+          "items_path": {
+            "default": "items",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Items Path",
+            "type": "string"
+          },
+          "max_items": {
+            "default": 1000,
+            "maximum": 10000,
+            "minimum": 1,
+            "title": "Max Items",
+            "type": "integer"
+          },
+          "total_path": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total Path"
+          }
+        },
+        "title": "StepPagination",
         "type": "object"
       }
     },
