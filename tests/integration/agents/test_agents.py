@@ -8,33 +8,26 @@ import pytest
 from creativity_service.core.database import transaction
 from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.core.versioning import VersionService
+from creativity_service.modules.agents.lifecycle import AgentLifecycle
 from creativity_service.modules.agents.repositories import repository
 from creativity_service.modules.agents.runtime import AgentRunResolver
 from creativity_service.modules.agents.schemas import (
-    AgentReleaseInput,
+    AgentConfigurationEdit,
     AgentStateInput,
     AgentTestInput,
     AgentValidateInput,
-    AgentVersionEdit,
 )
 from creativity_service.modules.releases.ports import EvaluationEvidence
-from creativity_service.modules.releases.services import ReleaseService
 from tests.integration.channels.conftest import provision
 
 pytestmark = pytest.mark.integration
 
 
 async def publish(env, detail, **changes):
-    version = next(v for v in detail.versions if v.status.value == "DRAFT")
-    body = AgentReleaseInput(
-        version_id=version.version_id,
-        revision=version.revision,
-        environment=env.context.scope.environment,
-        expected_mapping_revision=detail.release_revision,
-        note="验证发布",
-    )
-    return await ReleaseService(env.agents).release(
-        env.context, detail.agent.agent_id, body.model_copy(update=changes)
+    return await AgentLifecycle(env.agents).state(
+        env.context,
+        detail.agent.agent_id,
+        AgentStateInput(revision=detail.agent.revision, operation="online", reason="验证上线"),
     )
 
 
@@ -49,9 +42,9 @@ async def test_output_limit_cannot_exhaust_agent_budget_before_any_input(agent_e
     detail = await env.agents.create(
         env.context, env.body.model_copy(update={"definition": definition})
     )
-    draft = detail.versions[0]
+    draft = detail.configuration
     validation = await env.agents.validate(
-        env.context, draft.version_id, AgentValidateInput(revision=draft.revision)
+        env.context, draft.agent_id, AgentValidateInput(revision=draft.revision)
     )
     assert not validation.valid
     assert any(
@@ -61,10 +54,10 @@ async def test_output_limit_cannot_exhaust_agent_budget_before_any_input(agent_e
     )
     with pytest.raises(ServiceError, match="输出上限"):
         await publish(env, detail)
-    await env.agents.edit_version(
+    await env.agents.edit_configuration(
         env.context,
-        draft.version_id,
-        AgentVersionEdit(
+        draft.agent_id,
+        AgentConfigurationEdit(
             revision=draft.revision,
             definition=definition.model_copy(
                 update={"limits": definition.limits.model_copy(update={"token_limit": 1000})}
@@ -72,7 +65,7 @@ async def test_output_limit_cannot_exhaust_agent_budget_before_any_input(agent_e
         ),
     )
     published = await publish(env, await env.agents.detail(env.context, detail.agent.agent_id))
-    assert published.release_version_id is not None
+    assert published.agent.online
 
 
 async def test_agt_a04_code_revision_and_mapping_races(agent_env):
@@ -84,13 +77,13 @@ async def test_agt_a04_code_revision_and_mapping_races(agent_env):
         sum(isinstance(r, ServiceError) and r.code == "AGENT_CODE_CONFLICT" for r in results) == 1
     )
     detail = next(r for r in results if not isinstance(r, Exception))
-    version = detail.versions[0]
+    version = detail.configuration
     edits = await asyncio.gather(
         *(
-            env.agents.edit_version(
+            env.agents.edit_configuration(
                 env.context,
-                version.version_id,
-                AgentVersionEdit(revision=1, definition=env.definition),
+                version.agent_id,
+                AgentConfigurationEdit(revision=1, definition=env.definition),
             )
             for _ in range(2)
         ),
@@ -105,24 +98,27 @@ async def test_agt_a04_code_revision_and_mapping_races(agent_env):
         sum(isinstance(r, ServiceError) and r.code == "REVISION_CONFLICT" for r in releases) == 1
     ), [str(r) for r in releases]
     current = await env.agents.detail(env.context, detail.agent.agent_id)
-    assert len(current.releases) == 1 and len(current.versions) == 2
+    assert current.agent.online and current.configuration.agent_id == current.agent.agent_id
 
 
 async def test_agt_a02_release_switch_preserves_admitted_snapshot(agent_env):
     env = agent_env
     detail = await env.agents.create(env.context, env.body)
     first = await publish(env, detail)
-    frozen = await env.agents.resolve_published(env.context, env.body.agent_code)
-    draft = next(v for v in first.versions if v.status.value == "DRAFT")
+    frozen = await env.agents.resolve_current(env.context, env.body.agent_code)
+    draft = first.configuration
     changed = env.definition.model_copy(
         update={"limits": env.definition.limits.model_copy(update={"max_model_rounds": 4})}
     )
-    await env.agents.edit_version(
-        env.context, draft.version_id, AgentVersionEdit(revision=draft.revision, definition=changed)
+    await env.agents.edit_configuration(
+        env.context,
+        draft.agent_id,
+        AgentConfigurationEdit(revision=draft.revision, definition=changed),
     )
     await publish(env, await env.agents.detail(env.context, detail.agent.agent_id))
-    latest = await env.agents.resolve_published(env.context, env.body.agent_code)
-    assert latest.source_version_id != frozen.source_version_id
+    latest = await env.agents.resolve_current(env.context, env.body.agent_code)
+    assert latest.source_version_id == frozen.source_version_id
+    assert latest.source_revision == frozen.source_revision + 1
     assert (
         frozen.definition.limits.max_model_rounds == 6
         and latest.definition.limits.max_model_rounds == 4
@@ -149,12 +145,12 @@ async def test_agt_a02_release_switch_preserves_admitted_snapshot(agent_env):
     assert snapshot.versions[0].version_id == frozen.source_version_id
     assert snapshot.versions[0].content["limits"]["max_model_rounds"] == 6
     with pytest.raises(ServiceError) as exc:
-        await env.agents.edit_version(
+        await env.agents.edit_configuration(
             env.context,
             frozen.source_version_id,
-            AgentVersionEdit(revision=1, definition=env.definition),
+            AgentConfigurationEdit(revision=1, definition=env.definition),
         )
-    assert exc.value.code == "VERSION_FROZEN"
+    assert exc.value.code == "REVISION_CONFLICT"
 
 
 async def test_candidate_draft_revision_and_no_runtime_field_override(agent_env):
@@ -165,14 +161,14 @@ async def test_candidate_draft_revision_and_no_runtime_field_override(agent_env)
     detail = await env.agents.create(
         env.context, env.body.model_copy(update={"definition": config})
     )
-    draft = detail.versions[0]
-    candidate = await env.agents.freeze_candidate(env.context, draft.version_id, 1, "evaluation")
+    draft = detail.configuration
+    candidate = await env.agents.freeze_candidate(env.context, draft.agent_id, 1, "evaluation")
     candidate.definition.input_schema["properties"].clear()
     assert "request" in candidate.definition.input_schema["properties"]
-    await env.agents.edit_version(
+    await env.agents.edit_configuration(
         env.context,
-        draft.version_id,
-        AgentVersionEdit(
+        draft.agent_id,
+        AgentConfigurationEdit(
             revision=1,
             definition=env.definition.model_copy(
                 update={"limits": env.definition.limits.model_copy(update={"token_limit": 20000})}
@@ -205,7 +201,7 @@ async def test_candidate_draft_revision_and_no_runtime_field_override(agent_env)
     with pytest.raises(ServiceError) as exc:
         await env.agents.test(
             env.context,
-            draft.version_id,
+            draft.agent_id,
             AgentTestInput(revision=2, input={"request": "说明"}, idempotency_key="test-1"),
         )
     assert exc.value.code == "DEPENDENCY_UNAVAILABLE"
@@ -224,10 +220,10 @@ async def test_agt_a01_missing_dependencies_capabilities_and_channel_isolation(a
         await env.agents.create(env.context, env.body.model_copy(update={"definition": bad}))
     assert missing.value.code == "DEPENDENCY_UNPUBLISHED"
     detail = await env.agents.create(env.context, env.body)
-    await env.agents.edit_version(
+    await env.agents.edit_configuration(
         env.context,
-        detail.versions[0].version_id,
-        AgentVersionEdit(revision=1, definition=env.definition),
+        detail.configuration.agent_id,
+        AgentConfigurationEdit(revision=1, definition=env.definition),
     )
     # 清除模型能力证据模拟当前配置尚未验证，不能由 Agent 发布绕过。
     from creativity_service.core.locking import record_key
@@ -246,7 +242,7 @@ async def test_agt_a01_missing_dependencies_capabilities_and_channel_isolation(a
         await repo.change(uow, env.model.id, row["revision"], {"capabilities": {}})
     result = await env.agents.validate(
         env.context,
-        detail.versions[0].version_id,
+        detail.configuration.agent_id,
         AgentValidateInput(revision=2, purpose="production"),
     )
     assert not result.valid and any(
@@ -277,7 +273,7 @@ async def test_memory_consolidation_requires_structured_route_before_publication
     detail = await env.agents.create(
         env.context, env.body.model_copy(update={"definition": definition})
     )
-    version_id = detail.versions[0].version_id
+    version_id = detail.configuration.agent_id
     # 只收窄测试路由的声明；不伪造供应商能力或实际运行证据。
     async with transaction(
         env.engine,
@@ -316,8 +312,8 @@ async def test_memory_consolidation_requires_structured_route_before_publication
             )
         }
     )
-    await env.agents.edit_version(
-        env.context, version_id, AgentVersionEdit(revision=1, definition=readonly)
+    await env.agents.edit_configuration(
+        env.context, version_id, AgentConfigurationEdit(revision=1, definition=readonly)
     )
     assert (
         await env.agents.validate(env.context, version_id, AgentValidateInput(revision=2))
@@ -340,7 +336,7 @@ async def test_shared_route_debug_checks_each_use_and_freezes_one_dependency(age
     detail = await env.agents.create(
         env.context, env.body.model_copy(update={"definition": definition})
     )
-    version_id = detail.versions[0].version_id
+    version_id = detail.configuration.agent_id
     with pytest.raises(ServiceError, match="清空语义检索模型路由"):
         await env.agents.freeze_candidate(env.context, version_id, 1)
     definition = definition.model_copy(
@@ -350,8 +346,8 @@ async def test_shared_route_debug_checks_each_use_and_freezes_one_dependency(age
             )
         }
     )
-    await env.agents.edit_version(
-        env.context, version_id, AgentVersionEdit(revision=1, definition=definition)
+    await env.agents.edit_configuration(
+        env.context, version_id, AgentConfigurationEdit(revision=1, definition=definition)
     )
     with pytest.raises(ServiceError, match="语义检索路由须声明向量能力"):
         await env.agents.freeze_candidate(env.context, version_id, 2)
@@ -414,8 +410,8 @@ async def test_shared_route_debug_checks_each_use_and_freezes_one_dependency(age
 async def test_prod_without_matching_evaluation_is_blocked_and_digests_survive_publish(agent_env):
     env = agent_env
     detail = await env.agents.create(env.context, env.body)
-    version = detail.versions[0]
-    candidate = await env.agents.freeze_candidate(env.context, version.version_id, 1, "evaluation")
+    version = detail.configuration
+    candidate = await env.agents.freeze_candidate(env.context, version.agent_id, 1, "evaluation")
     # 将生产环境标志用于门禁的单元边界验证，真实发布仍保持受信工作区验证。
     from creativity_service.modules.releases.checks import check_evidence
 
@@ -464,109 +460,66 @@ async def test_prod_without_matching_evaluation_is_blocked_and_digests_survive_p
             )
         assert exc.value.code == "EVALUATION_STALE"
     await publish(env, detail)
-    final = await env.agents.resolve_published(env.context, env.body.agent_code)
-    assert final.source_version_id != candidate.source_version_id
+    final = await env.agents.resolve_current(env.context, env.body.agent_code)
+    assert final.source_version_id == candidate.source_version_id
     assert final.candidate_digest == candidate.candidate_digest
 
 
 async def test_offline_and_emergency_preserve_history(agent_env):
     env = agent_env
     detail = await publish(env, await env.agents.create(env.context, env.body))
-    spec = await env.agents.resolve_published(env.context, env.body.agent_code)
-    releases = ReleaseService(env.agents)
+    spec = await env.agents.resolve_current(env.context, env.body.agent_code)
+    releases = AgentLifecycle(env.agents)
     detail = await releases.state(
         env.context,
         detail.agent.agent_id,
         AgentStateInput(revision=detail.agent.revision, operation="offline", reason="计划下线"),
     )
     with pytest.raises(ServiceError):
-        await env.agents.resolve_published(env.context, env.body.agent_code)
+        await env.agents.resolve_current(env.context, env.body.agent_code)
     await env.agents.check_external_boundary(env.context, spec)
     detail = await releases.state(
         env.context,
         detail.agent.agent_id,
-        AgentStateInput(
-            revision=detail.agent.revision, operation="emergency_stop", reason="立即止损"
-        ),
+        AgentStateInput(revision=detail.agent.revision, operation="disable", reason="立即止损"),
     )
     with pytest.raises(ServiceError) as exc:
         await env.agents.check_external_boundary(env.context, spec)
-    assert exc.value.code == "AGENT_EMERGENCY_STOP"
+    assert exc.value.code == "AGENT_DISABLED"
     assert (await env.agents.load_candidate(env.context, spec.snapshot_id)) == spec
 
 
 @pytest.mark.parametrize("agent_env", ["prod"], indirect=True)
-async def test_prod_http_rechecks_evidence_and_draft_changes(agent_env):
+async def test_current_configuration_has_no_release_or_version_endpoints(agent_env):
     env = agent_env
     detail = await env.agents.create(env.context, env.body)
-    draft = detail.versions[0]
-    url = f"/admin/v1/agents/{detail.agent.agent_id}/releases"
-    body = {
-        "version_id": draft.version_id,
-        "revision": 1,
-        "environment": "prod",
-        "note": "评测门禁验证",
-        "evaluation_refs": ["report_fixture"],
-    }
-    response = await env.client.post(url, json=body)
-    assert response.status_code == 422 and response.json()["error"]["code"] == "EVALUATION_REQUIRED"
-    candidate = await env.agents.freeze_candidate(env.context, draft.version_id, 1, "evaluation")
-
-    class Gate:
-        def keys(self, context, refs):
-            from creativity_service.core.locking import ResourceKey
-
-            return [ResourceKey(context.scope.channel_id, "evaluation-evidence", tuple(refs))]
-
-        async def read(self, uow, context, refs):
-            for key in self.keys(context, refs):
-                uow.require_lock(key)
-            return self.evidence
-
-    gate = Gate()
-    gate.evidence = EvaluationEvidence(
-        channel_id=env.context.scope.channel_id,
-        agent_id=detail.agent.agent_id,
-        environment="prod",
-        content_digest=candidate.content_digest,
-        dependencies_digest="f" * 64,
-        report_digest=digest(["report-fixture"]),
-        report_ids=("report_fixture",),
-        passed=True,
-        expires_at=utcnow() + timedelta(hours=1),
-    )
-    env.agents.evaluation = gate
-    response = await env.client.post(url, json=body)
-    assert response.status_code == 422 and response.json()["error"]["code"] == "EVALUATION_STALE"
-    gate.evidence = gate.evidence.model_copy(
-        update={"dependencies_digest": candidate.dependencies_digest}
-    )
-    response = await env.client.post(url, json=body)
-    assert response.status_code == 200, response.text
-    result = response.json()
-    assert result["release_version_id"] != draft.version_id
-    assert (
-        await env.agents.resolve_published(env.context, env.body.agent_code)
-    ).candidate_digest == candidate.candidate_digest
-    await env.agents.edit_version(
-        env.context,
-        draft.version_id,
-        AgentVersionEdit(
-            revision=1,
-            definition=env.definition.model_copy(
-                update={"limits": env.definition.limits.model_copy(update={"max_model_rounds": 2})}
-            ),
-        ),
-    )
+    aid = detail.agent.agent_id
+    assert not detail.agent.online and detail.agent.enabled
+    response = await env.client.get(f"/admin/v1/agents/{aid}")
+    assert set(response.json()) == {"agent", "configuration"}
     response = await env.client.post(
-        url, json={**body, "revision": 2, "expected_mapping_revision": result["release_revision"]}
+        f"/admin/v1/agents/{aid}/validate", json={"revision": 1, "purpose": "production"}
     )
-    assert response.status_code == 422 and response.json()["error"]["code"] == "EVALUATION_STALE"
-    unchanged = await env.agents.detail(env.context, detail.agent.agent_id)
-    assert (
-        unchanged.release_version_id == result["release_version_id"]
-        and len(unchanged.releases) == 1
+    assert response.status_code == 200 and response.json()["valid"], response.text
+    for path in (f"/admin/v1/agents/{aid}/versions", f"/admin/v1/agents/{aid}/releases"):
+        response = await env.client.post(path, json={})
+        assert response.status_code == 404
+    response = await env.client.post(
+        f"/admin/v1/agents/{aid}/state",
+        json={"revision": detail.agent.revision, "operation": "online", "reason": "验收上线"},
     )
+    assert response.status_code == 200, response.text
+    assert response.json()["agent"]["online"]
+    response = await env.client.patch(
+        f"/admin/v1/agents/{aid}/configuration",
+        json={"revision": 1, "definition": env.definition.model_dump(mode="json")},
+    )
+    assert response.status_code == 200, response.text
+    response = await env.client.patch(
+        f"/admin/v1/agents/{aid}/configuration",
+        json={"revision": 1, "definition": env.definition.model_dump(mode="json")},
+    )
+    assert response.status_code == 409
 
 
 async def with_tool(env, required_scopes=("run:create",)):
@@ -648,7 +601,7 @@ async def test_agt_a01_tool_scopes_cannot_expand_caller_authorization(agent_env)
     _, detail = await with_tool(env, ("run:create", "data:read_sensitive"))
     result = await env.agents.validate(
         env.context,
-        detail.versions[0].version_id,
+        detail.configuration.agent_id,
         AgentValidateInput(revision=1, purpose="production"),
     )
     assert not result.valid
@@ -662,20 +615,13 @@ async def test_agt_a05_rollback_rechecks_disabled_tool(agent_env):
     env = agent_env
     tool, detail = await with_tool(env)
     first = await publish(env, detail)
-    published = next(v for v in first.versions if v.status.value == "PUBLISHED")
     await env.tools.management.disable(env.context, tool.tool_id, tool.revision)
     with pytest.raises(ServiceError) as exc:
-        await publish(
-            env,
-            first,
-            version_id=published.version_id,
-            revision=published.revision,
-            operation="rollback",
-        )
+        await publish(env, first)
     assert exc.value.code == "DEPENDENCY_INVALID"
     assert (
         await env.agents.detail(env.context, detail.agent.agent_id)
-    ).release_revision == first.release_revision
+    ).agent.revision == first.agent.revision
 
 
 async def test_actual_admission_keeps_queued_run_and_new_request_gets_new_version(agent_env):
@@ -697,11 +643,11 @@ async def test_actual_admission_keeps_queued_run_and_new_request_gets_new_versio
     request = RunInput(agent_code=env.body.agent_code, input={"request": "整理信息"})
     old_run = await runs.admit_run(env.context, request, "first")
     assert old_run.state == "QUEUED"
-    draft = next(v for v in first.versions if v.status.value == "DRAFT")
-    await env.agents.edit_version(
+    draft = first.configuration
+    await env.agents.edit_configuration(
         env.context,
-        draft.version_id,
-        AgentVersionEdit(
+        draft.agent_id,
+        AgentConfigurationEdit(
             revision=draft.revision,
             definition=env.definition.model_copy(
                 update={"limits": env.definition.limits.model_copy(update={"max_model_rounds": 2})}
@@ -720,8 +666,8 @@ async def test_actual_admission_keeps_queued_run_and_new_request_gets_new_versio
             connection, new["release_snapshot_id"]
         )
     assert old["conversation_id"] is None and new["conversation_id"] is None
-    assert old["agent_version_id"] == first.release_version_id
-    assert new["agent_version_id"] == latest.release_version_id
+    assert old["agent_version_id"] == first.agent.agent_id
+    assert new["agent_version_id"] == latest.agent.agent_id
     assert old_snapshot["versions"][0]["content"]["limits"]["max_model_rounds"] == 6
     assert new_snapshot["versions"][0]["content"]["limits"]["max_model_rounds"] == 2
     old_candidate = await env.agents.load_candidate(
@@ -730,8 +676,8 @@ async def test_actual_admission_keeps_queued_run_and_new_request_gets_new_versio
     new_candidate = await env.agents.load_candidate(
         env.context, new["execution_policy"]["frozen_spec_id"]
     )
-    assert old_candidate.source_version_id == first.release_version_id
-    assert new_candidate.source_version_id == latest.release_version_id
+    assert old_candidate.source_version_id == first.agent.agent_id
+    assert new_candidate.source_version_id == latest.agent.agent_id
     assert (await runs.admit_run(env.context, request, "first")).run_id == old_run.run_id
 
 
@@ -740,7 +686,7 @@ async def test_candidate_cleanup_follows_deleted_sources_and_preserves_digests(a
 
     env = agent_env
     detail = await env.agents.create(env.context, env.body)
-    version_id = detail.versions[0].version_id
+    version_id = detail.configuration.agent_id
     candidate = await env.agents.freeze_candidate(env.context, version_id, 1)
     ref = ContentRef("agent_candidate", candidate.snapshot_id)
     with pytest.raises(ServiceError) as exc:
@@ -766,7 +712,8 @@ async def test_candidate_cleanup_follows_deleted_sources_and_preserves_digests(a
     with pytest.raises(ServiceError) as exc:
         await env.agents.load_candidate(env.context, candidate.snapshot_id)
     assert exc.value.code == "CONTENT_DELETED"
-    assert not (await env.agents.detail(env.context, detail.agent.agent_id)).versions
+    with pytest.raises(ServiceError, match="内容或来源已删除"):
+        await env.agents.detail(env.context, detail.agent.agent_id)
     await env.cleanup.clean(env.context, ref)
     await env.cleanup.clean(env.context, ref)
     async with env.engine.connect() as connection:
@@ -803,7 +750,7 @@ async def test_published_dependency_edit_preserves_admitted_content(agent_env):
         env.context, env.body.model_copy(update={"definition": definition})
     )
     candidate = await env.agents.freeze_candidate(
-        env.context, detail.versions[0].version_id, 1, "evaluation"
+        env.context, detail.configuration.agent_id, 1, "evaluation"
     )
     await env.prompts.edit_draft(
         env.context,
@@ -811,7 +758,7 @@ async def test_published_dependency_edit_preserves_admitted_content(agent_env):
         PromptDraftEdit(revision=draft.revision, content=PromptContent(change_note="变更后的内容")),
     )
     new = await env.agents.freeze_candidate(
-        env.context, detail.versions[0].version_id, 1, "evaluation"
+        env.context, detail.configuration.agent_id, 1, "evaluation"
     )
     assert new.dependencies_digest != candidate.dependencies_digest
     original = next(v for v in candidate.versions if v.resource_type == "prompt")
@@ -838,14 +785,21 @@ async def test_amount_budget_requires_prices_and_scope_overrides_fail(agent_env)
         env.context, env.body.model_copy(update={"definition": definition})
     )
     validation = await env.agents.validate(
-        env.context, detail.versions[0].version_id, AgentValidateInput(revision=1)
+        env.context, detail.configuration.agent_id, AgentValidateInput(revision=1)
     )
     assert any(i.code == "BUDGET_NOT_EXECUTABLE" for c in validation.checks for i in c.issues)
-    with pytest.raises(ServiceError) as exc:
-        await publish(env, detail, environment="prod")
-    assert exc.value.code == "FORBIDDEN"
     response = await env.client.post(
-        f"/admin/v1/agent-versions/{detail.versions[0].version_id}/tests",
+        f"/admin/v1/agents/{detail.agent.agent_id}/state",
+        json={
+            "revision": detail.agent.revision,
+            "operation": "online",
+            "reason": "测试",
+            "environment": "prod",
+        },
+    )
+    assert response.status_code == 422
+    response = await env.client.post(
+        f"/admin/v1/agents/{detail.configuration.agent_id}/tests",
         json={
             "revision": 1,
             "input": {"request": "查询"},
@@ -882,7 +836,7 @@ async def test_node_dependencies_check_publication_type_and_capabilities(agent_e
             ),
         )
         result = await env.agents.validate(
-            env.context, detail.versions[0].version_id, AgentValidateInput(revision=1)
+            env.context, detail.configuration.agent_id, AgentValidateInput(revision=1)
         )
         assert not result.valid
         assert any("资源类型" in issue.message for check in result.checks for issue in check.issues)
@@ -949,7 +903,7 @@ async def test_node_dependencies_check_publication_type_and_capabilities(agent_e
             },
         )
     result = await env.agents.validate(
-        env.context, detail.versions[0].version_id, AgentValidateInput(revision=1)
+        env.context, detail.configuration.agent_id, AgentValidateInput(revision=1)
     )
     assert not result.valid
     assert any(

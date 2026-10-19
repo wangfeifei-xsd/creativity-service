@@ -30,7 +30,8 @@ async def test_management_agent_draft_and_locked_boundaries(agent_env):
     body = env.body.model_copy(update={"definition": templates()[0].definition})
     detail = await env.agents.create(context, body)
     assert detail.agent.name == body.name
-    assert len(detail.versions) == 1 and detail.versions[0].status.value == "DRAFT"
+    assert detail.configuration.agent_id == detail.agent.agent_id
+    assert not detail.agent.online and detail.agent.enabled
     async with transaction(env.engine, context.scope, env.agents.keys(context, "new")) as uow:
         await locked_require(uow, context, "agent:manage", "agent", "new")
         await locked_require(uow, context, "run:create", "agent", "new")

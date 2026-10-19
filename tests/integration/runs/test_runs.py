@@ -19,6 +19,7 @@ from creativity_service.modules.usage.schemas import AttemptPlan
 from creativity_service.workers.dispatcher import Dispatcher
 from creativity_service.workers.executor import execute_message
 from creativity_service.workers.recovery import Recovery
+from tests.support.agent_configuration import save_configuration
 
 pytestmark = pytest.mark.integration
 
@@ -482,10 +483,7 @@ async def test_worker_two_channels_same_agent_and_late_original_usage(env):
     )
     await RecoveryService(env.engine, env.authorization).initialize_fresh(context2)
     versions = VersionService(env.engine, env.authorization, TestVersionValidator())
-    agent = await versions.create_draft(
-        context2, "agent", "agent_one", "同名任务", {}, [], {"type": "object"}
-    )
-    agent = await versions.freeze(context2, agent.version_id, 1)
+    agent = await save_configuration(versions, context2, "agent_one", {}, [], {"type": "object"})
     env.runs.resolver = InternalDefinition(
         ResolvedDefinition(
             agent_id="agent_one",

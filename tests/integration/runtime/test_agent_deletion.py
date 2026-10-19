@@ -6,8 +6,15 @@ import pytest
 
 from creativity_service.core.database import transaction
 from creativity_service.core.primitives import RunInput, ServiceError
+from creativity_service.modules.agents.lifecycle import AgentLifecycle
 from creativity_service.modules.agents.repositories import repository
-from creativity_service.modules.agents.schemas import AgentDeleteInput, AgentStateInput
+from creativity_service.modules.agents.schemas import (
+    AgentBindings,
+    AgentConfigurationEdit,
+    AgentDeleteInput,
+    AgentStateInput,
+    InputSource,
+)
 from creativity_service.modules.channels.schemas import EnvironmentCreate
 from creativity_service.modules.iam.schemas import ChannelContextInput
 from creativity_service.modules.integrations.automation import keys, repo
@@ -18,7 +25,6 @@ from creativity_service.modules.integrations.automation_schemas import (
     ScheduleUpdate,
     Toggle,
 )
-from creativity_service.modules.releases.services import ReleaseService
 from creativity_service.modules.resources.configuration import reference_rows
 from creativity_service.workers.executor import execute_message
 from tests.integration.agents.test_agents import publish
@@ -30,7 +36,7 @@ pytestmark = pytest.mark.integration
 
 
 async def stop(env, detail, operation="offline", context=None):
-    return await ReleaseService(env.agents).state(
+    return await AgentLifecycle(env.agents).state(
         context or env.context,
         detail.agent.agent_id,
         AgentStateInput(revision=detail.agent.revision, operation=operation, reason="不再使用"),
@@ -56,12 +62,12 @@ def batch_body(code, event="delete-check"):
     )
 
 
-@pytest.mark.parametrize("operation", ["offline", "emergency_stop"])
+@pytest.mark.parametrize("operation", ["offline", "disable"])
 async def test_stopped_agent_delete_http_keeps_records_and_releases_dependencies(
     agent_env, operation
 ):
     env = agent_env
-    detail = await env.agents.create(env.context, env.body)
+    detail = await publish(env, await env.agents.create(env.context, env.body))
     assert not delete_action(detail).enabled
     with pytest.raises(ServiceError) as enabled:
         await delete(env, detail)
@@ -80,7 +86,7 @@ async def test_stopped_agent_delete_http_keeps_records_and_releases_dependencies
     assert not (await env.agents.list_agents(env.context)).items
     assert (await env.client.get(path)).status_code >= 400
     assert (
-        await env.client.get(f"/admin/v1/agent-versions/{detail.versions[0].version_id}")
+        await env.client.get(f"/admin/v1/agents/{detail.configuration.agent_id}")
     ).status_code >= 400
     with pytest.raises(ServiceError):
         await stop(env, stopped, "enable")
@@ -93,7 +99,7 @@ async def test_stopped_agent_delete_http_keeps_records_and_releases_dependencies
         )
         assert row["is_deleted"] and row["name"] == detail.agent.name
         assert await repository("resource_versions", env.context.scope).get(
-            connection, detail.versions[0].version_id
+            connection, detail.configuration.agent_id
         )
         assert not await reference_rows(connection, env.context.scope, [env.prompt_id])
         events = await repository("audit_events", env.context.scope).find(
@@ -124,7 +130,7 @@ async def test_agent_delete_blocks_unfinished_run_and_preserves_completed_histor
     after = await env.runs.get_run(env.context, receipt.run_id)
     assert after.result == before.result and after.usage_summary == before.usage_summary
     assert await env.runs.detail(env.context, receipt.run_id) == history
-    assert not (await env.agents.list_agents(env.context, published_only=True)).items
+    assert not (await env.agents.list_agents(env.context, online_only=True)).items
     with pytest.raises(ServiceError):
         await env.runs.admit_run(
             env.context,
@@ -135,8 +141,7 @@ async def test_agent_delete_blocks_unfinished_run_and_preserves_completed_histor
         mapping = await repository("release_mappings", env.context.scope, include_deleted=True).get(
             connection, env.agents.mapping_id(env.context, detail.agent_id)
         )
-        if purpose == "production":
-            assert mapping["is_deleted"]
+        assert mapping is None
         versions = await repository("resource_versions", env.context.scope).find(
             connection, resource_type="agent", resource_id=detail.agent_id
         )
@@ -227,7 +232,39 @@ async def test_agent_delete_blocks_pending_items_and_prevents_deleted_batch_retr
 
 async def test_agent_delete_checks_other_environments_and_management_permissions(runtime_env):
     env = runtime_env
-    detail = await publish(env, await env.agents.create(env.context, env.body))
+    # 使用无需模型的流程，让同一配置在两个环境均可合法上线。
+    step = env.definition.steps[0].model_copy(
+        update={
+            "kind": "compute",
+            "operator": "object",
+            "dependency": None,
+            "input_schema": env.definition.output_schema,
+            "inputs": {
+                key: InputSource(source="constant", value=value)
+                for key, value in {
+                    "business_status": "COMPLETED",
+                    "schema_version": "1.0",
+                    "data": {},
+                    "warnings": [],
+                    "evidence_refs": [],
+                }.items()
+            },
+        }
+    )
+    definition = env.definition.model_copy(
+        update={
+            "workflow_type": "template",
+            "entrypoint": "workflow.v1",
+            "bindings": AgentBindings(),
+            "steps": (step,),
+        }
+    )
+    detail = await publish(
+        env,
+        await env.agents.create(
+            env.context, env.body.model_copy(update={"definition": definition})
+        ),
+    )
     await env.services.channels.create_environment(
         env.admin, env.context.scope.channel_id, EnvironmentCreate(environment="prod", name="生产")
     )
@@ -247,13 +284,25 @@ async def test_agent_delete_checks_other_environments_and_management_permissions
     prod = (
         await env.iam.authentication.admin_session(token.access_token, "prod-delete-check")
     ).context
-    detail = await stop(env, detail, "enable", context=prod)
+    detail = await stop(env, detail, "online", context=prod)
+    # 保存共享配置时必须同时检查另一个上线环境，并在失败后保留原配置。
+    with pytest.raises(ServiceError, match="模型路由不属于当前渠道或环境"):
+        await env.agents.edit_configuration(
+            env.context,
+            detail.agent.agent_id,
+            AgentConfigurationEdit(
+                revision=detail.configuration.revision, definition=env.definition
+            ),
+        )
+    assert (
+        await env.agents.detail(env.context, detail.agent.agent_id)
+    ).configuration == detail.configuration
     stopped = await stop(env, detail)
     with pytest.raises(ServiceError) as enabled:
         await delete(env, stopped)
     assert enabled.value.code == "AGENT_NOT_STOPPED"
-    assert "其他环境" in delete_action(stopped).disabled_reason
-    stopped = await stop(env, stopped, "emergency_stop", context=prod)
+    assert "全部下线或停用" in delete_action(stopped).disabled_reason
+    stopped = await stop(env, stopped, "disable", context=prod)
     batch = await env.runs.automation.create_batch(
         prod, batch_body(env.body.agent_code), "prod-batch"
     )

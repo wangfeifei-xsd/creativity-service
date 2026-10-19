@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from sqlalchemy import and_, exists, literal, or_, select, true, union_all
+from sqlalchemy import and_, literal, or_, select, true, union_all
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from creativity_service.core.context import Scope
@@ -115,7 +115,6 @@ async def require_dependencies(uow: UnitOfWork, scope: Scope, identifiers: list[
 def reference_statement(scope: Scope, identifiers: list[str]) -> Any:
     """只查询本批目标的当前配置引用，历史发布内容及运行证据不算配置引用。"""
     versions = metadata.tables["resource_versions"]
-    mappings = metadata.tables["release_mappings"]
     from creativity_service.modules.agents.repositories import repository
 
     parents = union_all(
@@ -131,19 +130,7 @@ def reference_statement(scope: Scope, identifiers: list[str]) -> Any:
     ).subquery()
     targets = json_array_rows(versions.c.dependencies)
     current_agent = and_(
-        versions.c.resource_type == "agent",
-        or_(
-            versions.c.state == "DRAFT",
-            exists(
-                active_rows(
-                    select(mappings.c.id).where(
-                        mappings.c.channel_id == scope.channel_id,
-                        mappings.c.resource_type == "agent",
-                        mappings.c.version_id == versions.c.id,
-                    )
-                )
-            ),
-        ),
+        versions.c.resource_type == "agent", versions.c.id == versions.c.resource_id
     )
     current_resource = and_(
         versions.c.resource_type.in_(KINDS), versions.c.id == versions.c.resource_id

@@ -23,7 +23,7 @@ class ResourceVersion(Contract):
     resource_id: Identifier
     version_id: Identifier
     version_label: str
-    state: Literal["DRAFT", "PUBLISHED", "RETIRED"]
+    state: Literal["DRAFT", "PUBLISHED", "RETIRED", "CURRENT"]
     draft_revision: Revision | None
     content: dict[str, JsonValue]
     content_digest: Digest
@@ -55,11 +55,14 @@ class ReleaseSnapshot(Contract):
     @model_validator(mode="after")
     def concrete_versions(self) -> Self:
         if not self.versions:
-            raise ValueError("快照必须包含具体版本")
+            raise ValueError("快照必须包含配置内容")
         if any(v.channel_id != self.scope.channel_id for v in self.versions):
             raise ValueError("快照依赖不能跨渠道")
-        if self.purpose == "production" and any(v.state != "PUBLISHED" for v in self.versions):
-            raise ValueError("正式运行仅使用发布版本")
+        if self.purpose == "production" and any(
+            v.state != "PUBLISHED" and not (v.resource_type == "agent" and v.state == "CURRENT")
+            for v in self.versions
+        ):
+            raise ValueError("正式运行仅使用智能体当前配置及已发布依赖")
         return self
 
 

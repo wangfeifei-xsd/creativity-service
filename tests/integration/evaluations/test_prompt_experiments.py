@@ -65,7 +65,7 @@ async def test_prompt_experiment_runs_without_release_and_rejects_other_changes(
         env.body.model_copy(update={"agent_code": "prompt_variant", "definition": definition}),
     )
     candidates = [
-        {"version_id": item.versions[0].version_id, "revision": item.versions[0].revision}
+        {"version_id": item.configuration.agent_id, "revision": item.configuration.revision}
         for item in (first, second)
     ]
     body = EvaluationCreate(
@@ -94,8 +94,8 @@ async def test_prompt_experiment_runs_without_release_and_rejects_other_changes(
                         body.candidates[0],
                         body.candidates[1].model_copy(
                             update={
-                                "version_id": duplicate.versions[0].version_id,
-                                "revision": duplicate.versions[0].revision,
+                                "version_id": duplicate.configuration.agent_id,
+                                "revision": duplicate.configuration.revision,
                             }
                         ),
                     ]
@@ -130,8 +130,8 @@ async def test_prompt_experiment_runs_without_release_and_rejects_other_changes(
                         body.candidates[0],
                         body.candidates[1].model_copy(
                             update={
-                                "version_id": altered.versions[0].version_id,
-                                "revision": altered.versions[0].revision,
+                                "version_id": altered.configuration.agent_id,
+                                "revision": altered.configuration.revision,
                             }
                         ),
                     ]

@@ -101,7 +101,7 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
     if len(selected) != len(set(selected)) or not set(selected) <= set(
         definition.bindings.skill_versions
     ):
-        fail("技能加载配置必须唯一且引用已绑定的技能版本", "bindings.skill_loading")
+        fail("技能加载配置必须唯一且引用已绑定的技能", "bindings.skill_loading")
     model_keys = {step.key for step in definition.steps if step.kind == "model"}
     for loading in definition.bindings.skill_loading:
         if loading.step_keys is not None and (
@@ -314,7 +314,7 @@ def static_issues(definition: AgentDefinition) -> list[AgentIssue]:
         if step.kind != "model" and step.prompt_id:
             fail("只有模型步骤可以选择提示词", f"steps.{key}.prompt_id")
         if step.kind == "tool" and step.dependency not in definition.bindings.tool_versions:
-            fail("工具步骤必须引用智能体工具白名单中的版本", f"steps.{key}.dependency")
+            fail("工具步骤必须引用智能体工具白名单中的工具", f"steps.{key}.dependency")
         if step.kind == "compute" and step.dependency:
             fail("计算步骤只能由已登记的流程代码实现", f"steps.{key}.dependency")
         if (

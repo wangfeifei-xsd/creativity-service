@@ -80,7 +80,7 @@ async def test_builtin_readonly_and_excluded_from_business_directory(runtime_env
     assert not items.items
     assert {action.action_key for action in items.actions} == {"create", "assist"}
     assert not (await env.agents.list_agents(env.context, search="智能体配置助手")).items
-    assert not (await env.agents.list_agents(env.context, published_only=True)).items
+    assert not (await env.agents.list_agents(env.context, online_only=True)).items
     with pytest.raises(ServiceError, match="内置智能体"):
         await env.agents.create(
             env.context, env.body.model_copy(update={"agent_code": BUILTIN_CODE})
@@ -108,9 +108,9 @@ async def test_create_from_server_proposal_is_atomic_and_idempotent(runtime_env)
         results[0].agent_id
     ]
     detail = await env.agents.detail(env.context, results[0].agent_id)
-    assert detail.release_version_id is None
-    assert len(detail.versions) == 1 and detail.versions[0].status.value == "DRAFT"
-    assert detail.versions[0].definition.bindings.prompt_version is None
+    assert not detail.agent.online
+    assert detail.configuration.agent_id == detail.agent.agent_id
+    assert detail.configuration.definition.bindings.prompt_version is None
     result = await env.runs.get_run(env.context, receipt.run_id)
     assert result.usage_summary["input_tokens"] > 0
     request = env.adapter.calls[0][1]
@@ -175,7 +175,7 @@ async def test_existing_skill_with_legacy_agent_list_can_be_used_by_new_agent(ru
     assert "allowed_agents" not in catalog_skill["configuration"]
     saved = await env.runtime.assistance.apply(env.context, receipt.run_id)
     detail = await env.agents.detail(env.context, saved.agent_id)
-    assert detail.versions[0].definition.bindings.skill_versions == (skill_id,)
+    assert detail.configuration.definition.bindings.skill_versions == (skill_id,)
 
 
 @pytest.mark.parametrize("change", ["timeout", "credential"])
@@ -276,18 +276,19 @@ async def test_followup_keeps_context_and_needs_input_cannot_save(runtime_env):
     assert "请补充需要输出的内容" in env.adapter.calls[-1][1].messages[1]["content"]
 
 
-async def test_modification_adds_draft_and_detects_concurrent_change(runtime_env):
+async def test_modification_updates_configuration_and_detects_concurrent_change(runtime_env):
     env = runtime_env
     original = await env.agents.create(env.context, env.body)
     value = proposal(env, code=original.agent.agent_code)
     receipt, turn = await generate(env, value, agent_id=original.agent.agent_id)
-    assert turn.base_definition == original.versions[0].definition
+    assert turn.base_definition == original.configuration.definition
     saved = await env.runtime.assistance.apply(env.context, receipt.run_id)
     current = await env.agents.detail(env.context, original.agent.agent_id)
-    assert len(current.versions) == 2
+    assert current.configuration.agent_id == original.configuration.agent_id
+    assert current.configuration.revision == original.configuration.revision + 1
     assert (
-        next(v for v in current.versions if v.version_id == original.versions[0].version_id)
-        == original.versions[0]
+        current.configuration.definition.model_dump(mode="json", by_alias=True)
+        == value["definition"]
     )
     assert saved.agent_id == original.agent.agent_id
     next_receipt, _ = await generate(env, value, key="edit_again", agent_id=original.agent.agent_id)
@@ -304,7 +305,10 @@ async def test_modification_adds_draft_and_detects_concurrent_change(runtime_env
     with pytest.raises(ServiceError, match="已被修改"):
         await env.runtime.assistance.apply(env.context, next_receipt.run_id)
     after = await env.agents.detail(env.context, current.agent.agent_id)
-    assert len(after.versions) == 2 and after.agent.name == "人工修改"
+    assert after.configuration == current.configuration
+    assert after.agent.name == "人工修改"
+    assert await env.runtime.assistance.apply(env.context, receipt.run_id) == saved
+    assert await env.agents.detail(env.context, current.agent.agent_id) == after
 
 
 async def test_invalid_dependency_is_repaired_without_creating_resources(runtime_env):
@@ -390,8 +394,8 @@ async def test_business_tenant_input_and_tool_dependency_produce_a_saveable_prop
     assert not adapter.requests
     saved = await env.runtime.assistance.apply(env.context, receipt.run_id)
     detail = await env.agents.detail(env.context, saved.agent_id)
-    assert "tenantId" in detail.versions[0].definition.input_schema["required"]
-    assert detail.versions[0].definition.bindings.tool_versions == (frozen.version.version_id,)
+    assert "tenantId" in detail.configuration.definition.input_schema["required"]
+    assert detail.configuration.definition.bindings.tool_versions == (frozen.version.version_id,)
 
 
 async def test_unexecutable_token_budget_is_repaired_before_showing_proposal(runtime_env):
@@ -558,10 +562,10 @@ async def test_changed_dependency_blocks_save_and_generated_instructions_execute
     receipt, _ = await generate(env, proposal(env))
     saved = await env.runtime.assistance.apply(env.context, receipt.run_id)
     detail = await env.agents.detail(env.context, saved.agent_id)
-    draft = detail.versions[0]
+    draft = detail.configuration
     test = await env.agents.test(
         env.context,
-        draft.version_id,
+        draft.agent_id,
         AgentTestInput(
             revision=draft.revision,
             input={"request": "请归纳咨询要点"},

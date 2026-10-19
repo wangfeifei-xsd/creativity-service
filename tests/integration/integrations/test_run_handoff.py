@@ -21,6 +21,7 @@ from creativity_service.modules.runs.schemas import (
 from creativity_service.modules.usage.services import UsageService
 from tests.integration.core.conftest import TestAuthorization, TestVersionValidator
 from tests.integration.integrations.test_delegation import claims, verify
+from tests.support.agent_configuration import save_configuration
 
 pytestmark = pytest.mark.integration
 
@@ -29,10 +30,7 @@ async def test_delegation_retry_keeps_one_run_across_api_key_rotation(integratio
     env = integration_env
     # 发布定义在测试装配中固定；受理与重放仍使用真实 Token、委托及 IAM 授权。
     versions = VersionService(env.engine, TestAuthorization(), TestVersionValidator())
-    agent = await versions.create_draft(
-        env.context, "agent", "agent-1", "接入边界夹具", {}, [], {"type": "object"}
-    )
-    agent = await versions.freeze(env.context, agent.version_id, 1)
+    agent = await save_configuration(versions, env.context, "agent-1", {}, [], {"type": "object"})
 
     class Definition:
         async def resolve(self, context, request):

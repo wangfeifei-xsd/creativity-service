@@ -43,7 +43,9 @@ def version_view(row: dict[str, Any]) -> ResourceVersion:
         version_label=row["version_label"],
         state=row["state"],
         draft_revision=row["revision"] if row["state"] == "DRAFT" else None,
-        configuration_revision=row["revision"] if row["resource_type"] in MANAGED_KINDS else None,
+        configuration_revision=row["revision"]
+        if row["resource_type"] in MANAGED_KINDS | {"agent"}
+        else None,
         content=row["content"],
         content_digest=row["content_digest"],
         dependency_version_ids=tuple(row["dependencies"]),
@@ -102,6 +104,8 @@ class VersionService:
         output_schema: dict[str, Any],
     ) -> ResourceVersion:
         assert_external_io_allowed()
+        if resource_type == "agent":
+            raise ServiceError("SINGLE_CONFIGURATION", "智能体只允许直接编辑当前配置", 409)
         await self.authorization.require(context, "version:edit", resource_id)
         validate_schema(output_schema)
         version_id = resource_id if resource_type in MANAGED_KINDS else new_id("version")

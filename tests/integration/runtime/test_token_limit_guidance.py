@@ -48,9 +48,7 @@ async def test_token_limit_explains_local_preflight_and_historical_evidence(runt
     assert detail["result"]["usage_summary"]["attempt_count"] == 0
     guidance = detail["error_guidance"]
     assert "运行策略 → 单次运行 Token 上限" in guidance["description"]
-    assert guidance["configuration_path"] == (
-        f"/agents/{spec.agent_id}?version={spec.source_version_id}&tab=limits"
-    )
+    assert guidance["configuration_path"] == (f"/agents/{spec.agent_id}?tab=limits")
 
     # 模拟旧版只保存笼统错误的运行；读取时用旧快照补充说明，不改写历史记录。
     async with transaction(

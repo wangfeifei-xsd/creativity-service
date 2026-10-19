@@ -60,13 +60,13 @@ async def prepare(env, count=2, token_limit=1000000):
             revision=dataset.revision, version_label="样本第一版", cases=cases, captured_at=utcnow()
         ),
     )
-    version = detail.versions[0]
+    version = detail.configuration
     task = await env.evaluations.create(
         env.context,
         EvaluationCreate(
             name="发布前回归",
             dataset_version_id=dataset.current_version_id,
-            candidates=[{"version_id": version.version_id, "revision": version.revision}],
+            candidates=[{"version_id": version.agent_id, "revision": version.revision}],
             release_target=True,
             concurrency=1,
             budget={"max_runs": count + 3, "token_limit": token_limit},
@@ -128,34 +128,34 @@ async def approve(env, task):
 
 
 async def test_release_content_change_and_initial_baseline(evaluation_env):
-    from creativity_service.modules.agents.schemas import AgentValidateInput, AgentVersionEdit
+    from creativity_service.modules.agents.schemas import AgentConfigurationEdit, AgentValidateInput
     from tests.integration.agents.test_agents import publish
 
     env = evaluation_env
     detail, _, task = await prepare(env)
     await finish(env, task)
     await approve(env, task)
-    version = detail.versions[0]
+    version = detail.configuration
     body = AgentValidateInput(
         purpose="production", revision=version.revision, evaluation_refs=(task.evaluation_id,)
     )
     response = await env.client.post(
-        f"/admin/v1/agent-versions/{version.version_id}/release-check",
+        f"/admin/v1/agents/{version.agent_id}/evaluation-check",
         json=body.model_dump(mode="json"),
     )
     assert response.status_code == 200 and response.json()["valid"], response.text
     published = await publish(env, detail, evaluation_refs=(task.evaluation_id,))
-    assert published.release_version_id != version.version_id
+    assert published.agent.online and published.configuration.agent_id == version.agent_id
     definition = version.definition.model_copy(
         update={"limits": version.definition.limits.model_copy(update={"max_model_rounds": 4})}
     )
-    changed = await env.agents.edit_version(
+    changed = await env.agents.edit_configuration(
         env.context,
-        version.version_id,
-        AgentVersionEdit(revision=version.revision, definition=definition),
+        version.agent_id,
+        AgentConfigurationEdit(revision=version.revision, definition=definition),
     )
     checked = await env.agents.validate(
-        env.context, version.version_id, body.model_copy(update={"revision": changed.revision})
+        env.context, version.agent_id, body.model_copy(update={"revision": changed.revision})
     )
     assert not checked.valid
 
@@ -247,13 +247,13 @@ async def test_critical_failure_blocks_even_at_zero_quality_threshold(evaluation
             revision=dataset.revision, version_label="敏感样本", cases=[case], captured_at=utcnow()
         ),
     )
-    version = detail.versions[0]
+    version = detail.configuration
     task = await env.evaluations.create(
         env.context,
         EvaluationCreate(
             name="关键失败检查",
             dataset_version_id=dataset.current_version_id,
-            candidates=[{"version_id": version.version_id, "revision": version.revision}],
+            candidates=[{"version_id": version.agent_id, "revision": version.revision}],
             release_target=True,
             minimum_pass_rate=0,
             budget={"max_runs": 2, "token_limit": 1000000},
@@ -265,7 +265,7 @@ async def test_critical_failure_blocks_even_at_zero_quality_threshold(evaluation
     assert report.candidates[0]["critical_failures"] == 1
     checked = await env.agents.validate(
         env.context,
-        version.version_id,
+        version.agent_id,
         AgentValidateInput(
             purpose="production", revision=version.revision, evaluation_refs=(task.evaluation_id,)
         ),
@@ -314,11 +314,11 @@ async def test_source_deletion_hides_case_report_and_blocks_release(evaluation_e
         assert (
             await repository("evaluation_cases", env.context.scope).get(connection, ref.resource_id)
         )["payload"] is None
-    version = detail.versions[0]
+    version = detail.configuration
     try:
         checked = await env.agents.validate(
             env.context,
-            version.version_id,
+            version.agent_id,
             AgentValidateInput(
                 purpose="production",
                 revision=version.revision,
@@ -385,7 +385,7 @@ async def test_import_atomicity_and_label_versioning(evaluation_env):
 
 async def test_same_data_baseline_comparison(evaluation_env):
     from creativity_service.core.deletion import ContentRef, DeletionService
-    from creativity_service.modules.agents.schemas import AgentValidateInput, AgentVersionCreate
+    from creativity_service.modules.agents.schemas import AgentValidateInput
     from tests.integration.agents.test_agents import publish
 
     env = evaluation_env
@@ -393,19 +393,15 @@ async def test_same_data_baseline_comparison(evaluation_env):
     await finish(env, baseline)
     await approve(env, baseline)
     await publish(env, detail, evaluation_refs=(baseline.evaluation_id,))
-    candidate = await env.agents.create_version(
-        env.context,
-        detail.agent.agent_id,
-        AgentVersionCreate(base_version_id=detail.versions[0].version_id, version_label="候选二"),
-    )
+    candidate = (await env.agents.detail(env.context, detail.agent.agent_id)).configuration
     task = await env.evaluations.create(
         env.context,
         EvaluationCreate(
             name="同条件对比",
             dataset_version_id=dataset.current_version_id,
-            candidates=[{"version_id": candidate.version_id, "revision": candidate.revision}],
+            candidates=[{"version_id": candidate.agent_id, "revision": candidate.revision}],
             baseline_evaluation_id=baseline.evaluation_id,
-            baseline_candidate_version_id=detail.versions[0].version_id,
+            baseline_candidate_version_id=detail.configuration.agent_id,
             release_target=True,
             budget={"max_runs": 2, "token_limit": 1000000},
         ),
@@ -419,7 +415,7 @@ async def test_same_data_baseline_comparison(evaluation_env):
     assert report.candidates[0]["release_passed"]
     checked = await env.agents.validate(
         env.context,
-        candidate.version_id,
+        candidate.agent_id,
         AgentValidateInput(
             purpose="production", revision=candidate.revision, evaluation_refs=(task.evaluation_id,)
         ),
@@ -450,7 +446,7 @@ async def test_two_shapes_full_case_matrix(evaluation_env, kind):
         }
     )
     detail = await env.agents.create(env.context, body)
-    version = detail.versions[0]
+    version = detail.configuration
     dataset = await env.evaluations.create_dataset(
         env.context,
         DatasetCreate(
@@ -475,7 +471,7 @@ async def test_two_shapes_full_case_matrix(evaluation_env, kind):
         EvaluationCreate(
             name=body.name + "全量验证",
             dataset_version_id=dataset.current_version_id,
-            candidates=[{"version_id": version.version_id, "revision": version.revision}],
+            candidates=[{"version_id": version.agent_id, "revision": version.revision}],
             release_target=True,
             concurrency=1,
             minimum_pass_rate=0,
@@ -677,11 +673,11 @@ async def test_fixture_uses_fixed_result_and_rechecks_current_permission(evaluat
             captured_at=utcnow(),
         ),
     )
-    version = detail.versions[0]
+    version = detail.configuration
     request = EvaluationCreate(
         name="固定数据授权检查",
         dataset_version_id=dataset.current_version_id,
-        candidates=[{"version_id": version.version_id, "revision": version.revision}],
+        candidates=[{"version_id": version.agent_id, "revision": version.revision}],
         budget={"max_runs": 3, "token_limit": 1000000},
     )
     task = await env.evaluations.create(env.context, request)
@@ -724,10 +720,10 @@ async def test_reviewed_run_source_redacts_and_propagates_subject_deletion(evalu
         }
     )
     await RecoveryService(env.engine, env.iam.authorization).initialize_fresh(source_context)
-    version = detail.versions[0]
+    version = detail.configuration
     source = await env.agents.test(
         source_context,
-        version.version_id,
+        version.agent_id,
         AgentTestInput(
             revision=version.revision,
             input={"request": "邮箱 private@example.test，电话 13812345678"},
@@ -765,7 +761,7 @@ async def test_reviewed_run_source_redacts_and_propagates_subject_deletion(evalu
         EvaluationCreate(
             name="反馈回归",
             dataset_version_id=copied.current_version_id,
-            candidates=[{"version_id": version.version_id, "revision": version.revision}],
+            candidates=[{"version_id": version.agent_id, "revision": version.revision}],
             budget={"max_runs": 3, "token_limit": 1000000},
         ),
     )

@@ -126,12 +126,15 @@ async def rerun(
     return await service.rerun(context, identifier, body)
 
 
-@router.post("/agent-versions/{identifier}/release-check", response_model=AgentValidation)
-async def release_check(
+@router.post("/agents/{identifier}/evaluation-check", response_model=AgentValidation)
+async def evaluation_check(
     context: Context, service: Services, identifier: str, body: AgentValidateInput
 ) -> AgentValidation:
     return await service.agents.validate(
-        context, identifier, body.model_copy(update={"purpose": "production"})
+        context,
+        identifier,
+        body.model_copy(update={"purpose": "production"}),
+        require_evaluation=True,
     )
 
 

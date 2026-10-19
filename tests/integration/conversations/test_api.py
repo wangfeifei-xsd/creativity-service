@@ -19,6 +19,7 @@ from tests.integration.channels.conftest import channel_body, channel_env, login
 from tests.integration.conversations.conftest import Store
 from tests.integration.core.conftest import TestAuthorization, TestVersionValidator
 from tests.integration.runs.conftest import InternalDefinition
+from tests.support.agent_configuration import save_configuration
 
 pytestmark = pytest.mark.integration
 __all__ = ["channel_env"]
@@ -51,10 +52,7 @@ async def test_real_token_scope_attachments_retention_and_expiration(
         await env.iam.authentication.admin_session(token.access_token, new_id("request"))
     ).context
     versions = VersionService(env.engine, TestAuthorization(), TestVersionValidator())
-    agent = await versions.create_draft(
-        context, "agent", "agent_one", "会话正式夹具", {}, [], {"type": "object"}
-    )
-    agent = await versions.freeze(context, agent.version_id, 1)
+    agent = await save_configuration(versions, context, "agent_one", {}, [], {"type": "object"})
     budgets = BudgetService(env.engine)
     cleanup = CleanupRegistry()
     runs = build_run_service(

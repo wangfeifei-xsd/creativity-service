@@ -14,7 +14,7 @@ from sqlalchemy.schema import CreateIndex, CreateTable
 
 from creativity_service.core.database.soft_delete import FIELD
 from creativity_service.core.database.tables import BASELINE
-from creativity_service.modules.agents.tables import BASELINE as AGENT_BASELINE
+from creativity_service.modules.agents.tables import CURRENT as AGENT_BASELINE
 from creativity_service.modules.channels.tables import CURRENT as CHANNEL_BASELINE
 from creativity_service.modules.conversations.tables import BASELINE as CONVERSATION_BASELINE
 from creativity_service.modules.evaluations.tables import BASELINE as EVALUATION_BASELINE

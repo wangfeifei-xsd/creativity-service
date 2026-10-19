@@ -303,7 +303,7 @@ class AutomationService:
     async def require_scheduled_agent(
         uow: UnitOfWork, context: AuthContext, request: RunInput
     ) -> None:
-        """在策略锁内校验当前发布状态及输入，避免保存或重新启用无效计划。"""
+        """在策略锁内校验当前上下线、启停状态及输入，避免保存或启用无效计划。"""
         agents = await agent_repository("agents", context.scope).find(
             uow.connection, agent_code=request.agent_code
         )
@@ -318,19 +318,14 @@ class AutomationService:
             uow.connection, mapping_id
         )
         if agent["status"] != "ACTIVE" or (state and state["status"] != "ACTIVE"):
-            raise ServiceError("AGENT_DISABLED", "智能体已下线或停用", 403)
-        mapping = await agent_repository("release_mappings", context.scope).get(
-            uow.connection, mapping_id
+            raise ServiceError("AGENT_DISABLED", "智能体已停用", 403)
+        if not state or not state["is_online"]:
+            raise ServiceError("AGENT_OFFLINE", "智能体尚未上线到当前环境", 409)
+        version = await agent_repository("resource_versions", context.scope).get(
+            uow.connection, agent["id"]
         )
-        version = (
-            await agent_repository("resource_versions", context.scope).get(
-                uow.connection, mapping["version_id"]
-            )
-            if mapping
-            else None
-        )
-        if not version or version["state"] != "PUBLISHED":
-            raise ServiceError("AGENT_NOT_RELEASED", "智能体尚未发布到当前环境", 409)
+        if not version or version["state"] != "CURRENT":
+            raise ServiceError("AGENT_CONFIGURATION_MISSING", "智能体当前配置不可用", 409)
         await DeletionGuard(context.scope).check(
             uow, [ContentRef("agent", agent["id"]), ContentRef("version", version["id"])]
         )

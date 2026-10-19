@@ -35,7 +35,7 @@ async def admitted(env, *, definition=None, purpose="debug"):
     detail = await env.agents.create(
         env.context, env.body.model_copy(update={"definition": definition or env.definition})
     )
-    version = detail.versions[0]
+    version = detail.configuration
     if purpose == "production":
         await publish(env, detail)
         receipt = await env.runs.admit_run(
@@ -46,7 +46,7 @@ async def admitted(env, *, definition=None, purpose="debug"):
     else:
         receipt = await env.agents.test(
             env.context,
-            version.version_id,
+            version.agent_id,
             AgentTestInput(
                 revision=version.revision, input={"request": "请处理"}, idempotency_key="debug"
             ),

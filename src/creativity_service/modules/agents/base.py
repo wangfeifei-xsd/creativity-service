@@ -21,9 +21,9 @@ from creativity_service.modules.agents.repositories import (
     required,
 )
 from creativity_service.modules.agents.schemas import (
+    AgentConfigurationView,
     AgentDefinition,
     AgentDependency,
-    AgentVersionView,
     AgentView,
 )
 from creativity_service.modules.budgets.services import BudgetService
@@ -48,12 +48,14 @@ def status(value: str) -> DisplayStatus:
         label={
             "ACTIVE": "已启用",
             "OFFLINE": "已下线",
-            "EMERGENCY_STOP": "已紧急停用",
+            "ONLINE": "已上线",
+            "DISABLED": "已停用",
+            "EMERGENCY_STOP": "已停用",
             "DRAFT": "草稿",
             "PUBLISHED": "已发布",
             "RETIRED": "已归档",
         }.get(value, "状态不可用"),
-        tone="success" if value in {"ACTIVE", "PUBLISHED"} else "default",
+        tone="success" if value in {"ACTIVE", "PUBLISHED", "ONLINE"} else "default",
     )
 
 
@@ -110,7 +112,7 @@ class AgentKernel:
         *,
         loaded: list[dict[str, Any]] | None = None,
     ) -> list[ResourceKey]:
-        """先枚举受锁资源，锁下再解析；依赖闭包变化会在发布处拒绝。"""
+        """先枚举受锁资源，锁下再解析；依赖闭包变化会在保存或受理时拒绝。"""
         keys = []
         rows = loaded
         if rows is None:
@@ -189,8 +191,8 @@ class AgentKernel:
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         async with transaction(self.engine, context.scope, [content_key(context.scope)]) as uow:
             version = await required(uow.connection, context.scope, "resource_versions", version_id)
-            if version["resource_type"] != "agent":
-                raise ServiceError("NOT_FOUND", "智能体版本不存在", 404)
+            if version["resource_type"] != "agent" or version["id"] != version["resource_id"]:
+                raise ServiceError("NOT_FOUND", "智能体配置不存在", 404)
             agent = await required(uow.connection, context.scope, "agents", version["resource_id"])
             await DeletionGuard(context.scope).check(
                 uow, [ContentRef("agent", agent["id"]), ContentRef("version", version_id)]
@@ -209,10 +211,14 @@ class AgentKernel:
         await locked_require(uow, context, action, "agent", agent_id)
         agent = await required(uow.connection, context.scope, "agents", agent_id)
         version = await required(uow.connection, context.scope, "resource_versions", version_id)
-        if version["resource_type"] != "agent" or version["resource_id"] != agent_id:
-            raise ServiceError("NOT_FOUND", "智能体版本不存在", 404)
+        if (
+            version["resource_type"] != "agent"
+            or version["resource_id"] != agent_id
+            or version["id"] != agent_id
+        ):
+            raise ServiceError("NOT_FOUND", "智能体配置不存在", 404)
         if version["revision"] != revision:
-            raise ServiceError("REVISION_CONFLICT", "草稿已变更，请刷新后重新检查", 409)
+            raise ServiceError("REVISION_CONFLICT", "配置已变更，请刷新后重新检查", 409)
         await DeletionGuard(context.scope).check(
             uow, [ContentRef("agent", agent_id), ContentRef("version", version_id)]
         )
@@ -230,10 +236,12 @@ class AgentKernel:
             row["id"],
             [
                 ("edit", "编辑信息", "agent:manage"),
-                ("create_version", "新增草稿", "agent:manage"),
-                ("offline", "下线", "release:publish"),
-                ("emergency_stop", "紧急停用", "release:publish"),
-                ("enable", "启用", "release:publish"),
+                ("offline", "下线", "release:publish")
+                if state and state.get("is_online")
+                else ("online", "上线", "release:publish"),
+                ("disable", "停用", "release:publish")
+                if not state or state["status"] == "ACTIVE"
+                else ("enable", "启用", "release:publish"),
             ],
             permissions,
         )
@@ -246,7 +254,10 @@ class AgentKernel:
         return AgentView(
             agent_id=row["id"],
             **{k: row[k] for k in ("agent_code", "name", "description", "owner", "revision")},
-            status=status(state["status"] if state else row["status"]),
+            status=status(state["status"] if state else "ACTIVE"),
+            online_status=status("ONLINE" if state and state.get("is_online") else "OFFLINE"),
+            online=bool(state and state.get("is_online")),
+            enabled=not state or state["status"] == "ACTIVE",
             actions=[
                 action
                 if isinstance(action, AccessAction)
@@ -255,21 +266,17 @@ class AgentKernel:
             ],
         )
 
-    async def version_view(
+    async def configuration_view(
         self, context: AuthContext, row: dict[str, Any], permissions: frozenset[str] | None = None
-    ) -> AgentVersionView:
+    ) -> AgentConfigurationView:
         actions = [
             ("validate", "校验", "agent:manage"),
             ("test", "调试", "run:create"),
-            ("release", "发布", "release:publish"),
         ]
-        if row["state"] == "DRAFT":
-            actions.insert(0, ("edit", "编辑配置", "agent:manage"))
-        return AgentVersionView(
-            version_id=row["id"],
-            version_label=row["version_label"],
+        actions.insert(0, ("edit", "编辑配置", "agent:manage"))
+        return AgentConfigurationView(
+            agent_id=row["resource_id"],
             revision=row["revision"],
-            status=status(row["state"]),
             definition=AgentDefinition.model_validate(row["content"]),
             content_digest=row["content_digest"],
             actions=await self.actions(context, row["resource_id"], actions, permissions),

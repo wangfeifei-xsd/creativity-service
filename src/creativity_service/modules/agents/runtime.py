@@ -1,4 +1,4 @@
-"""16 到 11/17 的受理适配：映射切换不改变已解析的执行内容。"""
+"""智能体运行受理适配：配置修改不改变已受理任务的执行内容。"""
 
 import json
 from typing import Any
@@ -113,7 +113,7 @@ class AgentRunResolver:
                 frozen_spec_id=spec.snapshot_id,
                 steps=tuple(steps),
                 timeout_seconds=config.limits.deadline_seconds,
-                timeout_source="agent-version",
+                timeout_source="agent-configuration",
                 max_model_calls=config.limits.max_model_rounds,
                 max_tool_calls=config.limits.max_tool_calls,
                 token_limit=config.limits.token_limit,
@@ -122,7 +122,7 @@ class AgentRunResolver:
         )
 
     async def resolve(self, context: AuthContext, request: RunInput) -> ResolvedDefinition:
-        spec = await self.agents.resolve_published(context, request.agent_code)
+        spec = await self.agents.resolve_current(context, request.agent_code)
         if request.conversation_id and not spec.definition.context.conversation_enabled:
             raise ServiceError("CONVERSATION_DISABLED", "此智能体未启用会话", 422)
         return self.definition(spec)
@@ -139,14 +139,12 @@ class AgentRunResolver:
                 raise ServiceError("NOT_FOUND", "智能体不存在", 404)
             agent = found[0]
             mapping_id = self.agents.mapping_id(context, agent["id"])
-            mapping = await repository("release_mappings", context.scope).get(
+            mapping = await repository("agent_environment_states", context.scope).get(
                 connection, mapping_id
             )
-            if mapping is None:
-                raise ServiceError("AGENT_NOT_RELEASED", "智能体尚未发布到当前环境", 409)
-            version = await required(
-                connection, context.scope, "resource_versions", mapping["version_id"]
-            )
+            if mapping is None or not mapping["is_online"]:
+                raise ServiceError("AGENT_OFFLINE", "智能体在当前环境未上线", 409)
+            version = await required(connection, context.scope, "resource_versions", agent["id"])
             config = AgentDefinition.model_validate(version["content"])
             dependencies = await dependency_rows(connection, context.scope, config.dependency_ids())
         if request.conversation_id and not config.context.conversation_enabled:
@@ -225,7 +223,9 @@ class AgentRunResolver:
             uow.connection, self.agents.mapping_id(context, spec.agent_id)
         )
         if agent["status"] != "ACTIVE" or (state and state["status"] != "ACTIVE"):
-            raise ServiceError("AGENT_DISABLED", "智能体已下线或停用", 403)
+            raise ServiceError("AGENT_DISABLED", "智能体已停用", 403)
+        if spec.purpose == "production" and (not state or not state["is_online"]):
+            raise ServiceError("AGENT_OFFLINE", "智能体在当前环境未上线", 409)
         await DeletionGuard(context.scope).check(
             uow,
             [
@@ -259,7 +259,9 @@ class PreparedAgentResolver:
             + self.dependency_keys
             + [
                 record_key(context.scope.channel_id, "resource_versions", spec.source_version_id),
-                record_key(context.scope.channel_id, "release_mappings", self.mapping["id"]),
+                record_key(
+                    context.scope.channel_id, "agent_environment_states", self.mapping["id"]
+                ),
             ]
         )
         # 先并行校验配置和身份，到预算读取前才取得渠道账本锁。
@@ -298,16 +300,18 @@ class PreparedAgentResolver:
             or definition.model_dump(exclude={"admission_plan"}) != self.expected_definition
         ):
             raise ServiceError("SNAPSHOT_INVALID", "受理准备数据与执行策略不一致", 422)
-        mapping = await repository("release_mappings", context.scope).get(
+        mapping = await repository("agent_environment_states", context.scope).get(
             uow.connection, self.mapping["id"]
         )
         if mapping != self.mapping:
-            raise ServiceError("REVISION_CONFLICT", "环境映射已变更，请重新受理", 409)
+            raise ServiceError("REVISION_CONFLICT", "环境状态已变更，请重新受理", 409)
         agent, version = await agents.locked_version(
             uow, context, spec.agent_id, spec.source_version_id, spec.source_revision, "run:create"
         )
-        if version["state"] != "PUBLISHED" or version["content_digest"] != spec.content_digest:
-            raise ServiceError("AGENT_NOT_RELEASED", "正式运行只能使用当前发布的不可变版本", 409)
+        if version["content_digest"] != spec.content_digest:
+            raise ServiceError("REVISION_CONFLICT", "智能体配置已变更，请重新受理", 409)
+        if agent["status"] != "ACTIVE" or mapping["status"] != "ACTIVE":
+            raise ServiceError("AGENT_DISABLED", "智能体已停用", 409)
         # 跨越事务边界后按本批版本重新读取；只准备锁集合，不信任事务外的可变状态。
         resources: dict[str, dict[str, dict[str, Any]]] = {}
         current = {
@@ -317,7 +321,7 @@ class PreparedAgentResolver:
             )
         }
         if any(current.get(row["id"]) != row for row in self.dependencies):
-            raise ServiceError("REVISION_CONFLICT", "依赖版本已变化，请重新受理", 409)
+            raise ServiceError("REVISION_CONFLICT", "依赖配置已变化，请重新受理", 409)
         validation, dependencies, manifest = await agents.inspect_in(
             uow,
             context,

@@ -16,6 +16,7 @@ from creativity_service.modules.runs.schemas import ExecutionPolicy, ResolvedDef
 from creativity_service.modules.runs.services import RunService
 from creativity_service.modules.usage.services import UsageService
 from tests.integration.core.conftest import authorization, context, engine, validator
+from tests.support.agent_configuration import save_configuration
 
 __all__ = ["authorization", "context", "engine", "validator"]
 
@@ -62,10 +63,7 @@ async def env(engine, context, authorization, validator):
         context, "model", "model_one", "模型初版", {}, [], {"type": "object"}
     )
     model = await versions.freeze(context, model.version_id, 1)
-    agent = await versions.create_draft(
-        context, "agent", "agent_one", "测试初版", {}, [model.version_id], schema
-    )
-    agent = await versions.freeze(context, agent.version_id, 1)
+    agent = await save_configuration(versions, context, "agent_one", {}, [model.version_id], schema)
     resolver = InternalDefinition(
         ResolvedDefinition(
             agent_id="agent_one",

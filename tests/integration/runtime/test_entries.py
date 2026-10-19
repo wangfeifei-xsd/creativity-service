@@ -183,9 +183,9 @@ async def test_tool_loop_stops_at_frozen_call_limit(runtime_env):
 async def test_evaluation_uses_controlled_frozen_candidate(runtime_env):
     env = runtime_env
     detail = await env.agents.create(env.context, env.body)
-    version = detail.versions[0]
+    version = detail.configuration
     spec = await env.agents.freeze_candidate(
-        env.context, version.version_id, version.revision, "evaluation"
+        env.context, version.agent_id, version.revision, "evaluation"
     )
     receipt = await RuntimeAdmission(env.runs, env.agents).submit(
         env.context, spec, {"request": "评测样例"}, "evaluation"

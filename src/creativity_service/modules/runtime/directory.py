@@ -1,4 +1,4 @@
-"""会话入口只列出当前环境已发布、获执行授权并启用会话的智能体。"""
+"""会话入口只列出当前环境已上线、获执行授权并启用会话的智能体。"""
 
 from creativity_service.core.context import AuthContext
 from creativity_service.core.database import transaction
@@ -31,11 +31,8 @@ class ConversationAgents:
             states = await repository("agent_environment_states", context.scope).get_many(
                 uow.connection, identifiers
             )
-            mappings = await repository("release_mappings", context.scope).get_many(
-                uow.connection, identifiers
-            )
             versions = await repository("resource_versions", context.scope).get_many(
-                uow.connection, [r["version_id"] for r in mappings.values()]
+                uow.connection, [r["id"] for r in agents]
             )
             blocked = await DeletionGuard(context.scope).blocked_refs(
                 uow,
@@ -46,12 +43,13 @@ class ConversationAgents:
             )
             for agent in agents:
                 identifier = self.agents.mapping_id(context, agent["id"])
-                state, mapping = states.get(identifier), mappings.get(identifier)
-                version = versions.get(mapping["version_id"]) if mapping else None
+                state = states.get(identifier)
+                version = versions.get(agent["id"])
                 if (
                     not version
-                    or version["state"] != "PUBLISHED"
-                    or (state and state["status"] != "ACTIVE")
+                    or not state
+                    or not state["is_online"]
+                    or state["status"] != "ACTIVE"
                 ):
                     continue
                 if {

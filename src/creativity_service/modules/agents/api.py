@@ -13,28 +13,26 @@ from creativity_service.modules.agents.assistance_schemas import (
     AssistanceSaved,
     AssistanceTurn,
 )
+from creativity_service.modules.agents.lifecycle import AgentLifecycle
 from creativity_service.modules.agents.schemas import (
+    AgentConfigurationEdit,
+    AgentConfigurationView,
     AgentCreate,
     AgentDeleteInput,
     AgentDetail,
     AgentEdit,
     AgentList,
     AgentOptions,
-    AgentReleaseInput,
     AgentStateInput,
     AgentTestInput,
     AgentTestView,
     AgentValidateInput,
     AgentValidation,
-    AgentVersionCreate,
-    AgentVersionEdit,
-    AgentVersionView,
 )
 from creativity_service.modules.agents.services import AgentService
-from creativity_service.modules.releases.services import ReleaseService
 from creativity_service.modules.runs.schemas import AdmissionReceipt
 
-router = APIRouter(tags=["智能体与版本发布"])
+router = APIRouter(tags=["智能体管理"])
 Context = Annotated[AuthContext, Depends(require_http_context)]
 
 
@@ -53,9 +51,9 @@ async def list_agents(
     context: Context,
     service: Services,
     search: Annotated[str | None, Query(max_length=128)] = None,
-    published_only: bool = False,
+    online_only: bool = False,
 ) -> AgentList:
-    return await service.list_agents(context, search, published_only=published_only)
+    return await service.list_agents(context, search, online_only=online_only)
 
 
 @router.get("/agents/options", response_model=AgentOptions)
@@ -111,48 +109,36 @@ async def delete(
     return Response(status_code=204)
 
 
-@router.post("/agents/{agent_id}/versions", response_model=AgentVersionView, status_code=201)
-async def create_version(
-    context: Context, service: Services, agent_id: str, body: AgentVersionCreate
-) -> AgentVersionView:
-    return await service.create_version(context, agent_id, body)
+@router.get("/agents/{agent_id}/configuration", response_model=AgentConfigurationView)
+async def configuration(
+    context: Context, service: Services, agent_id: str
+) -> AgentConfigurationView:
+    return await service.configuration(context, agent_id)
 
 
-@router.get("/agent-versions/{version_id}", response_model=AgentVersionView)
-async def version(context: Context, service: Services, version_id: str) -> AgentVersionView:
-    return await service.version(context, version_id)
+@router.patch("/agents/{agent_id}/configuration", response_model=AgentConfigurationView)
+async def edit_configuration(
+    context: Context, service: Services, agent_id: str, body: AgentConfigurationEdit
+) -> AgentConfigurationView:
+    return await service.edit_configuration(context, agent_id, body)
 
 
-@router.patch("/agent-versions/{version_id}", response_model=AgentVersionView)
-async def edit_version(
-    context: Context, service: Services, version_id: str, body: AgentVersionEdit
-) -> AgentVersionView:
-    return await service.edit_version(context, version_id, body)
-
-
-@router.post("/agent-versions/{version_id}/validate", response_model=AgentValidation)
+@router.post("/agents/{agent_id}/validate", response_model=AgentValidation)
 async def validate(
-    context: Context, service: Services, version_id: str, body: AgentValidateInput
+    context: Context, service: Services, agent_id: str, body: AgentValidateInput
 ) -> AgentValidation:
-    return await service.validate(context, version_id, body)
+    return await service.validate(context, agent_id, body)
 
 
-@router.post("/agent-versions/{version_id}/tests", response_model=AgentTestView)
+@router.post("/agents/{agent_id}/tests", response_model=AgentTestView)
 async def test(
-    context: Context, service: Services, version_id: str, body: AgentTestInput
+    context: Context, service: Services, agent_id: str, body: AgentTestInput
 ) -> AgentTestView:
-    return await service.test(context, version_id, body)
-
-
-@router.post("/agents/{agent_id}/releases", response_model=AgentDetail)
-async def release(
-    context: Context, service: Services, agent_id: str, body: AgentReleaseInput
-) -> AgentDetail:
-    return await ReleaseService(service).release(context, agent_id, body)
+    return await service.test(context, agent_id, body)
 
 
 @router.post("/agents/{agent_id}/state", response_model=AgentDetail)
 async def state(
     context: Context, service: Services, agent_id: str, body: AgentStateInput
 ) -> AgentDetail:
-    return await ReleaseService(service).state(context, agent_id, body)
+    return await AgentLifecycle(service).state(context, agent_id, body)

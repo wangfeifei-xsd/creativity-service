@@ -58,7 +58,7 @@ class ConversationService(
     async def create(self, context: AuthContext, body: ConversationCreate) -> ConversationView:
         await self.authorization.require(context, "conversation:write", "new")
         if self.runs.resolver is None:
-            raise unavailable("智能体发布解析器")
+            raise unavailable("智能体配置解析器")
         definition = await self.runs.resolver.resolve(
             context, RunRequest(agent_code=body.agent_code, input={})
         )
@@ -76,9 +76,9 @@ class ConversationService(
                 not version
                 or version["resource_type"] != "agent"
                 or version["resource_id"] != definition.agent_id
-                or version["state"] != "PUBLISHED"
+                or version["state"] != "CURRENT"
             ):
-                raise ServiceError("NOT_FOUND", "当前渠道的智能体发布版本不可用", 404)
+                raise ServiceError("NOT_FOUND", "当前渠道的智能体配置不可用", 404)
             await DeletionGuard(context.scope).check(
                 uow,
                 [

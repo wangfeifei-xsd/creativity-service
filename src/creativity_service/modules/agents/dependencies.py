@@ -154,7 +154,7 @@ class DependencyResolver:
                 raise ServiceError("DEPENDENCY_INVALID", "依赖内容摘要不一致", 409)
             resource = parents.get(kind, {}).get(row["resource_id"])
             if resource is None:
-                raise ServiceError("DEPENDENCY_INVALID", "当前渠道缺少所需资源或版本", 422)
+                raise ServiceError("DEPENDENCY_INVALID", "当前渠道缺少所需资源", 422)
             row["resource_name"] = resource["name"]
             if resource.get("status", "ACTIVE") != "ACTIVE":
                 raise ServiceError(

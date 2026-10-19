@@ -313,6 +313,7 @@ class ConversationQueries(ConversationKernel):
         *,
         cursor: str | None = None,
         limit: int = 50,
+        latest: bool = False,
     ) -> MessagePage:
         if not 1 <= limit <= 200:
             raise ServiceError("PAGE_INVALID", "分页数量超出范围", 422)
@@ -320,7 +321,12 @@ class ConversationQueries(ConversationKernel):
             context, conversation_id
         )
         binding = digest(
-            [context.scope.model_dump(), context.principal_id, conversation_id, "messages-v1"]
+            [
+                context.scope.model_dump(),
+                context.principal_id,
+                conversation_id,
+                "messages-latest-v1" if latest else "messages-v1",
+            ]
         )
         value = decode_cursor(cursor, binding)
         after, ceiling = 0, None
@@ -332,6 +338,9 @@ class ConversationQueries(ConversationKernel):
             except (KeyError, TypeError, ValueError) as exc:
                 raise ServiceError("CURSOR_INVALID", "历史游标不正确", 422) from exc
         ceiling = conversation["next_sequence"] - 1 if ceiling is None else ceiling
+        # 最近消息从尾部按固定快照回翻；页内仍以正序显示，旧游标方向保持不变。
+        if latest and value is None:
+            after = ceiling + 1
         table = metadata.tables["messages"]
         async with self.engine.connect() as connection:
             found = [
@@ -343,10 +352,10 @@ class ConversationQueries(ConversationKernel):
                             .where(
                                 table.c.channel_id == context.scope.channel_id,
                                 table.c.conversation_id == conversation_id,
-                                table.c.sequence > after,
+                                table.c.sequence < after if latest else table.c.sequence > after,
                                 table.c.sequence <= ceiling,
                             )
-                            .order_by(table.c.sequence)
+                            .order_by(table.c.sequence.desc() if latest else table.c.sequence)
                             .limit(limit + 1)
                         )
                     )
@@ -503,7 +512,7 @@ class ConversationQueries(ConversationKernel):
                 )
         more = len(found) > limit
         return MessagePage(
-            items=items,
+            items=sorted(items, key=lambda item: item.sequence),
             turns=turns,
             has_more=more,
             next_cursor=encode_cursor(

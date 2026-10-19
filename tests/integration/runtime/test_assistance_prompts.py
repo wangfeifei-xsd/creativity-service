@@ -131,11 +131,11 @@ async def test_named_prompt_drafts_publish_and_bind_atomically(runtime_env):
     assert configs[identifiers[0]]["content"]["variables"][0]["display_name"] == "业务诉求"
     detail = await env.agents.detail(env.context, saved.agent_id)
     assert (
-        detail.versions[0].definition.instructions
+        detail.configuration.definition.instructions
         == value["data"]["proposal"]["definition"]["instructions"]
     )
-    draft = detail.versions[0]
-    assert draft.status.value == "DRAFT"
+    draft = detail.configuration
+    assert not detail.agent.online and detail.agent.enabled
     assert [step.prompt_id for step in draft.definition.steps] == identifiers
     assert set(identifiers) <= set(draft.definition.dependency_ids())
     env.adapter.responses.extend(
@@ -152,7 +152,7 @@ async def test_named_prompt_drafts_publish_and_bind_atomically(runtime_env):
     )
     test = await env.agents.test(
         env.context,
-        draft.version_id,
+        draft.agent_id,
         AgentTestInput(
             revision=draft.revision,
             input={"request": "请查询退款进度"},
@@ -210,9 +210,9 @@ async def test_save_failure_leaves_no_extracted_resources(runtime_env, monkeypat
 
         async def interrupted(*args, **kwargs):
             # 此时提示词及智能体主记录已写入事务，后续失败必须一起回滚。
-            raise ServiceError("SAVE_INTERRUPTED", "模拟草稿保存失败", 409)
+            raise ServiceError("SAVE_INTERRUPTED", "模拟配置保存失败", 409)
 
-        monkeypatch.setattr(env.agents, "add_draft", interrupted)
+        monkeypatch.setattr(env.agents, "add_configuration", interrupted)
     with pytest.raises(ServiceError) as error:
         await env.runtime.assistance.apply(env.context, receipt.run_id)
     assert error.value.code == ("SAVE_INTERRUPTED" if failure == "commit" else "FORBIDDEN")
@@ -279,7 +279,7 @@ async def test_prompt_input_mismatch_does_not_block_generation_save_or_publicati
     saved = await env.runtime.assistance.apply(env.context, receipt.run_id)
     detail = await env.agents.detail(env.context, saved.agent_id)
     await publish(env, detail)
-    snapshot = await env.agents.resolve_published(env.context, detail.agent.agent_code)
+    snapshot = await env.agents.resolve_current(env.context, detail.agent.agent_code)
     prompt = next(
         item for item in snapshot.versions if item.version_id == saved.prompts[1].prompt_id
     )
@@ -296,4 +296,4 @@ async def test_single_model_step_is_inferred_for_legacy_prompt_candidate(runtime
     assert turn.reply.prompt_drafts[0].step_key == "answer"
     saved = await env.runtime.assistance.apply(env.context, receipt.run_id)
     detail = await env.agents.detail(env.context, saved.agent_id)
-    assert detail.versions[0].definition.steps[0].prompt_id == saved.prompts[0].prompt_id
+    assert detail.configuration.definition.steps[0].prompt_id == saved.prompts[0].prompt_id

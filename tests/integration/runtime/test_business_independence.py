@@ -15,9 +15,9 @@ import pytest
 from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.agents.schemas import (
+    AgentConfigurationEdit,
     AgentCreate,
     AgentValidateInput,
-    AgentVersionEdit,
 )
 from creativity_service.modules.skills.schemas import (
     SkillFileInput,
@@ -188,7 +188,7 @@ async def same_local_code(env, items):
         await env.tools.management.release(
             context, tool.tool_id, ToolRelease(version_id=frozen.version.version_id)
         )
-        spec = await env.agents.resolve_published(context, "shared_agent")
+        spec = await env.agents.resolve_current(context, "shared_agent")
         definition = spec.definition.model_copy(
             update={
                 "bindings": spec.definition.bindings.model_copy(
@@ -450,8 +450,8 @@ async def test_fixed_build_two_businesses_and_third_channel_via_management_pages
             )
             assert changed.package_hash != skill["package_hash"]
             old = await run_case(env, items[0], "after-skill-change", "sync")
-            published = await env.agents.resolve_published(items[0].context, "shared_agent")
-            assert published.source_version_id == items[0].agent["release"]["release_version_id"]
+            published = await env.agents.resolve_current(items[0].context, "shared_agent")
+            assert published.source_version_id == items[0].agent["release"]["agent"]["agent_id"]
             assert published.definition.bindings.skill_versions == (frozen_id,)
             assert old["result"]["data"] == items[0].scenario["data"]
             # 更新 Agent 草稿引用后，旧修订和旧摘要都不能作为新候选使用。
@@ -461,7 +461,7 @@ async def test_fixed_build_two_businesses_and_third_channel_via_management_pages
             detail = await env.agents.detail(
                 items[0].context, items[0].agent["agent"]["agent"]["agent_id"]
             )
-            draft = next(v for v in detail.versions if v.status.value == "DRAFT")
+            draft = detail.configuration
             definition = draft.definition.model_copy(deep=True)
             definition = definition.model_copy(
                 update={
@@ -476,18 +476,18 @@ async def test_fixed_build_two_businesses_and_third_channel_via_management_pages
                     ),
                 }
             )
-            edited = await env.agents.edit_version(
+            edited = await env.agents.edit_configuration(
                 items[0].context,
-                draft.version_id,
-                AgentVersionEdit(revision=draft.revision, definition=definition),
+                draft.agent_id,
+                AgentConfigurationEdit(revision=draft.revision, definition=definition),
             )
             with pytest.raises(ServiceError) as stale:
                 await env.agents.validate(
-                    items[0].context, draft.version_id, AgentValidateInput(revision=draft.revision)
+                    items[0].context, draft.agent_id, AgentValidateInput(revision=draft.revision)
                 )
             assert stale.value.code == "REVISION_CONFLICT"
             current = await env.agents.validate(
-                items[0].context, draft.version_id, AgentValidateInput(revision=edited.revision)
+                items[0].context, draft.agent_id, AgentValidateInput(revision=edited.revision)
             )
             assert (
                 current.valid

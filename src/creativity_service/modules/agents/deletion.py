@@ -23,8 +23,6 @@ from creativity_service.modules.integrations.automation_tables import metadata a
 from creativity_service.modules.runs.schemas import TERMINAL
 from creativity_service.modules.runs.tables import metadata as run_tables
 
-STOPPED = frozenset({"OFFLINE", "EMERGENCY_STOP"})
-
 
 @dataclass
 class DeletionCheck:
@@ -40,40 +38,20 @@ async def deletion_checks(
     if not checks:
         return checks
     states = repository("agent_environment_states", scope).table
-    mappings = repository("release_mappings", scope).table
     state_rows = (
         await connection.execute(
             active_rows(
-                select(states.c.agent_id, states.c.environment, states.c.status).where(
+                select(states).where(
                     states.c.channel_id == scope.channel_id, states.c.agent_id.in_(checks)
                 )
             )
         )
     ).mappings()
-    statuses: dict[str, dict[str, str]] = {identifier: {} for identifier in checks}
     for row in state_rows:
-        statuses[row["agent_id"]][row["environment"]] = row["status"]
-        checks[row["agent_id"]].environments.add(row["environment"])
-    released = (
-        await connection.execute(
-            active_rows(
-                select(mappings.c.resource_id, mappings.c.environment).where(
-                    mappings.c.channel_id == scope.channel_id,
-                    mappings.c.resource_type == "agent",
-                    mappings.c.resource_id.in_(checks),
-                )
-            )
-        )
-    ).mappings()
-    for row in released:
-        checks[row["resource_id"]].environments.add(row["environment"])
-    for agent in agents:
-        check = checks[agent["id"]]
-        current = statuses[agent["id"]]
-        if current.get(scope.environment, agent["status"]) not in STOPPED:
-            check.blocker = ("AGENT_NOT_STOPPED", "请先下线或停用智能体，再删除")
-        elif any(current.get(env, agent["status"]) not in STOPPED for env in check.environments):
-            check.blocker = ("AGENT_NOT_STOPPED", "智能体在其他环境仍启用，请先全部下线或停用")
+        check = checks[row["agent_id"]]
+        check.environments.add(row["environment"])
+        if row["is_online"] and row["status"] == "ACTIVE":
+            check.blocker = ("AGENT_NOT_STOPPED", "请先将智能体全部下线或停用，再删除")
     codes = {agent["agent_code"]: agent["id"] for agent in agents}
     schedules = automation_tables.tables["automation_schedules"]
     schedule_code = schedules.c.spec["request"]["agent_code"].as_string()

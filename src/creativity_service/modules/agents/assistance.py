@@ -1,4 +1,4 @@
-"""智能协助的渠道目录、对话快照与候选草稿原子保存。"""
+"""智能协助的渠道目录、对话快照与候选配置原子保存。"""
 
 import json
 import re
@@ -47,10 +47,6 @@ from creativity_service.modules.runs.repositories import required as run_require
 from creativity_service.modules.runs.schemas import AdmissionReceipt
 from creativity_service.modules.runtime.admission import RuntimeAdmission
 from creativity_service.modules.runtime.storage import load_spec
-
-
-def version_fingerprint(rows: list[dict[str, Any]]) -> str:
-    return digest(sorted([r["id"], r["revision"], r["state"]] for r in rows))
 
 
 def named_fields(schema: Any) -> bool:
@@ -135,27 +131,15 @@ class AgentAssistance:
             ) as uow:
                 await locked_require(uow, context, "agent:manage", "agent", body.agent_id)
                 agent = await required(uow.connection, context.scope, "agents", body.agent_id)
-                versions = await repository("resource_versions", context.scope).find(
-                    uow.connection, resource_type="agent", resource_id=body.agent_id
+                configuration = await required(
+                    uow.connection, context.scope, "resource_versions", body.agent_id
                 )
-                candidates = [v for v in versions if v["state"] == "DRAFT"] or versions
-                version = (
-                    next((v for v in versions if v["id"] == body.base_version_id), None)
-                    if body.base_version_id
-                    else max(candidates, key=lambda v: v["created_at"], default=None)
-                )
-                if version is None:
-                    raise ServiceError("NOT_FOUND", "所选智能体版本不存在", 404)
                 descriptor.update(
                     agent_revision=agent["revision"],
-                    base_version_id=version["id"],
-                    versions_digest=version_fingerprint(versions),
+                    configuration_revision=configuration["revision"],
                 )
                 base = {k: agent[k] for k in ("agent_code", "name", "description", "owner")}
-                base["definition"] = version["content"]
-                base["version_label"] = "智能协助草稿"
-        elif body.base_version_id:
-            raise ServiceError("ASSISTANCE_INVALID", "请选择需要修改的智能体", 422)
+                base["definition"] = configuration["content"]
 
         options = await self.agents.options(context)
         routes = [
@@ -251,7 +235,7 @@ class AgentAssistance:
         if body.agent_id:
             sources += [
                 ContentRef("agent", body.agent_id),
-                ContentRef("version", descriptor["base_version_id"]),
+                ContentRef("version", descriptor["agent_id"]),
             ]
         if body.previous_run_id:
             sources.append(ContentRef("run", body.previous_run_id))
@@ -408,7 +392,7 @@ class AgentAssistance:
         suffix = digest([context.scope.model_dump(), run_id])[:32]
         agent_id, version_id, audit_id = (
             target or "agent_" + suffix,
-            "version_" + suffix,
+            target or "agent_" + suffix,
             "audit_" + suffix,
         )
         keys = self.agents.keys(
@@ -419,6 +403,7 @@ class AgentAssistance:
             ("source_links", digest([version_id, "agent", agent_id])),
         )
         keys += self.runs.keys(context, run_id)
+        keys += self.agents.configuration_edit_keys(context)
         if prompts:
             keys += creation_keys(context.scope, prompts, publish=True)
         keys += await self.agents.dependency_keys(context, proposal.definition)
@@ -427,15 +412,10 @@ class AgentAssistance:
             policy = await locked_policy(uow, context)
             policy.require(context, "agent:manage", "agent", target or "new")
             await self.runs.guard(uow, row)
-            existing = await repository(
-                "resource_versions", context.scope, include_deleted=True
-            ).get(uow.connection, version_id)
-            if existing:
-                if existing["is_deleted"]:
-                    raise ServiceError("CONTENT_DELETED", "此前保存的草稿已删除，不能重复恢复", 409)
-                await DeletionGuard(context.scope).check(
-                    uow, [ContentRef("agent", agent_id), ContentRef("version", version_id)]
-                )
+            applied = await repository("audit_events", context.scope).get(uow.connection, audit_id)
+            if applied:
+                await required(uow.connection, context.scope, "agents", agent_id)
+                await DeletionGuard(context.scope).check(uow, [ContentRef("agent", agent_id)])
                 available = (
                     await repository("prompts", context.scope).get_many(
                         uow.connection, [p.identifier for p in prompts]
@@ -445,19 +425,17 @@ class AgentAssistance:
                 )
                 return AssistanceSaved(
                     agent_id=agent_id,
-                    version_id=version_id,
                     prompts=saved_prompts([p for p in prompts if p.identifier in available]),
                 )
             repo = repository("agents", context.scope)
             if target:
                 agent = await required(uow.connection, context.scope, "agents", target)
-                versions = await repository("resource_versions", context.scope).find(
-                    uow.connection, resource_type="agent", resource_id=target
+                configuration = await required(
+                    uow.connection, context.scope, "resource_versions", target
                 )
-                if (
-                    agent["revision"] != descriptor["agent_revision"]
-                    or version_fingerprint(versions) != descriptor["versions_digest"]
-                ):
+                if agent["revision"] != descriptor["agent_revision"] or configuration[
+                    "revision"
+                ] != descriptor.get("configuration_revision"):
                     raise ServiceError(
                         "REVISION_CONFLICT",
                         "智能体已被修改，请开始新对话生成方案；本次方案仍保留",
@@ -501,24 +479,33 @@ class AgentAssistance:
                     },
                 }
             await self.validate_in(uow, context, proposal, descriptor)
-            fields = proposal.model_dump(exclude={"definition", "version_label", "agent_code"})
+            fields = proposal.model_dump(exclude={"definition", "agent_code"})
             if target:
                 await repo.change(uow, target, agent["revision"], fields)
             else:
                 await repo.add(
                     uow, agent_id, {**fields, "agent_code": proposal.agent_code, "status": "ACTIVE"}
                 )
-            label = proposal.version_label
             if target:
-                labels = {v["version_label"] for v in versions}
-                number = 1
-                while label in labels:
-                    number += 1
-                    label = f"{proposal.version_label[:50]}（{number}）"
-            await self.agents.add_draft(
-                uow, context, agent_id, version_id, label, proposal.definition
-            )
+                environments = await self.agents.require_configuration_edit(uow, context, target)
+                from creativity_service.modules.resources.configuration import configuration_values
+
+                values = configuration_values(
+                    "agent",
+                    agent_id,
+                    proposal.definition.model_dump(mode="json"),
+                    proposal.definition.dependency_ids(),
+                    proposal.definition.output_schema,
+                    context.principal_id,
+                )
+                values["state"] = "CURRENT"
+                saved_configuration = await repository("resource_versions", context.scope).change(
+                    uow, agent_id, configuration["revision"], values
+                )
+                await self.agents.validate_online_configuration(
+                    uow, context, agent, saved_configuration, environments
+                )
+            else:
+                await self.agents.add_configuration(uow, context, agent_id, proposal.definition)
             await append_audit(uow, context, audit_id, "agent.assistance.apply", "agent", agent_id)
-        return AssistanceSaved(
-            agent_id=agent_id, version_id=version_id, prompts=saved_prompts(prompts)
-        )
+        return AssistanceSaved(agent_id=agent_id, prompts=saved_prompts(prompts))

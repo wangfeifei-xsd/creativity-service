@@ -28,6 +28,7 @@ from scripts.render_order_guidance_seed import validate_mcp_configuration
 
 SALES_SEED = Path(__file__).resolve().parents[1] / "sql/sales_recommendation_data.json"
 SALES_TABLES = frozenset(
+    "agent_environment_states "
     "agents prompts skills tools skill_files resource_versions resource_references "
     "release_mappings source_links mcp_imports".split()
 )
@@ -142,7 +143,7 @@ def validate_sales(seed: dict[str, Any], base: dict[str, Any]) -> None:
         if (
             kind not in RESOURCE_TABLES
             or row["resource_id"] not in {r["id"] for r in tables[RESOURCE_TABLES[kind]]}
-            or row["state"] != ("DRAFT" if kind == "agent" else "PUBLISHED")
+            or row["state"] != ("CURRENT" if kind == "agent" else "PUBLISHED")
             or not set(row["dependencies"]) <= versions.keys()
             or row["content_digest"]
             != digest({"content": row["content"], "output_schema": row["output_schema"]})
@@ -168,7 +169,7 @@ def validate_sales(seed: dict[str, Any], base: dict[str, Any]) -> None:
     if {r["version_id"] for r in tables["release_mappings"]} != expected_releases or len(
         tables["release_mappings"]
     ) != len(expected_releases):
-        raise ValueError("销售推荐依赖发布映射缺失，智能体须保持未发布")
+        raise ValueError("销售推荐依赖发布映射缺失，智能体须保持下线")
     for row in tables["release_mappings"]:
         version = versions[row["version_id"]]
         if (row["resource_type"], row["resource_id"]) != (

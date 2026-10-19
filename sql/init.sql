@@ -1,7 +1,7 @@
 -- Creativity 表结构初始化归档，适用于 MySQL 8.0 空数据库。
--- 模型版本：2.1.0；配套数据归档迁移基线：0052_file_urls。
+-- 模型版本：2.1.0；配套数据归档迁移基线：0053_agent_configuration。
 -- 初始建库基线：alembic/mysql_versions/0048_mysql_milvus.py；后续修订在其上追加。
--- 包含 111 张表、1727 个字段、250 个普通索引及全部中文注释。
+-- 包含 111 张表、1728 个字段、250 个普通索引及全部中文注释。
 -- 本文件不写初始化数据；完成后必须执行 sql/init_data.sql，再启动服务或迁移。
 -- 生成命令：make sql；一致性检查：make sql-check。请勿手工修改生成内容。
 -- 执行方式见 sql/README.md；表创建在连接的当前 schema。
@@ -74,6 +74,7 @@ CREATE TABLE agent_environment_states (
 	agent_id VARCHAR(64) COMMENT '智能体标识',
 	status VARCHAR(32) COMMENT '当前环境启用状态',
 	reason VARCHAR(1024) COMMENT '状态变更原因',
+	is_online BOOL COMMENT '是否上线',
 	is_deleted BOOL COMMENT '是否已逻辑删除',
 	INDEX ix_agent_environment_states_0 (channel_id, id),
 	INDEX ix_agent_environment_states_1 (channel_id, environment, agent_id)

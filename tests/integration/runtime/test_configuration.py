@@ -13,8 +13,8 @@ from creativity_service.core.primitives import RunInput, ServiceError, digest
 from creativity_service.core.services import build_core_services
 from creativity_service.integrations.business.delegation import bind_request, sign
 from creativity_service.modules.agents.schemas import (
+    AgentConfigurationEdit,
     AgentValidateInput,
-    AgentVersionEdit,
 )
 from creativity_service.modules.prompts.debug import PromptDebugService
 from creativity_service.modules.prompts.schemas import (
@@ -139,9 +139,9 @@ async def import_skill(env, name, bindings=None):
 
 
 async def validate_agent(env, detail):
-    version = detail.versions[0]
+    version = detail.configuration
     result = await env.agents.validate(
-        env.context, version.version_id, AgentValidateInput(revision=version.revision)
+        env.context, version.agent_id, AgentValidateInput(revision=version.revision)
     )
     assert result.valid, result.model_dump_json()
     return result
@@ -236,10 +236,10 @@ async def test_text_configuration_debug_evaluation_publish_and_new_candidate(run
     assert response.status_code == 201, response.text
     detail = await env.agents.detail(env.context, response.json()["agent"]["agent_id"])
     validation = await validate_agent(env, detail)
-    version = detail.versions[0]
+    version = detail.configuration
     env.adapter.responses = [case(name)["fixture_output"]] * 3
     response = await env.client.post(
-        f"/admin/v1/agent-versions/{version.version_id}/tests",
+        f"/admin/v1/agents/{version.agent_id}/tests",
         json={
             "revision": version.revision,
             "input": case(name)["input"],
@@ -254,7 +254,7 @@ async def test_text_configuration_debug_evaluation_publish_and_new_candidate(run
     assert result.result.data == case(name)["fixture_output"]["data"]
     await record(env, name, receipt, validation)
     spec = await env.agents.freeze_candidate(
-        env.context, version.version_id, version.revision, "evaluation"
+        env.context, version.agent_id, version.revision, "evaluation"
     )
     evaluation = await RuntimeAdmission(env.runs, env.agents).submit(
         env.context, spec, case(name)["input"], "text-evaluation"
@@ -272,7 +272,7 @@ async def test_text_configuration_debug_evaluation_publish_and_new_candidate(run
         "text-test-release",
     )
     await execute(env, production)
-    assert published.release_version_id
+    assert published.agent.online and published.agent.enabled
     before = await env.agents.load_candidate(env.context, spec.snapshot_id)
     fork = await env.skills.version(env.context, frozen.version_id)
     fork = await env.skills.edit_version(
@@ -290,15 +290,15 @@ async def test_text_configuration_debug_evaluation_publish_and_new_candidate(run
         ),
     )
     new_body = configured(env, name, fork.version_id)
-    await env.agents.edit_version(
+    await env.agents.edit_configuration(
         env.context,
-        version.version_id,
-        AgentVersionEdit(revision=version.revision, definition=new_body.definition),
+        version.agent_id,
+        AgentConfigurationEdit(revision=version.revision, definition=new_body.definition),
     )
     current = await env.agents.detail(env.context, detail.agent.agent_id)
-    draft = next(v for v in current.versions if v.status.value == "DRAFT")
+    draft = current.configuration
     candidate = await env.agents.freeze_candidate(
-        env.context, draft.version_id, draft.revision, "evaluation"
+        env.context, draft.agent_id, draft.revision, "evaluation"
     )
     assert candidate.candidate_digest != before.candidate_digest
     assert before.definition.bindings.skill_versions == (frozen.version_id,)
@@ -350,18 +350,20 @@ async def test_mcp_configuration_explicit_binding_contract_and_runtime(business_
     bad = body.definition.model_copy(
         update={"bindings": body.definition.bindings.model_copy(update={"tool_versions": ()})}
     )
-    version = detail.versions[0]
-    bad_version = await env.agents.edit_version(
-        env.context, version.version_id, AgentVersionEdit(revision=version.revision, definition=bad)
+    version = detail.configuration
+    bad_version = await env.agents.edit_configuration(
+        env.context,
+        version.agent_id,
+        AgentConfigurationEdit(revision=version.revision, definition=bad),
     )
     denied = await env.agents.validate(
-        env.context, bad_version.version_id, AgentValidateInput(revision=bad_version.revision)
+        env.context, bad_version.agent_id, AgentValidateInput(revision=bad_version.revision)
     )
     assert not denied.valid
-    await env.agents.edit_version(
+    await env.agents.edit_configuration(
         env.context,
-        version.version_id,
-        AgentVersionEdit(revision=bad_version.revision, definition=body.definition),
+        version.agent_id,
+        AgentConfigurationEdit(revision=bad_version.revision, definition=body.definition),
     )
     detail = await env.agents.detail(env.context, detail.agent.agent_id)
     await publish(env, detail)

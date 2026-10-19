@@ -170,7 +170,7 @@ def check_evidence(
 ) -> None:
     if evidence is None:
         raise ServiceError(
-            "EVALUATION_REQUIRED", "生产发布需要有效评测报告，评测服务尚未提供证据", 422
+            "EVALUATION_REQUIRED", "验证效果需要有效评测报告，当前未提供评测证据", 422
         )
     if (
         evidence.channel_id != context.scope.channel_id

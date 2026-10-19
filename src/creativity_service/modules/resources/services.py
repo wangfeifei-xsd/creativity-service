@@ -210,6 +210,24 @@ class ResourceManagement:
                     )
                 )
             ).all()
+            agent_ids = [r["resource_id"] for r in refs if r["resource_type"] == "agent"]
+            state_table = repository("agent_environment_states", context.scope).table
+            agent_states = (
+                (
+                    await connection.execute(
+                        active_rows(
+                            select(state_table).where(
+                                state_table.c.channel_id == context.scope.channel_id,
+                                state_table.c.agent_id.in_(agent_ids),
+                            )
+                        )
+                    )
+                )
+                .mappings()
+                .all()
+                if agent_ids
+                else []
+            )
         environments = {"dev": "开发", "test": "测试", "fat": "验收", "prod": "生产"}
         result = []
         for ref in refs:
@@ -222,17 +240,39 @@ class ResourceManagement:
                         if r.resource_id == row["id"]
                     }
                 )
+                state = DisplayStatus(
+                    value="PUBLISHED" if scopes else "UNPUBLISHED",
+                    label="已发布" if scopes else "未发布",
+                    tone="success" if scopes else "default",
+                )
+                if ref["resource_type"] == "agent":
+                    states = [item for item in agent_states if item["agent_id"] == row["id"]]
+                    current = next(
+                        (
+                            item
+                            for item in states
+                            if item["environment"] == context.scope.environment
+                        ),
+                        None,
+                    )
+                    online = bool(current and current["is_online"])
+                    enabled = not current or current["status"] == "ACTIVE"
+                    scopes = sorted(
+                        {environments[item["environment"]] for item in states if item["is_online"]}
+                    )
+                    state = DisplayStatus(
+                        value="ONLINE" if online else "OFFLINE",
+                        label=("已上线" if online else "已下线")
+                        + (" · 已启用" if enabled else " · 已停用"),
+                        tone="success" if online and enabled else "default",
+                    )
                 result.append(
                     ResourceReferenceView(
                         resource_id=row["id"],
                         resource_type=ref["resource_type"],
                         resource_type_label=LABELS[ref["resource_type"]],
                         name=row["name"],
-                        status=DisplayStatus(
-                            value="PUBLISHED" if scopes else "UNPUBLISHED",
-                            label="已发布" if scopes else "未发布",
-                            tone="success" if scopes else "default",
-                        ),
+                        status=state,
                         environments=scopes,
                     )
                 )

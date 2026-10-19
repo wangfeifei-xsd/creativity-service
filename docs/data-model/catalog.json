@@ -13991,6 +13991,14 @@
           "required": true,
           "source": "服务层维护，新增为否，逻辑删除为是",
           "sensitivity": "内部"
+        },
+        {
+          "name": "is_online",
+          "type": "boolean",
+          "comment": "是否上线",
+          "required": true,
+          "source": "服务层按上下线操作写入",
+          "sensitivity": "内部"
         }
       ],
       "indexes": [

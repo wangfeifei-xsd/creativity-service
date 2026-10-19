@@ -807,6 +807,5 @@
     "context": {
       "context_limit": 64000
     }
-  },
-  "version_label": "初始配置"
+  }
 }

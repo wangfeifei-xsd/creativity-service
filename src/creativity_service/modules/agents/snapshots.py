@@ -1,4 +1,4 @@
-"""发布与候选共用检查链；冻结 JSON 与评测摘要独立于最终分配的版本标识。"""
+"""当前配置校验与运行受理共用检查链；冻结内容与评测摘要保留当次证据。"""
 
 from typing import Any
 
@@ -50,7 +50,7 @@ class AgentSnapshots(AgentKernel):
         purpose: Purpose,
         refs: tuple[str, ...] = (),
         *,
-        require_evaluation: bool = True,
+        require_evaluation: bool = False,
         loaded_dependencies: list[dict[str, Any]] | None = None,
         loaded_resources: dict[str, dict[str, dict[str, Any]]] | None = None,
         defer_budget: bool = False,
@@ -83,13 +83,6 @@ class AgentSnapshots(AgentKernel):
         manifest: dict[str, Any] = {}
         dependencies_digest = candidate_digest = None
         try:
-            environment_state = await repository("agent_environment_states", context.scope).get(
-                uow.connection, self.mapping_id(context, agent["id"])
-            )
-            if agent["status"] != "ACTIVE" or (
-                environment_state and environment_state["status"] != "ACTIVE"
-            ):
-                raise ServiceError("AGENT_DISABLED", "智能体已下线或停用", 422)
             if version["content_digest"] != digest(
                 {"content": version["content"], "output_schema": version["output_schema"]}
             ):
@@ -196,7 +189,12 @@ class AgentSnapshots(AgentKernel):
             raise ServiceError(issues[0].code, "；".join(issue.message for issue in issues), 422)
 
     async def validate(
-        self, context: AuthContext, version_id: str, body: AgentValidateInput
+        self,
+        context: AuthContext,
+        version_id: str,
+        body: AgentValidateInput,
+        *,
+        require_evaluation: bool = False,
     ) -> AgentValidation:
         agent, version = await self.raw(context, version_id)
         await self.require(context, "agent:manage", agent["id"])
@@ -215,7 +213,13 @@ class AgentSnapshots(AgentKernel):
                 uow, context, agent["id"], version_id, body.revision, "agent:manage"
             )
             result, _, _ = await self.inspect_in(
-                uow, context, agent, version, body.purpose, body.evaluation_refs
+                uow,
+                context,
+                agent,
+                version,
+                body.purpose,
+                body.evaluation_refs,
+                require_evaluation=require_evaluation or bool(body.evaluation_refs),
             )
             return result
 
@@ -229,7 +233,7 @@ class AgentSnapshots(AgentKernel):
         published_dependencies: bool = False,
     ) -> FrozenExecutionSpec:
         if purpose == "production":
-            raise ServiceError("PUBLISHED_MAPPING_REQUIRED", "正式运行必须解析环境发布映射", 422)
+            raise ServiceError("ONLINE_STATE_REQUIRED", "正式运行必须检查当前环境的上线状态", 422)
         agent, version = await self.raw(context, version_id)
         await self.require(context, "agent:manage", agent["id"])
         await self.require(context, "run:create", agent["id"])
@@ -252,6 +256,11 @@ class AgentSnapshots(AgentKernel):
                 uow, context, agent["id"], version_id, revision, "agent:manage"
             )
             await locked_require(uow, context, "run:create", "agent", agent["id"])
+            state = await repository("agent_environment_states", context.scope).get(
+                uow.connection, self.mapping_id(context, agent["id"])
+            )
+            if agent["status"] != "ACTIVE" or (state and state["status"] != "ACTIVE"):
+                raise ServiceError("AGENT_DISABLED", "智能体已停用", 409)
             validation, dependencies, manifest = await self.inspect_in(
                 uow,
                 context,
@@ -341,7 +350,7 @@ class AgentSnapshots(AgentKernel):
         await DeletionGuard(context.scope).link_many(uow, links, pending=pending)
         return spec
 
-    async def resolve_published(self, context: AuthContext, agent_code: str) -> FrozenExecutionSpec:
+    async def resolve_current(self, context: AuthContext, agent_code: str) -> FrozenExecutionSpec:
         async with self.engine.connect() as connection:
             found = await repository("agents", context.scope).find(
                 connection, agent_code=agent_code
@@ -352,20 +361,18 @@ class AgentSnapshots(AgentKernel):
         await self.require(context, "run:create", agent["id"])
         mapping_id = self.mapping_id(context, agent["id"])
         async with self.engine.connect() as connection:
-            mapping = await repository("release_mappings", context.scope).get(
+            state = await repository("agent_environment_states", context.scope).get(
                 connection, mapping_id
             )
-            if not mapping:
-                raise ServiceError("AGENT_NOT_RELEASED", "智能体尚未发布到当前环境", 409)
-            version = await required(
-                connection, context.scope, "resource_versions", mapping["version_id"]
-            )
+            if not state or not state["is_online"]:
+                raise ServiceError("AGENT_OFFLINE", "智能体在当前环境未上线", 409)
+            version = await required(connection, context.scope, "resource_versions", agent["id"])
         identifier = new_id("candidate")
         keys = self.keys(
             context,
             agent["id"],
             ("resource_versions", version["id"]),
-            ("release_mappings", mapping_id),
+            ("agent_environment_states", mapping_id),
             ("agent_candidates", identifier),
         )
         dependency_keys = await self.dependency_keys(
@@ -382,17 +389,17 @@ class AgentSnapshots(AgentKernel):
             for key in keys
         ]
         async with transaction(self.engine, context.scope, keys) as uow:
-            current = await repository("release_mappings", context.scope).get(
+            current = await repository("agent_environment_states", context.scope).get(
                 uow.connection, mapping_id
             )
-            if current != mapping:
-                raise ServiceError("REVISION_CONFLICT", "环境映射已变更，请重新受理", 409)
+            if current != state:
+                raise ServiceError("REVISION_CONFLICT", "环境状态已变更，请重新受理", 409)
             agent, version = await self.locked_version(
                 uow, context, agent["id"], version["id"], version["revision"], "run:create"
             )
-            if version["state"] != "PUBLISHED":
-                raise ServiceError("AGENT_NOT_RELEASED", "正式运行只能使用已发布版本", 409)
-            # 受理复查授权和依赖；评测证据在发布时留存，运行不重复要求报告提交。
+            if agent["status"] != "ACTIVE" or state["status"] != "ACTIVE":
+                raise ServiceError("AGENT_DISABLED", "智能体已停用", 409)
+            # 受理固定当前配置，后续编辑不会改变已受理任务。
             validation, dependencies, manifest = await self.inspect_in(
                 uow, context, agent, version, "production", require_evaluation=False
             )
@@ -442,7 +449,7 @@ class AgentSnapshots(AgentKernel):
     async def check_external_boundary(
         self, context: AuthContext, spec: FrozenExecutionSpec
     ) -> None:
-        """17 在每次外部调用前使用；普通下线不篡改历史快照，紧急停用立即阻断后续调用。"""
+        """17 在每次外部调用前使用；普通下线不篡改历史快照，停用立即阻断后续调用。"""
         stored = await self.load_candidate(context, spec.snapshot_id)
         if stored != spec:
             raise ServiceError("SNAPSHOT_INVALID", "执行快照字段不能被调用方替换", 409)
@@ -451,8 +458,8 @@ class AgentSnapshots(AgentKernel):
             state = await repository("agent_environment_states", context.scope).get(
                 connection, self.mapping_id(context, spec.agent_id)
             )
-        if agent["status"] == "EMERGENCY_STOP" or (state and state["status"] == "EMERGENCY_STOP"):
-            raise ServiceError("AGENT_EMERGENCY_STOP", "智能体已紧急停用，禁止后续外部调用", 403)
+        if agent["status"] != "ACTIVE" or (state and state["status"] != "ACTIVE"):
+            raise ServiceError("AGENT_DISABLED", "智能体已停用，禁止后续外部调用", 403)
 
     async def test(
         self, context: AuthContext, version_id: str, body: AgentTestInput

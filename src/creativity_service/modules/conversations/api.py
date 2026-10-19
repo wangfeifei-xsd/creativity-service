@@ -102,8 +102,11 @@ async def messages(
     conversations: Conversations,
     cursor: str | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    latest: bool = False,
 ) -> MessagePage:
-    return await conversations.messages(context, conversation_id, cursor=cursor, limit=limit)
+    return await conversations.messages(
+        context, conversation_id, cursor=cursor, limit=limit, latest=latest
+    )
 
 
 @router.post("/conversations/{conversation_id}/messages", status_code=202)

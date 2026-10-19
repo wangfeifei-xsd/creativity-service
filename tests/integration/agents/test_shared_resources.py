@@ -2,7 +2,7 @@
 
 import pytest
 
-from creativity_service.modules.agents.schemas import AgentValidateInput, AgentVersionEdit
+from creativity_service.modules.agents.schemas import AgentConfigurationEdit, AgentValidateInput
 from creativity_service.modules.prompts.schemas import (
     PromptContent,
     PromptDraftEdit,
@@ -55,15 +55,15 @@ async def test_prompt_variables_do_not_block_agent_publication(
     detail = await env.agents.create(
         env.context, env.body.model_copy(update={"definition": definition})
     )
-    draft = detail.versions[0]
+    draft = detail.configuration
     result = await env.agents.validate(
         env.context,
-        draft.version_id,
+        draft.agent_id,
         AgentValidateInput(revision=draft.revision, purpose="production"),
     )
     assert result.valid, result
     await publish(env, detail)
-    snapshot = await env.agents.resolve_published(env.context, env.body.agent_code)
+    snapshot = await env.agents.resolve_current(env.context, env.body.agent_code)
     assert snapshot.definition == definition
 
 
@@ -105,10 +105,10 @@ async def test_skill_number_variable_accepts_integer_input_but_rejects_text(agen
     detail = await env.agents.create(
         env.context, env.body.model_copy(update={"definition": definition})
     )
-    draft = detail.versions[0]
+    draft = detail.configuration
     result = await env.agents.validate(
         env.context,
-        draft.version_id,
+        draft.agent_id,
         AgentValidateInput(revision=draft.revision, purpose="production"),
     )
     assert result.valid, result
@@ -123,16 +123,22 @@ async def test_skill_number_variable_accepts_integer_input_but_rejects_text(agen
             }
         }
     )
-    await env.agents.edit_version(
-        env.context, draft.version_id, AgentVersionEdit(revision=draft.revision, definition=invalid)
+    await env.agents.edit_configuration(
+        env.context,
+        draft.agent_id,
+        AgentConfigurationEdit(revision=draft.revision, definition=invalid),
     )
     result = await env.agents.validate(
         env.context,
-        draft.version_id,
+        draft.agent_id,
         AgentValidateInput(revision=draft.revision + 1, purpose="production"),
     )
     assert not result.valid
-    assert any("技能必填变量" in issue.message for check in result.checks for issue in check.issues)
+    assert any(
+        "必填变量" in issue.message and "数量核验" in issue.message
+        for check in result.checks
+        for issue in check.issues
+    )
 
 
 async def test_shared_prompt_changes_new_runs_without_republishing_agents(agent_env):
@@ -144,7 +150,7 @@ async def test_shared_prompt_changes_new_runs_without_republishing_agents(agent_
     )
     await publish(env, first)
     await publish(env, second)
-    before = await env.agents.resolve_published(env.context, env.body.agent_code)
+    before = await env.agents.resolve_current(env.context, env.body.agent_code)
     prompt = await env.prompts.version_detail(env.context, env.prompt_id)
     content = PromptContent.model_validate(prompt.version.content)
     changed = content.model_copy(
@@ -157,8 +163,8 @@ async def test_shared_prompt_changes_new_runs_without_republishing_agents(agent_
     await env.prompts.edit_draft(
         env.context, env.prompt_id, PromptDraftEdit(revision=prompt.revision, content=changed)
     )
-    after = await env.agents.resolve_published(env.context, env.body.agent_code)
-    another = await env.agents.resolve_published(env.context, "another_agent")
+    after = await env.agents.resolve_current(env.context, env.body.agent_code)
+    another = await env.agents.resolve_current(env.context, "another_agent")
 
     def prompt_content(spec):
         return next(v.content for v in spec.versions if v.resource_type == "prompt")

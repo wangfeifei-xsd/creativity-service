@@ -72,3 +72,19 @@ MCP 的 appSecret、静态 Token、OAuth 令牌和 PKCE verifier 直接保存在
 新业务配置 MCP、Skills 和 Agent，示例见 [接入演示](../examples/onboarding/README.md)。固定业务 HTTP 接入及凭据管理已移除，业务工具统一通过 MCP 发现和导入。业务接入页面管理当前主体复核、身份委托及运行与事件；旧 Agent 入口和历史运行快照按既有版本规则保留。
 
 定时计划在“运行与事件 → 定时运行”按计划设置连续失败停止次数（1–100，默认 3）。受理失败、执行失败和超时按触发顺序累计，成功清零；达到阈值自动暂停，手动启用后重新计数且不补跑旧窗口。调度结果游标与失败次数由同一计划事务维护，升级 `0051_schedule_failures` 从当前时间开始统计。
+
+## PC 服务匹配卡片
+
+销售推荐助手 `service_match` 的 PC 契约为 `schema_version="2.0"`：
+
+```json
+{"business_status":"COMPLETED","schema_version":"2.0","data":{"questions":[],"recommendations":[{"product_id":"901","sku_id":"902"}]},"warnings":[],"evidence_refs":[]}
+```
+
+推荐只含本次完整可售目录中的商品与规格 ID 字符串，最多一项，SKU 必须属于该商品；不返回名称、图片、价格、规格正文或目录。业务后端复核可售状态，PC 再按 ID 读取权威商品详情展示卡片。`COMPLETED` 恰好一项推荐且无问题；`NEEDS_INPUT` 无推荐且有 1–3 个问题；`NO_MATCH/INSUFFICIENT_DATA` 两数组均为空。问题最多 300 字，warnings 最多三条且每条 200 字，evidence_refs 固定为空。所有出口经过 Schema 和脚本检查。
+
+会话必须开启 `conversation_enabled`，历史策略为 `recent`。预检与匹配均保留用户最近明确的条件、本轮修改优先，不接受用户对 tenantId 或身份的覆盖。Core 从业务登录身份注入租户并签署主体委托；平台当前主体复核通过只读 MCP `playmate_ai_match.review_subject` 完成。该工具只绑定接入服务，不导入模型工具。
+
+`GET /api/v1/conversations/{id}/messages?latest=true&limit=20` 从最新快照向前分页，页内始终按 sequence 正序。`next_cursor` 读取更早消息；翻页期间新消息不插入该快照，方向不同的游标不能混用。省略 latest 时保留原来的正向分页。PC 新消息重试必须重用同一 client_message_id、正文和 input；状态查询失败不重新发起任务。
+
+配套归档见 [销售推荐配置](../sql/README.md#销售项目推荐助手配置归档)。归档更新不自动发布当前环境。Core 配置与完整 JSON Schema 维护在同工作区 playmate-core 的 `docs/ai-match/`。

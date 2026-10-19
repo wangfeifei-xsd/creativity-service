@@ -220,7 +220,6 @@ class AgentCreate(Contract):
     description: str = Field(min_length=1, max_length=4000)
     owner: str = Field(min_length=1, max_length=128)
     definition: AgentDefinition
-    version_label: str = Field(default="初始草稿", min_length=1, max_length=64)
 
 
 class AgentEdit(Contract):
@@ -230,12 +229,7 @@ class AgentEdit(Contract):
     owner: str = Field(min_length=1, max_length=128)
 
 
-class AgentVersionCreate(Contract):
-    version_label: str = Field(min_length=1, max_length=64)
-    base_version_id: Identifier
-
-
-class AgentVersionEdit(Contract):
+class AgentConfigurationEdit(Contract):
     revision: Revision
     definition: AgentDefinition
 
@@ -325,23 +319,13 @@ class AgentTestView(Contract):
     trace_url: str | None = None
 
 
-class AgentReleaseInput(Contract):
-    version_id: Identifier
-    revision: Revision
-    expected_mapping_revision: Revision | None = None
-    environment: Environment
-    note: str = Field(min_length=1, max_length=1024)
-    operation: Literal["publish", "rollback"] = "publish"
-    evaluation_refs: tuple[Identifier, ...] = Field(default=(), max_length=32)
-
-
 class AgentDeleteInput(Contract):
     revision: Revision
 
 
 class AgentStateInput(Contract):
     revision: Revision
-    operation: Literal["offline", "emergency_stop", "enable"]
+    operation: Literal["online", "offline", "disable", "enable"]
     reason: str = Field(min_length=1, max_length=1024)
 
 
@@ -353,47 +337,23 @@ class AgentView(Contract):
     owner: str
     revision: int
     status: DisplayStatus
+    online_status: DisplayStatus
+    online: bool
+    enabled: bool
     actions: list[AccessAction]
 
 
-class AgentVersionView(Contract):
-    version_id: str
-    version_label: str
+class AgentConfigurationView(Contract):
+    agent_id: str
     revision: int
-    status: DisplayStatus
     definition: AgentDefinition
     content_digest: str
     actions: list[VisibleAction]
 
 
-class AgentReleaseView(Contract):
-    release_id: str
-    environment: str
-    environment_label: str
-    version_id: str
-    version_label: str
-    operation: str
-    operation_label: str
-    note: str
-    actor_name: str | None
-    created_at: datetime
-    evidence_refs: list[str]
-
-
-class AgentDifference(Contract):
-    field: str
-    label: str
-    before: Any
-    after: Any
-
-
 class AgentDetail(Contract):
     agent: AgentView
-    versions: list[AgentVersionView]
-    release_version_id: str | None
-    release_revision: int | None
-    releases: list[AgentReleaseView]
-    differences: list[AgentDifference]
+    configuration: AgentConfigurationView
 
 
 class AgentList(Contract):

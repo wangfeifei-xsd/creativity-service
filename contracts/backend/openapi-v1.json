@@ -7925,6 +7925,16 @@
             }
           },
           {
+            "in": "query",
+            "name": "latest",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Latest",
+              "type": "boolean"
+            }
+          },
+          {
             "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
             "in": "header",
             "name": "X-Business-Delegation",

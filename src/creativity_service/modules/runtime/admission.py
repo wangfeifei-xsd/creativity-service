@@ -159,9 +159,9 @@ class RuntimeAdmission:
         spec = await load_spec(self.runs, row)
         if spec.versions[0].resource_type == "agent":
             # 保留调试/评测用途；当前依赖和授权重新冻结，原运行内容保持不变。
-            _, current = await self.agents.raw(context, spec.source_version_id)
+            _, current = await self.agents.raw(context, spec.agent_id)
             spec = await self.agents.freeze_candidate(
-                context, spec.source_version_id, current["revision"], spec.purpose
+                context, spec.agent_id, current["revision"], spec.purpose
             )
         else:
             payload = json.loads(spec.payload_json)

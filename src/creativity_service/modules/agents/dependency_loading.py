@@ -26,7 +26,7 @@ async def dependency_rows(
             raise ServiceError("DEPENDENCY_INVALID", "依赖数量超过上限", 422)
         loaded = await repository("resource_versions", scope).get_many(connection, pending)
         if pending - loaded.keys():
-            raise ServiceError("DEPENDENCY_INVALID", "当前渠道缺少所需资源或版本", 422)
+            raise ServiceError("DEPENDENCY_INVALID", "当前渠道缺少所需资源", 422)
         loaded = await resolve_routes(connection, scope, loaded, resources=resources)
         result.update(loaded)
         pending = {dep for row in loaded.values() for dep in row["dependencies"]} - result.keys()

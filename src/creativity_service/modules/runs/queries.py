@@ -448,13 +448,13 @@ class QueryService(RunKernel):
                 error_guidance = {
                     "description": (
                         "输入为调用前的保守预估，不代表模型实际消耗。"
-                        f"修改位置：智能体 → {row['agent_name']} → 选择草稿 → 编辑配置"
+                        f"修改位置：智能体 → {row['agent_name']} → 编辑配置"
                         " → 运行策略 → 单次运行 Token 上限。"
-                        "已发布版本需新增草稿；也可减少输入或调低模型的最大输出 Token。"
+                        "也可减少输入或调低模型的最大输出 Token。"
                         + (
-                            "保存后调试；正式调用需发布到原运行所在环境，再重新执行。"
+                            "保存后对新受理的运行生效，可重新执行。"
                             if row["purpose"] == "production"
-                            else "保存草稿后重新调试或评测。"
+                            else "保存配置后重新调试或评测。"
                         )
                         + (
                             ""
@@ -463,8 +463,7 @@ class QueryService(RunKernel):
                         )
                     ),
                     "configuration_path": (
-                        f"/agents/{row['agent_id']}?"
-                        + urlencode({"version": row["agent_version_id"], "tab": "limits"})
+                        f"/agents/{row['agent_id']}?" + urlencode({"tab": "limits"})
                     )
                     if can_view_agent
                     else None,

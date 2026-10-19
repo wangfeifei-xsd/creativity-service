@@ -20,7 +20,15 @@ async def append_audit(
     changed_fields: tuple[str, ...] = (),
     pending: InsertBatch | None = None,
 ) -> None:
-    allowed = {"previous_version_id", "version_id", "revision", "content_digest", "state"}
+    allowed = {
+        "previous_version_id",
+        "version_id",
+        "revision",
+        "content_digest",
+        "state",
+        "online",
+        "enabled",
+    }
     if set(summary or {}) - allowed:
         raise ValueError("审计摘要包含未登记字段")
     if any(not isinstance(value, (str, int, type(None))) for value in (summary or {}).values()):

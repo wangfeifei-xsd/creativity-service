@@ -18,15 +18,18 @@ def archived_base():
     return merge_gpt(base, load_gpt(base)["tables"])
 
 
-def test_sales_seed_keeps_unpublished_agent_with_all_current_dependencies(archived_base):
+def test_sales_seed_keeps_offline_agent_with_all_current_dependencies(archived_base):
     seed = load_sales(archived_base)
     tables = seed["tables"]
     versions = {row["id"]: row for row in tables["resource_versions"]}
     agent = versions[seed["source"]["version_id"]]
-    assert agent["state"] == "DRAFT"
+    assert agent["state"] == "CURRENT"
+    assert tables["agent_environment_states"][0]["is_online"] is False
     assert agent["content"]["context"]["context_limit"] == 32000
     assert agent["content"]["limits"]["token_limit"] == 96000
-    assert len(agent["content"]["steps"]) == 5
+    assert len(agent["content"]["steps"]) == 6
+    assert agent["content"]["context"]["conversation_enabled"] is True
+    assert agent["content"]["context"]["summary_policy"] == "recent"
     assert {row["name"] for row in tables["prompts"]} == {"预检·提示词", "匹配·提示词"}
     assert {row["name"] for row in tables["skills"]} == {"预检·技能", "匹配·技能"}
     assert tables["tools"][0]["name"] == "可售目录·工具"
@@ -107,3 +110,116 @@ def test_sales_seed_cannot_overwrite_existing_resources(archived_base):
     seed = load_sales(archived_base)
     with pytest.raises(ValueError, match="不能覆盖"):
         merge_sales(merge_sales(archived_base, seed["tables"]), seed["tables"])
+
+
+def matching_result(status="COMPLETED", recommendations=None, questions=None):
+    return {
+        "schema_version": "2.0",
+        "business_status": status,
+        "data": {
+            "recommendations": recommendations
+            if recommendations is not None
+            else [{"product_id": "901", "sku_id": "902"}],
+            "questions": questions or [],
+        },
+        "warnings": [],
+        "evidence_refs": [],
+    }
+
+
+def script_transform(agent, key):
+    """执行仓库内冻结的校验脚本，不执行测试输入中的正文。"""
+    namespace = {}
+    source = next(step for step in agent["steps"] if step["key"] == key)["script"]["source"]
+    exec(compile(source, key, "exec"), namespace)
+    return namespace["transform"]
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        None,
+        "foreign_sku",
+        "foreign_product",
+        "extra",
+        "numeric_id",
+        "non_complete",
+        "question",
+        "incomplete",
+    ],
+)
+def test_pc_recommendations_only_return_valid_catalog_ids(archived_base, fault):
+    from jsonschema import Draft202012Validator
+
+    seed = load_sales(archived_base)
+    agent = next(
+        v["content"] for v in seed["tables"]["resource_versions"] if v["resource_type"] == "agent"
+    )
+    result = matching_result()
+    catalog = {"complete": True, "items": [{"id": "901", "skus": [{"id": "902"}]}]}
+    row = result["data"]["recommendations"][0]
+    if fault == "foreign_sku":
+        row["sku_id"] = "903"
+    elif fault == "foreign_product":
+        row["product_id"] = "900"
+    elif fault == "extra":
+        row["unit_price"] = "10"
+    elif fault == "numeric_id":
+        row["product_id"] = 901
+    elif fault == "non_complete":
+        result["business_status"] = "NO_MATCH"
+    elif fault == "question":
+        result["data"]["questions"] = ["什么游戏？"]
+    elif fault == "incomplete":
+        catalog["complete"] = False
+    checked = script_transform(agent, "check_recommendation")(
+        {"recommendation": result, "service_catalog": catalog}, {}
+    )
+    Draft202012Validator(agent["output_schema"]).validate(checked)
+    assert checked["business_status"] == ("COMPLETED" if fault is None else "INSUFFICIENT_DATA")
+    assert checked["data"]["recommendations"] == (
+        [{"product_id": "901", "sku_id": "902"}] if fault is None else []
+    )
+
+
+def test_pc_questions_and_catalog_early_exit_obey_final_contract(archived_base):
+    from jsonschema import Draft202012Validator
+
+    seed = load_sales(archived_base)
+    agent = next(
+        v["content"] for v in seed["tables"]["resource_versions"] if v["resource_type"] == "agent"
+    )
+    validator = Draft202012Validator(agent["output_schema"])
+    question = matching_result("NEEDS_INPUT", [], ["想玩哪款游戏？"])
+    assert (
+        script_transform(agent, "check_recommendation")(
+            {"recommendation": question, "service_catalog": {}}, {}
+        )
+        == question
+    )
+    validator.validate(question)
+    for complete in [True, False]:
+        page = {
+            "tenantId": "42",
+            "items": [],
+            "returnedCount": 0,
+            "hasMore": False,
+            "nextCursor": None,
+            "observedAt": "2026-10-19T00:00:00Z",
+        }
+        checked = script_transform(agent, "check_catalog")(
+            {
+                "tenantId": "42",
+                "query_result": {
+                    "pages": [page],
+                    "complete": complete,
+                    "received": 0,
+                    "page_count": 1,
+                    "total": 0,
+                },
+            },
+            {},
+        )
+        final = script_transform(agent, "catalog_exit")({"result": checked}, {})
+        validator.validate(final)
+        assert final["business_status"] == ("NO_MATCH" if complete else "INSUFFICIENT_DATA")

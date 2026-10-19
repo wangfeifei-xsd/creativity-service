@@ -33,6 +33,7 @@ from scripts.render_archive import (
 
 GUIDANCE_SEED = Path(__file__).resolve().parents[1] / "sql/rental_order_guidance_data.json"
 GUIDANCE_TABLES = frozenset(
+    "agent_environment_states "
     "agents resource_versions resource_references release_mappings source_links tools "
     "prompts skills skill_files artifacts automation_schedules credentials mcp_connections "
     "mcp_discoveries mcp_imports model_routes model_connections models "

@@ -10,7 +10,7 @@ from creativity_service.core.database.tables import metadata as core_metadata
 from creativity_service.core.locking import acquire_locks
 from creativity_service.core.primitives import RunInput, ServiceError, digest
 from creativity_service.modules.agents.repositories import repository
-from creativity_service.modules.agents.schemas import AgentVersionEdit
+from creativity_service.modules.agents.schemas import AgentConfigurationEdit
 from creativity_service.modules.budgets.schemas import (
     BudgetCreate,
     BudgetUpdate,
@@ -124,14 +124,14 @@ async def test_preparation_is_revalidated_before_commit(runtime_env, monkeypatch
         if change == "logout":
             await env.iam.sessions.logout(env.tenant.manager)
         else:
-            draft = next(v for v in published.versions if v.status.value == "DRAFT")
+            draft = published.configuration
             definition = env.definition.model_copy(
                 update={"limits": env.definition.limits.model_copy(update={"max_model_rounds": 4})}
             )
-            await env.agents.edit_version(
+            await env.agents.edit_configuration(
                 env.context,
-                draft.version_id,
-                AgentVersionEdit(revision=draft.revision, definition=definition),
+                draft.agent_id,
+                AgentConfigurationEdit(revision=draft.revision, definition=definition),
             )
             await publish(env, await env.agents.detail(env.context, detail.agent.agent_id))
         return prepared
@@ -234,10 +234,10 @@ async def test_channel_concurrency_changes_apply_without_republishing(
 
             patch.setattr(snapshots, "check_budget", legacy_check)
         published = await publish(env, detail)
-    version = next(v for v in published.versions if v.status.value == "PUBLISHED")
+    version = published.configuration
     async with env.engine.connect() as connection:
         before = await repository("resource_versions", env.context.scope).get(
-            connection, version.version_id
+            connection, version.agent_id
         )
     request = RunInput(agent_code=env.body.agent_code, input={"request": "新并发配置"})
     first = await env.runs.admit_run(env.context, request, "limit-first")
@@ -260,7 +260,7 @@ async def test_channel_concurrency_changes_apply_without_republishing(
     async with env.engine.connect() as connection:
         assert (
             await repository("resource_versions", env.context.scope).get(
-                connection, version.version_id
+                connection, version.agent_id
             )
             == before
         )
@@ -272,11 +272,7 @@ async def test_channel_concurrency_changes_apply_without_republishing(
     async with transaction(
         env.engine,
         env.context.scope,
-        [
-            read_key(
-                record_key(env.context.scope.channel_id, "resource_versions", version.version_id)
-            )
-        ],
+        [read_key(record_key(env.context.scope.channel_id, "resource_versions", version.agent_id))],
     ) as uow:
         assert not await published_dependencies_match(
             uow,

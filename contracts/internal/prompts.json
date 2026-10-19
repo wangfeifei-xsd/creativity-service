@@ -199,7 +199,8 @@
             "enum": [
               "DRAFT",
               "PUBLISHED",
-              "RETIRED"
+              "RETIRED",
+              "CURRENT"
             ],
             "title": "State",
             "type": "string"

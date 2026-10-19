@@ -14,7 +14,6 @@ class AssistanceRequest(Contract):
     idempotency_key: Identifier
     model_route_id: Identifier | None = None
     agent_id: Identifier | None = None
-    base_version_id: Identifier | None = None
     previous_run_id: Identifier | None = None
 
 
@@ -55,7 +54,6 @@ class AssistanceSavedPrompt(Contract):
 
 class AssistanceSaved(Contract):
     agent_id: str
-    version_id: str
     prompts: list[AssistanceSavedPrompt] = Field(default_factory=list)
 
 

@@ -1605,20 +1605,6 @@
         "is_deleted": false
       },
       {
-        "id": "9adb0ff4b600410452681e2805013d5d570a21f62e9d134a45f847c3b6f35dee",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-09T01:51:44.041583+00:00",
-        "updated_at": "2026-10-09T03:07:03.711173+00:00",
-        "revision": 2,
-        "environment": "dev",
-        "resource_type": "agent",
-        "resource_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
-        "version_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "published_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "release_note": "按真实订单事实量调整上下文额度；单次模型分析、零重试及源端去重策略保持不变。",
-        "is_deleted": false
-      },
-      {
         "id": "a60002eea39ea85739ec6d4370912727afaa85ffc6783bb17696c0755350a5b5",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
         "created_at": "2026-10-08T11:10:46.026059+00:00",
@@ -1724,7 +1710,7 @@
         "created_at": "2026-10-09T03:07:03.699176+00:00",
         "updated_at": "2026-10-09T03:07:03.699176+00:00",
         "revision": 1,
-        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "target_version_id": "prompt_d79b922127524951ada73866d62abf5a",
         "target_resource_type": "prompt",
         "is_deleted": false
@@ -1735,7 +1721,7 @@
         "created_at": "2026-10-09T03:07:03.709413+00:00",
         "updated_at": "2026-10-09T03:07:03.709413+00:00",
         "revision": 1,
-        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "target_version_id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
         "target_resource_type": "model",
         "is_deleted": false
@@ -1746,7 +1732,7 @@
         "created_at": "2026-10-09T03:07:03.695361+00:00",
         "updated_at": "2026-10-09T03:07:03.695361+00:00",
         "revision": 1,
-        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "target_version_id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
         "target_resource_type": "tool",
         "is_deleted": false
@@ -1757,7 +1743,7 @@
         "created_at": "2026-10-09T03:07:03.707202+00:00",
         "updated_at": "2026-10-09T03:07:03.707202+00:00",
         "revision": 1,
-        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "target_version_id": "version_90734e0e8b794bc5851101ab2bdfcb0f",
         "target_resource_type": "model_connection",
         "is_deleted": false
@@ -1768,7 +1754,7 @@
         "created_at": "2026-10-09T03:07:03.665195+00:00",
         "updated_at": "2026-10-09T03:07:03.665195+00:00",
         "revision": 1,
-        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "target_version_id": "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
         "target_resource_type": "tool",
         "is_deleted": false
@@ -1779,7 +1765,7 @@
         "created_at": "2026-10-09T03:07:03.703440+00:00",
         "updated_at": "2026-10-09T03:07:03.703440+00:00",
         "revision": 1,
-        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "target_version_id": "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1",
         "target_resource_type": "skill",
         "is_deleted": false
@@ -1790,7 +1776,7 @@
         "created_at": "2026-10-09T03:07:03.679236+00:00",
         "updated_at": "2026-10-09T03:07:03.679236+00:00",
         "revision": 1,
-        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "target_version_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
         "target_resource_type": "tool",
         "is_deleted": false
@@ -1801,7 +1787,7 @@
         "created_at": "2026-10-09T03:07:03.705339+00:00",
         "updated_at": "2026-10-09T03:07:03.705339+00:00",
         "revision": 1,
-        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "target_version_id": "version_0e0ebbfa8c804ad29d8255ff33032d93",
         "target_resource_type": "model_connection",
         "is_deleted": false
@@ -1812,7 +1798,7 @@
         "created_at": "2026-10-09T03:07:03.681669+00:00",
         "updated_at": "2026-10-09T03:07:03.681669+00:00",
         "revision": 1,
-        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "target_version_id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
         "target_resource_type": "tool",
         "is_deleted": false
@@ -1823,7 +1809,7 @@
         "created_at": "2026-10-09T03:07:03.667704+00:00",
         "updated_at": "2026-10-09T03:07:03.667704+00:00",
         "revision": 1,
-        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "target_version_id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
         "target_resource_type": "tool",
         "is_deleted": false
@@ -1834,7 +1820,7 @@
         "created_at": "2026-10-09T03:07:03.701685+00:00",
         "updated_at": "2026-10-09T03:07:03.701685+00:00",
         "revision": 1,
-        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "target_version_id": "route_0595b357c65e4c879af695163ee5d129",
         "target_resource_type": "model_route",
         "is_deleted": false
@@ -1845,7 +1831,7 @@
         "created_at": "2026-10-09T03:07:03.676343+00:00",
         "updated_at": "2026-10-09T03:07:03.676343+00:00",
         "revision": 1,
-        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "target_version_id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
         "target_resource_type": "tool",
         "is_deleted": false
@@ -1856,7 +1842,7 @@
         "created_at": "2026-10-09T03:07:03.665195+00:00",
         "updated_at": "2026-10-09T03:07:03.665195+00:00",
         "revision": 1,
-        "source_version_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "source_version_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "target_version_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
         "target_resource_type": "tool",
         "is_deleted": false
@@ -2950,927 +2936,6 @@
         "is_deleted": false
       },
       {
-        "id": "version_63e6f4a4e24f4f32b208ca72de0ca6cd",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-09T01:26:09.307824+00:00",
-        "updated_at": "2026-10-09T03:06:40.008726+00:00",
-        "revision": 3,
-        "resource_type": "agent",
-        "resource_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
-        "version_label": "订单协助初始配置",
-        "state": "DRAFT",
-        "content": {
-          "edges": [
-            {
-              "source": "find",
-              "target": "claim",
-              "condition": {
-                "path": "has_work",
-                "value": true,
-                "operator": "eq"
-              },
-              "otherwise": false
-            },
-            {
-              "source": "find",
-              "target": "finish",
-              "condition": null,
-              "otherwise": true
-            },
-            {
-              "source": "claim",
-              "target": "analyze",
-              "condition": {
-                "path": "needs_analysis",
-                "value": true,
-                "operator": "eq"
-              },
-              "otherwise": false
-            },
-            {
-              "source": "claim",
-              "target": "publish",
-              "condition": {
-                "path": "has_work",
-                "value": true,
-                "operator": "eq"
-              },
-              "otherwise": false
-            },
-            {
-              "source": "claim",
-              "target": "finish",
-              "condition": null,
-              "otherwise": true
-            },
-            {
-              "source": "analyze",
-              "target": "save",
-              "condition": null,
-              "otherwise": false
-            },
-            {
-              "source": "save",
-              "target": "publish",
-              "condition": null,
-              "otherwise": false
-            },
-            {
-              "source": "publish",
-              "target": "finish",
-              "condition": null,
-              "otherwise": false
-            },
-            {
-              "source": "finish",
-              "target": "END",
-              "condition": null,
-              "otherwise": false
-            }
-          ],
-          "steps": [
-            {
-              "key": "find",
-              "kind": "tool",
-              "name": "查找尚未协助的事项",
-              "inputs": {
-                "limit": {
-                  "path": "",
-                  "step": null,
-                  "value": 1,
-                  "source": "constant"
-                }
-              },
-              "operator": null,
-              "dependency": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
-              "max_retries": 0,
-              "input_schema": {
-                "type": "object",
-                "required": [
-                  "limit"
-                ],
-                "properties": {
-                  "limit": {
-                    "type": "integer",
-                    "maximum": 20,
-                    "minimum": 1,
-                    "title": "单次查询数量"
-                  }
-                },
-                "additionalProperties": false
-              },
-              "output_schema": {
-                "type": "object",
-                "required": [
-                  "has_work",
-                  "items"
-                ],
-                "properties": {
-                  "items": {
-                    "type": "array",
-                    "title": "待协助事项列表"
-                  },
-                  "has_work": {
-                    "type": "boolean",
-                    "title": "是否有待协助事项"
-                  },
-                  "guidance_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    },
-                    "maxItems": 20,
-                    "minItems": 1,
-                    "title": "协助事项标识列表"
-                  }
-                }
-              },
-              "failure_policy": "fail",
-              "timeout_seconds": 30
-            },
-            {
-              "key": "claim",
-              "kind": "tool",
-              "name": "领取分析资格",
-              "inputs": {
-                "guidance_ids": {
-                  "path": "guidance_ids",
-                  "step": "find",
-                  "value": null,
-                  "source": "step"
-                }
-              },
-              "operator": null,
-              "dependency": "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
-              "max_retries": 0,
-              "input_schema": {
-                "type": "object",
-                "required": [
-                  "guidance_ids"
-                ],
-                "properties": {
-                  "guidance_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    },
-                    "maxItems": 20,
-                    "minItems": 1,
-                    "title": "协助事项标识列表"
-                  }
-                },
-                "additionalProperties": false
-              },
-              "output_schema": {
-                "type": "object",
-                "required": [
-                  "has_work",
-                  "items",
-                  "needs_analysis",
-                  "item"
-                ],
-                "properties": {
-                  "item": {
-                    "type": "object",
-                    "title": "当前协助事项"
-                  },
-                  "items": {
-                    "type": "array",
-                    "title": "已领取事项列表"
-                  },
-                  "has_work": {
-                    "type": "boolean",
-                    "title": "是否领取到协助事项"
-                  },
-                  "guidance_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    },
-                    "maxItems": 20,
-                    "minItems": 1,
-                    "title": "协助事项标识列表"
-                  },
-                  "needs_analysis": {
-                    "type": "boolean",
-                    "title": "是否需要模型分析"
-                  }
-                }
-              },
-              "failure_policy": "fail",
-              "timeout_seconds": 30
-            },
-            {
-              "key": "analyze",
-              "kind": "model",
-              "name": "分析本单问题与下一步",
-              "inputs": {
-                "context": {
-                  "path": "item",
-                  "step": "claim",
-                  "value": null,
-                  "source": "step"
-                }
-              },
-              "operator": null,
-              "dependency": null,
-              "max_retries": 0,
-              "input_schema": {
-                "type": "object",
-                "required": [
-                  "context"
-                ],
-                "properties": {
-                  "context": {
-                    "type": "object",
-                    "title": "本单事实与协助上下文"
-                  }
-                },
-                "additionalProperties": false
-              },
-              "output_schema": {
-                "type": "object",
-                "required": [
-                  "results"
-                ],
-                "properties": {
-                  "results": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "required": [
-                        "guidance_id",
-                        "lease_generation",
-                        "fact_revision",
-                        "assistance_decision",
-                        "assessment",
-                        "views"
-                      ],
-                      "properties": {
-                        "views": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "required": [
-                              "role",
-                              "user_problem",
-                              "situation",
-                              "next_step",
-                              "reason",
-                              "steps",
-                              "problem_path",
-                              "action_codes",
-                              "evidence_refs"
-                            ],
-                            "properties": {
-                              "role": {
-                                "enum": [
-                                  "TENANT",
-                                  "LANDLORD"
-                                ],
-                                "type": "string",
-                                "title": "接收方角色"
-                              },
-                              "steps": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string",
-                                  "maxLength": 500,
-                                  "minLength": 1
-                                },
-                                "maxItems": 8,
-                                "minItems": 0,
-                                "title": "建议操作步骤"
-                              },
-                              "reason": {
-                                "type": "string",
-                                "maxLength": 1500,
-                                "minLength": 1,
-                                "title": "建议依据"
-                              },
-                              "next_step": {
-                                "type": "string",
-                                "maxLength": 1500,
-                                "minLength": 1,
-                                "title": "下一步建议"
-                              },
-                              "situation": {
-                                "type": "string",
-                                "maxLength": 1500,
-                                "minLength": 1,
-                                "title": "当前处境"
-                              },
-                              "action_codes": {
-                                "type": "array",
-                                "items": {
-                                  "enum": [
-                                    "VIEW_ORDER"
-                                  ],
-                                  "type": "string"
-                                },
-                                "maxItems": 4,
-                                "minItems": 0,
-                                "title": "可用操作"
-                              },
-                              "problem_path": {
-                                "type": "string",
-                                "maxLength": 1500,
-                                "minLength": 1,
-                                "title": "问题处理路径"
-                              },
-                              "user_problem": {
-                                "type": "string",
-                                "maxLength": 1500,
-                                "minLength": 1,
-                                "title": "用户问题"
-                              },
-                              "evidence_refs": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string",
-                                  "maxLength": 160,
-                                  "minLength": 1
-                                },
-                                "maxItems": 30,
-                                "minItems": 1,
-                                "title": "事实依据引用"
-                              }
-                            },
-                            "additionalProperties": false
-                          },
-                          "maxItems": 2,
-                          "minItems": 0,
-                          "title": "各方协助内容"
-                        },
-                        "assessment": {
-                          "type": "string",
-                          "maxLength": 2000,
-                          "minLength": 1,
-                          "title": "协助评估"
-                        },
-                        "guidance_id": {
-                          "type": "string",
-                          "maxLength": 128,
-                          "minLength": 1,
-                          "title": "协助事项标识"
-                        },
-                        "fact_revision": {
-                          "type": "string",
-                          "pattern": "^[0-9a-f]{64}$",
-                          "title": "事实版本摘要"
-                        },
-                        "lease_generation": {
-                          "type": "integer",
-                          "minimum": 1,
-                          "title": "领取批次"
-                        },
-                        "assistance_decision": {
-                          "enum": [
-                            "GUIDE",
-                            "NO_ADDITIONAL_HELP"
-                          ],
-                          "type": "string",
-                          "title": "协助决策"
-                        }
-                      },
-                      "additionalProperties": false
-                    },
-                    "maxItems": 20,
-                    "minItems": 1,
-                    "title": "协助分析结果"
-                  }
-                },
-                "additionalProperties": false
-              },
-              "failure_policy": "fail",
-              "timeout_seconds": 120,
-              "failure_handler": "fail_analysis"
-            },
-            {
-              "key": "save",
-              "kind": "tool",
-              "name": "保存模型分析",
-              "inputs": {
-                "results": {
-                  "path": "results",
-                  "step": "analyze",
-                  "value": null,
-                  "source": "step"
-                }
-              },
-              "operator": null,
-              "dependency": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
-              "max_retries": 0,
-              "input_schema": {
-                "type": "object",
-                "required": [
-                  "results"
-                ],
-                "properties": {
-                  "results": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "required": [
-                        "guidance_id",
-                        "lease_generation",
-                        "fact_revision",
-                        "assistance_decision",
-                        "assessment",
-                        "views"
-                      ],
-                      "properties": {
-                        "views": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "required": [
-                              "role",
-                              "user_problem",
-                              "situation",
-                              "next_step",
-                              "reason",
-                              "steps",
-                              "problem_path",
-                              "action_codes",
-                              "evidence_refs"
-                            ],
-                            "properties": {
-                              "role": {
-                                "enum": [
-                                  "TENANT",
-                                  "LANDLORD"
-                                ],
-                                "type": "string",
-                                "title": "接收方角色"
-                              },
-                              "steps": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string",
-                                  "maxLength": 500,
-                                  "minLength": 1
-                                },
-                                "maxItems": 8,
-                                "minItems": 0,
-                                "title": "建议操作步骤"
-                              },
-                              "reason": {
-                                "type": "string",
-                                "maxLength": 1500,
-                                "minLength": 1,
-                                "title": "建议依据"
-                              },
-                              "next_step": {
-                                "type": "string",
-                                "maxLength": 1500,
-                                "minLength": 1,
-                                "title": "下一步建议"
-                              },
-                              "situation": {
-                                "type": "string",
-                                "maxLength": 1500,
-                                "minLength": 1,
-                                "title": "当前处境"
-                              },
-                              "action_codes": {
-                                "type": "array",
-                                "items": {
-                                  "enum": [
-                                    "VIEW_ORDER"
-                                  ],
-                                  "type": "string"
-                                },
-                                "maxItems": 4,
-                                "minItems": 0,
-                                "title": "可用操作"
-                              },
-                              "problem_path": {
-                                "type": "string",
-                                "maxLength": 1500,
-                                "minLength": 1,
-                                "title": "问题处理路径"
-                              },
-                              "user_problem": {
-                                "type": "string",
-                                "maxLength": 1500,
-                                "minLength": 1,
-                                "title": "用户问题"
-                              },
-                              "evidence_refs": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string",
-                                  "maxLength": 160,
-                                  "minLength": 1
-                                },
-                                "maxItems": 30,
-                                "minItems": 1,
-                                "title": "事实依据引用"
-                              }
-                            },
-                            "additionalProperties": false
-                          },
-                          "maxItems": 2,
-                          "minItems": 0,
-                          "title": "各方协助内容"
-                        },
-                        "assessment": {
-                          "type": "string",
-                          "maxLength": 2000,
-                          "minLength": 1,
-                          "title": "协助评估"
-                        },
-                        "guidance_id": {
-                          "type": "string",
-                          "maxLength": 128,
-                          "minLength": 1,
-                          "title": "协助事项标识"
-                        },
-                        "fact_revision": {
-                          "type": "string",
-                          "pattern": "^[0-9a-f]{64}$",
-                          "title": "事实版本摘要"
-                        },
-                        "lease_generation": {
-                          "type": "integer",
-                          "minimum": 1,
-                          "title": "领取批次"
-                        },
-                        "assistance_decision": {
-                          "enum": [
-                            "GUIDE",
-                            "NO_ADDITIONAL_HELP"
-                          ],
-                          "type": "string",
-                          "title": "协助决策"
-                        }
-                      },
-                      "additionalProperties": false
-                    },
-                    "maxItems": 20,
-                    "minItems": 1,
-                    "title": "协助分析结果"
-                  }
-                },
-                "additionalProperties": false
-              },
-              "output_schema": {
-                "type": "object"
-              },
-              "failure_policy": "fail",
-              "timeout_seconds": 30
-            },
-            {
-              "key": "publish",
-              "kind": "tool",
-              "name": "复核并发布协助",
-              "inputs": {
-                "guidance_ids": {
-                  "path": "guidance_ids",
-                  "step": "claim",
-                  "value": null,
-                  "source": "step"
-                }
-              },
-              "operator": null,
-              "dependency": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
-              "max_retries": 0,
-              "input_schema": {
-                "type": "object",
-                "required": [
-                  "guidance_ids"
-                ],
-                "properties": {
-                  "guidance_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    },
-                    "maxItems": 20,
-                    "minItems": 1,
-                    "title": "协助事项标识列表"
-                  }
-                },
-                "additionalProperties": false
-              },
-              "output_schema": {
-                "type": "object"
-              },
-              "failure_policy": "fail",
-              "timeout_seconds": 30
-            },
-            {
-              "key": "finish",
-              "kind": "compute",
-              "name": "结束本轮巡检",
-              "inputs": {
-                "data": {
-                  "path": "",
-                  "step": null,
-                  "value": {
-                    "inspected": true
-                  },
-                  "source": "constant"
-                },
-                "warnings": {
-                  "path": "",
-                  "step": null,
-                  "value": [],
-                  "source": "constant"
-                },
-                "evidence_refs": {
-                  "path": "",
-                  "step": null,
-                  "value": [],
-                  "source": "constant"
-                },
-                "schema_version": {
-                  "path": "",
-                  "step": null,
-                  "value": "1.0",
-                  "source": "constant"
-                },
-                "business_status": {
-                  "path": "",
-                  "step": null,
-                  "value": "COMPLETED",
-                  "source": "constant"
-                }
-              },
-              "operator": "object",
-              "dependency": null,
-              "max_retries": 0,
-              "input_schema": {
-                "type": "object",
-                "required": [
-                  "business_status",
-                  "schema_version",
-                  "data",
-                  "warnings",
-                  "evidence_refs"
-                ],
-                "properties": {
-                  "data": {
-                    "type": "object",
-                    "title": "业务结果"
-                  },
-                  "warnings": {
-                    "type": "array",
-                    "title": "提示信息"
-                  },
-                  "evidence_refs": {
-                    "type": "array",
-                    "title": "事实依据引用"
-                  },
-                  "schema_version": {
-                    "type": "string",
-                    "const": "1.0",
-                    "title": "结果结构版本"
-                  },
-                  "business_status": {
-                    "enum": [
-                      "COMPLETED"
-                    ],
-                    "type": "string",
-                    "title": "业务状态"
-                  }
-                },
-                "additionalProperties": false
-              },
-              "output_schema": {
-                "type": "object",
-                "required": [
-                  "business_status",
-                  "schema_version",
-                  "data",
-                  "warnings",
-                  "evidence_refs"
-                ],
-                "properties": {
-                  "data": {
-                    "type": "object",
-                    "title": "业务结果"
-                  },
-                  "warnings": {
-                    "type": "array",
-                    "title": "提示信息"
-                  },
-                  "evidence_refs": {
-                    "type": "array",
-                    "title": "事实依据引用"
-                  },
-                  "schema_version": {
-                    "type": "string",
-                    "const": "1.0",
-                    "title": "结果结构版本"
-                  },
-                  "business_status": {
-                    "enum": [
-                      "COMPLETED"
-                    ],
-                    "type": "string",
-                    "title": "业务状态"
-                  }
-                },
-                "additionalProperties": false
-              },
-              "failure_policy": "fail",
-              "timeout_seconds": 30
-            },
-            {
-              "key": "fail_analysis",
-              "name": "结束失败分析的领取占用",
-              "kind": "tool",
-              "dependency": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
-              "inputs": {
-                "guidance_ids": {
-                  "source": "step",
-                  "step": "claim",
-                  "path": "guidance_ids"
-                }
-              },
-              "input_schema": {
-                "type": "object",
-                "properties": {
-                  "guidance_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 128
-                    },
-                    "minItems": 1,
-                    "maxItems": 20,
-                    "title": "协助事项标识列表"
-                  }
-                },
-                "required": [
-                  "guidance_ids"
-                ],
-                "additionalProperties": false
-              },
-              "output_schema": {
-                "type": "object"
-              },
-              "timeout_seconds": 30,
-              "failure_policy": "fail",
-              "max_retries": 0
-            }
-          ],
-          "limits": {
-            "cost_limit": null,
-            "token_limit": 256000,
-            "max_iterations": 1,
-            "max_tool_calls": 40,
-            "deadline_seconds": 300,
-            "max_model_rounds": 1,
-            "loop_timeout_seconds": 300,
-            "output_repair_attempts": 0
-          },
-          "context": {
-            "context_limit": 64000,
-            "memory_policy": null,
-            "summary_policy": "none",
-            "conversation_enabled": false
-          },
-          "bindings": {
-            "skill_loading": [
-              {
-                "priority": null,
-                "selected": false,
-                "version_id": "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1",
-                "loading_mode": "mandatory",
-                "selected_files": [],
-                "trigger_reason": "配置选择"
-              }
-            ],
-            "tool_versions": [
-              "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
-              "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
-              "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
-              "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
-              "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
-              "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
-              "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233"
-            ],
-            "prompt_version": "prompt_d79b922127524951ada73866d62abf5a",
-            "skill_versions": [
-              "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1"
-            ],
-            "model_route_version": "route_0595b357c65e4c879af695163ee5d129",
-            "embedding_route_version": null
-          },
-          "entrypoint": "stateful.v1",
-          "start_step": "find",
-          "input_schema": {
-            "type": "object",
-            "required": [],
-            "properties": {},
-            "additionalProperties": false
-          },
-          "output_schema": {
-            "type": "object",
-            "required": [
-              "business_status",
-              "schema_version",
-              "data",
-              "warnings",
-              "evidence_refs"
-            ],
-            "properties": {
-              "data": {
-                "type": "object",
-                "title": "业务结果"
-              },
-              "warnings": {
-                "type": "array",
-                "title": "提示信息"
-              },
-              "evidence_refs": {
-                "type": "array",
-                "title": "事实依据引用"
-              },
-              "schema_version": {
-                "type": "string",
-                "const": "1.0",
-                "title": "结果结构版本"
-              },
-              "business_status": {
-                "enum": [
-                  "COMPLETED"
-                ],
-                "type": "string",
-                "title": "业务状态"
-              }
-            },
-            "additionalProperties": false
-          },
-          "workflow_type": "stateful"
-        },
-        "content_digest": "2b41c4c29bfd6c2288ae254539e4971c4562e6c9e825bd563ea5ef1a64cc7095",
-        "dependencies": [
-          "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
-          "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
-          "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
-          "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
-          "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
-          "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
-          "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
-          "prompt_d79b922127524951ada73866d62abf5a",
-          "route_0595b357c65e4c879af695163ee5d129",
-          "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1"
-        ],
-        "dependencies_digest": "ec59b9f257d356d6ddfe47a0c05b54a0e877351a61545881f0de442cac6f6383",
-        "output_schema": {
-          "type": "object",
-          "required": [
-            "business_status",
-            "schema_version",
-            "data",
-            "warnings",
-            "evidence_refs"
-          ],
-          "properties": {
-            "data": {
-              "type": "object",
-              "title": "业务结果"
-            },
-            "warnings": {
-              "type": "array",
-              "title": "提示信息"
-            },
-            "evidence_refs": {
-              "type": "array",
-              "title": "事实依据引用"
-            },
-            "schema_version": {
-              "type": "string",
-              "const": "1.0",
-              "title": "结果结构版本"
-            },
-            "business_status": {
-              "enum": [
-                "COMPLETED"
-              ],
-              "type": "string",
-              "title": "业务状态"
-            }
-          },
-          "additionalProperties": false
-        },
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "is_deleted": false
-      },
-      {
         "id": "version_90734e0e8b794bc5851101ab2bdfcb0f",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
         "created_at": "2026-10-08T11:38:25.933513+00:00",
@@ -3902,15 +2967,127 @@
         "is_deleted": false
       },
       {
-        "id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-08T11:28:07.727304+00:00",
+        "updated_at": "2026-10-09T02:52:16.219273+00:00",
+        "revision": 5,
+        "resource_type": "tool",
+        "resource_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "version_label": "当前配置",
+        "state": "PUBLISHED",
+        "content": {
+          "binding": {
+            "script": null,
+            "adapter_key": "mcp_iw_9d738f637185195a618cdea36fb9272b23720a15b2517e32f1d2",
+            "connection_id": "mcp_799886052a5241f4828df8660c16e249",
+            "implementation_version": "78872deb5f7f417dd4ad47c41ae6278b88dc6beacef8bcf792a3c2f811e51c51"
+          },
+          "effect_type": "IDEMPOTENT_WRITE",
+          "cache_policy": {
+            "volatile": false,
+            "ttl_seconds": 0,
+            "freshness_seconds": 120
+          },
+          "environments": [
+            "dev"
+          ],
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "guidance_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "minItems": 1,
+                "maxItems": 20,
+                "title": "协助事项标识列表"
+              }
+            },
+            "required": [
+              "guidance_ids"
+            ],
+            "additionalProperties": false
+          },
+          "retry_policy": {
+            "delay_ms": 100,
+            "max_attempts": 1
+          },
+          "write_policy": {
+            "max_checks": 3,
+            "check_delay_ms": 1000,
+            "max_submissions": 2,
+            "authorization_mode": "preauthorized",
+            "allowed_agent_codes": [
+              "rental_order_guidance"
+            ],
+            "argument_constraints": {
+              "type": "object",
+              "properties": {
+                "guidance_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "minItems": 1,
+                  "maxItems": 20,
+                  "title": "协助事项标识列表"
+                }
+              },
+              "required": [
+                "guidance_ids"
+              ],
+              "additionalProperties": false
+            },
+            "allowed_principal_ids": [
+              "user_1d5e419d2ad54a99aca1ebd45e412c78"
+            ],
+            "status_tool_version_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e"
+          },
+          "output_schema": {
+            "type": "object"
+          },
+          "analysis_policy": null,
+          "max_result_size": 262144,
+          "required_scopes": [
+            "run:create"
+          ],
+          "timeout_seconds": 10,
+          "idempotency_policy": "source_key",
+          "model_fields_allowed": [
+            "guidance_ids"
+          ],
+          "subject_requirements": {
+            "required": false,
+            "allowed_types": []
+          }
+        },
+        "content_digest": "5b58c8c56b04010c42520d148890e4f04e00a3577d8cc1263189126cb31a7d00",
+        "dependencies": [
+          "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e"
+        ],
+        "dependencies_digest": "9f27113734531cd7be765ff780b8b2e17de491f2657c2678f2d76d87c232d707",
+        "output_schema": {
+          "type": "object"
+        },
+        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
+        "is_deleted": false
+      },
+      {
+        "id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
         "created_at": "2026-10-09T03:07:03.565203+00:00",
         "updated_at": "2026-10-09T03:07:03.565203+00:00",
         "revision": 1,
         "resource_type": "agent",
         "resource_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
-        "version_label": "发布版本 2",
-        "state": "PUBLISHED",
+        "version_label": "当前配置",
+        "state": "CURRENT",
         "content": {
           "edges": [
             {
@@ -4784,7 +3961,7 @@
           "version_90734e0e8b794bc5851101ab2bdfcb0f",
           "version_ab199b3f3d1d4d62bde6f40d1362a959"
         ],
-        "dependencies_digest": "61d4c6b25be2f9c011c32c8a2c4a98b1c561c52a0a0ca69dc41ed1dd925fdcff",
+        "dependencies_digest": "67931f65db97e02cb8010894856fa6871ce1e608cd8c6a43ce8bab813bebbd4e",
         "output_schema": {
           "type": "object",
           "required": [
@@ -4821,118 +3998,6 @@
             }
           },
           "additionalProperties": false
-        },
-        "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "is_deleted": false
-      },
-      {
-        "id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-08T11:28:07.727304+00:00",
-        "updated_at": "2026-10-09T02:52:16.219273+00:00",
-        "revision": 5,
-        "resource_type": "tool",
-        "resource_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
-        "version_label": "当前配置",
-        "state": "PUBLISHED",
-        "content": {
-          "binding": {
-            "script": null,
-            "adapter_key": "mcp_iw_9d738f637185195a618cdea36fb9272b23720a15b2517e32f1d2",
-            "connection_id": "mcp_799886052a5241f4828df8660c16e249",
-            "implementation_version": "78872deb5f7f417dd4ad47c41ae6278b88dc6beacef8bcf792a3c2f811e51c51"
-          },
-          "effect_type": "IDEMPOTENT_WRITE",
-          "cache_policy": {
-            "volatile": false,
-            "ttl_seconds": 0,
-            "freshness_seconds": 120
-          },
-          "environments": [
-            "dev"
-          ],
-          "input_schema": {
-            "type": "object",
-            "properties": {
-              "guidance_ids": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 128
-                },
-                "minItems": 1,
-                "maxItems": 20,
-                "title": "协助事项标识列表"
-              }
-            },
-            "required": [
-              "guidance_ids"
-            ],
-            "additionalProperties": false
-          },
-          "retry_policy": {
-            "delay_ms": 100,
-            "max_attempts": 1
-          },
-          "write_policy": {
-            "max_checks": 3,
-            "check_delay_ms": 1000,
-            "max_submissions": 2,
-            "authorization_mode": "preauthorized",
-            "allowed_agent_codes": [
-              "rental_order_guidance"
-            ],
-            "argument_constraints": {
-              "type": "object",
-              "properties": {
-                "guidance_ids": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 128
-                  },
-                  "minItems": 1,
-                  "maxItems": 20,
-                  "title": "协助事项标识列表"
-                }
-              },
-              "required": [
-                "guidance_ids"
-              ],
-              "additionalProperties": false
-            },
-            "allowed_principal_ids": [
-              "user_1d5e419d2ad54a99aca1ebd45e412c78"
-            ],
-            "status_tool_version_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e"
-          },
-          "output_schema": {
-            "type": "object"
-          },
-          "analysis_policy": null,
-          "max_result_size": 262144,
-          "required_scopes": [
-            "run:create"
-          ],
-          "timeout_seconds": 10,
-          "idempotency_policy": "source_key",
-          "model_fields_allowed": [
-            "guidance_ids"
-          ],
-          "subject_requirements": {
-            "required": false,
-            "allowed_types": []
-          }
-        },
-        "content_digest": "5b58c8c56b04010c42520d148890e4f04e00a3577d8cc1263189126cb31a7d00",
-        "dependencies": [
-          "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e"
-        ],
-        "dependencies_digest": "9f27113734531cd7be765ff780b8b2e17de491f2657c2678f2d76d87c232d707",
-        "output_schema": {
-          "type": "object"
         },
         "created_by": "user_1d5e419d2ad54a99aca1ebd45e412c78",
         "is_deleted": false
@@ -4974,10 +4039,10 @@
     ],
     "source_links": [
       {
-        "id": "0c67be249473dd0f101b690982f5c11a8c3012001e7b9a16ebe453ad1a954ebd",
+        "id": "408adcc5f6ecb4948ad22d7190a638264fdd7fe4752573e806c6ae484c4388cb",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-08T11:29:14.939765+00:00",
-        "updated_at": "2026-10-08T11:29:14.939765+00:00",
+        "created_at": "2026-10-09T02:50:05.330660+00:00",
+        "updated_at": "2026-10-09T02:50:05.330660+00:00",
         "revision": 1,
         "environment": "dev",
         "subject_type": null,
@@ -5001,15 +4066,15 @@
         "source_type": "version",
         "source_id": "route_0595b357c65e4c879af695163ee5d129",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       },
       {
-        "id": "212a34542acdab379b812457c643ab8277200dd5cb94475e099dbf154a98c51f",
+        "id": "ff73361baa938f9b17a4951e8cc3d30a3e291d63221f3517f8fb3467b064af04",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-09T02:47:07.730511+00:00",
-        "updated_at": "2026-10-09T02:47:07.730511+00:00",
+        "created_at": "2026-10-08T11:22:12.698784+00:00",
+        "updated_at": "2026-10-08T11:22:12.698784+00:00",
         "revision": 1,
         "environment": "dev",
         "subject_type": null,
@@ -5033,31 +4098,15 @@
         "source_type": "version",
         "source_id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       },
       {
-        "id": "408adcc5f6ecb4948ad22d7190a638264fdd7fe4752573e806c6ae484c4388cb",
+        "id": "8acc2f0a96834091faf4805b0a507a35f094947baddafaad423269c68e29eddf",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-09T02:50:05.330660+00:00",
-        "updated_at": "2026-10-09T02:50:05.330660+00:00",
-        "revision": 1,
-        "environment": "dev",
-        "subject_type": null,
-        "subject_id": null,
-        "source_type": "tool",
-        "source_id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
-        "derived_type": "version",
-        "derived_id": "f8944871cb8c6c351a21909e4c5791147a6dc16431502fa60dd764051f51299e",
-        "source_version": null,
-        "is_deleted": false
-      },
-      {
-        "id": "44868fcbb89cede99fa198de867d03ec655c581eb32ffed7d41b8dd3ae967e2e",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-09T03:07:03.579364+00:00",
-        "updated_at": "2026-10-09T03:07:03.579364+00:00",
+        "created_at": "2026-10-09T01:26:09.316647+00:00",
+        "updated_at": "2026-10-09T01:26:09.316647+00:00",
         "revision": 1,
         "environment": "dev",
         "subject_type": null,
@@ -5065,15 +4114,15 @@
         "source_type": "agent",
         "source_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       },
       {
-        "id": "61f1fb606eeee3029b81f42d949a26e7ad64c4594d83d878e71c6cf4373c6b33",
+        "id": "be340f0f9d2b7a6b8a573b2a9d6a0ed6ac2a4a72ffedc7aaf99c9f0aec13026f",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-08T11:28:49.380462+00:00",
-        "updated_at": "2026-10-08T11:28:49.380462+00:00",
+        "created_at": "2026-10-09T02:49:39.517192+00:00",
+        "updated_at": "2026-10-09T02:49:39.517192+00:00",
         "revision": 1,
         "environment": "dev",
         "subject_type": null,
@@ -5086,10 +4135,10 @@
         "is_deleted": false
       },
       {
-        "id": "6990175d82aab4f341b9d1a4ccec2a442f952a8c2e8ad9dac08fe9545c95d23c",
+        "id": "b53a91ebc8c470bdbeea58161f9a2dcc4156a5faa513e1ab565ea230aa732bbe",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-08T11:27:34.563187+00:00",
-        "updated_at": "2026-10-08T11:27:34.563187+00:00",
+        "created_at": "2026-10-09T02:49:18.067961+00:00",
+        "updated_at": "2026-10-09T02:49:18.067961+00:00",
         "revision": 1,
         "environment": "dev",
         "subject_type": null,
@@ -5102,10 +4151,10 @@
         "is_deleted": false
       },
       {
-        "id": "6fef2ffb174d2584ed6f09534e666cd9240c66f72e2fd4071a75c2dd66b98150",
+        "id": "8f52caa130fcae1830e7c4aa1e1d964088a4a17d0dff28fe3daf7e144f8d155b",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-08T11:10:33.461285+00:00",
-        "updated_at": "2026-10-08T11:10:33.461285+00:00",
+        "created_at": "2026-10-09T02:47:52.240247+00:00",
+        "updated_at": "2026-10-09T02:47:52.240247+00:00",
         "revision": 1,
         "environment": "dev",
         "subject_type": null,
@@ -5129,15 +4178,15 @@
         "source_type": "version",
         "source_id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       },
       {
-        "id": "79df1096f14b7c52b2b06eeb2a3f728c24625b4dd8b1855a5f2840f5d4ade718",
+        "id": "a9eb8516039c051b0bc88c3b4449dce5240168bc918766666c8716d2582675ae",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-08T11:28:07.737816+00:00",
-        "updated_at": "2026-10-08T11:28:07.737816+00:00",
+        "created_at": "2026-10-09T02:48:28.147710+00:00",
+        "updated_at": "2026-10-09T02:48:28.147710+00:00",
         "revision": 1,
         "environment": "dev",
         "subject_type": null,
@@ -5166,22 +4215,6 @@
         "is_deleted": false
       },
       {
-        "id": "8acc2f0a96834091faf4805b0a507a35f094947baddafaad423269c68e29eddf",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-09T01:26:09.316647+00:00",
-        "updated_at": "2026-10-09T01:26:09.316647+00:00",
-        "revision": 1,
-        "environment": "dev",
-        "subject_type": null,
-        "subject_id": null,
-        "source_type": "agent",
-        "source_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
-        "derived_type": "version",
-        "derived_id": "version_63e6f4a4e24f4f32b208ca72de0ca6cd",
-        "source_version": null,
-        "is_deleted": false
-      },
-      {
         "id": "8e7f9d8d1c35d427551b4ebb333b7f7934e5c42de3f8eb042df40d1307ecd952",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
         "created_at": "2026-10-09T03:07:03.590123+00:00",
@@ -5193,7 +4226,7 @@
         "source_type": "version",
         "source_id": "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       },
@@ -5209,23 +4242,7 @@
         "source_type": "version",
         "source_id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null,
-        "is_deleted": false
-      },
-      {
-        "id": "8f52caa130fcae1830e7c4aa1e1d964088a4a17d0dff28fe3daf7e144f8d155b",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-09T02:47:52.240247+00:00",
-        "updated_at": "2026-10-09T02:47:52.240247+00:00",
-        "revision": 1,
-        "environment": "dev",
-        "subject_type": null,
-        "subject_id": null,
-        "source_type": "tool",
-        "source_id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
-        "derived_type": "version",
-        "derived_id": "136926e27a2ce419d7a8f5ff48e3b891872f36458b05d1bad749ea02c22ca1d7",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       },
@@ -5241,7 +4258,7 @@
         "source_type": "version",
         "source_id": "skill_48978aa20c4e4ff3b2f269bb1c5f5fb1",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       },
@@ -5273,23 +4290,7 @@
         "source_type": "version",
         "source_id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null,
-        "is_deleted": false
-      },
-      {
-        "id": "a9eb8516039c051b0bc88c3b4449dce5240168bc918766666c8716d2582675ae",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-09T02:48:28.147710+00:00",
-        "updated_at": "2026-10-09T02:48:28.147710+00:00",
-        "revision": 1,
-        "environment": "dev",
-        "subject_type": null,
-        "subject_id": null,
-        "source_type": "tool",
-        "source_id": "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
-        "derived_type": "version",
-        "derived_id": "0f69e5a6db5aec3fcea292faf4a74adfe6b65c527c5eda59575d66e5ad95f0eb",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       },
@@ -5305,7 +4306,7 @@
         "source_type": "version",
         "source_id": "version_0e0ebbfa8c804ad29d8255ff33032d93",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       },
@@ -5321,7 +4322,7 @@
         "source_type": "version",
         "source_id": "version_90734e0e8b794bc5851101ab2bdfcb0f",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       },
@@ -5337,39 +4338,7 @@
         "source_type": "version",
         "source_id": "version_ab199b3f3d1d4d62bde6f40d1362a959",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null,
-        "is_deleted": false
-      },
-      {
-        "id": "b53a91ebc8c470bdbeea58161f9a2dcc4156a5faa513e1ab565ea230aa732bbe",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-09T02:49:18.067961+00:00",
-        "updated_at": "2026-10-09T02:49:18.067961+00:00",
-        "revision": 1,
-        "environment": "dev",
-        "subject_type": null,
-        "subject_id": null,
-        "source_type": "tool",
-        "source_id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
-        "derived_type": "version",
-        "derived_id": "3b6bd844ea6aea2577f4872c9c272a0879ad4c959144872461b3ed943fb4d2b3",
-        "source_version": null,
-        "is_deleted": false
-      },
-      {
-        "id": "be340f0f9d2b7a6b8a573b2a9d6a0ed6ac2a4a72ffedc7aaf99c9f0aec13026f",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-09T02:49:39.517192+00:00",
-        "updated_at": "2026-10-09T02:49:39.517192+00:00",
-        "revision": 1,
-        "environment": "dev",
-        "subject_type": null,
-        "subject_id": null,
-        "source_type": "tool",
-        "source_id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
-        "derived_type": "version",
-        "derived_id": "ad6a01282fc7af189f35f60f75d983e6ae8c01ebd4b09700735dc09cf012871a",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       },
@@ -5385,7 +4354,7 @@
         "source_type": "version",
         "source_id": "prompt_d79b922127524951ada73866d62abf5a",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       },
@@ -5401,23 +4370,7 @@
         "source_type": "version",
         "source_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null,
-        "is_deleted": false
-      },
-      {
-        "id": "ff73361baa938f9b17a4951e8cc3d30a3e291d63221f3517f8fb3467b064af04",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-08T11:22:12.698784+00:00",
-        "updated_at": "2026-10-08T11:22:12.698784+00:00",
-        "revision": 1,
-        "environment": "dev",
-        "subject_type": null,
-        "subject_id": null,
-        "source_type": "tool",
-        "source_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
-        "derived_type": "version",
-        "derived_id": "484717379b5a5e02af239db7907daa2e2cc52cef470d36e132064cd6d4b8cc1e",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       },
@@ -5470,10 +4423,10 @@
         "is_deleted": false
       },
       {
-        "id": "4c0960e7e148b5b0dc0390451a825569ef005bc4d03a5a3bb4a7a7b6bd833943",
+        "id": "ef54181144ff6588562d8feee31cda5ae9b1062ab01772925aabf8a99d075516",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-08T11:28:07.737816+00:00",
-        "updated_at": "2026-10-08T11:28:07.737816+00:00",
+        "created_at": "2026-10-09T02:48:28.147710+00:00",
+        "updated_at": "2026-10-09T02:48:28.147710+00:00",
         "revision": 1,
         "environment": "dev",
         "subject_type": null,
@@ -5497,23 +4450,7 @@
         "source_type": "version",
         "source_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
         "derived_type": "version",
-        "derived_id": "version_f903618a98c244b1a42b5df0c13fe877",
-        "source_version": null,
-        "is_deleted": false
-      },
-      {
-        "id": "ef54181144ff6588562d8feee31cda5ae9b1062ab01772925aabf8a99d075516",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-09T02:48:28.147710+00:00",
-        "updated_at": "2026-10-09T02:48:28.147710+00:00",
-        "revision": 1,
-        "environment": "dev",
-        "subject_type": null,
-        "subject_id": null,
-        "source_type": "tool",
-        "source_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
-        "derived_type": "version",
-        "derived_id": "5a26d9311ac1ea533f5de9580950c9b910ebb1ac4b8e1b318069847a39565233",
+        "derived_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
         "source_version": null,
         "is_deleted": false
       }
@@ -5782,6 +4719,21 @@
         "marker_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "verified_at": "2026-10-07T03:58:03.309760+08:00",
         "is_deleted": false
+      }
+    ],
+    "agent_environment_states": [
+      {
+        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
+        "created_at": "2026-10-09T01:26:09.297275+00:00",
+        "updated_at": "2026-10-09T01:26:09.297275+00:00",
+        "is_deleted": false,
+        "id": "9adb0ff4b600410452681e2805013d5d570a21f62e9d134a45f847c3b6f35dee",
+        "revision": 1,
+        "environment": "dev",
+        "agent_id": "agent_2f3c3f1f47714c2a923f5756bf56c5f3",
+        "status": "ACTIVE",
+        "reason": "初始化配置",
+        "is_online": true
       }
     ]
   },

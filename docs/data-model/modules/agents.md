@@ -117,6 +117,7 @@
 | `status` | `varchar(32)` | 当前环境启用状态 | 是 | 服务层校验后的业务输入 | 内部 |
 | `reason` | `varchar(1024)` | 状态变更原因 | 是 | 服务层校验后的业务输入 | 内部 |
 | `is_deleted` | `boolean` | 是否已逻辑删除 | 是 | 服务层维护，新增为否，逻辑删除为是 | 内部 |
+| `is_online` | `boolean` | 是否上线 | 是 | 服务层按上下线操作写入 | 内部 |
 
 普通索引：`(channel_id, id)`；`(channel_id, environment, agent_id)`。
 

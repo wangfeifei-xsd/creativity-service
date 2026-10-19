@@ -18,9 +18,9 @@ from creativity_service.integrations.tools import (
 from creativity_service.modules.agents.schemas import (
     AgentBindings,
     AgentCondition,
+    AgentConfigurationEdit,
     AgentEdge,
     AgentStep,
-    AgentVersionEdit,
     InputSource,
     NodePython,
     StepPagination,
@@ -171,10 +171,10 @@ async def test_script_source_is_frozen_and_needs_no_model_binding(runtime_env):
     changed = definition.steps[0].model_copy(
         update={"script": script('def transform(value, context): raise ValueError("新草稿")')}
     )
-    await env.agents.edit_version(
+    await env.agents.edit_configuration(
         env.context,
         frozen.source_version_id,
-        AgentVersionEdit(
+        AgentConfigurationEdit(
             revision=frozen.source_revision,
             definition=definition.model_copy(update={"steps": (changed,)}),
         ),
@@ -500,9 +500,9 @@ async def test_assistance_generates_and_saves_single_script_node(runtime_env):
     assert inputs["python_environments"][0]["profile_id"] == "nodes"
     saved = await env.runtime.assistance.apply(env.context, receipt.run_id)
     detail = await env.agents.detail(env.context, saved.agent_id)
-    node = detail.versions[0].definition.steps[0]
+    node = detail.configuration.definition.steps[0]
     assert node.kind == "script" and node.script.source == VALIDATION_SCRIPT
-    assert not detail.versions[0].definition.dependency_ids()
+    assert not detail.configuration.definition.dependency_ids()
 
 
 async def test_script_resource_bindings_are_rejected_when_saving(runtime_env):

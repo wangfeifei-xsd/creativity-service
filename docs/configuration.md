@@ -1,6 +1,6 @@
 # 配置指南
 
-在管理端选择目标渠道与环境，按“模型 → 提示词、工具与 Skills → Agent → 评测与发布”完成配置。字段结构以 [OpenAPI](../contracts/openapi.json) 和 [配置示例](../examples/agents/README.md) 为准。
+在管理端选择目标渠道与环境，按“模型 → 提示词、工具与 Skills → Agent → 评测与上线”完成配置。字段结构以 [OpenAPI](../contracts/openapi.json) 和 [配置示例](../examples/agents/README.md) 为准。
 
 <a id="models"></a>
 
@@ -22,7 +22,7 @@ API 和 Worker 的连接凭据与加密密钥应一致；HTTP 与 HTTPS 均无�
 
 编写模板并声明变量结构及取值来源，保存后即可发布，再由智能体选择使用。详情提供编辑、变量和渲染预览；预览不调用模型，也不是发布前置步骤。发布检查配置、资源状态、修订和权限，不要求模型路由、调试记录或评测记录。已发布提示词可直接修改，新受理任务使用新内容，已受理任务保留原快照。实际效果按需在智能体中调试或在效果评测中比较。配置结构见 [提示词契约](../contracts/internal/prompts.json)。
 
-智能协助提取的提示词在确认保存方案时自动发布到当前环境，并关联指定模型步骤；每个步骤只关联一份提示词，变量按步骤输入映射校验。创建、发布和智能体草稿保存共用事务，权限变化或保存失败全部回滚，重复保存返回已有结果。手动创建提示词仍默认未发布。
+智能协助提取的提示词在确认保存方案时自动发布到当前环境，并关联指定模型步骤；每个步骤只关联一份提示词，变量按步骤输入映射校验。创建、发布和智能体配置保存共用事务，权限变化或保存失败全部回滚，重复保存返回已有结果。手动创建提示词仍默认未发布。
 
 <a id="skills"></a>
 
@@ -36,19 +36,17 @@ Web 先通过通用文件接口上传技能包，再以返回的 URL 请求预�
 
 ## Agent
 
-选择通用执行入口 `structured.v1`、`workflow.v1`、`tool_loop.v1` 或 `stateful.v1`，配置输入输出 schema、模型路由、提示词、工具和 Skills，并设置会话、记忆和调用限额。校验与调试使用固定候选；发布环境映射只引用已验证的具体版本。
+每个智能体只有一份当前配置，直接编辑和保存；智能修改确认后覆盖同一配置。详情和接口不提供版本、草稿、发布、回滚或发布记录。
 
-选择“脚本处理”节点后进入“Python 脚本”，配置唯一的处理脚本；模型、工具与固定计算节点不附加脚本。只读工具节点可另行启用全量分页。执行环境来自 `CREATIVITY_SANDBOX_PROFILES` 中明确授权当前渠道、模式为 `python` 的配置，API 与 Worker 必须一致。环境固定镜像摘要，命令为 `["python3", "-I", "-B"]`，不得配置凭据注入；环境未配置时页面明确提示。函数接口、数据边界与分页配置见 [节点 Python 处理](runtime.md#node-python)。
+新建默认下线且启用。上线／下线控制是否接受新的正式运行，启用／停用控制是否允许执行，两项状态独立。下线配置可调试，停用阻断新执行及已受理任务的下一外部调用。上线检查当前配置、依赖、能力、预算与权限；在线修改须覆盖全部上线环境的操作权限。
 
-业务后端使用 `agent_code` 调用。结果内容符合 Agent 的输出 schema，领域字段由配置定义。正式发布需要 [评测门禁](operations.md#evaluations)；变更内容或依赖后重新评测。
+使用 `PATCH /admin/v1/agents/{id}/configuration` 保存配置，携带内部并发修订。`POST /admin/v1/agents/{id}/state` 接收 online、offline、enable、disable 和原因。校验、调试使用同一智能体地址下的 validate、tests。旧 versions、agent-versions、releases 接口已移除。
 
-不再使用的智能体可先下线或紧急停用，再从列表或详情删除。删除要求全部配置或发布环境均停用，且无定时计划（包括暂停计划）、待派发任务或未结束运行；操作者须有相关环境的智能体管理权限。不满足条件时按钮展示具体原因，提交时按当前修订和引用重新检查。删除后各环境不可再调用或选择该智能体，保留历史版本、发布记录、运行结果及用量，调用编码不可复用。
-
-<a id="configuration-delivery"></a>
+业务后端使用 agent_code 调用。受理固定配置与依赖内容，保存修改只影响新受理任务；历史快照继续保留，不能选择为配置或回滚。删除要求全部环境下线或停用，且没有关联计划、待派发任务或未结束运行，历史结果与用量保留。
 
 ## 配置交付
 
-可复用样例位于 [Agent](../examples/agents/README.md)、[Skills](../examples/skills/README.md)、[MCP](../examples/mcp/README.md) 与 [接入演示](../examples/onboarding/README.md)。导入后绑定目标渠道实际可用的模型、工具和资料，再调试发布。
+可复用样例位于 [Agent](../examples/agents/README.md)、[Skills](../examples/skills/README.md)、[MCP](../examples/mcp/README.md) 与 [接入演示](../examples/onboarding/README.md)。导入后绑定目标渠道实际可用的模型、工具和资料，再调试上线。
 
 工具依赖按声明的能力与 schema 绑定；环境间迁移配置时重新确认本地资源和授权。源系统数据、规则和计算通过 [MCP 接入](integration.md#mcp-business) 提供。
 

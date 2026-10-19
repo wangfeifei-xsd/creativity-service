@@ -69,9 +69,15 @@ def test_full_migration_repeat_offline_and_downgrade():
         config.attributes.pop("connection")
         output = io.StringIO()
         config.output_buffer = output
-        command.upgrade(config, "head", sql=True)
+        command.upgrade(config, "0052_file_urls", sql=True)
         assert check_sql(output.getvalue()) == []
         assert "0048_mysql_milvus" in output.getvalue()
+        # 单份配置迁移必须读取旧内容及环境状态，不能用离线 SQL 跳过数据转换。
+        output = io.StringIO()
+        config.output_buffer = output
+        with pytest.raises(RuntimeError, match="智能体配置迁移需要读取现有配置"):
+            command.upgrade(config, "0052_file_urls:head", sql=True)
+        assert "UPDATE creativity_alembic_version" not in output.getvalue()
     finally:
         with engine.connect() as connection:
             connection.execute(text(f"DROP DATABASE IF EXISTS `{name}`"))

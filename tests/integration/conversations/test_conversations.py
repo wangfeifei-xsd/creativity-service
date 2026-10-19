@@ -19,6 +19,7 @@ from creativity_service.modules.conversations.schemas import (
 from creativity_service.modules.runs.schemas import RunRequest
 from creativity_service.workers.recovery import Recovery
 from tests.integration.runs.test_runs import values
+from tests.support.agent_configuration import save_configuration
 
 pytestmark = pytest.mark.integration
 
@@ -53,19 +54,17 @@ async def records(env, name, **filters):
         return await repo.rows(connection, name, env.context.scope, **filters)
 
 
-async def publish_version(env, label, output_schema=None):
+async def save_current_configuration(env, label, output_schema=None):
     definition = env.resolver.definition
     output_schema = output_schema or definition.output_schema
-    agent = await env.runs.versions.create_draft(
+    agent = await save_configuration(
+        env.runs.versions,
         env.context,
-        "agent",
         "agent_one",
-        label,
-        {},
+        {"instructions": label},
         list(definition.version_ids[1:]),
         output_schema,
     )
-    agent = await env.runs.versions.freeze(env.context, agent.version_id, 1)
     policy = definition.policy.model_copy(
         update={
             "steps": tuple(
@@ -91,6 +90,30 @@ async def test_ses_a01_concurrent_different_messages_only_one_run(env):
     assert all(r.code == "SESSION_BUSY" for r in results if isinstance(r, ServiceError))
     assert len(await records(env, "messages")) == 2
     assert len(await records(env, "conversation_turns")) == len(await values(env, "runs")) == 1
+
+
+async def test_latest_messages_page_backwards_without_new_turn_duplicates(env):
+    for index in range(3):
+        receipt = await submit(env, f"tail_{index}")
+        await finish(env, receipt)
+    latest = await env.conversations.messages(env.context, env.cid, latest=True, limit=2)
+    assert [item.sequence for item in latest.items] == [5, 6]
+    assert latest.next_cursor
+    receipt = await submit(env, "tail_new")
+    await finish(env, receipt)
+    older = await env.conversations.messages(
+        env.context, env.cid, latest=True, limit=2, cursor=latest.next_cursor
+    )
+    assert [item.sequence for item in older.items] == [3, 4]
+    first = await env.conversations.messages(
+        env.context, env.cid, latest=True, limit=2, cursor=older.next_cursor
+    )
+    assert [item.sequence for item in first.items] == [1, 2]
+    assert first.next_cursor is None
+    with pytest.raises(ServiceError):
+        await env.conversations.messages(env.context, env.cid, limit=2, cursor=latest.next_cursor)
+    forward = await env.conversations.messages(env.context, env.cid, limit=2)
+    assert [item.sequence for item in forward.items] == [1, 2]
 
 
 async def test_ses_a02_replay_across_keys_and_release_changes(env):
@@ -206,14 +229,16 @@ async def test_ses_a04_archive_restore_and_terminal_compensation(env):
     ]
 
 
-async def test_ses_a06_versions_and_contract_change(env):
+async def test_ses_a06_configuration_and_contract_change(env):
     first = await submit(env)
     await finish(env, first)
-    await publish_version(env, "第二版本")
+    await save_current_configuration(env, "第二版本")
     second = await submit(env, "two")
     await finish(env, second)
     page = await env.conversations.messages(env.context, env.cid)
-    assert [t.version_label for t in page.turns] == ["测试初版", "第二版本"]
+    assert [t.version_label for t in page.turns] == ["当前配置", "当前配置"]
+    stored_turns = await records(env, "conversation_turns")
+    assert {t["agent_version_id"] for t in stored_turns} == {"agent_one"}
     env.resolver.definition = env.resolver.definition.model_copy(
         update={"input_schema": {"type": "object", "required": ["extra"]}}
     )
@@ -224,7 +249,7 @@ async def test_ses_a06_versions_and_contract_change(env):
 
 
 async def test_followup_creates_new_run_and_records_confirmed_conditions(env):
-    await publish_version(env, "追问版本", {"type": "object"})
+    await save_current_configuration(env, "追问版本", {"type": "object"})
     first = await submit(env)
     await finish(
         env, first, "NEEDS_INPUT", {"question": "哪个地区？", "confirmed_conditions": {"days": 3}}

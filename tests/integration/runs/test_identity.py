@@ -13,6 +13,7 @@ from tests.integration.channels.conftest import channel_env, provision
 from tests.integration.core.conftest import TestAuthorization, TestVersionValidator
 from tests.integration.runs.conftest import InternalDefinition
 from tests.integration.runs.test_runs import result
+from tests.support.agent_configuration import save_configuration
 
 pytestmark = pytest.mark.integration
 __all__ = ["channel_env"]
@@ -24,8 +25,7 @@ async def test_accepted_worker_uses_current_identity_without_expired_login_token
     context = channel.manager.context
     versions = VersionService(env.engine, TestAuthorization(), TestVersionValidator())
     schema = {"type": "object"}
-    agent = await versions.create_draft(context, "agent", "agent_one", "测试定义", {}, [], schema)
-    agent = await versions.freeze(context, agent.version_id, 1)
+    agent = await save_configuration(versions, context, "agent_one", {}, [], schema)
     resolver = InternalDefinition(
         ResolvedDefinition(
             agent_id="agent_one",

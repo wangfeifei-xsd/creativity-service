@@ -161,7 +161,7 @@ async def test_disjoint_lock_batches_do_not_scan_unrelated_slots(engine, context
 
 async def draft(service, context, label="第一版"):
     return await service.create_draft(
-        context, "agent", "agent_one", label, {"instruction": "测试"}, [], {"type": "object"}
+        context, "model", "agent_one", label, {"instruction": "测试"}, [], {"type": "object"}
     )
 
 
@@ -383,7 +383,7 @@ async def test_missing_validator_and_foreign_channel_dependency_rejected(
     with pytest.raises(ServiceError, match="校验服务"):
         await service.freeze(context, version.version_id, 1)
     bad = await VersionService(engine, authorization, validator).create_draft(
-        context, "agent", "other", "第一版", {}, ["foreign_version"], {}
+        context, "model", "other", "第一版", {}, ["foreign_version"], {}
     )
     with pytest.raises(ServiceError, match="同渠道"):
         await VersionService(engine, authorization, validator).freeze(context, bad.version_id, 1)
@@ -411,7 +411,7 @@ async def test_configuration_deletion_covers_other_environments_and_snapshot(
         "instruction": "测试"
     }
     await DeletionService(engine, authorization).mark(
-        context, ContentRef("agent", "agent_one"), "USER_REQUEST"
+        context, ContentRef("model", "agent_one"), "USER_REQUEST"
     )
     with pytest.raises(ServiceError, match="已删除"):
         await service.read_version(alternate, version.version_id)

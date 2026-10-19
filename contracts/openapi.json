@@ -743,6 +743,61 @@
         "title": "AgentCondition",
         "type": "object"
       },
+      "AgentConfigurationEdit": {
+        "additionalProperties": false,
+        "properties": {
+          "definition": {
+            "$ref": "#/components/schemas/AgentDefinition-Input"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "definition"
+        ],
+        "title": "AgentConfigurationEdit",
+        "type": "object"
+      },
+      "AgentConfigurationView": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/VisibleAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "agent_id": {
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "content_digest": {
+            "title": "Content Digest",
+            "type": "string"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/AgentDefinition-Output"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agent_id",
+          "revision",
+          "definition",
+          "content_digest",
+          "actions"
+        ],
+        "title": "AgentConfigurationView",
+        "type": "object"
+      },
       "AgentContextPolicy": {
         "additionalProperties": false,
         "properties": {
@@ -809,13 +864,6 @@
             "minLength": 1,
             "title": "Owner",
             "type": "string"
-          },
-          "version_label": {
-            "default": "初始草稿",
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Version Label",
-            "type": "string"
           }
         },
         "required": [
@@ -855,13 +903,6 @@
             "maxLength": 128,
             "minLength": 1,
             "title": "Owner",
-            "type": "string"
-          },
-          "version_label": {
-            "default": "初始草稿",
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Version Label",
             "type": "string"
           }
         },
@@ -1160,86 +1201,15 @@
           "agent": {
             "$ref": "#/components/schemas/AgentView"
           },
-          "differences": {
-            "items": {
-              "$ref": "#/components/schemas/AgentDifference"
-            },
-            "title": "Differences",
-            "type": "array"
-          },
-          "release_revision": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Release Revision"
-          },
-          "release_version_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Release Version Id"
-          },
-          "releases": {
-            "items": {
-              "$ref": "#/components/schemas/AgentReleaseView"
-            },
-            "title": "Releases",
-            "type": "array"
-          },
-          "versions": {
-            "items": {
-              "$ref": "#/components/schemas/AgentVersionView"
-            },
-            "title": "Versions",
-            "type": "array"
+          "configuration": {
+            "$ref": "#/components/schemas/AgentConfigurationView"
           }
         },
         "required": [
           "agent",
-          "versions",
-          "release_version_id",
-          "release_revision",
-          "releases",
-          "differences"
+          "configuration"
         ],
         "title": "AgentDetail",
-        "type": "object"
-      },
-      "AgentDifference": {
-        "additionalProperties": false,
-        "properties": {
-          "after": {
-            "title": "After"
-          },
-          "before": {
-            "title": "Before"
-          },
-          "field": {
-            "title": "Field",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "field",
-          "label",
-          "before",
-          "after"
-        ],
-        "title": "AgentDifference",
         "type": "object"
       },
       "AgentEdge": {
@@ -1560,155 +1530,6 @@
         "title": "AgentOptions",
         "type": "object"
       },
-      "AgentReleaseInput": {
-        "additionalProperties": false,
-        "properties": {
-          "environment": {
-            "enum": [
-              "dev",
-              "test",
-              "fat",
-              "prod"
-            ],
-            "title": "Environment",
-            "type": "string"
-          },
-          "evaluation_refs": {
-            "default": [],
-            "items": {
-              "maxLength": 128,
-              "minLength": 1,
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-              "type": "string"
-            },
-            "maxItems": 32,
-            "title": "Evaluation Refs",
-            "type": "array"
-          },
-          "expected_mapping_revision": {
-            "anyOf": [
-              {
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expected Mapping Revision"
-          },
-          "note": {
-            "maxLength": 1024,
-            "minLength": 1,
-            "title": "Note",
-            "type": "string"
-          },
-          "operation": {
-            "default": "publish",
-            "enum": [
-              "publish",
-              "rollback"
-            ],
-            "title": "Operation",
-            "type": "string"
-          },
-          "revision": {
-            "minimum": 1.0,
-            "title": "Revision",
-            "type": "integer"
-          },
-          "version_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Version Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "version_id",
-          "revision",
-          "environment",
-          "note"
-        ],
-        "title": "AgentReleaseInput",
-        "type": "object"
-      },
-      "AgentReleaseView": {
-        "additionalProperties": false,
-        "properties": {
-          "actor_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Actor Name"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "environment": {
-            "title": "Environment",
-            "type": "string"
-          },
-          "environment_label": {
-            "title": "Environment Label",
-            "type": "string"
-          },
-          "evidence_refs": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Evidence Refs",
-            "type": "array"
-          },
-          "note": {
-            "title": "Note",
-            "type": "string"
-          },
-          "operation": {
-            "title": "Operation",
-            "type": "string"
-          },
-          "operation_label": {
-            "title": "Operation Label",
-            "type": "string"
-          },
-          "release_id": {
-            "title": "Release Id",
-            "type": "string"
-          },
-          "version_id": {
-            "title": "Version Id",
-            "type": "string"
-          },
-          "version_label": {
-            "title": "Version Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "release_id",
-          "environment",
-          "environment_label",
-          "version_id",
-          "version_label",
-          "operation",
-          "operation_label",
-          "note",
-          "actor_name",
-          "created_at",
-          "evidence_refs"
-        ],
-        "title": "AgentReleaseView",
-        "type": "object"
-      },
       "AgentSkillLoading": {
         "additionalProperties": false,
         "properties": {
@@ -1799,8 +1620,9 @@
         "properties": {
           "operation": {
             "enum": [
+              "online",
               "offline",
-              "emergency_stop",
+              "disable",
               "enable"
             ],
             "title": "Operation",
@@ -2208,94 +2030,6 @@
         "title": "AgentValidation",
         "type": "object"
       },
-      "AgentVersionCreate": {
-        "additionalProperties": false,
-        "properties": {
-          "base_version_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Base Version Id",
-            "type": "string"
-          },
-          "version_label": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Version Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "version_label",
-          "base_version_id"
-        ],
-        "title": "AgentVersionCreate",
-        "type": "object"
-      },
-      "AgentVersionEdit": {
-        "additionalProperties": false,
-        "properties": {
-          "definition": {
-            "$ref": "#/components/schemas/AgentDefinition-Input"
-          },
-          "revision": {
-            "minimum": 1.0,
-            "title": "Revision",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "revision",
-          "definition"
-        ],
-        "title": "AgentVersionEdit",
-        "type": "object"
-      },
-      "AgentVersionView": {
-        "additionalProperties": false,
-        "properties": {
-          "actions": {
-            "items": {
-              "$ref": "#/components/schemas/VisibleAction"
-            },
-            "title": "Actions",
-            "type": "array"
-          },
-          "content_digest": {
-            "title": "Content Digest",
-            "type": "string"
-          },
-          "definition": {
-            "$ref": "#/components/schemas/AgentDefinition-Output"
-          },
-          "revision": {
-            "title": "Revision",
-            "type": "integer"
-          },
-          "status": {
-            "$ref": "#/components/schemas/DisplayStatus"
-          },
-          "version_id": {
-            "title": "Version Id",
-            "type": "string"
-          },
-          "version_label": {
-            "title": "Version Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "version_id",
-          "version_label",
-          "revision",
-          "status",
-          "definition",
-          "content_digest",
-          "actions"
-        ],
-        "title": "AgentVersionView",
-        "type": "object"
-      },
       "AgentView": {
         "additionalProperties": false,
         "properties": {
@@ -2318,9 +2052,20 @@
             "title": "Description",
             "type": "string"
           },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "online": {
+            "title": "Online",
+            "type": "boolean"
+          },
+          "online_status": {
+            "$ref": "#/components/schemas/DisplayStatus"
           },
           "owner": {
             "title": "Owner",
@@ -2342,6 +2087,9 @@
           "owner",
           "revision",
           "status",
+          "online_status",
+          "online",
+          "enabled",
           "actions"
         ],
         "title": "AgentView",
@@ -2679,20 +2427,6 @@
             ],
             "title": "Agent Id"
           },
-          "base_version_id": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Base Version Id"
-          },
           "idempotency_key": {
             "maxLength": 128,
             "minLength": 1,
@@ -2755,15 +2489,10 @@
             },
             "title": "Prompts",
             "type": "array"
-          },
-          "version_id": {
-            "title": "Version Id",
-            "type": "string"
           }
         },
         "required": [
-          "agent_id",
-          "version_id"
+          "agent_id"
         ],
         "title": "AssistanceSaved",
         "type": "object"
@@ -14593,7 +14322,8 @@
             "enum": [
               "DRAFT",
               "PUBLISHED",
-              "RETIRED"
+              "RETIRED",
+              "CURRENT"
             ],
             "title": "State",
             "type": "string"
@@ -15239,7 +14969,8 @@
             "enum": [
               "DRAFT",
               "PUBLISHED",
-              "RETIRED"
+              "RETIRED",
+              "CURRENT"
             ],
             "title": "State",
             "type": "string"
@@ -22452,1169 +22183,6 @@
         ]
       }
     },
-    "/admin/v1/agent-versions/{identifier}/release-check": {
-      "post": {
-        "operationId": "release_check_admin_v1_agent_versions__identifier__release_check_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "identifier",
-            "required": true,
-            "schema": {
-              "title": "Identifier",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AgentValidateInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentValidation"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Release Check",
-        "tags": [
-          "效果评测与发布门禁"
-        ]
-      }
-    },
-    "/admin/v1/agent-versions/{version_id}": {
-      "get": {
-        "operationId": "version_admin_v1_agent_versions__version_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "version_id",
-            "required": true,
-            "schema": {
-              "title": "Version Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentVersionView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Version",
-        "tags": [
-          "智能体与版本发布"
-        ]
-      },
-      "patch": {
-        "operationId": "edit_version_admin_v1_agent_versions__version_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "version_id",
-            "required": true,
-            "schema": {
-              "title": "Version Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AgentVersionEdit"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentVersionView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Edit Version",
-        "tags": [
-          "智能体与版本发布"
-        ]
-      }
-    },
-    "/admin/v1/agent-versions/{version_id}/tests": {
-      "post": {
-        "operationId": "test_admin_v1_agent_versions__version_id__tests_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "version_id",
-            "required": true,
-            "schema": {
-              "title": "Version Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AgentTestInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentTestView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Test",
-        "tags": [
-          "智能体与版本发布"
-        ]
-      }
-    },
-    "/admin/v1/agent-versions/{version_id}/validate": {
-      "post": {
-        "operationId": "validate_admin_v1_agent_versions__version_id__validate_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "version_id",
-            "required": true,
-            "schema": {
-              "title": "Version Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AgentValidateInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentValidation"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Validate",
-        "tags": [
-          "智能体与版本发布"
-        ]
-      }
-    },
     "/admin/v1/agents": {
       "get": {
         "operationId": "list_agents_admin_v1_agents_get",
@@ -23638,11 +22206,11 @@
           },
           {
             "in": "query",
-            "name": "published_only",
+            "name": "online_only",
             "required": false,
             "schema": {
               "default": false,
-              "title": "Published Only",
+              "title": "Online Only",
               "type": "boolean"
             }
           }
@@ -23854,7 +22422,7 @@
         ],
         "summary": "List Agents",
         "tags": [
-          "智能体与版本发布"
+          "智能体管理"
         ]
       },
       "post": {
@@ -24076,7 +22644,7 @@
         ],
         "summary": "Create",
         "tags": [
-          "智能体与版本发布"
+          "智能体管理"
         ]
       }
     },
@@ -24300,7 +22868,7 @@
         ],
         "summary": "Assist",
         "tags": [
-          "智能体与版本发布"
+          "智能体管理"
         ]
       }
     },
@@ -24525,7 +23093,7 @@
         ],
         "summary": "Assistance Turn",
         "tags": [
-          "智能体与版本发布"
+          "智能体管理"
         ]
       }
     },
@@ -24767,7 +23335,7 @@
         ],
         "summary": "Assistance Apply",
         "tags": [
-          "智能体与版本发布"
+          "智能体管理"
         ]
       }
     },
@@ -24981,7 +23549,7 @@
         ],
         "summary": "Options",
         "tags": [
-          "智能体与版本发布"
+          "智能体管理"
         ]
       }
     },
@@ -25209,7 +23777,7 @@
         ],
         "summary": "Delete",
         "tags": [
-          "智能体与版本发布"
+          "智能体管理"
         ]
       },
       "get": {
@@ -25432,7 +24000,7 @@
         ],
         "summary": "Detail",
         "tags": [
-          "智能体与版本发布"
+          "智能体管理"
         ]
       },
       "patch": {
@@ -25665,13 +24233,13 @@
         ],
         "summary": "Edit",
         "tags": [
-          "智能体与版本发布"
+          "智能体管理"
         ]
       }
     },
-    "/admin/v1/agents/{agent_id}/releases": {
-      "post": {
-        "operationId": "release_admin_v1_agents__agent_id__releases_post",
+    "/admin/v1/agents/{agent_id}/configuration": {
+      "get": {
+        "operationId": "configuration_admin_v1_agents__agent_id__configuration_get",
         "parameters": [
           {
             "in": "path",
@@ -25683,22 +24251,12 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AgentReleaseInput"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentDetail"
+                  "$ref": "#/components/schemas/AgentConfigurationView"
                 }
               }
             },
@@ -25898,9 +24456,242 @@
             "PlatformToken": []
           }
         ],
-        "summary": "Release",
+        "summary": "Configuration",
         "tags": [
-          "智能体与版本发布"
+          "智能体管理"
+        ]
+      },
+      "patch": {
+        "operationId": "edit_configuration_admin_v1_agents__agent_id__configuration_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentConfigurationEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentConfigurationView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Edit Configuration",
+        "tags": [
+          "智能体管理"
         ]
       }
     },
@@ -26135,13 +24926,13 @@
         ],
         "summary": "State",
         "tags": [
-          "智能体与版本发布"
+          "智能体管理"
         ]
       }
     },
-    "/admin/v1/agents/{agent_id}/versions": {
+    "/admin/v1/agents/{agent_id}/tests": {
       "post": {
-        "operationId": "create_version_admin_v1_agents__agent_id__versions_post",
+        "operationId": "test_admin_v1_agents__agent_id__tests_post",
         "parameters": [
           {
             "in": "path",
@@ -26157,18 +24948,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AgentVersionCreate"
+                "$ref": "#/components/schemas/AgentTestInput"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "201": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentVersionView"
+                  "$ref": "#/components/schemas/AgentTestView"
                 }
               }
             },
@@ -26368,9 +25159,479 @@
             "PlatformToken": []
           }
         ],
-        "summary": "Create Version",
+        "summary": "Test",
         "tags": [
-          "智能体与版本发布"
+          "智能体管理"
+        ]
+      }
+    },
+    "/admin/v1/agents/{agent_id}/validate": {
+      "post": {
+        "operationId": "validate_admin_v1_agents__agent_id__validate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentValidateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentValidation"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Validate",
+        "tags": [
+          "智能体管理"
+        ]
+      }
+    },
+    "/admin/v1/agents/{identifier}/evaluation-check": {
+      "post": {
+        "operationId": "evaluation_check_admin_v1_agents__identifier__evaluation_check_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentValidateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentValidation"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Evaluation Check",
+        "tags": [
+          "效果评测与发布门禁"
         ]
       }
     },
@@ -43108,6 +42369,16 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "latest",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Latest",
+              "type": "boolean"
             }
           }
         ],
@@ -96345,6 +95616,16 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "latest",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Latest",
+              "type": "boolean"
             }
           },
           {

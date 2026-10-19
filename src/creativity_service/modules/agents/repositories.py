@@ -1,4 +1,4 @@
-"""智能体仓储按受信渠道查询；公共版本和环境映射保持唯一真值。"""
+"""智能体仓储按受信渠道查询；当前配置和环境状态保持唯一真值。"""
 
 from typing import Any
 
@@ -48,5 +48,5 @@ async def required(
 ) -> dict[str, Any]:
     row = await repository(name, scope).get(connection, identifier)
     if row is None:
-        raise ServiceError("DEPENDENCY_INVALID", "当前渠道缺少所需资源或版本", 422)
+        raise ServiceError("DEPENDENCY_INVALID", "当前渠道缺少所需资源", 422)
     return row
