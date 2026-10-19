@@ -9,8 +9,8 @@
     "mcp_connection_id": "mcp_799886052a5241f4828df8660c16e249",
     "additional_mcp": {
       "connection_id": "mcp_958f6660827343b29ed5f9d90ed44c64",
-      "captured_at": "2026-10-17T14:13:48.185922+08:00",
-      "description": "从开发环境只读采集陪玩服务的当前连接、鉴权与最新发现配置，不导入本地工具、运行或检查历史。"
+      "captured_at": "2026-10-19T02:57:07.404620+00:00",
+      "description": "只读采集陪玩服务当前连接、鉴权及销售推荐目录工具使用的发现契约；工具与智能体单独收录在销售推荐归档。"
     }
   },
   "tables": {
@@ -177,8 +177,8 @@
         "id": "mcp_958f6660827343b29ed5f9d90ed44c64",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
         "created_at": "2026-10-17T05:01:56.380611+00:00",
-        "updated_at": "2026-10-17T05:07:01.034615+00:00",
-        "revision": 10,
+        "updated_at": "2026-10-17T09:43:46.791177+00:00",
+        "revision": 13,
         "environment": "dev",
         "name": "陪玩服务 - 测试环境",
         "transport": "streamable_http",
@@ -199,10 +199,10 @@
           "interval_seconds": 300,
           "failure_threshold": 3
         },
-        "last_check_at": "2026-10-17T05:06:42.868658+00:00",
+        "last_check_at": "2026-10-17T09:43:46.790285+00:00",
         "auth_failed": false,
         "health_actor_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "next_check_at": "2026-10-17T05:11:42.868680+00:00",
+        "next_check_at": "2026-10-17T09:48:46.790288+00:00",
         "authentication": {
           "mode": "client_credentials",
           "app_id": "mcp_7c2c319d4ec44f6b83ae998486f22be2",
@@ -673,10 +673,10 @@
         "is_deleted": false
       },
       {
-        "id": "discovery_fbd7b02f5def41779d4b2e89858226c3",
+        "id": "discovery_527ee5f4340342e79f4d999344606e1c",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-17T05:06:42.866301+00:00",
-        "updated_at": "2026-10-17T05:06:42.866301+00:00",
+        "created_at": "2026-10-17T09:43:46.787581+00:00",
+        "updated_at": "2026-10-17T09:43:46.787581+00:00",
         "revision": 1,
         "environment": "dev",
         "connection_id": "mcp_958f6660827343b29ed5f9d90ed44c64",
@@ -692,8 +692,8 @@
               "idempotentHint": true,
               "destructiveHint": false
             },
-            "description": "查询指定租户已上架且有可售规格的服务项目。tenantId 必填；同一应用可查询不同租户。价格是每个计价单位的整组报价。hasMore 为 true 时须原样使用 nextCursor 继续查询，空页也可能有续页，直至 hasMore 为 false。",
-            "schema_hash": "abdbe2986d68fca44c382176ee88661a430ab01ce66b027e234a899c05b61b9e",
+            "description": "查询指定租户已上架且有可售规格的服务项目，返回 SPU 产品介绍、SKU 介绍及规格、玩法、分类、价格、单位和购买数量规则。SKU introductionMarkdown 非空时整篇替换 SPU 介绍，空时沿用 SPU，双方为空表示无介绍；介绍中的图片属于正文，不能据图片地址推断内容。tenantId 必填；同一应用可查询不同租户。价格是每个计价单位的整组报价。游戏和分类编码可用于后续精确筛选。hasMore 为 true 时须原样使用 nextCursor 继续查询，空页也可能有续页，直至 hasMore 为 false。",
+            "schema_hash": "33168ab956e0657b5d0ca0253b357ebc1b1e4fcfa83a24d800d5f9a808fc1b78",
             "input_schema": {
               "type": "object",
               "required": [
@@ -702,30 +702,36 @@
               "properties": {
                 "cursor": {
                   "type": "string",
+                  "title": "续查游标",
                   "maxLength": 4096,
                   "minLength": 1
                 },
                 "keyword": {
                   "type": "string",
+                  "title": "服务名称关键词",
                   "maxLength": 100
                 },
                 "gameCode": {
                   "type": "string",
+                  "title": "游戏编码",
                   "maxLength": 100
                 },
                 "pageSize": {
                   "type": "integer",
+                  "title": "每页条数",
                   "default": 20,
                   "maximum": 50,
                   "minimum": 1
                 },
                 "tenantId": {
                   "type": "string",
+                  "title": "租户标识",
                   "pattern": "^[1-9][0-9]{0,18}$",
                   "description": "本次查询的租户 ID，必须显式提供"
                 },
                 "categoryCode": {
                   "type": "string",
+                  "title": "分类编码",
                   "maxLength": 100
                 }
               },
@@ -733,6 +739,7 @@
             },
             "output_schema": {
               "type": "object",
+              "title": "可售服务分析目录",
               "required": [
                 "tenantId",
                 "items",
@@ -745,34 +752,311 @@
                 "items": {
                   "type": "array",
                   "items": {
-                    "type": "object"
-                  }
+                    "type": "object",
+                    "title": "服务分析摘要",
+                    "required": [
+                      "id",
+                      "name",
+                      "gameplay",
+                      "introductionMarkdown",
+                      "skus",
+                      "game",
+                      "category",
+                      "tags",
+                      "availableSkuCount",
+                      "minPrice",
+                      "maxPrice",
+                      "priceBasis",
+                      "billingUnit",
+                      "pricingUnit",
+                      "quantity"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "title": "服务项目标识",
+                        "description": "用于去重与引用，展示时使用服务名称"
+                      },
+                      "game": {
+                        "type": "object",
+                        "title": "适用游戏",
+                        "required": [
+                          "code",
+                          "name"
+                        ],
+                        "properties": {
+                          "code": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "title": "游戏筛选编码",
+                            "description": "可作为后续查询的 gameCode，不能代替游戏名称展示"
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "title": "游戏名称"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "title": "服务名称"
+                      },
+                      "skus": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "title": "可售规格",
+                          "required": [
+                            "id",
+                            "people",
+                            "players",
+                            "levelName",
+                            "attributes",
+                            "price",
+                            "introductionMarkdown"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "title": "规格标识",
+                              "description": "用于准确引用规格，不能代替可读规格信息展示"
+                            },
+                            "price": {
+                              "type": "string",
+                              "title": "规格单价",
+                              "pattern": "^[0-9]+(?:\\.[0-9]+)?$",
+                              "description": "该规格每个计价单位的整组报价，单位为产品 billingUnit.name／pricingUnit.name"
+                            },
+                            "people": {
+                              "type": "integer",
+                              "title": "陪玩人数",
+                              "minimum": 1
+                            },
+                            "players": {
+                              "type": "integer",
+                              "title": "玩家人数",
+                              "minimum": 1
+                            },
+                            "levelName": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "title": "最低技术等级名称",
+                              "description": "未启用技术等级或名称缺失时为空，不用等级编码代替"
+                            },
+                            "attributes": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "title": "规格选项",
+                                "required": [
+                                  "name",
+                                  "value"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "title": "规格名称"
+                                  },
+                                  "value": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "title": "选项名称"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              "title": "自定义规格"
+                            },
+                            "introductionMarkdown": {
+                              "type": "string",
+                              "title": "SKU 产品介绍",
+                              "description": "规格自身的完整 Markdown 介绍；非空时整篇替换 SPU 介绍，空时沿用 SPU，双方为空表示无介绍。只返回该 SKU 自身正文，避免重复展开 SPU"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "title": "可售 SKU 及产品介绍",
+                        "minItems": 1
+                      },
+                      "tags": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "title": "服务标签"
+                      },
+                      "category": {
+                        "type": "object",
+                        "title": "服务分类",
+                        "required": [
+                          "code",
+                          "name"
+                        ],
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                            "title": "分类筛选编码",
+                            "description": "可作为后续查询的 categoryCode，不能代替分类名称展示"
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "title": "分类名称"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "gameplay": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "title": "具体玩法"
+                      },
+                      "maxPrice": {
+                        "type": "string",
+                        "title": "最高单价",
+                        "pattern": "^[0-9]+(?:\\.[0-9]+)?$",
+                        "description": "可售规格的最高整组单价，单位为 billingUnit.name／pricingUnit.name"
+                      },
+                      "minPrice": {
+                        "type": "string",
+                        "title": "最低单价",
+                        "pattern": "^[0-9]+(?:\\.[0-9]+)?$",
+                        "description": "可售规格的最低整组单价，单位为 billingUnit.name／pricingUnit.name"
+                      },
+                      "quantity": {
+                        "type": "object",
+                        "title": "购买数量规则",
+                        "required": [
+                          "min",
+                          "step",
+                          "max"
+                        ],
+                        "properties": {
+                          "max": {
+                            "type": "string",
+                            "title": "最多购买数量",
+                            "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+                          },
+                          "min": {
+                            "type": "string",
+                            "title": "最少购买数量",
+                            "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+                          },
+                          "step": {
+                            "type": "string",
+                            "title": "购买数量步长",
+                            "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+                          }
+                        },
+                        "description": "数量单位为 pricingUnit.name，按 min 加 step 的整数倍购买，不能超过 max",
+                        "additionalProperties": false
+                      },
+                      "priceBasis": {
+                        "type": "string",
+                        "const": "每个计价单位的整组服务报价",
+                        "title": "报价口径"
+                      },
+                      "billingUnit": {
+                        "type": "object",
+                        "title": "记账单位",
+                        "required": [
+                          "name"
+                        ],
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "title": "记账单位名称",
+                            "minLength": 1
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "pricingUnit": {
+                        "type": "object",
+                        "title": "计价单位",
+                        "required": [
+                          "name"
+                        ],
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "title": "计价单位名称",
+                            "minLength": 1
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "availableSkuCount": {
+                        "type": "integer",
+                        "title": "可售规格数量",
+                        "minimum": 1
+                      },
+                      "introductionMarkdown": {
+                        "type": "string",
+                        "title": "SPU 产品介绍",
+                        "description": "已发布的完整 Markdown 介绍，保留正文中的图片；旧产品仅在缺失新字段时合并服务内容、参与条件、履约及售后说明，明确清空的新介绍不会恢复旧内容"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "title": "可售服务项目",
+                  "maxItems": 50
                 },
                 "hasMore": {
-                  "type": "boolean"
+                  "type": "boolean",
+                  "title": "是否有续页"
                 },
                 "tenantId": {
-                  "type": "string"
+                  "type": "string",
+                  "title": "本次查询的租户标识"
                 },
                 "nextCursor": {
                   "type": [
                     "string",
                     "null"
-                  ]
+                  ],
+                  "title": "下一页游标",
+                  "description": "有续页时原样传入下次查询，无续页时为空"
                 },
                 "observedAt": {
                   "type": "string",
+                  "title": "数据观察时间",
                   "format": "date-time"
                 },
                 "returnedCount": {
-                  "type": "integer"
+                  "type": "integer",
+                  "title": "本页返回条数",
+                  "maximum": 50,
+                  "minimum": 0,
+                  "description": "仅为当前页条数，不代表全部可售服务数量"
                 }
-              }
+              },
+              "additionalProperties": false
             }
           }
         ],
         "schema_hashes": {
-          "playmate_catalog.list_available_services": "abdbe2986d68fca44c382176ee88661a430ab01ce66b027e234a899c05b61b9e"
+          "playmate_catalog.list_available_services": "33168ab956e0657b5d0ca0253b357ebc1b1e4fcfa83a24d800d5f9a808fc1b78"
         },
         "negotiated_version": "2025-11-25",
         "credential_revision": 1,

@@ -16,6 +16,7 @@ from creativity_service.modules.models.schemas import ProviderView
 from scripts import render_init_sql
 from scripts.render_gpt_seed import load_gpt, merge_gpt
 from scripts.render_order_guidance_seed import load_guidance, merge_guidance, validate_guidance
+from scripts.render_sales_seed import load_sales, merge_sales
 from scripts.restore_init_objects import archived_objects
 
 
@@ -162,6 +163,7 @@ def test_seed_contains_platform_and_channel_concurrency_limits_with_frozen_versi
     assert data.count("INSERT INTO budget_policies ") == len(tenants)
     combined = merge_guidance(tables, load_guidance(tables)["tables"])
     combined = merge_gpt(combined, load_gpt(combined)["tables"])
+    combined = merge_sales(combined, load_sales(combined)["tables"])
     assert data.count("INSERT INTO resource_versions ") == len(combined["resource_versions"])
     assert "platform_quota_occupancies" not in data
     assert "INSERT INTO admissions " not in data
@@ -458,14 +460,15 @@ def test_generated_sql_contains_configuration_without_history():
     assert "INSERT INTO mcp_imports " in sql
     assert sql.count("INSERT INTO models ") == 2
     assert sql.count("INSERT INTO mcp_connections ") == 2
-    assert sql.count("INSERT INTO agents ") == 1
-    assert sql.count("INSERT INTO skills ") == 1
-    assert sql.count("INSERT INTO prompts ") == 1
-    assert sql.count("INSERT INTO tools ") == 7
+    assert sql.count("INSERT INTO agents ") == 2
+    assert sql.count("INSERT INTO skills ") == 3
+    assert sql.count("INSERT INTO prompts ") == 3
+    assert sql.count("INSERT INTO tools ") == 8
     assert "INSERT INTO prompt_samples " not in sql
     assert "weather" not in sql.lower() and "天气" not in sql
     assert "陪玩服务 - 测试环境" in sql
     assert "订单协助助手" in sql
+    assert "销售项目推荐助手" in sql
 
 
 @pytest.mark.parametrize("fault", ["credential", "revision", "discovery", "environment"])
@@ -494,7 +497,13 @@ def test_playmate_mcp_archive_requires_matching_configuration(fault):
 def test_sql_contains_complete_skill_object_without_external_file_dependency():
     base = json.loads(render_init_sql.SEED.read_text())["tables"]
     guidance = load_guidance(base)
-    assert archived_objects(render_init_sql.DATA_ARCHIVE) == guidance["objects"]
+    base = merge_guidance(base, guidance["tables"])
+    base = merge_gpt(base, load_gpt(base)["tables"])
+    sales = load_sales(base)
+    assert archived_objects(render_init_sql.DATA_ARCHIVE) == [
+        *guidance["objects"],
+        *sales["objects"],
+    ]
 
 
 @pytest.mark.parametrize(

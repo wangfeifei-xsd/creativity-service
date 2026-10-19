@@ -27,6 +27,7 @@ def test_gpt_archive_restores_published_text_route_and_transitive_connection(arc
     assert route["content"]["required_capabilities"] == ["text"]
     assert route["content"]["primary_model"] == model["id"]
     assert route["content"]["fallback_models"] == []
+    assert route["content"]["parameters"] == {"max_tokens": 4096}
     assert model["capabilities"]["text"]["state"] == "SUPPORTED"
     assert model["capabilities"]["tools"]["state"] == "UNSUPPORTED"
     assert all("test_id" not in item for item in model["capabilities"].values())

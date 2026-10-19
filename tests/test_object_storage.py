@@ -223,11 +223,12 @@ def test_oss_startup_failure_is_safe_and_never_starts_local_storage(settings, mo
 
 
 @pytest.mark.parametrize("concurrent", [False, True])
+@pytest.mark.parametrize("object_index", [0, 1])
 async def test_seed_restore_never_overwrites_and_verifies_concurrent_upload(
-    settings, sdk_transport, concurrent
+    settings, sdk_transport, concurrent, object_index
 ):
     seen, pending = sdk_transport
-    item = restore_init_objects.archived_objects(Path("sql/init_data.sql"))[0]
+    item = restore_init_objects.archived_objects(Path("sql/init_data.sql"))[object_index]
     data = object_bytes(item)
     pending.append((404, b"<Error><Code>NoSuchKey</Code></Error>", {}))
     pending.append(
@@ -239,6 +240,7 @@ async def test_seed_restore_never_overwrites_and_verifies_concurrent_upload(
     await restore_init_objects.restore_objects(settings, [item], check_only=False)
     assert [request.method for request, _ in seen] == ["GET", "PUT", "GET"]
     assert seen[1][0].headers["x-oss-forbid-overwrite"] == "true"
+    assert seen[1][0].headers["x-oss-object-acl"] == ("public-read" if object_index else "private")
 
 
 async def test_seed_check_reports_missing_object_without_uploading(settings, sdk_transport):

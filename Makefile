@@ -69,6 +69,10 @@ sql:
 sql-check:
 	uv run python -m scripts.render_init_sql --check
 
+.PHONY: init-import
+init-import:
+	uv run --locked python -m scripts.import_init_archive
+
 infra-up:
 	./scripts/start-local.sh --infra-only
 

@@ -1,7 +1,7 @@
 {
   "source": {
     "description": "只读采集 ChatGTP 连接、GPT-6.1 Sol 模型和 GTP6.1路由的当前配置及必要依赖；保留真实能力摘要，移除测试记录关联，不包含运行、用量、测试或操作历史。",
-    "captured_at": "2026-10-14T18:13:13.038660+08:00",
+    "captured_at": "2026-10-19T02:57:07.404620+00:00",
     "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
     "environment": "dev",
     "route_id": "route_b9c745d37653438b891f2026414e7afe"
@@ -51,8 +51,8 @@
         "id": "route_b9c745d37653438b891f2026414e7afe",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
         "created_at": "2026-10-14T09:33:49.883027+00:00",
-        "updated_at": "2026-10-14T09:34:12.679690+00:00",
-        "revision": 2,
+        "updated_at": "2026-10-19T02:26:31.782737+00:00",
+        "revision": 3,
         "code": "gpt-6.1-sol",
         "name": "GTP6.1路由",
         "status": "ACTIVE",
@@ -160,8 +160,8 @@
         "id": "route_b9c745d37653438b891f2026414e7afe",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
         "created_at": "2026-10-14T09:34:12.683836+00:00",
-        "updated_at": "2026-10-14T09:53:17.884877+00:00",
-        "revision": 2,
+        "updated_at": "2026-10-19T02:26:31.821207+00:00",
+        "revision": 3,
         "resource_type": "model_route",
         "resource_id": "route_b9c745d37653438b891f2026414e7afe",
         "version_label": "当前配置",
@@ -179,7 +179,9 @@
               "model_id": "model_7531f43ba7f548a681588866d9817afb",
               "protocol": "chat_completions",
               "model_name": "GPT-6.1 Sol",
-              "parameters": {},
+              "parameters": {
+                "max_tokens": 4096
+              },
               "config_digest": "c3c624a6d8b2c885dac40991374e35953758c904e4478aaa5bf3af0d6521c0d7",
               "connection_id": "connection_a1add463c6f14cdb9c26377e88bbafb5",
               "model_revision": 5,
@@ -194,7 +196,9 @@
               "provider_credential_id": "credential_0c769d412a39419695511363d4c66f1f"
             }
           ],
-          "parameters": {},
+          "parameters": {
+            "max_tokens": 4096
+          },
           "retry_policy": {
             "max_attempts": 3,
             "retries_per_model": 0
@@ -209,7 +213,7 @@
             "text"
           ]
         },
-        "content_digest": "463693afc7e3515999b12a4bc260d2d1c7118c7d017ed403b81bcf6bcf7987b6",
+        "content_digest": "bca480256c3f7adf2218e6b5cbf863ab408b2f5b6815d7c08325fecad1686287",
         "dependencies": [
           "version_2f87b035e57a475eb666f6ef98d22e89",
           "version_719acda97f9245f18958556dec3e7ed5"
