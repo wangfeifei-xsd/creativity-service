@@ -25,13 +25,14 @@ from scripts.render_archive import (
     validate_configuration_references,
 )
 from scripts.render_order_guidance_seed import validate_mcp_configuration
+from scripts.render_sales_access import ACCESS_TABLES, validate_sales_access
 
 SALES_SEED = Path(__file__).resolve().parents[1] / "sql/sales_recommendation_data.json"
 SALES_TABLES = frozenset(
     "agent_environment_states "
     "agents prompts skills tools skill_files resource_versions resource_references "
     "release_mappings source_links mcp_imports".split()
-)
+) | ACCESS_TABLES
 RESOURCE_TABLES = {"agent": "agents", "prompt": "prompts", "skill": "skills", "tool": "tools"}
 
 
@@ -115,8 +116,9 @@ def validate_sales(seed: dict[str, Any], base: dict[str, Any]) -> None:
             if set(row) != set(metadata.tables[name].c.keys()):
                 raise ValueError(f"{name} 字段与模型不一致")
             validate_row(metadata.tables[name], typed_archive_values(metadata.tables[name], row))
+            expected_channel = "system" if name == "key_identity_index" else scope.channel_id
             if (
-                row["channel_id"] != scope.channel_id
+                row["channel_id"] != expected_channel
                 or row.get("environment", "dev") != "dev"
                 or row.get("subject_type") is not None
                 or row.get("subject_id") is not None
@@ -152,6 +154,14 @@ def validate_sales(seed: dict[str, Any], base: dict[str, Any]) -> None:
             raise ValueError("销售推荐配置状态、摘要或依赖不一致")
     if len(tables["agents"]) != 1 or tables["agents"][0]["id"] != source["agent_id"]:
         raise ValueError("销售推荐智能体主档缺失或重复")
+    states = tables["agent_environment_states"]
+    if (
+        tables["agents"][0]["status"] != "ACTIVE"
+        or len(states) != 1
+        or states[0]["agent_id"] != source["agent_id"]
+        or states[0]["is_online"] is not True
+    ):
+        raise ValueError("销售推荐闭环初始化要求智能体已上线且启用")
     agent_version = versions[source["version_id"]]
     definition = AgentDefinition.model_validate(agent_version["content"])
     if (
@@ -169,7 +179,7 @@ def validate_sales(seed: dict[str, Any], base: dict[str, Any]) -> None:
     if {r["version_id"] for r in tables["release_mappings"]} != expected_releases or len(
         tables["release_mappings"]
     ) != len(expected_releases):
-        raise ValueError("销售推荐依赖发布映射缺失，智能体须保持下线")
+        raise ValueError("销售推荐依赖发布映射缺失，智能体使用单份当前配置")
     for row in tables["release_mappings"]:
         version = versions[row["version_id"]]
         if (row["resource_type"], row["resource_id"]) != (
@@ -229,6 +239,7 @@ def validate_sales(seed: dict[str, Any], base: dict[str, Any]) -> None:
         raise ValueError("销售推荐目录工具契约、只读或主体要求不一致")
     validate_url_objects(seed["objects"], index)
     validate_configuration_references(index)
+    validate_sales_access(seed, index)
 
 
 def load_sales(base: dict[str, Any]) -> dict[str, Any]:

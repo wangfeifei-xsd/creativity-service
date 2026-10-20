@@ -30,6 +30,10 @@ class CredentialService:
         self.engine, self.keys = engine, keys
         self.authorization = authorization or DenyAuthorization()
 
+    def with_authorization(self, authorization: Authorization) -> "CredentialService":
+        """为已校验的资源绑定创建调用级授权，不修改共享凭据服务。"""
+        return CredentialService(self.engine, self.keys, authorization)
+
     @staticmethod
     def aad(context: AuthContext, credential_id: str, purpose: str) -> bytes:
         return canonical_json(

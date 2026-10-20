@@ -46,6 +46,17 @@ class ChannelUpdate(Contract):
     retention_policy: RetentionPolicy | None = None
 
 
+class AdministratorAccessUpdate(Contract):
+    revision: Revision
+    independent_actions: list[IndependentAction] = Field(max_length=len(INDEPENDENT_ACTIONS))
+
+
+class AdministratorAccessView(AdministratorAccessUpdate):
+    administrator_name: str
+    environments: list[Environment]
+    environment_names: list[str]
+
+
 class EnvironmentCreate(Contract):
     environment: Environment
     name: str = Field(min_length=1, max_length=128)

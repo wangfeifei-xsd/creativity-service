@@ -149,7 +149,27 @@ class LiteLLMAdapter:
                             emitted = True
                         await queue.put(event)
 
-                await self.client.call(context, current, invoke, before_send, capture)
+                class BoundModelCredentialAuthorization:
+                    async def require(
+                        self, original: AuthContext, action: str, resource_id: str
+                    ) -> None:
+                        # 使用模型只可调用已复核连接的凭据，不授予独立凭据权限。
+                        if (
+                            original != context
+                            or action != "credential:use"
+                            or resource_id != current.provider_credential_id
+                        ):
+                            raise ServiceError("FORBIDDEN", "凭据不属于本次模型绑定", 403)
+                        await before_send()
+
+                await self.client.call(
+                    context,
+                    current,
+                    invoke,
+                    before_send,
+                    capture,
+                    credential_authorization=BoundModelCredentialAuthorization(),
+                )
                 source_id = capture.request_id or capture.response_id or attempt.attempt_id
                 await queue.put(
                     ModelEvent(

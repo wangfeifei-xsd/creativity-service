@@ -8,6 +8,7 @@ from creativity_service.core.primitives import ServiceError, digest
 from scripts.render_gpt_seed import load_gpt, merge_gpt
 from scripts.render_init_sql import SEED
 from scripts.render_order_guidance_seed import load_guidance, merge_guidance
+from scripts.render_sales_access import ACCESS_SCOPES
 from scripts.render_sales_seed import load_sales, merge_sales, validate_sales
 
 
@@ -18,13 +19,13 @@ def archived_base():
     return merge_gpt(base, load_gpt(base)["tables"])
 
 
-def test_sales_seed_keeps_offline_agent_with_all_current_dependencies(archived_base):
+def test_sales_seed_keeps_online_agent_with_complete_client_access(archived_base):
     seed = load_sales(archived_base)
     tables = seed["tables"]
     versions = {row["id"]: row for row in tables["resource_versions"]}
     agent = versions[seed["source"]["version_id"]]
     assert agent["state"] == "CURRENT"
-    assert tables["agent_environment_states"][0]["is_online"] is False
+    assert tables["agent_environment_states"][0]["is_online"] is True
     assert agent["content"]["context"]["context_limit"] == 32000
     assert agent["content"]["limits"]["token_limit"] == 96000
     assert len(agent["content"]["steps"]) == 6
@@ -36,6 +37,56 @@ def test_sales_seed_keeps_offline_agent_with_all_current_dependencies(archived_b
     assert all(row["resource_type"] != "agent" for row in tables["release_mappings"])
     assert len(seed["objects"]) == 2
     assert len(merge_sales(archived_base, tables)["agents"]) == 2
+    assert set(tables["service_clients"][0]["scopes"]) == ACCESS_SCOPES
+    assert tables["channel_keys"][0]["last_used_at"] is None
+    assert tables["credentials"][0]["secret_value"] is None
+    assert tables["subject_review_bindings"][0]["enabled"] is True
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "offline_agent",
+        "missing_client",
+        "extra_scope",
+        "key_usage",
+        "lookup_scope",
+        "delegation_client",
+        "plaintext",
+        "missing_review",
+        "review_contract",
+        "missing_admin_access",
+    ],
+)
+def test_sales_seed_rejects_broken_client_access(archived_base, fault):
+    seed = load_sales(archived_base)
+    tables = seed["tables"]
+    if fault == "offline_agent":
+        tables["agent_environment_states"][0]["is_online"] = False
+    elif fault == "missing_client":
+        tables["service_clients"] = []
+    elif fault == "extra_scope":
+        tables["channel_keys"][0]["scopes"].append("data:export")
+    elif fault == "key_usage":
+        tables["channel_keys"][0]["last_used_at"] = seed["source"]["captured_at"]
+    elif fault == "lookup_scope":
+        tables["key_identity_index"][0]["target_channel_id"] = "another-channel"
+    elif fault == "delegation_client":
+        tables["delegation_keys"][0]["client_id"] = "another-client"
+    elif fault == "plaintext":
+        tables["credentials"][0]["secret_value"] = "must-not-be-archived"
+    elif fault == "missing_review":
+        tables["subject_review_bindings"] = []
+    elif fault == "review_contract":
+        tables["subject_review_bindings"][0]["schema_hash"] = "0" * 64
+    else:
+        for grant in archived_base["resource_grants"]:
+            if grant["resource_type"] == "channel":
+                grant["allowed_actions"] = [
+                    action for action in grant["allowed_actions"] if action != "data:read_sensitive"
+                ]
+    with pytest.raises(ValueError):
+        validate_sales(seed, archived_base)
 
 
 @pytest.mark.parametrize(

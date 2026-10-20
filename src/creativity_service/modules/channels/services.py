@@ -28,6 +28,8 @@ from creativity_service.modules.channels.repositories import (
     save,
 )
 from creativity_service.modules.channels.schemas import (
+    AdministratorAccessUpdate,
+    AdministratorAccessView,
     ChannelCreate,
     ChannelUpdate,
     ChannelView,
@@ -44,16 +46,23 @@ from creativity_service.modules.channels.schemas import (
 from creativity_service.modules.iam.access import ENVIRONMENT_NAMES
 from creativity_service.modules.iam.account_channels import extend_environment_assignments
 from creativity_service.modules.iam.accounts import current_actor
-from creativity_service.modules.iam.audit import append_event
+from creativity_service.modules.iam.audit import append_event, audit_ranges
 from creativity_service.modules.iam.authorization import (
     effective_actions,
     platform_actions,
     require_platform,
 )
 from creativity_service.modules.iam.repositories import (
+    membership_id,
     policy_key,
 )
-from creativity_service.modules.iam.roles import ACTION_NAMES
+from creativity_service.modules.iam.repositories import (
+    one as identity_one,
+)
+from creativity_service.modules.iam.repositories import (
+    save as save_identity,
+)
+from creativity_service.modules.iam.roles import ACTION_NAMES, INDEPENDENT_ACTIONS
 from creativity_service.modules.iam.schemas import AuditView, DirectoryPage
 from creativity_service.modules.iam.services import IamServices
 
@@ -421,6 +430,93 @@ class ChannelService:
                 )
             )
         return self.channel_view(row, session, actions)
+
+    async def administrator_access(
+        self, session: AdminSession, channel_id: str
+    ) -> AdministratorAccessView:
+        """平台显式管理首位管理员的初始独立授权，不自动赋予治理者原文权限。"""
+        await self.authorize(session, channel_id, "channel:manage")
+        if isinstance(session.context, AuthContext):
+            raise ServiceError("FORBIDDEN", "请在平台管理中调整独立授权", 403)
+        async with self.repository.engine.connect() as connection:
+            await required(connection, "channels", channel_id, id=channel_id)
+            administrator = await self.iam.access.first_administrator(connection, channel_id)
+            if not administrator:
+                raise ServiceError("NOT_FOUND", "有效首位管理员不存在", 404)
+            grant_id = "initial_" + membership_id(channel_id, administrator["user_id"])
+            grant = await identity_one(connection, "resource_grants", channel_id, id=grant_id)
+            if not grant:
+                raise ServiceError("NOT_FOUND", "初始授权不存在", 404)
+        return self.administrator_access_view(administrator, grant)
+
+    @staticmethod
+    def administrator_access_view(
+        administrator: dict[str, Any], grant: dict[str, Any]
+    ) -> AdministratorAccessView:
+        return AdministratorAccessView(
+            administrator_name=administrator["display_name"] or "名称不可用",
+            environments=grant["environments"],
+            environment_names=[ENVIRONMENT_NAMES[env] for env in grant["environments"]],
+            independent_actions=sorted(set(grant["allowed_actions"]) & INDEPENDENT_ACTIONS),
+            revision=grant["revision"],
+        )
+
+    async def update_administrator_access(
+        self, session: AdminSession, channel_id: str, body: AdministratorAccessUpdate
+    ) -> AdministratorAccessView:
+        await self.authorize(session, channel_id, "channel:manage")
+        if isinstance(session.context, AuthContext):
+            raise ServiceError("FORBIDDEN", "请在平台管理中调整独立授权", 403)
+        if len(body.independent_actions) != len(set(body.independent_actions)):
+            raise ServiceError("VALIDATION_ERROR", "独立授权不能重复", 422)
+        async with self.repository.engine.connect() as connection:
+            administrator = await self.iam.access.first_administrator(connection, channel_id)
+        if not administrator:
+            raise ServiceError("NOT_FOUND", "有效首位管理员不存在", 404)
+        grant_id = "initial_" + membership_id(channel_id, administrator["user_id"])
+        event_id = new_id("audit")
+        async with transaction(
+            self.repository.engine,
+            self.scope(session, channel_id),
+            self.keys(channel_id, "resource_grants", grant_id, event_id),
+        ) as uow:
+            await self.locked(uow, session, "channel:manage")
+            # 锁内复核目标与环境，禁止并发撤回成员后补授或扩大成员环境。
+            current = await self.iam.access.first_administrator(uow.connection, channel_id)
+            if not current or current["user_id"] != administrator["user_id"]:
+                raise ServiceError("REVISION_CONFLICT", "管理员已变更，请刷新后重试", 409)
+            account = await identity_one(
+                uow.connection, "platform_accounts", "system", id=current["user_id"]
+            )
+            if not account or account["status"] != "ACTIVE":
+                raise ServiceError("ACCOUNT_DISABLED", "管理员账号已停用", 403)
+            grant = await identity_one(uow.connection, "resource_grants", channel_id, id=grant_id)
+            if not grant:
+                raise ServiceError("NOT_FOUND", "初始授权不存在", 404)
+            if not set(grant["environments"]) <= set(current["environments"]):
+                raise ServiceError("GRANT_SCOPE_EXCEEDED", "授权环境超出成员范围", 403)
+            actions = (set(grant["allowed_actions"]) - INDEPENDENT_ACTIONS) | set(
+                body.independent_actions
+            )
+            saved = await save_identity(
+                uow,
+                "resource_grants",
+                grant_id,
+                {"allowed_actions": sorted(actions)},
+                body.revision,
+            )
+            await append_event(
+                uow,
+                event_id,
+                session.account.id,
+                session.context.request_id,
+                "grant:put",
+                "resource_grant",
+                grant_id,
+                ["allowed_actions"],
+                affected_scopes=audit_ranges(grant["environments"]) or None,
+            )
+        return self.administrator_access_view(current, saved)
 
     async def list_items(
         self,

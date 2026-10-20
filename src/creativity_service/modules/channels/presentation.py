@@ -52,6 +52,8 @@ async def page_view(service: ChannelService, session: AdminSession, channel_id: 
             channel_id,
         )
     actions = []
+    if governance and channel.status != "ARCHIVED":
+        actions.append(VisibleAction(action_key="channel:administrator-access", label="独立授权"))
     for key, label, required, credential in (
         ("channel:edit", "编辑渠道", "channel:manage", False),
         ("environment:create", "创建环境", "environment:manage", False),

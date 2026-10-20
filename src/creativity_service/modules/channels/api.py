@@ -18,6 +18,8 @@ from creativity_service.modules.channels.presentation import (
 )
 from creativity_service.modules.channels.resources import ResourceCatalog, ResourceEntry
 from creativity_service.modules.channels.schemas import (
+    AdministratorAccessUpdate,
+    AdministratorAccessView,
     ChannelCreate,
     ChannelUpdate,
     ChannelView,
@@ -89,6 +91,20 @@ async def channel_create_options(session: Session, service: Services) -> Channel
 @router.get("/channels/{channel_id}/page", response_model=ChannelPage)
 async def channel_page(channel_id: str, session: Session, service: Services) -> ChannelPage:
     return await page_view(service.channels, session, channel_id)
+
+
+@router.get("/channels/{channel_id}/administrator-access", response_model=AdministratorAccessView)
+async def administrator_access(
+    channel_id: str, session: Session, service: Services
+) -> AdministratorAccessView:
+    return await service.channels.administrator_access(session, channel_id)
+
+
+@router.patch("/channels/{channel_id}/administrator-access", response_model=AdministratorAccessView)
+async def update_administrator_access(
+    channel_id: str, body: AdministratorAccessUpdate, session: Session, service: Services
+) -> AdministratorAccessView:
+    return await service.channels.update_administrator_access(session, channel_id, body)
 
 
 @router.post("/channels", response_model=ChannelView, status_code=201)

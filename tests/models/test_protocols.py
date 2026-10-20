@@ -83,7 +83,15 @@ def fixture_reservation(config):
 
 
 class Credentials:
+    def __init__(self, authorization=None):
+        self.authorization = authorization
+
+    def with_authorization(self, authorization):
+        return Credentials(authorization)
+
     async def call(self, context, identifier, purpose, operation):
+        if self.authorization:
+            await self.authorization.require(context, "credential:use", identifier)
         return await operation(SecretBytes(b"fixture-secret-never-return"))
 
 

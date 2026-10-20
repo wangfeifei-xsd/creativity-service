@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 import httpx
 from pydantic import SecretBytes
 
-from creativity_service.core.context import AuthContext
+from creativity_service.core.context import AuthContext, Authorization
 from creativity_service.core.database import assert_external_io_allowed
 from creativity_service.core.primitives import ServiceError
 from creativity_service.core.security.credentials import CredentialService
@@ -36,6 +36,8 @@ class ModelConnectionClient:
         operation: Callable[[SecretBytes, httpx.AsyncClient], Awaitable[None]],
         before_send: Callable[[], Awaitable[None]],
         capture: RawCapture | None = None,
+        *,
+        credential_authorization: Authorization | None = None,
     ) -> None:
         """连接只使用已授权配置；解析结果不按公网、内网或 IP 范围过滤。"""
         assert_external_io_allowed()
@@ -63,4 +65,9 @@ class ModelConnectionClient:
             ) as client:
                 await operation(secret, client)
 
-        await self.credentials.call(context, config.provider_credential_id, "model", invoke)
+        credentials = (
+            self.credentials.with_authorization(credential_authorization)
+            if credential_authorization is not None
+            else self.credentials
+        )
+        await credentials.call(context, config.provider_credential_id, "model", invoke)
