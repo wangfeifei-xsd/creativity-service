@@ -581,6 +581,7 @@
         }
       ],
       "channel_id": "channel_demo",
+      "current_step_name": null,
       "error": null,
       "partial_output": null,
       "release_snapshot_id": "snapshot_demo",

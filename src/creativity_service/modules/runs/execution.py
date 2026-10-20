@@ -301,7 +301,7 @@ class ExecutionService(RunKernel):
             await self.valid_lease(uow, row, lease)
             if not await self.expire(uow, row):
                 await self.snapshot(uow, row)
-                self.step_policy(row, node_key)
+                policy = self.step_policy(row, node_key)
                 step = await one(
                     uow.connection,
                     "run_steps",
@@ -328,7 +328,10 @@ class ExecutionService(RunKernel):
                         },
                     )
                     await self.event(
-                        uow, row, "step_started", {"step_id": step["id"], "node_key": node_key}
+                        uow,
+                        row,
+                        "step_started",
+                        {"step_id": step["id"], "node_key": node_key, "name": policy.name},
                     )
         await self.after_commit(row)
         return step

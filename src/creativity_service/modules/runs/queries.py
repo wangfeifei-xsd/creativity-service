@@ -169,11 +169,34 @@ class QueryService(RunKernel):
             usages = await usage_repo.rows(
                 uow.connection, "usage_records", context.scope.channel_id, run_id=run_id
             )
+            current_step_name = None
+            if row["state"] not in TERMINAL and row["state"] != "QUEUED":
+                # 名称取自本次运行冻结的策略；只读最近启动的步骤，避免加载全部轨迹。
+                steps = metadata.tables["run_steps"]
+                node_key = await uow.connection.scalar(
+                    active_rows(
+                        select(steps.c.node_key)
+                        .where(
+                            steps.c.channel_id == context.scope.channel_id, steps.c.run_id == run_id
+                        )
+                        .order_by(steps.c.sequence.desc())
+                        .limit(1)
+                    )
+                )
+                current_step_name = next(
+                    (
+                        s.name
+                        for s in ExecutionPolicy.model_validate(row["execution_policy"]).steps
+                        if s.node_key == node_key
+                    ),
+                    None,
+                )
             envelope = ResultEnvelope(
                 channel_id=context.scope.channel_id,
                 run_id=run_id,
                 state=row["state"],
                 state_label=LABELS[row["state"]],
+                current_step_name=current_step_name,
                 release_snapshot_id=row["release_snapshot_id"],
                 result=result,
                 partial_output=partial if row["state"] != "SUCCEEDED" else None,

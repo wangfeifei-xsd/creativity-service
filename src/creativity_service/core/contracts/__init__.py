@@ -229,6 +229,7 @@ class ResultEnvelope(Contract):
     error: RunError | None
     usage_summary: dict[str, JsonValue]
     artifacts: tuple[Artifact, ...]
+    current_step_name: str | None = None
 
     @model_validator(mode="after")
     def success_is_validated(self) -> Self:

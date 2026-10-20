@@ -152,6 +152,46 @@ async def test_published_unconfirmed_and_dual_workers(env):
     assert (await env.runs.get_run(env.context, receipt.run_id)).state == "RUNNING"
 
 
+async def test_current_step_name_uses_frozen_policy_and_clears_at_terminal(env):
+    definition = env.resolver.definition
+    named_steps = tuple(
+        step.model_copy(update={"name": "需求预检" if step.node_key == "compute" else "项目匹配"})
+        for step in definition.policy.steps
+    )
+    env.resolver.definition = definition.model_copy(
+        update={"policy": definition.policy.model_copy(update={"steps": named_steps})}
+    )
+    receipt = await env.runs.admit_run(env.context, env.request, "step-names")
+    assert (await env.runs.get_run(env.context, receipt.run_id)).current_step_name is None
+    lease = await env.runs.claim_lease(envelope(env, receipt.run_id), "worker")
+    # 修改下一次受理的定义不改变在途运行的显示名称。
+    env.resolver.definition = definition
+    await env.runs.start_step(lease, "compute")
+    assert (await env.runs.get_run(env.context, receipt.run_id)).current_step_name == "需求预检"
+    await env.runs.start_step(lease, "model")
+    assert (await env.runs.get_run(env.context, receipt.run_id)).current_step_name == "项目匹配"
+    events = await env.runs.events(env.context, receipt.run_id)
+    assert [event.payload["name"] for event in events if event.event_type == "step_started"] == [
+        "需求预检",
+        "项目匹配",
+    ]
+    await env.runs.cancel(env.context, receipt.run_id)
+    await env.runs.reconcile_run(envelope(env, receipt.run_id))
+    assert (await env.runs.get_run(env.context, receipt.run_id)).current_step_name is None
+
+
+async def test_missing_step_name_does_not_expose_node_key(env):
+    receipt = await env.runs.admit_run(env.context, env.request, "unnamed-step")
+    lease = await env.runs.claim_lease(envelope(env, receipt.run_id), "worker")
+    await env.runs.start_step(lease, "compute")
+    assert (await env.runs.get_run(env.context, receipt.run_id)).current_step_name is None
+    events = await env.runs.events(env.context, receipt.run_id)
+    assert (
+        next(event.payload["name"] for event in events if event.event_type == "step_started")
+        is None
+    )
+
+
 @pytest.mark.parametrize("cancel_first", [True, False])
 async def test_cancellation_wins_first_valid_transaction(env, cancel_first):
     receipt = await env.runs.admit_run(env.context, env.request, "cancel")

@@ -56,6 +56,10 @@ API、Worker 与 Beat 共同提供持久化受理、执行、恢复和交付。�
 
 每个运行事件有递增 `sequence`，SSE `id` 使用该序号。重连携带 `Last-Event-ID` 或 `after_sequence`，请求头优先。客户端去重；事件缺口或 410 `EVENTS_EXPIRED` 时回查原运行快照。
 
+`step_started.payload.name` 是本次运行冻结配置中的实际步骤名称。运行及会话运行快照的 `current_step_name` 返回最近启动步骤的名称，用于断线恢复或轮询展示；排队、终态、尚未启动步骤或旧策略缺少名称时返回 null，不回退为节点编码。名称在节点切换时更新，不受之后编辑智能体配置影响。
+
+分支必须在当前节点完整输出通过结构校验后，按条件连线或兜底连线选择目标；目标为 `END` 才进入最终结果校验与提交。模型生成完成、步骤完成、流程走到 END 和运行成功是不同阶段。
+
 `text_delta` 为未校验片段，`result` 才包含经过输出 schema 校验的结果，`completed` 表示技术终态。默认事件保留 24 小时，每 15 秒发送心跳。身份失效后发送无序号 `control` 并关闭，重新认证后可查询原运行。
 
 响应使用 `text/event-stream`、`Cache-Control: no-store`、`X-Accel-Buffering: no`；代理需要支持流式转发。客户端解析示例见 [后端客户端](../examples/backend/client.py)。
