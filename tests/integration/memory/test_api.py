@@ -89,18 +89,12 @@ async def test_http_real_iam_current_domain_revision_subject_and_token_revocatio
         assert (await client.get(progress)).status_code == 401
 
 
-async def test_business_delegation_controls_own_memory_without_subject_filters(channel_env):
-    import base64
+async def test_channel_identity_controls_own_memory_without_subject_filters(channel_env):
     from datetime import timedelta
     from types import SimpleNamespace
 
     from creativity_service.core.primitives import canonical_json, utcnow
-    from creativity_service.integrations.business.delegation import bind_request, sign
     from creativity_service.modules.channels.schemas import ClientCreate, KeyCreate, TokenExchange
-    from creativity_service.modules.integrations.assembly import build_integration_services
-    from creativity_service.modules.integrations.schemas import DelegationKeyCreate
-    from tests.integration.integrations.conftest import TestKeys
-    from tests.integration.integrations.test_delegation import claims
 
     env = channel_env
     created_channel = await env.services.channels.create(
@@ -120,8 +114,6 @@ async def test_business_delegation_controls_own_memory_without_subject_filters(c
     )
     env.context = manager.context
     channel = SimpleNamespace(channel=created_channel, manager=manager)
-    env.bundle = build_integration_services(env.engine, env.iam.authorization, provider=TestKeys())
-    env.client._transport.app.state.delegation = env.bundle.delegation
     actions = [
         "memory:read",
         "memory:write",
@@ -150,15 +142,6 @@ async def test_business_delegation_controls_own_memory_without_subject_filters(c
         ),
     )
     token = await env.services.keys.exchange(TokenExchange(api_key=key.api_key), new_id("request"))
-    delegation_key = await env.bundle.keys.create(
-        env.context,
-        DelegationKeyCreate(
-            client_id=client.client_id,
-            issuer="business.example",
-            audience="creativity-api",
-            expires_at=utcnow() + timedelta(days=1),
-        ),
-    )
     env.client._transport.app.state.memory = build_memory_service(env.engine, env.iam.authorization)
     for subject_id in ("user-one", "user-two"):
         scoped = env.context.model_copy(
@@ -172,14 +155,6 @@ async def test_business_delegation_controls_own_memory_without_subject_filters(c
 
     async def request(method, path, body=None, subject="user-one"):
         raw = canonical_json(body) if body is not None else b""
-        claim = claims(
-            env,
-            subject_id=subject,
-            actions=actions,
-            resources={"memory": ["*"]},
-            nonce=new_id("nonce"),
-            request=bind_request(method, path, raw),
-        )
         return await env.client.request(
             method,
             path,
@@ -187,9 +162,8 @@ async def test_business_delegation_controls_own_memory_without_subject_filters(c
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {token.access_token}",
-                "X-Business-Delegation": sign(
-                    claim, delegation_key.key.kid, base64.b64decode(delegation_key.signing_secret)
-                ),
+                "X-Subject-Type": "MEMBER",
+                "X-Subject-ID": subject,
             },
         )
 

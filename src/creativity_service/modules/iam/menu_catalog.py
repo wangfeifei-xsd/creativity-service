@@ -13,7 +13,7 @@ PAGES = {
     "conversations": ("会话管理", "channel", ("conversation:read",)),
     "memories": ("记忆管理", "channel", ("memory:read",)),
     "evaluations": ("效果评测", "channel", ("evaluation:read",)),
-    "integrations": ("业务接入", "channel", ("integration:manage",)),
+    "integrations": ("业务接入", "channel", ("integration:manage", "key:manage")),
     "usage": ("用量", "channel", ("usage:read",)),
     "concurrency-limits": ("并发限额", "channel", ("budget:manage",)),
     "channels": ("渠道管理", "both", ("channel:govern", "channel:manage")),

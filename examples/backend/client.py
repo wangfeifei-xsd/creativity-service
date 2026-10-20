@@ -1,12 +1,8 @@
 """可复制到任意业务后端的统一客户端；仅依赖 httpx，不导入平台或业务工程。"""
 
 import asyncio
-import base64
-import hashlib
-import hmac
 import json
 import re
-import secrets
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -20,17 +16,15 @@ TERMINAL = {"SUCCEEDED", "FAILED", "CANCELLED", "TIMED_OUT"}
 
 @dataclass(frozen=True)
 class Principal:
-    """只从业务后端登录会话及当前权限服务取得，不能直接采信浏览器正文。"""
+    """由业务后端的登录会话取得，用于区分同渠道内的用户内容。"""
 
     subject_type: str
     subject_id: str
-    actions: list[str]
-    resources: dict[str, list[str]]
 
 
 class PrincipalService(Protocol):
     async def current(self) -> Principal:
-        """每次发送前读取当前主体与权限；主体失效时应抛错。"""
+        """每次发送前读取当前登录用户；登录失效时应抛错。"""
         ...
 
 
@@ -55,21 +49,6 @@ class Event:
 
 def encode_json(value: Any) -> bytes:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode()
-
-
-def sign_claims(claims: dict[str, Any], kid: str, secret: bytes) -> str:
-    """签名覆盖实际载荷字节；与平台公开跨语言向量兼容。"""
-    if len(secret) < 32 or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", kid):
-        raise ValueError("委托密钥及编号不符合协议")
-
-    def b64(value: bytes) -> str:
-        return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
-
-    payload = b64(encode_json(claims))
-    signature = b64(
-        hmac.digest(secret, f"business-delegation-v2\n{kid}\n{payload}".encode(), "sha256")
-    )
-    return f"v2.{kid}.{payload}.{signature}"
 
 
 async def check_response(response: httpx.Response) -> None:
@@ -99,12 +78,9 @@ class BusinessBackendClient:
     def __init__(
         self,
         base_url: str,
-        api_key: str,
-        kid: str,
-        signing_secret: bytes,
-        issuer: str,
-        audience: str,
-        principals: PrincipalService,
+        key_id: str,
+        secret: str,
+        principals: PrincipalService | None = None,
         *,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
@@ -124,8 +100,7 @@ class BusinessBackendClient:
             follow_redirects=False,
             transport=transport,
         )
-        self.api_key, self.kid, self.signing_secret = api_key, kid, signing_secret
-        self.issuer, self.audience, self.principals = issuer, audience, principals
+        self.key_id, self.secret, self.principals = key_id, secret, principals
         self.token: str | None = None
         self.refresh_at = 0.0
         self.token_lock = asyncio.Lock()
@@ -143,7 +118,9 @@ class BusinessBackendClient:
         async with self.token_lock:
             if self.token and time.monotonic() < self.refresh_at:
                 return self.token
-            response = await self.http.post("/api/v1/auth/token", json={"api_key": self.api_key})
+            response = await self.http.post(
+                "/api/v1/auth/token", json={"key_id": self.key_id, "secret": self.secret}
+            )
             await check_response(response)
             value = response.json()
             self.token = value["access_token"]
@@ -163,7 +140,7 @@ class BusinessBackendClient:
         origin = self.http.base_url
         if (url.scheme, url.host, url.port) != (origin.scheme, origin.host, origin.port):
             raise ValueError("不能将凭据发送到其他源站")
-        # httpx 会编码路径；签署最终发送的 ASCII 路径和查询串。
+        # httpx 统一编码最终发送的路径和查询串。
         return url.raw_path.decode("ascii")
 
     async def prepare(
@@ -171,31 +148,11 @@ class BusinessBackendClient:
     ) -> dict[str, str]:
         target = self.request_target(target)
         token = await self.access_token()
-        principal = await self.principals.current()
-        now = int(time.time())
-        binding: dict[str, Any] = {
-            "method": method.upper(),
-            "target": target,
-            "body_sha256": hashlib.sha256(body).hexdigest(),
-        }
-        if idempotency_key is not None:
-            binding["idempotency_key"] = idempotency_key
-        claims = {
-            "subject_type": principal.subject_type,
-            "subject_id": principal.subject_id,
-            "actions": principal.actions,
-            "resources": principal.resources,
-            "issuer": self.issuer,
-            "audience": self.audience,
-            "issued_at": now,
-            "expires_at": now + 300,
-            "nonce": secrets.token_urlsafe(24),
-            "request": binding,
-        }
-        headers = {
-            "Authorization": "Bearer " + token,
-            "X-Business-Delegation": sign_claims(claims, self.kid, self.signing_secret),
-        }
+        headers = {"Authorization": "Bearer " + token}
+        if self.principals is not None:
+            principal = await self.principals.current()
+            headers["X-Subject-Type"] = principal.subject_type
+            headers["X-Subject-ID"] = principal.subject_id
         if body:
             headers["Content-Type"] = "application/json"
         if idempotency_key is not None:

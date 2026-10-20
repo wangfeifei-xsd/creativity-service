@@ -21,7 +21,6 @@ from creativity_service.modules.agents.assembly import build_agent_service
 from creativity_service.modules.agents.registry import templates
 from creativity_service.modules.agents.schemas import AgentBindings
 from creativity_service.modules.conversations.assembly import build_conversation_service
-from creativity_service.modules.integrations.assembly import build_integration_services
 from creativity_service.modules.mcp.assembly import build_mcp_service
 from creativity_service.modules.memory.assembly import build_memory_service
 from creativity_service.modules.models.assembly import build_model_services
@@ -176,9 +175,6 @@ async def runtime(env, folder):
     env.model_resolver = resolve
     env.tools = build_tool_services(env.engine, env.iam.authorization)
     env.mcp = build_mcp_service(env.engine, env.iam.authorization, env.tools, outbound=env.outbound)
-    env.bundle = build_integration_services(
-        env.engine, env.iam.authorization, provider=TestKeys(), mcp=env.mcp
-    )
     env.skills = build_skill_service(env.engine, env.iam.authorization, store, env.tools.management)
     env.prompts = build_prompt_service(env.engine, env.iam.authorization, store)
     env.usage = build_usage_services(env.engine, env.services.channels, store)
@@ -234,11 +230,7 @@ async def runtime(env, folder):
         "memory",
     ]:
         setattr(app.state, name, getattr(env, name))
-    app.state.core, app.state.integrations, app.state.delegation = (
-        core,
-        env.bundle,
-        env.bundle.delegation,
-    )
+    app.state.core = core
     app.state.sync_wait_seconds = 0.03
     app.state.sse_poll_seconds = 0.01
     app.state.sse_heartbeat_seconds = 0.05

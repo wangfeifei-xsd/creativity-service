@@ -60,9 +60,10 @@ async def page_view(service: ChannelService, session: AdminSession, channel_id: 
         ("environment:edit", "编辑", "environment:manage", False),
         ("client:create", "登记接入服务", "client:manage", True),
         ("client:edit", "编辑", "client:manage", False),
-        ("key:create", "创建 Key", "key:manage", True),
+        ("key:create", "创建渠道凭据", "key:manage", True),
         ("key:rotate", "轮换", "key:manage", True),
         ("key:revoke", "吊销", "key:manage", False),
+        ("key:delete", "删除", "key:manage", False),
     ):
         if (
             channel.status != "ARCHIVED"
@@ -85,8 +86,7 @@ async def page_view(service: ChannelService, session: AdminSession, channel_id: 
             for k, v, required in (
                 ("overview", "概览", "channel:manage"),
                 ("environments", "环境", "environment:manage"),
-                ("clients", "接入服务", "client:manage"),
-                ("keys", "接入 Key", "key:manage"),
+                ("keys", "渠道 Key 与密钥", "key:manage"),
                 ("members", "成员与权限", "membership:read"),
                 ("resources", "资源", "channel:manage"),
                 ("usage", "用量", "usage:read"),

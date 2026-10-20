@@ -10,8 +10,7 @@ from creativity_service.core.context import AuthContext
 from creativity_service.core.database import UnitOfWork
 from creativity_service.core.database.soft_delete import active_rows
 from creativity_service.core.locking import read_key
-from creativity_service.core.primitives import ServiceError, utcnow
-from creativity_service.integrations.business.delegation import DelegationClaims
+from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.agents.repositories import repository
 from creativity_service.modules.channels.state import current_service
 from creativity_service.modules.iam.authorization import action_allowed, effective_actions
@@ -22,13 +21,6 @@ from creativity_service.modules.iam.repositories import (
     to_state,
 )
 from creativity_service.modules.iam.tables import metadata as iam_metadata
-from creativity_service.modules.integrations.repositories import (
-    configuration_key,
-    environment_scope,
-)
-from creativity_service.modules.integrations.repositories import (
-    repository as integration_repository,
-)
 
 
 @dataclass(frozen=True)
@@ -40,7 +32,6 @@ class LockedAuthorization:
     member: MembershipState | None = None
     grants: tuple[GrantState, ...] = ()
     identity: ServiceIdentity | None = None
-    claims: DelegationClaims | None = None
 
     def require(self, context: AuthContext, action: str, kind: str, identifier: str) -> None:
         self.uow.require_read_lock(policy_key(context.scope.channel_id))
@@ -61,13 +52,9 @@ class LockedAuthorization:
                 identifier,
             )
             allowed = action_allowed(actions, action)
-        elif self.identity is not None and self.claims is not None:
-            actions = (
-                self.identity.client_actions & self.identity.key_actions & set(self.claims.actions)
-            )
-            allowed = action in actions and bool(
-                {identifier, "*"} & set(self.claims.resources.get(kind, []))
-            )
+        elif self.identity is not None:
+            actions = self.identity.client_actions & self.identity.key_actions
+            allowed = action_allowed(actions, action)
         else:
             allowed = False
         if not allowed:
@@ -132,31 +119,8 @@ async def read_locked_policy(uow: UnitOfWork, context: AuthContext) -> LockedAut
             grants=tuple(grants),
         )
     elif context.client_id and context.key_id:
-        uow.require_read_lock(configuration_key(scope))
         identity = await current_service(uow.connection, context)
-        delegation = await integration_repository(
-            environment_scope(scope), "delegation_nonces"
-        ).get(uow.connection, context.delegation_id or "")
-        if (
-            not delegation
-            or delegation["client_id"] != context.client_id
-            or delegation["resolved_scope"] != scope.model_dump()
-            # Worker 在事务外已复核源端当前权限，原请求声明自然到期不撤销已受理任务。
-            or (context.principal_type != "worker" and delegation["expires_at"] <= utcnow())
-        ):
-            raise ServiceError("FORBIDDEN", "业务主体委托已失效", 403)
-        key = await integration_repository(environment_scope(scope), "delegation_keys").get(
-            uow.connection, delegation["kid"]
-        )
-        if (
-            not key
-            or key["status"] != "ACTIVE"
-            or key["expires_at"] <= utcnow()
-            or key["not_before"] > utcnow()
-        ):
-            raise ServiceError("FORBIDDEN", "业务主体委托凭据已撤销", 403)
-        claims = DelegationClaims.model_validate(delegation["claims"])
-        return LockedAuthorization(uow, context, identity=identity, claims=claims)
+        return LockedAuthorization(uow, context, identity=identity)
     else:
         raise ServiceError("FORBIDDEN", "此操作需要管理身份", 403)
 

@@ -7,9 +7,9 @@
 | 文件 | 内容 |
 | --- | --- |
 | [init.sql](init.sql) | 全部应用表与迁移版本表的最终结构、普通索引、中文表和字段注释，索引均内联于 CREATE TABLE，不含数据写入 |
-| [init_data.sql](init_data.sql) | 系统渠道、预置业务渠道及目录、开发环境首位管理员与内容授权、供应商模板、DeepSeek 与 GTP 模型及密文凭据、两条已发布路由、两个 MCP 与鉴权、并发限额与版本、菜单、内置角色、订单协助和销售推荐完整配置、Core 开发接入与主体复核、内容恢复屏障、三个技能包字节，最后登记迁移版本 |
+| [init_data.sql](init_data.sql) | 系统渠道、预置业务渠道及目录、开发环境首位管理员与内容授权、供应商模板、DeepSeek 与 GTP 模型及密文凭据、两条已发布路由、两个 MCP 与鉴权、并发限额与版本、菜单、内置角色、订单协助和销售推荐完整配置、Core 渠道接入凭据、内容恢复屏障、三个技能包字节，最后登记迁移版本 |
 
-文件头记录配套模型版本与迁移基线。[init_data.json](init_data.json) 保存基础种子及租号 MCP 基本配置与鉴权，[rental_order_guidance_data.json](rental_order_guidance_data.json) 保存订单协助助手完整配置、通用模型路由发布映射、开发环境权限与恢复屏障，以及陪玩 MCP 的当前连接、鉴权和最新发现配置，[gpt_data.json](gpt_data.json) 保存独立的 GTP 连接、模型和已发布路由，[sales_recommendation_data.json](sales_recommendation_data.json) 保存销售推荐智能体、两个提示词、两个技能、目录工具及完整文件字节，以及 Core 专用接入服务、API Key 摘要、委托密文和主体复核绑定。生成器逐层校验并按标识合并；订单协助归档更新共享模型、通用路由和租号 MCP 配置，GTP 与销售推荐只追加独立配置，不覆盖既有记录。初始化只导入配置，不导入运行、使用、用量、测试、审计和发布操作历史，也不保留指向这些历史的来源关联或授权。正常生成与检查不重新查询数据库。
+文件头记录配套模型版本与迁移基线。[init_data.json](init_data.json) 保存基础种子及租号 MCP 基本配置与鉴权，[rental_order_guidance_data.json](rental_order_guidance_data.json) 保存订单协助助手完整配置、通用模型路由发布映射、开发环境权限与恢复屏障，以及陪玩 MCP 的当前连接、鉴权和最新发现配置，[gpt_data.json](gpt_data.json) 保存独立的 GTP 连接、模型和已发布路由，[sales_recommendation_data.json](sales_recommendation_data.json) 保存销售推荐智能体、两个提示词、两个技能、目录工具及完整文件字节，以及 Core 内部接入身份、渠道 Key 摘要及系统身份索引。生成器逐层校验并按标识合并；订单协助归档更新共享模型、通用路由和租号 MCP 配置，GTP 与销售推荐只追加独立配置，不覆盖既有记录。初始化只导入配置，不导入运行、使用、用量、测试、审计和发布操作历史，也不保留指向这些历史的来源关联或授权。正常生成与检查不重新查询数据库。
 
 ## 执行
 
@@ -98,7 +98,7 @@ appSecret 按现有存储方式归档到 `credentials.secret_value`，不在说�
 
 SQL 封存订单协助、预检和匹配三个技能包。手动导入空库后，按下文执行独立删除清单初始化和 `scripts.restore_init_objects`，再启动 API 与 Worker；`make init-import` 已包含这两个步骤。订单协助计划启用后会访问所配置的租号服务；部署到其他主机时，须同步核对模型网络、租号服务与鉴权地址、租号侧应用授权及主体。公网 HTTPS 地址可由管理端直接配置；内网、本机或 HTTP 地址仍需通过 `CREATIVITY_MCP_DESTINATIONS` 允许同渠道环境的 `mcp` 和 `oauth` 精确目的地，见 [租号接入说明](../examples/mcp/README.md#租号服务基础连接)。
 
-“陪玩服务 - 测试环境”（`mcp_958f6660827343b29ed5f9d90ed44c64`）于 2026年10月19日从开发库只读更新，使用 Streamable HTTP，地址为 `http://localhost:32689/api/mcp`。保存当前连接、服务间鉴权凭据，以及销售目录工具与主体复核工具所用的发现配置，保留采集时的启用状态与健康摘要。目录工具和智能体由销售推荐归档补齐，不导入检查历史。appSecret 按既有 MCP 凭据格式保存，不在说明中展示。部署后需确保该本机地址可达，必要时通过管理页调整并重新测试、发现。
+“陪玩服务 - 测试环境”（`mcp_958f6660827343b29ed5f9d90ed44c64`）于 2026年10月20日从开发库只读更新，使用 Streamable HTTP，地址为 `http://localhost:32689/api/mcp`。保存当前连接、服务间鉴权凭据，以及销售目录工具所用的发现配置，保留采集时的启用状态与健康摘要。目录工具和智能体由销售推荐归档补齐，不导入检查历史。appSecret 按既有 MCP 凭据格式保存，不在说明中展示。部署后需确保该本机地址可达，必要时通过管理页调整并重新测试、发现。
 
 租号连接沿用与订单协助七个工具配套的归档。当前开发库的租号发现快照仅含六个工具，缺少归档中的失败收尾工具，因此本次未用该快照及其连接修订覆盖订单协助配置。
 
@@ -110,7 +110,7 @@ SQL 封存订单协助、预检和匹配三个技能包。手动导入空库后�
 
 - “销售项目推荐助手”（编码 `service_match`）只有一份当前配置，已上线且启用，不增加自动执行计划。
 - 五个业务节点为需求预检、全量查询、目录校验、项目匹配、推荐校验；另有 `catalog_exit` 脚本将目录异常出口转换成最终契约。上下文上限 32,000 Token，单次运行上限 96,000 Token，使用 `development_python` 校验脚本及环境摘要。
-- 全量查询步骤总时限为 60 秒，覆盖授权、分页和结果校验；单次目录工具请求仍为 10 秒。Core 本地 MCP 协议请求额度按主体复核及轮询需要配置为每应用每分钟 6000 次，维护在 Core 本机配置与示例中。
+- 全量查询步骤总时限为 60 秒，覆盖授权、分页和结果校验；单次目录工具请求仍为 10 秒。会话与任务轮询通过渠道 API 认证，不触发 MCP 主体复核，也无需为此提高 MCP 限流额度。
 - 启用会话与 `recent` 历史策略。保留用户已明确的条件，本轮修改优先，历史推荐事实重新查询目录。所有最终出口为 `schema_version=2.0`，推荐仅返回字符串 `product_id/sku_id`，追问单列 `questions`，最多推荐一项。PC 从业务目录读取真实名称、价格、图片及规格。
 - 已发布的“预检·提示词”“匹配·提示词”“预检·技能”“匹配·技能”，包括技能加载范围、文件索引、文件 URL 及完整 ZIP。恢复不依赖原开发桶仍保有这些文件。
 - 已发布的“可售目录·工具”，包括只读契约、分页约定、MCP 导入及发现关联；业务主体非必填，仍需要当前渠道环境的执行权限和 MCP 应用鉴权。
@@ -118,11 +118,12 @@ SQL 封存订单协助、预检和匹配三个技能包。手动导入空库后�
 
 生成前校验流程、节点级提示词、依赖摘要、发布映射、目录工具各层契约及技能 ZIP/文件索引一致性；恢复时验证对象内容后才切换文件地址。v2 技能包使用新的内容地址，不覆盖旧文件。已有环境应通过管理端更新并发布依赖资源、上传配套技能包，再保存和校验智能体配置，按需上线；不要向已有库重放初始化 SQL。销售智能体使用开发脚本运行环境，部署代码及脚本运行配置需与该环境保持一致。
 
-Core 接入归档包含六项动作 `run:create/run:read/run:content/conversation:read/conversation:write/data:read_sensitive`，同一接入服务的 API Key 摘要及系统索引、HMAC 委托密文和已启用的只读主体复核绑定。主体复核使用 `playmate_ai_match.review_subject`，只参与鉴权，不导入智能体业务工具。初始管理员保留当前渠道开发环境的 `data:read_sensitive` 授权。已吊销的旧 Key、委托 nonce、登录 Token 和使用历史不归档。
+Core 接入归档保留七项动作 `run:create/run:read/run:content/conversation:read/conversation:write/content:delete/data:read_sensitive`、内部接入身份、渠道 Key 摘要及系统索引。新建凭据由平台自动维护内部身份与业务动作，无需外部单独配置。初始管理员保留当前渠道开发环境的 `data:read_sensitive` 授权。已吊销的旧 Key、身份委托、主体复核绑定、登录 Token 和使用历史不归档。
 
-当前 Key 与委托有效期截止 2026年11月18日 23:59:59（Asia/Shanghai），初始化不会自动延长。委托凭据必须用原 `CREATIVITY_BUSINESS_KEY_VERSION` / `CREATIVITY_BUSINESS_ENCRYPTION_KEYS` 配置解密，不能使用模型主密钥替代。API Key 与委托签名明文只保存在 Core 的 Git 忽略文件 `.local/application-ai-match.yml` 中，SQL 无法还原 API Key 明文。
+当前 Key 有效期截止 2026年11月18日 23:59:59（Asia/Shanghai），初始化不会自动延长。开发环境的渠道 Key 与密钥配置在 Core 的 `src/main/resources/application-dev.yml` 中，SQL 无法还原密钥；轮换后同步更新 Core 对应环境的配置文件。此接入不需要业务委托加密主密钥。
 
-该归档恢复 Creativity 一侧的完整配置。PC 闭环还依赖 Core 本机配置及其中的精确依赖资源名单、Hub 已授权的两项 MCP 工具、实际业务目录、OSS 与模型服务。Core 使用 `dev` 启动时自动加载本机文件；部署和恢复步骤见同工作区 `playmate-core/docs/ai-match/README.md`。新环境需准备这些外部依赖及原解密主密钥，过期后重新配置接入凭据。
+
+该归档恢复 Creativity 一侧的完整配置。PC 闭环还依赖 Core 环境配置、已授权的目录 MCP 工具、实际业务目录、OSS 与模型服务。Core 使用 `dev` 启动时加载 `application-dev.yml`；部署和恢复步骤见同工作区 `playmate-core/docs/ai-match/README.md`。新环境需准备这些外部依赖及原解密主密钥，过期后重新配置接入凭据。
 
 ## MySQL 迁移基线
 

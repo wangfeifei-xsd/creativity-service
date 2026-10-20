@@ -11,7 +11,6 @@ from creativity_service.modules.conversations.api import router as conversations
 from creativity_service.modules.data_lifecycle.api import router as lifecycle_router
 from creativity_service.modules.evaluations.api import router as evaluations_router
 from creativity_service.modules.iam.api import router as iam_router
-from creativity_service.modules.integrations.api import router as integrations_router
 from creativity_service.modules.integrations.automation_api import batch_router
 from creativity_service.modules.integrations.automation_api import router as automation_router
 from creativity_service.modules.mcp.api import oauth_router
@@ -52,8 +51,6 @@ admin_router.include_router(mcp_router)
 api_router.include_router(oauth_router)
 
 admin_router.include_router(skills_router)
-
-admin_router.include_router(integrations_router)
 
 admin_router.include_router(conversations_router)
 api_router.include_router(conversations_router)

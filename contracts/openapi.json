@@ -6174,210 +6174,6 @@
         "title": "DatasetView",
         "type": "object"
       },
-      "DelegationKeyCreate": {
-        "additionalProperties": false,
-        "properties": {
-          "audience": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Audience",
-            "type": "string"
-          },
-          "client_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Client Id",
-            "type": "string"
-          },
-          "clock_skew_seconds": {
-            "default": 30,
-            "maximum": 60.0,
-            "minimum": 0.0,
-            "title": "Clock Skew Seconds",
-            "type": "integer"
-          },
-          "expires_at": {
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
-          },
-          "issuer": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Issuer",
-            "type": "string"
-          },
-          "max_ttl_seconds": {
-            "default": 300,
-            "maximum": 900.0,
-            "minimum": 30.0,
-            "title": "Max Ttl Seconds",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "client_id",
-          "issuer",
-          "audience",
-          "expires_at"
-        ],
-        "title": "DelegationKeyCreate",
-        "type": "object"
-      },
-      "DelegationKeyIssued": {
-        "additionalProperties": false,
-        "properties": {
-          "key": {
-            "$ref": "#/components/schemas/DelegationKeyView"
-          },
-          "signing_secret": {
-            "title": "Signing Secret",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "signing_secret"
-        ],
-        "title": "DelegationKeyIssued",
-        "type": "object"
-      },
-      "DelegationKeyOptions": {
-        "additionalProperties": false,
-        "properties": {
-          "clients": {
-            "items": {
-              "$ref": "#/components/schemas/NamedOption"
-            },
-            "title": "Clients",
-            "type": "array"
-          }
-        },
-        "required": [
-          "clients"
-        ],
-        "title": "DelegationKeyOptions",
-        "type": "object"
-      },
-      "DelegationKeyRotate": {
-        "additionalProperties": false,
-        "properties": {
-          "expires_at": {
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
-          },
-          "overlap_seconds": {
-            "default": 330,
-            "maximum": 86400.0,
-            "minimum": 0.0,
-            "title": "Overlap Seconds",
-            "type": "integer"
-          },
-          "revision": {
-            "minimum": 1.0,
-            "title": "Revision",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "revision",
-          "expires_at"
-        ],
-        "title": "DelegationKeyRotate",
-        "type": "object"
-      },
-      "DelegationKeyView": {
-        "additionalProperties": false,
-        "properties": {
-          "audience": {
-            "title": "Audience",
-            "type": "string"
-          },
-          "client_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Client Id",
-            "type": "string"
-          },
-          "client_name": {
-            "title": "Client Name",
-            "type": "string"
-          },
-          "clock_skew_seconds": {
-            "title": "Clock Skew Seconds",
-            "type": "integer"
-          },
-          "expires_at": {
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
-          },
-          "issuer": {
-            "title": "Issuer",
-            "type": "string"
-          },
-          "kid": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Kid",
-            "type": "string"
-          },
-          "max_ttl_seconds": {
-            "title": "Max Ttl Seconds",
-            "type": "integer"
-          },
-          "not_before": {
-            "format": "date-time",
-            "title": "Not Before",
-            "type": "string"
-          },
-          "revision": {
-            "minimum": 1.0,
-            "title": "Revision",
-            "type": "integer"
-          },
-          "rotated_from": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rotated From"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          },
-          "status_name": {
-            "title": "Status Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "kid",
-          "client_id",
-          "client_name",
-          "issuer",
-          "audience",
-          "max_ttl_seconds",
-          "clock_skew_seconds",
-          "status",
-          "status_name",
-          "not_before",
-          "expires_at",
-          "rotated_from",
-          "revision"
-        ],
-        "title": "DelegationKeyView",
-        "type": "object"
-      },
       "DeletionGuardResult": {
         "additionalProperties": false,
         "properties": {
@@ -8487,11 +8283,18 @@
         "additionalProperties": false,
         "properties": {
           "client_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Client Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
           },
           "environment": {
             "enum": [
@@ -8515,20 +8318,25 @@
             "type": "string"
           },
           "scopes": {
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 100,
-            "minItems": 1,
-            "title": "Scopes",
-            "type": "array"
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scopes"
           }
         },
         "required": [
           "name",
-          "client_id",
           "environment",
-          "scopes",
           "expires_at"
         ],
         "title": "KeyCreate",
@@ -18123,179 +17931,6 @@
         "title": "SubjectRequirements",
         "type": "object"
       },
-      "SubjectReviewSave": {
-        "additionalProperties": false,
-        "properties": {
-          "client_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Client Id",
-            "type": "string"
-          },
-          "connection_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Connection Id",
-            "type": "string"
-          },
-          "discovery_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Discovery Id",
-            "type": "string"
-          },
-          "enabled": {
-            "default": true,
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "remote_tool_name": {
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Remote Tool Name",
-            "type": "string"
-          },
-          "revision": {
-            "anyOf": [
-              {
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Revision"
-          },
-          "timeout_seconds": {
-            "default": 5,
-            "maximum": 30.0,
-            "minimum": 1.0,
-            "title": "Timeout Seconds",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "client_id",
-          "connection_id",
-          "discovery_id",
-          "remote_tool_name"
-        ],
-        "title": "SubjectReviewSave",
-        "type": "object"
-      },
-      "SubjectReviewView": {
-        "additionalProperties": false,
-        "properties": {
-          "binding_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Binding Id",
-            "type": "string"
-          },
-          "client_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Client Id",
-            "type": "string"
-          },
-          "client_name": {
-            "title": "Client Name",
-            "type": "string"
-          },
-          "connection_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Connection Id",
-            "type": "string"
-          },
-          "connection_name": {
-            "title": "Connection Name",
-            "type": "string"
-          },
-          "connection_revision": {
-            "minimum": 1.0,
-            "title": "Connection Revision",
-            "type": "integer"
-          },
-          "discovery_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-            "title": "Discovery Id",
-            "type": "string"
-          },
-          "enabled": {
-            "default": true,
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "remote_tool_name": {
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Remote Tool Name",
-            "type": "string"
-          },
-          "revision": {
-            "minimum": 1.0,
-            "title": "Revision",
-            "type": "integer"
-          },
-          "schema_hash": {
-            "title": "Schema Hash",
-            "type": "string"
-          },
-          "status_name": {
-            "title": "Status Name",
-            "type": "string"
-          },
-          "timeout_seconds": {
-            "default": 5,
-            "maximum": 30.0,
-            "minimum": 1.0,
-            "title": "Timeout Seconds",
-            "type": "integer"
-          },
-          "tool_name": {
-            "title": "Tool Name",
-            "type": "string"
-          },
-          "unavailable_reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unavailable Reason"
-          }
-        },
-        "required": [
-          "client_id",
-          "connection_id",
-          "discovery_id",
-          "remote_tool_name",
-          "revision",
-          "binding_id",
-          "client_name",
-          "connection_name",
-          "tool_name",
-          "connection_revision",
-          "schema_hash",
-          "status_name",
-          "unavailable_reason"
-        ],
-        "title": "SubjectReviewView",
-        "type": "object"
-      },
       "SummaryView": {
         "additionalProperties": false,
         "properties": {
@@ -18556,17 +18191,51 @@
         "additionalProperties": false,
         "properties": {
           "api_key": {
-            "format": "password",
-            "maxLength": 512,
-            "minLength": 1,
-            "title": "Api Key",
-            "type": "string",
-            "writeOnly": true
+            "anyOf": [
+              {
+                "format": "password",
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "deprecated": true,
+            "title": "Api Key"
+          },
+          "key_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Id"
+          },
+          "secret": {
+            "anyOf": [
+              {
+                "format": "password",
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secret"
           }
         },
-        "required": [
-          "api_key"
-        ],
         "title": "TokenExchange",
         "type": "object"
       },
@@ -36371,6 +36040,243 @@
         ]
       }
     },
+    "/admin/v1/channels/{channel_id}/keys/{key_id}": {
+      "delete": {
+        "operationId": "delete_key_admin_v1_channels__channel_id__keys__key_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "title": "Channel Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "title": "Key Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-ID": {
+                "description": "请求标识",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlatformToken": []
+          }
+        ],
+        "summary": "Delete Key",
+        "tags": [
+          "渠道管理"
+        ]
+      }
+    },
     "/admin/v1/channels/{channel_id}/keys/{key_id}/revoke": {
       "post": {
         "operationId": "revoke_key_admin_v1_channels__channel_id__keys__key_id__revoke_post",
@@ -45649,1130 +45555,6 @@
         "summary": "Request Deletion",
         "tags": [
           "数据生命周期"
-        ]
-      }
-    },
-    "/admin/v1/delegation-keys": {
-      "get": {
-        "operationId": "keys_admin_v1_delegation_keys_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/DelegationKeyView"
-                  },
-                  "title": "Response Keys Admin V1 Delegation Keys Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Keys",
-        "tags": [
-          "业务接入"
-        ]
-      },
-      "post": {
-        "operationId": "create_key_admin_v1_delegation_keys_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DelegationKeyCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DelegationKeyIssued"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Create Key",
-        "tags": [
-          "业务接入"
-        ]
-      }
-    },
-    "/admin/v1/delegation-keys/options": {
-      "get": {
-        "operationId": "key_options_admin_v1_delegation_keys_options_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DelegationKeyOptions"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Key Options",
-        "tags": [
-          "业务接入"
-        ]
-      }
-    },
-    "/admin/v1/delegation-keys/{kid}/revoke": {
-      "post": {
-        "operationId": "revoke_admin_v1_delegation_keys__kid__revoke_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "kid",
-            "required": true,
-            "schema": {
-              "title": "Kid",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RevisionInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DelegationKeyView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Revoke",
-        "tags": [
-          "业务接入"
-        ]
-      }
-    },
-    "/admin/v1/delegation-keys/{kid}/rotate": {
-      "post": {
-        "operationId": "rotate_admin_v1_delegation_keys__kid__rotate_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "kid",
-            "required": true,
-            "schema": {
-              "title": "Kid",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DelegationKeyRotate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DelegationKeyIssued"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Rotate",
-        "tags": [
-          "业务接入"
         ]
       }
     },
@@ -82602,664 +81384,6 @@
         ]
       }
     },
-    "/admin/v1/subject-review-bindings": {
-      "get": {
-        "operationId": "subject_reviews_admin_v1_subject_review_bindings_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SubjectReviewView"
-                  },
-                  "title": "Response Subject Reviews Admin V1 Subject Review Bindings Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Subject Reviews",
-        "tags": [
-          "业务接入"
-        ]
-      },
-      "post": {
-        "operationId": "save_subject_review_admin_v1_subject_review_bindings_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SubjectReviewSave"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubjectReviewView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Save Subject Review",
-        "tags": [
-          "业务接入"
-        ]
-      }
-    },
-    "/admin/v1/subject-review-bindings/options": {
-      "get": {
-        "operationId": "subject_review_options_admin_v1_subject_review_bindings_options_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/NamedOption"
-                  },
-                  "title": "Response Subject Review Options Admin V1 Subject Review Bindings Options Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "405": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Method Not Allowed",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable",
-            "headers": {
-              "X-Request-ID": {
-                "description": "请求标识",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "PlatformToken": []
-          }
-        ],
-        "summary": "Subject Review Options",
-        "tags": [
-          "业务接入"
-        ]
-      }
-    },
     "/admin/v1/tool-bindings": {
       "get": {
         "operationId": "bindings_admin_v1_tool_bindings_get",
@@ -91042,12 +89166,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -91605,12 +89739,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -91904,12 +90048,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -92203,12 +90357,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -92492,12 +90656,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -92908,12 +91082,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -93186,12 +91370,22 @@
         "operationId": "create_api_v1_conversations_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -93485,12 +91679,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -93772,12 +91976,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -94059,12 +92273,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -94358,12 +92582,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -94659,12 +92893,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -94969,12 +93213,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -95259,12 +93513,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -95558,12 +93822,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -95847,12 +94121,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -96174,12 +94458,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -96461,12 +94755,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -96760,12 +95064,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -97058,12 +95372,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -97356,12 +95680,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -97636,12 +95970,22 @@
         "operationId": "preview_api_v1_data_lifecycle_deletion_preview_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -97926,12 +96270,22 @@
         "operationId": "request_deletion_api_v1_data_lifecycle_deletions_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -98225,12 +96579,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -98514,12 +96878,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -98803,12 +97177,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -99083,12 +97467,22 @@
         "operationId": "upload_file_api_v1_files_upload_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -99384,12 +97778,22 @@
         "operationId": "oauth_callback_api_v1_mcp_connections_oauth_callback_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -99683,12 +98087,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -99979,12 +98393,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -100282,12 +98706,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -100668,12 +99102,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -100962,12 +99406,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -101268,12 +99722,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -101557,12 +100021,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -101844,12 +100318,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -102131,12 +100615,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -102430,12 +100924,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -102736,12 +101240,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -103029,12 +101543,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -103326,12 +101850,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -103622,12 +102156,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -103916,12 +102460,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -104218,12 +102772,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -104535,12 +103099,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -104824,12 +103398,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -105142,12 +103726,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -105427,12 +104021,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -105724,12 +104328,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }

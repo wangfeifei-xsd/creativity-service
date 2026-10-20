@@ -177,8 +177,8 @@
         "id": "mcp_958f6660827343b29ed5f9d90ed44c64",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
         "created_at": "2026-10-17T05:01:56.380611+00:00",
-        "updated_at": "2026-10-19T12:55:48.969908+00:00",
-        "revision": 15,
+        "updated_at": "2026-10-20T02:18:26.958670+00:00",
+        "revision": 18,
         "environment": "dev",
         "name": "陪玩服务 - 测试环境",
         "transport": "streamable_http",
@@ -199,10 +199,10 @@
           "interval_seconds": 300,
           "failure_threshold": 3
         },
-        "last_check_at": "2026-10-19T12:55:48.968962+00:00",
+        "last_check_at": "2026-10-20T02:18:26.956287+00:00",
         "auth_failed": false,
         "health_actor_id": "user_1d5e419d2ad54a99aca1ebd45e412c78",
-        "next_check_at": "2026-10-19T13:00:48.968965+00:00",
+        "next_check_at": "2026-10-20T02:23:26.956291+00:00",
         "authentication": {
           "mode": "client_credentials",
           "app_id": "mcp_7c2c319d4ec44f6b83ae998486f22be2",
@@ -1063,208 +1063,15 @@
         "is_deleted": false
       },
       {
-        "id": "discovery_86fac4ec3d1f4bf4991073d16fb730a6",
+        "id": "discovery_ebcac948efdb4a66a90fffd5bc99d1a0",
         "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-19T12:55:48.960614+00:00",
-        "updated_at": "2026-10-19T12:55:48.960614+00:00",
+        "created_at": "2026-10-20T02:18:26.952647+00:00",
+        "updated_at": "2026-10-20T02:18:26.952647+00:00",
         "revision": 1,
         "environment": "dev",
         "connection_id": "mcp_958f6660827343b29ed5f9d90ed44c64",
         "connection_revision": 5,
         "tool_definitions": [
-          {
-            "name": "playmate_ai_match.review_subject",
-            "title": "AI 匹配玩家主体复核",
-            "purpose": "subject_review",
-            "annotations": {
-              "readOnlyHint": true,
-              "openWorldHint": false,
-              "idempotentHint": true,
-              "destructiveHint": false
-            },
-            "description": "复核配置渠道内玩家的当前启用状态与 AI 匹配授权；仅供平台鉴权使用。",
-            "schema_hash": "70470995d4212b24f48032bda7bb15b1bb5075172da24b0b010163c89a49aaa0",
-            "input_schema": {
-              "type": "object",
-              "required": [
-                "protocol",
-                "scope",
-                "client_id",
-                "key_id",
-                "request_id",
-                "actions",
-                "resources"
-              ],
-              "properties": {
-                "scope": {
-                  "type": "object",
-                  "required": [
-                    "channel_id",
-                    "environment",
-                    "subject_type",
-                    "subject_id"
-                  ],
-                  "properties": {
-                    "channel_id": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    },
-                    "subject_id": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    },
-                    "environment": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    },
-                    "subject_type": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "key_id": {
-                  "type": "string",
-                  "maxLength": 128,
-                  "minLength": 1
-                },
-                "actions": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "maxLength": 128,
-                    "minLength": 1
-                  },
-                  "maxItems": 32
-                },
-                "protocol": {
-                  "type": "string",
-                  "const": "creativity.subject-review.v1"
-                },
-                "client_id": {
-                  "type": "string",
-                  "maxLength": 128,
-                  "minLength": 1
-                },
-                "resources": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    },
-                    "maxItems": 32
-                  }
-                },
-                "request_id": {
-                  "type": "string",
-                  "maxLength": 128,
-                  "minLength": 1
-                }
-              },
-              "additionalProperties": false
-            },
-            "output_schema": {
-              "type": "object",
-              "required": [
-                "protocol",
-                "scope",
-                "active",
-                "actions",
-                "agent_actions",
-                "resources",
-                "observed_at",
-                "expires_at"
-              ],
-              "properties": {
-                "scope": {
-                  "type": "object",
-                  "required": [
-                    "channel_id",
-                    "environment",
-                    "subject_type",
-                    "subject_id"
-                  ],
-                  "properties": {
-                    "channel_id": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    },
-                    "subject_id": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    },
-                    "environment": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    },
-                    "subject_type": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "active": {
-                  "type": "boolean"
-                },
-                "actions": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "maxLength": 128,
-                    "minLength": 1
-                  },
-                  "maxItems": 32
-                },
-                "protocol": {
-                  "type": "string",
-                  "const": "creativity.subject-review.v1"
-                },
-                "resources": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 128,
-                      "minLength": 1
-                    },
-                    "maxItems": 32
-                  }
-                },
-                "expires_at": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "observed_at": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "agent_actions": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "maxLength": 128,
-                    "minLength": 1
-                  },
-                  "maxItems": 32
-                }
-              },
-              "additionalProperties": false
-            }
-          },
           {
             "name": "playmate_catalog.list_available_services",
             "title": "查询已上架可用服务项目",
@@ -1639,7 +1446,6 @@
           }
         ],
         "schema_hashes": {
-          "playmate_ai_match.review_subject": "70470995d4212b24f48032bda7bb15b1bb5075172da24b0b010163c89a49aaa0",
           "playmate_catalog.list_available_services": "33168ab956e0657b5d0ca0253b357ebc1b1e4fcfa83a24d800d5f9a808fc1b78"
         },
         "negotiated_version": "2025-11-25",

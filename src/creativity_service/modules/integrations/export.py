@@ -1,62 +1,11 @@
-"""导出版本化公共接入协议、标准 schema、错误表与公开签名向量。"""
+"""导出渠道凭据接入契约；历史委托签名不再作为业务接入协议发布。"""
 
 import argparse
 import json
 from pathlib import Path
 from typing import Any
 
-from creativity_service.integrations.business.delegation import (
-    DelegationClaims,
-    RequestBinding,
-    bind_request,
-    sign,
-    signing_string,
-    split_envelope,
-)
-
-
-def vectors() -> list[dict[str, Any]]:
-    items = []
-    for number, (method, target, body, idem) in enumerate(
-        [
-            (
-                "POST",
-                "/api/v1/runs",
-                '{"agent_code":"match","input":{"request_text":"今晚推荐"},"delivery":"async"}',
-                "order-20261002-1",
-            ),
-            ("GET", "/api/v1/runs/run-vector/events?after_sequence=2", "", None),
-        ]
-    ):
-        claims = DelegationClaims(
-            subject_type="MEMBER",
-            subject_id="member-001",
-            actions=["run:create", "run:read"],
-            resources={"agent": ["agent-match"], "run": ["*"]},
-            issuer="playmate-backend",
-            audience="creativity-api",
-            issued_at=1790899200,
-            expires_at=1790899500,
-            nonce=f"vector_nonce_0000000{number}",
-            request=bind_request(method, target, body.encode(), idem),
-            channel_id="channel-vector",
-            environment="test",
-        )
-        secret, kid = bytes(range(32)), "dk_vector_2026"
-        envelope = sign(claims, kid, secret)
-        _, payload, _ = split_envelope(envelope)
-        items.append(
-            {
-                "name": f"vector-{number + 1}",
-                "kid": kid,
-                "secret_hex": secret.hex(),
-                "body": body,
-                "claims": claims.model_dump(mode="json", exclude_none=True),
-                "signing_string": signing_string(kid, payload).decode(),
-                "envelope": envelope,
-            }
-        )
-    return items
+from creativity_service.modules.channels.schemas import TokenExchange
 
 
 def artifacts() -> dict[str, object]:
@@ -64,16 +13,15 @@ def artifacts() -> dict[str, object]:
 
     app = create_schema_app()
     schema = app.openapi()
-    schema["info"] = {"title": "渠道环境身份委托与业务接入", "version": "2.0.0"}
+    schema["info"] = {"title": "渠道 Key 与密钥业务接入", "version": "3.0.0"}
     schema["paths"] = {
         p: v
         for p, v in schema["paths"].items()
         if p.startswith(
             (
-                "/admin/v1/delegation-keys",
-                "/admin/v1/subject-review-bindings",
                 "/api/v1/auth/token",
                 "/api/v1/runs",
+                "/api/v1/conversations",
             )
         )
     }
@@ -96,37 +44,9 @@ def artifacts() -> dict[str, object]:
 
     retain_refs(schema["paths"])
     schema["components"]["schemas"] = retained
-    delegation_errors = {
-        "DELEGATION_REQUIRED": ("缺少业务主体委托", 401),
-        "DELEGATION_INVALID": ("签名、签发者、受众或声明格式无效", 401),
-        "DELEGATION_EXPIRED": ("委托过期或时间不合法", 401),
-        "DELEGATION_SCOPE_INVALID": ("委托归属或委托范围不符", 403),
-        "DELEGATION_FORBIDDEN": ("委托超过当前权限或匿名范围", 403),
-        "DELEGATION_REQUEST_MISMATCH": ("委托未绑定当前实际请求", 403),
-        "DELEGATION_REPLAY": ("同一随机数已用于不同请求或身份", 409),
-        "DELEGATION_KEY_CHANGED": ("验签期间密钥配置改变，请重试", 409),
-        "DELEGATION_KEY_EXISTS": ("当前接入服务已有密钥，请轮换", 409),
-        "DELEGATION_KEY_UNAVAILABLE": ("委托密钥不可轮换", 409),
-        "DELEGATION_KEY_ROTATED": ("旧密钥已轮换，请使用新密钥", 409),
-    }
     return {
-        **{
-            (
-                "DelegationClaims-v2.schema.json"
-                if model is DelegationClaims
-                else f"{model.__name__}.schema.json"
-            ): model.model_json_schema(mode="serialization")
-            for model in (
-                DelegationClaims,
-                RequestBinding,
-            )
-        },
-        "delegation-vectors.json": vectors(),
-        "errors.json": {
-            code: {"message": name, "http_status": status}
-            for code, (name, status) in delegation_errors.items()
-        },
-        "openapi-v2.json": schema,
+        "TokenExchange.schema.json": TokenExchange.model_json_schema(mode="serialization"),
+        "openapi-v3.json": schema,
     }
 
 

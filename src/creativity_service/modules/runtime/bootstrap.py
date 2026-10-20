@@ -8,8 +8,6 @@ from creativity_service.modules.budgets.services import BudgetService
 from creativity_service.modules.conversations.assembly import build_conversation_service
 from creativity_service.modules.evaluations.assembly import build_evaluation_service
 from creativity_service.modules.iam.services import IamServices
-from creativity_service.modules.integrations.assembly import build_integration_services
-from creativity_service.modules.integrations.delegation import CurrentSubjectReader
 from creativity_service.modules.mcp.assembly import build_mcp_service
 from creativity_service.modules.memory.assembly import build_memory_service
 from creativity_service.modules.models.assembly import build_model_services
@@ -28,7 +26,6 @@ def worker_services(
     iam: IamServices,
     *,
     registry: StepRegistry | None = None,
-    current_subjects: CurrentSubjectReader | None = None,
 ) -> RunService:
     engine = infrastructure.engine
     store = infrastructure.object_store
@@ -38,9 +35,6 @@ def worker_services(
     tools = build_tool_services(engine, iam.authorization)
     skills = build_skill_service(engine, iam.authorization, store, tools.management)
     mcp = build_mcp_service(engine, iam.authorization, tools)
-    build_integration_services(
-        engine, iam.authorization, current_subjects=current_subjects, mcp=mcp
-    )
     prompts = build_prompt_service(engine, iam.authorization, store)
     models = build_model_services(engine, iam)
     conversations = build_conversation_service(engine, iam.authorization, runs, store)

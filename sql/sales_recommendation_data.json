@@ -1,6 +1,6 @@
 {
   "source": {
-    "description": "销售推荐 PC 匹配完整初始化配置：单份当前智能体已上线且启用，多轮对话、目录推荐、服务接入及只读主体复核；仅归档当前 Key 摘要与委托密文。",
+    "description": "陪玩 AI 匹配当前配置、技能包及渠道 Key 接入配置；MCP 仅提供业务工具。",
     "captured_at": "2026-10-19T13:23:26.439359+00:00",
     "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
     "environment": "dev",
@@ -3090,6 +3090,7 @@
           "run:content",
           "conversation:read",
           "conversation:write",
+          "content:delete",
           "data:read_sensitive"
         ],
         "status": "ACTIVE",
@@ -3115,6 +3116,7 @@
           "run:content",
           "conversation:read",
           "conversation:write",
+          "content:delete",
           "data:read_sensitive"
         ],
         "status": "ACTIVE",
@@ -3133,64 +3135,6 @@
         "key_lookup_digest": "3d67418dc66ad397aa8ddf74e6ac6e100f25c20547c8b0ddd535594f22287105",
         "key_id": "key_00712eab74f84198ba3cbc32b36b1b6e",
         "target_channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "is_deleted": false
-      }
-    ],
-    "delegation_keys": [
-      {
-        "id": "dk_8a6757d1267e4c9f89ba4eb5a58e3014",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-19T12:29:54.518523+00:00",
-        "updated_at": "2026-10-19T12:29:54.518523+00:00",
-        "revision": 1,
-        "environment": "dev",
-        "client_id": "client_35b3c34bcb3c43aaba527cd2355d5713",
-        "key_reference": "credential_2cc806483a4e4945a763ca91809b37bf",
-        "algorithm": "HMAC-SHA256",
-        "issuer": "playmate-backend",
-        "audience": "creativity",
-        "max_ttl_seconds": 300,
-        "clock_skew_seconds": 30,
-        "status": "ACTIVE",
-        "not_before": "2026-10-19T12:29:54.517687+00:00",
-        "expires_at": "2026-11-18T15:59:59+00:00",
-        "rotated_from": null,
-        "is_deleted": false
-      }
-    ],
-    "credentials": [
-      {
-        "id": "credential_2cc806483a4e4945a763ca91809b37bf",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-19T12:29:54.514921+00:00",
-        "updated_at": "2026-10-19T12:29:54.514921+00:00",
-        "revision": 1,
-        "environment": "dev",
-        "purpose": "delegation",
-        "ciphertext": "c20277cda671dda6f22a44c90dbb56c1df04dc9ca29718718f1147e56ea1469b88647f158656847cf47ac389662242c8f416665b098d00c294029f21",
-        "key_version": "qa_local_1010",
-        "state": "ACTIVE",
-        "secret_value": null,
-        "is_deleted": false
-      }
-    ],
-    "subject_review_bindings": [
-      {
-        "id": "a1f9afd12eeacf6612093ca646a06ded0e3d4eb1795d41920f565da878c38f8b",
-        "channel_id": "channel_407de822881947339e26ec7d9d55a8a0",
-        "created_at": "2026-10-19T12:57:07.090879+00:00",
-        "updated_at": "2026-10-19T12:57:07.090879+00:00",
-        "revision": 1,
-        "environment": "dev",
-        "client_id": "client_35b3c34bcb3c43aaba527cd2355d5713",
-        "connection_id": "mcp_958f6660827343b29ed5f9d90ed44c64",
-        "discovery_id": "discovery_86fac4ec3d1f4bf4991073d16fb730a6",
-        "remote_tool_name": "playmate_ai_match.review_subject",
-        "tool_name": "AI 匹配玩家主体复核",
-        "connection_revision": 5,
-        "schema_hash": "70470995d4212b24f48032bda7bb15b1bb5075172da24b0b010163c89a49aaa0",
-        "timeout_seconds": 5,
-        "enabled": true,
         "is_deleted": false
       }
     ]

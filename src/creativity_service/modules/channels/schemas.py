@@ -1,9 +1,9 @@
 """渠道输入与页面交接契约，密钥明文只存在于一次性响应。"""
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import AwareDatetime, Field, SecretStr
+from pydantic import AwareDatetime, Field, SecretStr, model_validator
 
 from creativity_service.core.auth.types import Status
 from creativity_service.core.context import Environment
@@ -87,10 +87,16 @@ class ClientUpdate(Contract):
 
 class KeyCreate(Contract):
     name: str = Field(min_length=1, max_length=128)
-    client_id: Identifier
+    client_id: Identifier | None = None
     environment: Environment
-    scopes: list[str] = Field(min_length=1, max_length=100)
+    scopes: list[str] | None = Field(default=None, min_length=1, max_length=100)
     expires_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def complete_legacy_binding(self) -> Self:
+        if (self.client_id is None) != (self.scopes is None):
+            raise ValueError("指定接入服务时须同时提供能力范围")
+        return self
 
 
 class KeyRotate(Contract):
@@ -104,7 +110,26 @@ class RevisionInput(Contract):
 
 
 class TokenExchange(Contract):
-    api_key: SecretStr = Field(min_length=1, max_length=512)
+    key_id: Identifier | None = None
+    secret: SecretStr | None = Field(default=None, min_length=1, max_length=512)
+    api_key: SecretStr | None = Field(
+        default=None, min_length=1, max_length=512, json_schema_extra={"deprecated": True}
+    )
+
+    @model_validator(mode="after")
+    def credential_pair(self) -> Self:
+        if self.api_key is not None:
+            if self.key_id is not None or self.secret is not None:
+                raise ValueError("不能混用两种凭据字段")
+        elif self.key_id is None or self.secret is None:
+            raise ValueError("请同时提供渠道 Key 和密钥")
+        return self
+
+    def secret_value(self) -> str:
+        secret = self.secret or self.api_key
+        if secret is None:
+            raise ValueError("缺少渠道密钥")
+        return secret.get_secret_value()
 
 
 class ChannelConfigurationStatus(Contract):

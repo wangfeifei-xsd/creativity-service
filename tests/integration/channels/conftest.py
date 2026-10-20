@@ -17,6 +17,7 @@ from creativity_service.app import create_schema_app
 from creativity_service.core.config import Settings
 from creativity_service.core.primitives import new_id, utcnow
 from creativity_service.modules.channels.assembly import build_channel_services
+from creativity_service.modules.channels.business_context import ChannelBusinessContext
 from creativity_service.modules.channels.schemas import (
     ChannelCreate,
     ClientCreate,
@@ -75,6 +76,7 @@ async def channel_env():
     app = create_schema_app()
     app.add_middleware(RequestContextMiddleware)
     app.state.iam, app.state.channels, app.state.authentication = iam, services, iam.authentication
+    app.state.business_context = ChannelBusinessContext(engine)
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as client:

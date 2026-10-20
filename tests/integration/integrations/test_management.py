@@ -1,4 +1,4 @@
-"""委托管理保留密钥边界，渠道盘点不依赖旧业务连接。"""
+"""旧委托入口已移除，历史记录仍可供迁移盘点。"""
 
 import json
 
@@ -19,6 +19,10 @@ pytestmark = pytest.mark.integration
         ("GET", "/admin/v1/integrations/legacy/tests"),
         ("POST", "/admin/v1/integrations/legacy/tests"),
         ("POST", "/admin/v1/integration-credentials"),
+        ("GET", "/admin/v1/delegation-keys"),
+        ("POST", "/admin/v1/delegation-keys"),
+        ("GET", "/admin/v1/subject-review-bindings"),
+        ("POST", "/admin/v1/subject-review-bindings"),
     ],
 )
 async def test_removed_management_routes_are_unavailable(integration_env, method, path):
@@ -30,17 +34,6 @@ async def test_removed_management_routes_are_unavailable(integration_env, method
     )
     assert response.status_code == 404
     assert path not in env.client._transport.app.openapi()["paths"]
-
-
-async def test_delegation_management_redacts_secrets(integration_env):
-    env = integration_env
-    response = await env.client.get(
-        "/admin/v1/delegation-keys",
-        headers={"Authorization": f"Bearer {env.channel.token.access_token}"},
-    )
-    assert response.status_code == 200, response.text
-    assert env.key.signing_secret not in response.text
-    assert "key_reference" not in response.text
 
 
 async def test_access_inventory_and_migration_keep_credentials_and_nonce(integration_env):

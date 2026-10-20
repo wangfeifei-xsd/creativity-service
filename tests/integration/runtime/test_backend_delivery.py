@@ -1,11 +1,9 @@
 """22：同一独立客户端经真实 HTTP、Redis、MySQL 和 MCP 调用两套配置。"""
 
 import asyncio
-import base64
 import copy
 import json
 import os
-import secrets
 import socket
 from datetime import timedelta
 from pathlib import Path
@@ -17,7 +15,6 @@ from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.database import transaction
 from creativity_service.core.primitives import utcnow
 from creativity_service.core.services import build_core_services
-from creativity_service.integrations.business.delegation import split_envelope, verify_payload
 from creativity_service.modules.agents.schemas import InputSource
 from creativity_service.modules.channels.schemas import KeyRotate
 from creativity_service.modules.models.schemas import RouteInput, RouteVersionInput
@@ -116,8 +113,6 @@ async def delivery_env(business_env):
             return Principal(
                 env.claims.subject_type,
                 env.claims.subject_id,
-                env.claims.actions,
-                env.claims.resources,
             )
 
     sock = socket.socket()
@@ -132,11 +127,8 @@ async def delivery_env(business_env):
                 await asyncio.sleep(0.01)
         async with BusinessBackendClient(
             f"http://127.0.0.1:{sock.getsockname()[1]}",
+            env.identity.key.key.key_id,
             env.identity.key.api_key,
-            env.key.key.kid,
-            base64.b64decode(env.key.signing_secret),
-            env.claims.issuer,
-            env.claims.audience,
             Principals(),
         ) as backend:
             env.backend = backend
@@ -284,25 +276,24 @@ async def test_reauthentication_key_rotation_and_current_revocation(delivery_env
             expires_at=utcnow() + timedelta(hours=1),
         ),
     )
-    env.backend.api_key, env.backend.token = rotated.api_key, None
+    env.backend.key_id, env.backend.secret, env.backend.token = (
+        rotated.key.key_id,
+        rotated.api_key,
+        None,
+    )
     assert (await submit(env, name, "rotation"))["run_id"] == receipt["run_id"]
     assert (await env.backend.query(receipt["run_id"]))["state"] == "SUCCEEDED"
-    env.sources[0].review_mode = "revoked"
+    await env.services.keys.revoke(
+        env.tenant.manager, env.context.scope.channel_id, rotated.key.key_id, rotated.key.revision
+    )
     for operation in (
         lambda: env.backend.query(receipt["run_id"]),
         lambda: submit(env, name, "rotation"),
     ):
-        with pytest.raises(PlatformError) as failure:
+        with pytest.raises(PlatformError):
             await operation()
-        assert failure.value.status == 403
     with pytest.raises(PlatformError):
         _ = [e async for e in env.backend.subscribe(receipt["run_id"])]
-    env.sources[0].review_mode = "normal"
-    await env.services.keys.revoke(
-        env.tenant.manager, env.context.scope.channel_id, rotated.key.key_id, rotated.key.revision
-    )
-    with pytest.raises(PlatformError):
-        await env.backend.query(receipt["run_id"])
 
 
 async def test_conversation_artifact_expired_events_and_scope_rejection(delivery_env):
@@ -325,34 +316,16 @@ async def test_conversation_artifact_expired_events_and_scope_rejection(delivery
     assert await backend.download(exported["artifact_id"])
     run_id = message["run"]["run_id"]
     target = f"/api/v1/runs/{run_id}/events"
-    env.sources[0].review_mode = "revoked"
-    with pytest.raises(PlatformError):
-        await backend.download(exported["artifact_id"])
-    env.sources[0].review_mode = "normal"
     headers = await backend.prepare("GET", target, b"", None)
-    original = headers["X-Business-Delegation"]
-    kid, payload, signature = split_envelope(original)
-    claims = verify_payload(kid, payload, signature, backend.signing_secret)
-    from examples.backend.client import sign_claims
-
-    for changed in (
-        {"channel_id": "forged"},
-        {"environment": "prod"},
-        {"subject_id": "another-user"},
-    ):
-        headers["X-Business-Delegation"] = sign_claims(
-            {
-                **claims.model_dump(mode="json", exclude_none=True),
-                **changed,
-                "nonce": secrets.token_urlsafe(24),
-            },
-            kid,
-            backend.signing_secret,
-        )
-        response = await backend.http.get(target, headers=headers)
-        assert response.status_code in {401, 403, 404, 409}
-    headers["Authorization"] = "Bearer " + backend.api_key
-    headers["X-Business-Delegation"] = original
+    # 同渠道不同用户不能读取原用户的运行或产物。
+    other = {**headers, "X-Subject-ID": "another-user"}
+    response = await backend.http.get(target, headers=other)
+    assert response.status_code in {403, 404}
+    response = await backend.http.get(
+        f"/api/v1/artifacts/{exported['artifact_id']}/download", headers=other
+    )
+    assert response.status_code in {403, 404}
+    headers["Authorization"] = "Bearer " + backend.secret
     assert (await backend.http.get(target, headers=headers)).status_code == 401
     async with transaction(
         env.engine, env.subject.scope, env.runs.keys(env.subject, run_id)
@@ -424,13 +397,18 @@ async def test_sync_window_input_contract_and_live_stream_revocation(delivery_en
     subscription = env.backend.subscribe(receipt["run_id"])
     try:
         assert (await anext(subscription)).type == "accepted"
-        env.sources[0].review_mode = "revoked"
-        # 连接已建立后，空闲轮询仍须拒绝当前已撤销的主体。
+        await env.services.keys.revoke(
+            env.tenant.manager,
+            env.context.scope.channel_id,
+            env.identity.key.key.key_id,
+            env.identity.key.key.revision,
+        )
+        # 连接已建立后，空闲轮询仍拒绝已撤销的渠道凭据。
         with pytest.raises(PlatformError) as failure:
             async with asyncio.timeout(10):
                 await anext(subscription)
-        assert failure.value.status == 403
+        assert failure.value.status in {401, 403}
     finally:
         await subscription.aclose()
-        env.sources[0].review_mode = "normal"
-    assert (await env.backend.cancel(receipt["run_id"]))["state"] == "CANCELLED"
+    with pytest.raises(PlatformError):
+        await env.backend.cancel(receipt["run_id"])

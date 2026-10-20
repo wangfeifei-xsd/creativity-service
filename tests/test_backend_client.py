@@ -1,48 +1,34 @@
-"""独立客户端验证签名兼容、失联重发和逐帧恢复，不能替代真实端到端证据。"""
+"""独立客户端验证渠道凭据、失联重发和逐帧恢复，不能替代真实端到端证据。"""
 
-import hashlib
 import json
-from pathlib import Path
 
 import httpx
 import pytest
 
 from creativity_service.api.openapi import build_schema
-from creativity_service.integrations.business.delegation import split_envelope, verify_payload
-from examples.backend.client import BusinessBackendClient, PlatformError, Principal, sign_claims
+from examples.backend.client import BusinessBackendClient, PlatformError, Principal
 
 
 class Principals:
     async def current(self):
-        return Principal(
-            "user",
-            "a",
-            ["run:create", "run:read", "run:content"],
-            {"run": ["*"], "agent": ["*"]},
-        )
+        return Principal("user", "a")
 
 
 def client(handler):
     return BusinessBackendClient(
         "https://platform.example",
-        "server-api-key",
-        "dk_test",
-        b"a" * 32,
-        "source",
-        "creativity-api",
+        "key_test",
+        "server-secret",
         Principals(),
         transport=httpx.MockTransport(handler),
     )
 
 
 def claims(request):
-    kid, payload, signature = split_envelope(request.headers["X-Business-Delegation"])
-    value = verify_payload(kid, payload, signature, b"a" * 32)
-    assert value.request.method == request.method
-    assert value.request.target == request.url.raw_path.decode()
-    assert value.request.body_sha256 == hashlib.sha256(request.content).hexdigest()
-    assert value.request.idempotency_key == request.headers.get("Idempotency-Key")
-    return value
+    assert "X-Business-Delegation" not in request.headers
+    assert request.headers["X-Subject-Type"] == "user"
+    assert request.headers["X-Subject-ID"] == "a"
+    return request
 
 
 def error(status, code):
@@ -51,20 +37,13 @@ def error(status, code):
     )
 
 
-def test_standalone_signature_matches_published_vectors():
-    for item in json.loads(Path("contracts/integrations/delegation-vectors.json").read_text()):
-        assert (
-            sign_claims(item["claims"], item["kid"], bytes.fromhex(item["secret_hex"]))
-            == item["envelope"]
-        )
-
-
-async def test_lost_response_then_expired_token_resigns_same_body_and_key():
+async def test_lost_response_then_expired_token_keeps_body_subject_and_idempotency():
     exchanges, sent = [], []
 
     def handler(request):
         if request.url.path == "/api/v1/auth/token":
             exchanges.append(request)
+            assert json.loads(request.content) == {"key_id": "key_test", "secret": "server-secret"}
             assert "X-Business-Delegation" not in request.headers
             return httpx.Response(
                 200, json={"access_token": f"opaque-{len(exchanges)}", "expires_in": 60}
@@ -82,8 +61,7 @@ async def test_lost_response_then_expired_token_resigns_same_body_and_key():
         ] == "run_original"
     assert len(exchanges) == 2 and len(sent) == 3
     assert len({r.content for r, _ in sent}) == 1
-    assert len({c.nonce for _, c in sent}) == 3
-    assert all(c.request.idempotency_key == "persisted" for _, c in sent)
+    assert all(c.headers["Idempotency-Key"] == "persisted" for _, c in sent)
 
 
 async def test_non_idempotent_creation_is_not_retried_and_foreign_urls_never_sent():
@@ -143,8 +121,7 @@ async def test_stream_control_refresh_and_cursor_deduplication():
         events = [event async for event in backend.subscribe("run_original")]
     assert [e.sequence for e in events] == [1, 2, 3]
     assert events[0].data["payload"]["validated"] is False
-    assert subscriptions[1].request.target.endswith("after_sequence=1")
-    assert subscriptions[0].nonce != subscriptions[1].nonce
+    assert str(subscriptions[1].url).endswith("after_sequence=1")
     assert len(exchanges) == 2
 
 
@@ -187,7 +164,7 @@ def test_backend_openapi_matches_real_routes_and_error_shapes():
             "$ref": f"#/components/schemas/{name}"
         }
     events = schema["paths"]["/api/v1/runs/{run_id}/events"]["get"]
-    assert {"Last-Event-ID", "after_sequence", "X-Business-Delegation"} <= {
+    assert {"Last-Event-ID", "after_sequence", "X-Subject-Type", "X-Subject-ID"} <= {
         p["name"] for p in events["parameters"]
     }
     assert events["responses"]["410"]["content"]["application/json"]["schema"]["$ref"].endswith(

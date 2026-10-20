@@ -242,6 +242,14 @@ async def revoke_key(
     return await service.keys.revoke(session, channel_id, key_id, body.revision)
 
 
+@router.delete("/channels/{channel_id}/keys/{key_id}", status_code=204)
+async def delete_key(
+    channel_id: str, key_id: str, body: RevisionInput, session: Session, service: Services
+) -> Response:
+    await service.keys.delete(session, channel_id, key_id, body.revision)
+    return Response(status_code=204, headers={"Cache-Control": "no-store"})
+
+
 @router.get("/channels/{channel_id}/impact", response_model=ImpactView)
 async def impact(
     channel_id: str, action: LifecycleAction, session: Session, service: Services

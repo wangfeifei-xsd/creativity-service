@@ -21,12 +21,11 @@ from creativity_service.core.observability import configure_logging, create_trac
 from creativity_service.core.services import build_core_services
 from creativity_service.modules.agents.assembly import build_agent_service
 from creativity_service.modules.channels.assembly import build_channel_services
+from creativity_service.modules.channels.business_context import ChannelBusinessContext
 from creativity_service.modules.conversations.assembly import build_conversation_service
 from creativity_service.modules.data_lifecycle.handlers import ContentHandlers
 from creativity_service.modules.data_lifecycle.services import DataLifecycleService
 from creativity_service.modules.evaluations.assembly import build_evaluation_service
-from creativity_service.modules.integrations.assembly import build_integration_services
-from creativity_service.modules.integrations.delegation import CurrentSubjectReader
 from creativity_service.modules.mcp.assembly import build_mcp_service
 from creativity_service.modules.memory.assembly import build_memory_service
 from creativity_service.modules.models.assembly import build_model_services
@@ -50,16 +49,18 @@ class PlatformAPI(FastAPI):
             for path_name, path in schema["paths"].items():
                 for operation in path.values():
                     if path_name.startswith("/api/v1/") and path_name != "/api/v1/auth/token":
-                        operation.setdefault("parameters", []).append(
+                        operation.setdefault("parameters", []).extend(
                             {
-                                "name": "X-Business-Delegation",
+                                "name": name,
                                 "in": "header",
-                                "required": True,
-                                "description": (
-                                    "业务后端签发并绑定实际请求的 business-delegation-v2 委托"
-                                ),
-                                "schema": {"type": "string", "maxLength": 16384},
+                                "required": False,
+                                "description": description,
+                                "schema": {"type": "string", "maxLength": 128},
                             }
+                            for name, description in (
+                                ("X-Subject-Type", "业务用户类型，与用户编号成对提供"),
+                                ("X-Subject-ID", "业务用户编号，仅用于本渠道内的会话和内容归属"),
+                            )
                         )
                     for response in operation.get("responses", {}).values():
                         response.setdefault("headers", {})["X-Request-ID"] = {
@@ -96,7 +97,6 @@ def create_app(
     settings: Settings | None = None,
     *,
     runtime_registry: StepRegistry | None = None,
-    current_subjects: CurrentSubjectReader | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
     configure_logging(settings, "api")
@@ -138,13 +138,7 @@ def create_app(
         app.state.mcp = build_mcp_service(
             infrastructure.engine, app.state.iam.authorization, app.state.tools
         )
-        app.state.integrations = build_integration_services(
-            infrastructure.engine,
-            app.state.iam.authorization,
-            current_subjects=current_subjects,
-            mcp=app.state.mcp,
-        )
-        app.state.delegation = app.state.integrations.delegation
+        app.state.business_context = ChannelBusinessContext(infrastructure.engine)
         app.state.authentication = app.state.iam.authentication
         app.state.core = build_core_services(
             infrastructure.engine,
@@ -242,7 +236,8 @@ def create_app(
             "Content-Type",
             "Idempotency-Key",
             "Last-Event-ID",
-            "X-Business-Delegation",
+            "X-Subject-Type",
+            "X-Subject-ID",
         ],
         expose_headers=["X-Request-ID", "Content-Disposition"],
     )

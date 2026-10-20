@@ -1,6 +1,5 @@
 """管理员订阅真实业务 API 运行，验证通知、告警与发送前的权限边界。"""
 
-import base64
 import json
 from uuid import uuid4
 
@@ -11,8 +10,7 @@ from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.database import transaction
 from creativity_service.core.deletion import ContentRef, DeletionService
 from creativity_service.core.locking import record_key
-from creativity_service.core.primitives import ServiceError, utcnow
-from creativity_service.integrations.business.delegation import bind_request, sign
+from creativity_service.core.primitives import ServiceError
 from creativity_service.modules.channels.schemas import ClientCreate, ClientUpdate
 from creativity_service.modules.iam.repositories import policy_key, rows, save
 from creativity_service.modules.integrations.alerts import Alerts, AlertSave
@@ -26,24 +24,14 @@ from tests.integration.runtime.test_execution import pytestmark as pytestmark
 
 
 async def request(env, method, path, body=b"", key=None):
-    now = int(utcnow().timestamp())
-    claims = env.claims.model_copy(
-        update={
-            "issued_at": now,
-            "expires_at": now + 300,
-            "nonce": uuid4().hex,
-            "request": bind_request(method, path, body, key),
-        }
-    )
     return await env.client.request(
         method,
         path,
         content=body,
         headers={
             "Authorization": "Bearer " + env.identity.token.access_token,
-            "X-Business-Delegation": sign(
-                claims, env.key.key.kid, base64.b64decode(env.key.signing_secret)
-            ),
+            "X-Subject-Type": env.claims.subject_type,
+            "X-Subject-ID": env.claims.subject_id,
             "Content-Type": "application/json",
             **({"Idempotency-Key": key} if key else {}),
         },

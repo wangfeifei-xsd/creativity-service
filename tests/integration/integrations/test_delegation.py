@@ -143,7 +143,7 @@ async def test_independent_key_rotation_and_stable_client_retry(integration_env)
         await verify(env, claim)
 
 
-async def test_http_delegation_and_anonymous_boundary(integration_env):
+async def test_http_channel_identity_optional_subject_boundary(integration_env):
     env = integration_env
     from fastapi import Depends
 
@@ -151,31 +151,32 @@ async def test_http_delegation_and_anonymous_boundary(integration_env):
 
     app = env.client._transport.app
 
-    @app.post("/api/v1/delegation-probe")
+    @app.post("/api/v1/channel-probe")
     async def probe(context: Annotated[AuthContext, Depends(require_http_context)]):
-        return {"subject": context.scope.subject_id, "scope": context.scope.environment}
+        return {
+            "subject": context.scope.subject_id,
+            "kind": context.scope.subject_type,
+            "scope": context.scope.environment,
+        }
 
-    body = b'{"message":"test"}'
-    claim = claims(
-        env,
-        subject_type="anonymous",
-        request=bind_request("POST", "/api/v1/delegation-probe", body),
-    )
-    headers = {
-        "Authorization": f"Bearer {env.identity.token.access_token}",
-        "X-Business-Delegation": sign(claim, env.key.key.kid, env.secret),
+    headers = {"Authorization": f"Bearer {env.identity.token.access_token}"}
+    response = await env.client.post("/api/v1/channel-probe", headers=headers)
+    assert response.status_code == 200
+    assert response.json() == {
+        "subject": env.identity.client.client_id,
+        "kind": "service",
+        "scope": "test",
     }
-    response = await env.client.post("/api/v1/delegation-probe", content=body, headers=headers)
-    assert response.status_code == 200, response.text
-    assert response.json()["scope"] == "test"
     response = await env.client.post(
-        "/api/v1/delegation-probe",
-        content=body,
-        headers={"Authorization": headers["Authorization"]},
+        "/api/v1/channel-probe",
+        headers={**headers, "X-Subject-Type": "anonymous", "X-Subject-ID": "visitor-one"},
     )
-    assert response.status_code == 401
-    verified = await verify(env, claim)
-    assert verified.scope.subject_type == "anonymous"
+    assert response.status_code == 200
+    assert response.json() == {"subject": "visitor-one", "kind": "anonymous", "scope": "test"}
+    response = await env.client.post(
+        "/api/v1/channel-probe", headers={**headers, "X-Subject-ID": "visitor-one"}
+    )
+    assert response.status_code == 422
 
 
 async def test_worker_requires_current_subject_and_never_widens_permissions(

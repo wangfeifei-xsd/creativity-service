@@ -13,7 +13,7 @@ from creativity_service.core.auth.types import TokenResponse
 from creativity_service.core.context import AuthContext, ControlScope, Scope
 from creativity_service.core.database import UnitOfWork, transaction
 from creativity_service.core.locking import ResourceKey, record_key
-from creativity_service.core.primitives import ServiceError, new_id, utcnow
+from creativity_service.core.primitives import ServiceError, digest, new_id, utcnow
 from creativity_service.modules.channels.reading import ChannelReadData
 from creativity_service.modules.channels.repositories import one, required, rows, save
 from creativity_service.modules.channels.schemas import (
@@ -23,7 +23,12 @@ from creativity_service.modules.channels.schemas import (
     KeyView,
     TokenExchange,
 )
-from creativity_service.modules.channels.services import ChannelService, capabilities, clean_name
+from creativity_service.modules.channels.services import (
+    SERVICE_ACTIONS,
+    ChannelService,
+    capabilities,
+    clean_name,
+)
 from creativity_service.modules.channels.state import current_service, require_available
 from creativity_service.modules.iam.audit import append_event
 from creativity_service.modules.iam.revocations import enqueue
@@ -32,6 +37,11 @@ from creativity_service.modules.iam.roles import ACTION_NAMES
 
 def secret_digest(secret: str) -> str:
     return hashlib.sha256(secret.encode()).hexdigest()
+
+
+def channel_client_id(channel_id: str, environment: str) -> str:
+    """同环境的渠道凭据共享稳定调用身份，轮换不改变会话和幂等归属。"""
+    return "channel_access_" + digest([channel_id, environment])[:32]
 
 
 class KeyService:
@@ -111,6 +121,39 @@ class KeyService:
     ) -> dict[str, Any]:
         channel_id = uow.scope.channel_id
         channel = await self.channels.locked(uow, session, "key:manage")
+        managed_id = channel_client_id(channel_id, body.environment)
+        if body.client_id is None:
+            await self.channels.require_visible(
+                uow.connection, session, body.environment, action="key:manage"
+            )
+            # 渠道凭据管理已经授予业务 API 接入权，内部调用身份不再要求用户另行登记。
+            client = await one(
+                uow.connection,
+                "service_clients",
+                channel_id,
+                id=managed_id,
+                include_deleted=True,
+            )
+            if client is None:
+                await save(
+                    uow,
+                    "service_clients",
+                    managed_id,
+                    {
+                        "name": "渠道业务接口",
+                        "environment": body.environment,
+                        "scopes": sorted(SERVICE_ACTIONS),
+                        "status": "ACTIVE",
+                    },
+                )
+            elif client["is_deleted"]:
+                raise ServiceError("CLIENT_DISABLED", "渠道接入身份已删除", 409)
+            body = body.model_copy(
+                update={
+                    "client_id": managed_id,
+                    "scopes": sorted(SERVICE_ACTIONS),
+                }
+            )
         client = await required(
             uow.connection,
             "service_clients",
@@ -126,15 +169,16 @@ class KeyService:
             raise ServiceError("CLIENT_DISABLED", "接入服务已停用", 409)
         if body.expires_at <= utcnow():
             raise ServiceError("INVALID_EXPIRY", "接入 Key 有效期须晚于当前时间", 422)
-        capabilities(body.scopes)
-        if not set(body.scopes) <= set(client["scopes"]):
+        scopes = body.scopes or []
+        capabilities(scopes)
+        if not set(scopes) <= set(client["scopes"]):
             raise ServiceError("KEY_SCOPE_EXCEEDED", "Key 权限不能超过接入服务授权", 403)
         await self.channels.require_visible(
             uow.connection,
             session,
             body.environment,
             action="key:manage",
-            delegated=body.scopes,
+            delegated=None if body.client_id == managed_id else scopes,
         )
         row = await save(
             uow,
@@ -172,7 +216,12 @@ class KeyService:
         async with transaction(
             self.repository.engine,
             self.channels.scope(session, channel_id),
-            self.creation_keys(channel_id, key_id, event_id, secret_digest(secret)),
+            self.creation_keys(channel_id, key_id, event_id, secret_digest(secret))
+            + [
+                record_key(
+                    channel_id, "service_clients", channel_client_id(channel_id, body.environment)
+                )
+            ],
         ) as uow:
             row = await self.add(uow, session, key_id, secret, body)
             await self.channels.event(uow, event_id, session, "key:create", "key", row)
@@ -284,6 +333,28 @@ class KeyService:
         await self.iam.revocations.complete(revocation)
         return view
 
+    async def delete(
+        self, session: AdminSession, channel_id: str, key_id: str, revision: int
+    ) -> None:
+        await self.channels.authorize(session, channel_id, "key:manage")
+        event_id = new_id("audit")
+        async with transaction(
+            self.repository.engine,
+            self.channels.scope(session, channel_id),
+            self.channels.keys(channel_id, "channel_keys", key_id, event_id),
+        ) as uow:
+            await self.channels.locked(uow, session, "key:manage")
+            old = await required(uow.connection, "channel_keys", channel_id, id=key_id)
+            await self.channels.require_visible(
+                uow.connection, session, old["environment"], action="key:manage"
+            )
+            if old["status"] != "REVOKED":
+                raise ServiceError("INVALID_STATE", "仅已吊销的渠道凭据允许删除", 409)
+            row = await save(uow, "channel_keys", key_id, {"is_deleted": True}, revision)
+            await self.channels.event(
+                uow, event_id, session, "key:delete", "key", row, changed_fields=["is_deleted"]
+            )
+
     async def exchange(self, body: TokenExchange, request_id: str) -> TokenResponse:
         try:
             return await self._exchange(body, request_id)
@@ -308,12 +379,14 @@ class KeyService:
             raise
 
     async def _exchange(self, body: TokenExchange, request_id: str) -> TokenResponse:
-        digest = secret_digest(body.api_key.get_secret_value())
+        digest = secret_digest(body.secret_value())
         async with self.repository.engine.connect() as connection:
             index = await self.repository.locate_key(connection, digest)
             if index is None or index["target_channel_id"] == "system":
                 raise ServiceError("UNAUTHENTICATED", "接入凭据无效", 401)
             channel_id, key_id = index["target_channel_id"], index["key_id"]
+            if body.key_id is not None and not hmac.compare_digest(body.key_id, key_id):
+                raise ServiceError("UNAUTHENTICATED", "接入凭据无效", 401)
             key = await one(connection, "channel_keys", channel_id, id=key_id)
             if key is None or not hmac.compare_digest(digest, key["secret_digest"]):
                 raise ServiceError("UNAUTHENTICATED", "接入凭据无效", 401)

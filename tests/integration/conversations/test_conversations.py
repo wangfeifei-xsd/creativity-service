@@ -293,6 +293,12 @@ async def test_stable_pagination_title_and_channel_subject_isolation(env):
         with pytest.raises(ServiceError) as error:
             await env.conversations.detail(env.context.model_copy(update={"scope": scope}), env.cid)
         assert error.value.status == 404
+        with pytest.raises(ServiceError) as deletion_error:
+            await env.conversations.delete(env.context.model_copy(update={"scope": scope}), env.cid)
+        assert deletion_error.value.status == 404
+    assert (
+        await env.conversations.detail(env.context, env.cid)
+    ).conversation.conversation_id == env.cid
 
 
 async def test_context_priorities_summary_sources_and_deletion_guard(env):

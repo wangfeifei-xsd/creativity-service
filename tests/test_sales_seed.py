@@ -39,8 +39,7 @@ def test_sales_seed_keeps_online_agent_with_complete_client_access(archived_base
     assert len(merge_sales(archived_base, tables)["agents"]) == 2
     assert set(tables["service_clients"][0]["scopes"]) == ACCESS_SCOPES
     assert tables["channel_keys"][0]["last_used_at"] is None
-    assert tables["credentials"][0]["secret_value"] is None
-    assert tables["subject_review_bindings"][0]["enabled"] is True
+    assert not {"credentials", "delegation_keys", "subject_review_bindings"} & tables.keys()
 
 
 @pytest.mark.parametrize(
@@ -51,10 +50,6 @@ def test_sales_seed_keeps_online_agent_with_complete_client_access(archived_base
         "extra_scope",
         "key_usage",
         "lookup_scope",
-        "delegation_client",
-        "plaintext",
-        "missing_review",
-        "review_contract",
         "missing_admin_access",
     ],
 )
@@ -71,14 +66,6 @@ def test_sales_seed_rejects_broken_client_access(archived_base, fault):
         tables["channel_keys"][0]["last_used_at"] = seed["source"]["captured_at"]
     elif fault == "lookup_scope":
         tables["key_identity_index"][0]["target_channel_id"] = "another-channel"
-    elif fault == "delegation_client":
-        tables["delegation_keys"][0]["client_id"] = "another-client"
-    elif fault == "plaintext":
-        tables["credentials"][0]["secret_value"] = "must-not-be-archived"
-    elif fault == "missing_review":
-        tables["subject_review_bindings"] = []
-    elif fault == "review_contract":
-        tables["subject_review_bindings"][0]["schema_hash"] = "0" * 64
     else:
         for grant in archived_base["resource_grants"]:
             if grant["resource_type"] == "channel":

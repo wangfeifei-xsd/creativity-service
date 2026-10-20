@@ -1,25 +1,22 @@
 """20 的通用 MCP 配置闭环；真实 TCP 与存储，模型响应明确为测试替身。"""
 
 import asyncio
-import base64
 import json
 from contextlib import ExitStack
 from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
+from starlette.requests import Request
 
 from creativity_service.core.auth.types import IdentitySource
 from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.primitives import ServiceError, utcnow
 from creativity_service.core.security.outbound import Destination, OutboundPolicy
-from creativity_service.integrations.business.delegation import DelegationClaims, bind_request, sign
 from creativity_service.integrations.tools import AdapterRequest
 from creativity_service.modules.agents.schemas import AgentBindings
+from creativity_service.modules.channels.business_context import ChannelBusinessContext
 from creativity_service.modules.channels.schemas import ClientCreate, KeyCreate, TokenExchange
-from creativity_service.modules.integrations.assembly import build_integration_services
-from creativity_service.modules.integrations.schemas import DelegationKeyCreate
-from creativity_service.modules.integrations.subject_contracts import SubjectReviewSave
 from creativity_service.modules.mcp.assembly import build_mcp_service
 from creativity_service.modules.mcp.schemas import (
     McpCreate,
@@ -32,7 +29,6 @@ from creativity_service.workers.executor import execute_message
 from examples.mcp.server import serve
 from tests.integration.agents.conftest import agent_env as agent_env
 from tests.integration.agents.test_agents import publish
-from tests.integration.integrations.conftest import TestKeys
 from tests.integration.runtime.conftest import runtime_env as runtime_env
 from tests.test_tools import MemoryRuns
 
@@ -76,7 +72,9 @@ async def business_env(runtime_env, request):
             expires_at=utcnow() + timedelta(minutes=20),
         ),
     )
-    token = await env.services.keys.exchange(TokenExchange(api_key=key.api_key), "mcp-test-token")
+    token = await env.services.keys.exchange(
+        TokenExchange(key_id=key.key.key_id, secret=key.api_key), "mcp-test-token"
+    )
     env.identity = SimpleNamespace(
         client=client,
         key=key,
@@ -100,27 +98,10 @@ async def business_env(runtime_env, request):
             )
         )
         env.mcp = build_mcp_service(env.engine, env.iam.authorization, env.tools, outbound=outbound)
-        env.bundle = build_integration_services(
-            env.engine, env.iam.authorization, provider=TestKeys(), mcp=env.mcp
-        )
         app = env.client._transport.app
-        app.state.mcp, app.state.integrations, app.state.delegation = (
-            env.mcp,
-            env.bundle,
-            env.bundle.delegation,
-        )
-        env.key = await env.bundle.keys.create(
-            env.context,
-            DelegationKeyCreate(
-                client_id=env.identity.client.client_id,
-                issuer="source.example",
-                audience="creativity-api",
-                expires_at=utcnow() + timedelta(days=1),
-                clock_skew_seconds=1,
-            ),
-        )
-        now = int(utcnow().timestamp())
-        env.claims = DelegationClaims(
+        app.state.mcp = env.mcp
+        app.state.business_context = ChannelBusinessContext(env.engine)
+        env.claims = SimpleNamespace(
             subject_type="member",
             subject_id="reader-a",
             actions=actions,
@@ -139,12 +120,6 @@ async def business_env(runtime_env, request):
                     "content",
                 )
             },
-            issuer="source.example",
-            audience="creativity-api",
-            issued_at=now,
-            expires_at=now + 300,
-            nonce="controlled_mcp_20_nonce",
-            request=bind_request("POST", "/api/v1/runs", b"{}", "mcp-20"),
         )
         env.connections, env.snapshots, env.imports, env.versions = [], [], [], []
         for source in env.sources:
@@ -196,20 +171,14 @@ async def business_env(runtime_env, request):
             env.snapshots.append(snapshot)
             env.imports.append(imported)
             env.versions.append(frozen)
-        env.review = await env.bundle.subject_review.save(
-            env.context,
-            SubjectReviewSave(
-                client_id=env.identity.client.client_id,
-                connection_id=env.connections[0].connection_id,
-                discovery_id=env.snapshots[0].discovery_id,
-                remote_tool_name="access.review-current",
-                timeout_seconds=1,
-            ),
-        )
-        env.subject = await env.bundle.delegation.verify(
+        env.subject = await app.state.business_context.resolve(
             env.identity.context,
-            sign(env.claims, env.key.key.kid, base64.b64decode(env.key.signing_secret)),
-            env.claims.request,
+            Request(
+                {
+                    "type": "http",
+                    "headers": [(b"x-subject-type", b"member"), (b"x-subject-id", b"reader-a")],
+                }
+            ),
         )
         env.worker = IdentitySource(
             scope=env.subject.scope,
@@ -217,7 +186,6 @@ async def business_env(runtime_env, request):
             principal_id=env.subject.principal_id,
             client_id=env.subject.client_id,
             key_id=env.subject.key_id,
-            delegation_id=env.subject.delegation_id,
         ).worker_context("worker-mcp-20")
         yield env
 
@@ -236,10 +204,9 @@ async def adapter_call(env, index=0, arguments=None, context=None):
     )
 
 
-async def test_configured_reader_and_two_business_schemas(business_env):
+async def test_channel_identity_and_two_business_schemas(business_env):
     env = business_env
-    authority = await env.bundle.delegation.read_current(env.worker)
-    assert authority.scope == env.subject.scope
+    assert env.worker.scope == env.subject.scope
     for index, source in enumerate(env.sources):
         raw = await adapter_call(env, index)
         assert raw.data == source.data
@@ -283,45 +250,12 @@ async def test_configured_reader_and_two_business_schemas(business_env):
         )
 
 
-@pytest.mark.parametrize(
-    "mode,code",
-    [
-        ("revoked", "SUBJECT_REVIEW_DENIED"),
-        ("widen", "DELEGATION_FORBIDDEN"),
-        ("expired", "SUBJECT_REVIEW_DENIED"),
-        ("wrong_scope", "SUBJECT_REVIEW_DENIED"),
-        ("error", "SUBJECT_REVIEW_INVALID"),
-    ],
-)
-async def test_current_subject_refusal_prevents_business_call(business_env, mode, code):
+async def test_channel_calls_do_not_require_subject_review(business_env):
     env = business_env
-    env.sources[0].review_mode = mode
-    with pytest.raises(ServiceError) as error:
-        await adapter_call(env)
-    assert error.value.code == code
-    assert not any(c["name"] == env.sources[0].tool_name for c in env.sources[0].calls)
-
-
-async def test_timeout_missing_configuration_and_delegation_revocation(business_env):
-    env = business_env
-    env.sources[0].review_delay = 1.2
-    with pytest.raises(ServiceError) as error:
-        await adapter_call(env)
-    assert error.value.code == "SUBJECT_REVIEW_UNAVAILABLE"
-    env.sources[0].review_delay = 0
-    body = SubjectReviewSave(**env.review.model_dump(include=set(SubjectReviewSave.model_fields)))
-    disabled = await env.bundle.subject_review.save(
-        env.context, body.model_copy(update={"enabled": False})
-    )
-    with pytest.raises(ServiceError, match="未配置"):
-        await adapter_call(env)
-    await env.bundle.subject_review.save(
-        env.context, body.model_copy(update={"revision": disabled.revision})
-    )
-    await env.bundle.keys.revoke(env.context, env.key.key.kid, env.key.key.revision)
-    with pytest.raises(ServiceError) as error:
-        await adapter_call(env)
-    assert error.value.code == "DELEGATION_INVALID"
+    env.sources[0].review_mode = "revoked"
+    env.sources[0].review_delay = 10
+    assert (await adapter_call(env)).data == env.sources[0].data
+    assert not any(c["name"] == "access.review-current" for c in env.sources[0].calls)
 
 
 async def test_result_status_scope_effect_and_entity_authorization(business_env):
@@ -427,20 +361,10 @@ async def test_published_agent_uses_mcp_through_shared_worker_pipeline(
             "delivery": delivery,
         }
     ).encode()
-    expires_at = int(utcnow().timestamp()) + 10
-    claim = env.claims.model_copy(
-        update={
-            "issued_at": expires_at - 10,
-            "expires_at": expires_at,
-            "request": bind_request("POST", "/api/v1/runs", body, "agent-mcp-20"),
-            "nonce": "agent_mcp_20_unique_nonce",
-        }
-    )
     header = {
         "Authorization": "Bearer " + env.identity.token.access_token,
-        "X-Business-Delegation": sign(
-            claim, env.key.key.kid, base64.b64decode(env.key.signing_secret)
-        ),
+        "X-Subject-Type": "member",
+        "X-Subject-ID": "reader-a",
         "Idempotency-Key": "agent-mcp-20",
         "Content-Type": "application/json",
     }
@@ -449,7 +373,7 @@ async def test_published_agent_uses_mcp_through_shared_worker_pipeline(
     run_id = response.json()["run_id"]
     token_key = env.iam.authentication.tokens.token_key(env.identity.context.token_digest)
     assert await env.redis.expire(token_key, 1)
-    await asyncio.sleep(max(0, expires_at + 1.1 - utcnow().timestamp()))
+    await asyncio.sleep(1.1)
     with pytest.raises(ServiceError):
         await env.iam.authentication.authenticate(env.identity.token.access_token, "service")
     await execute_message(
@@ -479,12 +403,6 @@ async def test_published_agent_uses_mcp_through_shared_worker_pipeline(
     header["Authorization"] = "Bearer " + refreshed.access_token
     header.pop("Idempotency-Key")
     path = f"/api/v1/runs/{run_id}/events"
-    event_claim = env.claims.model_copy(
-        update={"request": bind_request("GET", path, b""), "nonce": "agent_mcp_20_event_nonce"}
-    )
-    header["X-Business-Delegation"] = sign(
-        event_claim, env.key.key.kid, base64.b64decode(env.key.signing_secret)
-    )
     response = await env.client.get(path, headers=header)
     assert response.status_code == 200 and "event: result" in response.text, response.text
 
@@ -510,7 +428,7 @@ async def test_platform_revocation_blocks_later_mcp_calls(business_env, revoked)
     assert len(env.sources[0].calls) == count
 
 
-async def test_schema_change_missing_reader_and_narrowed_permissions(business_env):
+async def test_schema_change_blocks_outdated_tool(business_env):
     env = business_env
     env.sources[1].schema_revision = 2
     with pytest.raises(ServiceError) as error:
@@ -519,30 +437,3 @@ async def test_schema_change_missing_reader_and_narrowed_permissions(business_en
     env.sources[1].schema_revision = 1
     with pytest.raises(ServiceError):
         await adapter_call(env, 1)
-    env.sources[0].permissions["reader-a"] = {"actions": ["run:read"], "resources": {"run": ["*"]}}
-    narrowed = await env.bundle.delegation.read_current(env.worker)
-    assert narrowed.actions == {"run:read"}
-    with pytest.raises(ServiceError):
-        await adapter_call(env)
-    env.bundle.delegation.current_subjects = None
-    with pytest.raises(ServiceError) as error:
-        await env.bundle.delegation.read_current(env.worker)
-    assert error.value.code == "DEPENDENCY_UNAVAILABLE"
-
-
-async def test_subject_binding_updates_are_serialized_and_scope_is_server_owned(business_env):
-    env = business_env
-    payload = env.review.model_dump(include=set(SubjectReviewSave.model_fields))
-    results = await asyncio.gather(
-        *(env.client.post("/admin/v1/subject-review-bindings", json=payload) for _ in range(4))
-    )
-    assert sorted(r.status_code for r in results) == [200, 409, 409, 409]
-    response = await env.client.post(
-        "/admin/v1/subject-review-bindings", json={**payload, "channel_id": "forged"}
-    )
-    assert response.status_code == 422
-    other = env.worker.model_copy(
-        update={"scope": env.worker.scope.model_copy(update={"environment": "prod"})}
-    )
-    with pytest.raises(ServiceError):
-        await env.bundle.subject_review.binding(other)

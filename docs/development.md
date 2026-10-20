@@ -71,13 +71,13 @@ MySQL 逻辑删除的实现入口是 [soft_delete.py](../src/creativity_service/
 
 挑战有效期 120 秒，允许横向误差 4 像素；验证凭据有效期 60 秒，绑定规范化登录名与服务端获取的客户端 IP。Redis 键与记录归系统渠道，挑战及凭据通过原子消费防止并发重放，无 TTL 的记录拒绝使用。每次挑战只允许验证一次，账号密码登录尝试会消费验证凭据，错误密码也须重新验证。挑战签发限每 IP 每分钟 30 次，验证限每 IP 每分钟 60 次，并保留原账号/IP 登录限速。该模块提供基础自动化请求拦截；缺口仅包含在位图中，浏览器不接收正确偏移量。外部身份交换继续由配置的身份源校验，初始密码修改属于已认证流程。
 
-`uv run creativity-iam reconcile-revocations` 补偿未完成的撤销。业务 Key 换 Token 和主体委托见 [接入指南](integration.md#integrations)。接口详情查 [完整 OpenAPI](../contracts/openapi.json)。
+`uv run creativity-iam reconcile-revocations` 补偿未完成的撤销。渠道 Key 与密钥换 Token 及可选用户标识见 [接入指南](integration.md#integrations)。接口详情查 [完整 OpenAPI](../contracts/openapi.json)。
 
 <a id="channels"></a>
 
 ## 渠道
 
-通过 `make channels-init` 初始化系统渠道，在管理端创建业务渠道、环境、接入服务和 Key。服务 Key 与主体委托密钥分别管理。渠道暂停、归档、恢复和 Key 轮换由渠道服务处理，在途运行与预算状态参与检查。
+通过 `make channels-init` 初始化系统渠道，在管理端创建业务渠道和环境，在“业务接入 → 渠道 Key 与密钥”创建凭据，内部接入身份由平台维护。渠道暂停、归档、恢复和 Key 轮换由渠道服务处理，在途运行与预算状态参与检查。
 
 渠道列表接口 `/admin/v1/channels/page` 的 configuration_status 只返回环境配置状态和详情链接；批量聚合当前页渠道。接入服务和 Key 未配置不影响已授权用户进入渠道，实际调用仍校验环境、凭据与动作。
 

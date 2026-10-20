@@ -44,7 +44,7 @@ PLAYWRIGHT_CHANNEL=chrome CREATIVITY_INDEPENDENCE_EVIDENCE_DIR=.logs/23 \
   uv run pytest tests/integration/runtime/test_business_independence.py -q
 ```
 
-页面驱动为前端的 `tests/support/business-independence.mjs`，由上述 pytest 自动启动。页面使用编译后的前端，并把管理请求原样转发至临时真实 HTTP 服务。渠道、接入服务、Key、委托、MCP 发现/发布、主体复核、Skill 导入/绑定/冻结、Agent 配置/校验/调试/测试环境发布均经过真实页面。模型和提示词由既有配置服务准备为前置夹具；业务调用使用 22 的原始 `examples/backend/client.py`。
+页面驱动为前端的 `tests/support/business-independence.mjs`，由上述 pytest 自动启动。页面使用编译后的前端，并把管理请求原样转发至临时真实 HTTP 服务。渠道、Key 与密钥、MCP 发现/发布、Skill 导入/绑定/冻结、Agent 配置/校验/调试/测试环境上线均经过真实页面。模型和提示词由既有配置服务准备为前置夹具；业务调用使用 22 的原始 `examples/backend/client.py`。
 
 固定构建组合用例仅在设置 `CREATIVITY_INDEPENDENCE_EVIDENCE_DIR` 后运行；普通 `make integration` 会明确跳过它，避免依赖未准备的前端构建、wheel 和浏览器。使用新证据目录保留每次独立执行的记录。每个渠道只登录一次，后续页面阶段复用真实会话，不调整登录限流。
 
@@ -62,4 +62,4 @@ uv run python -m examples.onboarding.server --scenario third --port 18083 --iden
 
 API/MCP 使用真实 TCP，存储与鉴权使用 MySQL/Redis。模型输出及 Token 数量为受控替身，对象存储为内存夹具，Worker 通过正式 `execute_message` 入口在测试进程执行。这些记录只证明通用接入、隔离和版本边界；真实供应商组合、独立 Celery 部署、生产对象存储及业务效果由后续验收覆盖。渠道均为测试环境，不绕过生产评测门禁。
 
-一次性 API Key、Token 和委托秘密只经进程管道传递；不录制浏览器 trace，不写入交付证据。持久证据中的运行、渠道和来源编号属于已清理的测试数据，不是生产运行引用。
+一次性渠道密钥和 Token只经进程管道传递；不录制浏览器 trace，不写入交付证据。持久证据中的运行、渠道和来源编号属于已清理的测试数据，不是生产运行引用。

@@ -52,7 +52,7 @@ API、Worker 与 Beat 共同提供持久化受理、执行、恢复和交付。�
 
 ## SSE
 
-业务路径为 `GET /api/v1/runs/{run_id}/events`，管理路径为 `/admin/v1/runs/{run_id}/events`。使用带 Authorization 的流式请求；业务请求同时签署委托，Token 不放入 URL。
+业务路径为 `GET /api/v1/runs/{run_id}/events`，管理路径为 `/admin/v1/runs/{run_id}/events`。使用带 Authorization 的流式请求；业务请求按需携带成对用户标识头，Token 不放入 URL。
 
 每个运行事件有递增 `sequence`，SSE `id` 使用该序号。重连携带 `Last-Event-ID` 或 `after_sequence`，请求头优先。客户端去重；事件缺口或 410 `EVENTS_EXPIRED` 时回查原运行快照。
 

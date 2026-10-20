@@ -6,8 +6,8 @@ Python 类型和正式路由为唯一来源。运行 `make contracts` 生成全�
 | --- | --- | --- |
 | 完整 HTTP API | [openapi.json](openapi.json) | 管理接口、业务接口与前端类型 |
 | 业务 HTTP API | [backend/openapi-v1.json](backend/openapi-v1.json) | 后端调用、Token、运行/SSE、会话与产物 |
-| 身份委托 | [integrations](integrations/) | v2 载荷、请求绑定、错误表、签名向量及接入接口 |
-| MCP | [mcp](mcp/) | 发现、导入、身份、主体复核与结果元数据 |
+| 渠道接入 | [integrations](integrations/) | Key 与密钥交换及业务接入接口 |
+| MCP | [mcp](mcp/) | 发现、导入、身份与结果元数据 |
 | 内部交接 | [internal](internal/) | 每个模块一份 JSON，按类型名查找独立 schema |
 | 公共契约样例 | [examples.json](examples.json) | 按类型名查找成功、缺失及拒绝样例 |
 | 模型用量样例 | [models/usage-examples.json](models/usage-examples.json) | 供应商原始用量、缓存子集及完整性 |
@@ -35,7 +35,7 @@ uv run python -m creativity_service.modules.runs.export --check
 
 ## 协议约定
 
-委托使用 `business-delegation-v2`，绑定渠道、环境、主体及实际请求；旧数据域声明不再接受。Money 以十进制字符串传输，时间使用带时区 ISO 8601；缺失用量保持空值，不能按零累计。事件游标失效后查询运行快照。消费者遇到未知错误码使用服务端 message，未知业务状态不能映射为成功。
+渠道接入使用 `key_id` 与 `secret` 交换 Token，用户内容归属按可选主体头传递，无需委托签名。Money 以十进制字符串传输，时间使用带时区 ISO 8601；缺失用量保持空值，不能按零累计。事件游标失效后查询运行快照。消费者遇到未知错误码使用服务端 message，未知业务状态不能映射为成功。
 
 公共契约 1.x 允许增加不影响执行语义的可选展示字段；新增必填字段、改变状态语义、金额精度、摘要算法或事件顺序需提升主版本。
 

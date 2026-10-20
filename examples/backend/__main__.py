@@ -2,7 +2,6 @@
 
 import argparse
 import asyncio
-import base64
 import json
 import os
 import sys
@@ -27,7 +26,7 @@ class ServerPrincipalFile:
 
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description="Creativity 通用后端调用示例")
-    root.add_argument("--principal", required=True, type=Path, help="服务端受控身份 JSON 文件")
+    root.add_argument("--principal", type=Path, help="可选的服务端受控用户标识 JSON 文件")
     sub = root.add_subparsers(dest="command", required=True)
     create = sub.add_parser("create", help="以固定幂等键创建运行")
     create.add_argument("--agent", required=True)
@@ -61,12 +60,9 @@ def show(value: object) -> None:
 async def main(args: argparse.Namespace) -> None:
     async with BusinessBackendClient(
         base_url=os.environ["CREATIVITY_API_URL"],
-        api_key=os.environ["CREATIVITY_API_KEY"],
-        kid=os.environ["CREATIVITY_DELEGATION_KID"],
-        signing_secret=base64.b64decode(os.environ["CREATIVITY_DELEGATION_SECRET"], validate=True),
-        issuer=os.environ["CREATIVITY_DELEGATION_ISSUER"],
-        audience=os.environ["CREATIVITY_DELEGATION_AUDIENCE"],
-        principals=ServerPrincipalFile(args.principal),
+        key_id=os.environ["CREATIVITY_KEY_ID"],
+        secret=os.environ["CREATIVITY_SECRET"],
+        principals=ServerPrincipalFile(args.principal) if args.principal else None,
     ) as client:
         if args.command == "create":
             receipt = await client.submit(

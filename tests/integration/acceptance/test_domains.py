@@ -1,13 +1,12 @@
 """同渠道环境内不同主体使用相同参数和幂等键，仍保持独立结果。"""
 
-import base64
 import copy
 
 import pytest
+from starlette.requests import Request
 
 from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.primitives import RunInput, ServiceError
-from creativity_service.integrations.business.delegation import sign
 from creativity_service.workers.executor import execute_message
 from tests.integration.agents.test_agents import publish
 from tests.integration.mcp.test_business_access import adapter_call
@@ -28,24 +27,24 @@ async def test_same_channel_environment_distinct_subjects_and_idempotency(busine
     original = copy.deepcopy(env.sources[0].data)
     entries = []
     for index, subject_id in enumerate((env.subject.scope.subject_id, "reader-b")):
-        claims = type(env.claims).model_validate(
-            {
-                **env.claims.model_dump(),
-                "nonce": f"same-environment-subject-{index}",
-                "subject_id": subject_id,
-            }
-        )
         env.sources[0].scope = env.subject.scope.model_copy(
             update={"subject_id": subject_id}
         ).model_dump()
         env.sources[0].permissions[subject_id] = {
-            "actions": claims.actions,
-            "resources": claims.resources,
+            "actions": env.claims.actions,
+            "resources": env.claims.resources,
         }
-        subject = await env.bundle.delegation.verify(
+        subject = await env.client._transport.app.state.business_context.resolve(
             identity,
-            sign(claims, env.key.key.kid, base64.b64decode(env.key.signing_secret)),
-            claims.request,
+            Request(
+                {
+                    "type": "http",
+                    "headers": [
+                        (b"x-subject-type", b"member"),
+                        (b"x-subject-id", subject_id.encode()),
+                    ],
+                }
+            ),
         )
         raw = await adapter_call(env, context=subject)
         assert raw.data == original
@@ -93,6 +92,6 @@ async def test_same_channel_environment_distinct_subjects_and_idempotency(busine
             "cross_subject_query_rejected": True,
             "model": "controlled_fixture",
             "mcp": "real_tcp",
-            "authorization_seed": "主体权限由受信源服务复核，同渠道环境内仍按主体隔离",
+            "authorization_seed": "后端传递用户标识，同渠道环境内按主体隔离",
         },
     )

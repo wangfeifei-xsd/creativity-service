@@ -134,20 +134,6 @@ async def trusted_identity(
         raise ServiceError("TOOL_FORBIDDEN", "工具当前权限已撤销", 403)
     resources = {"tool": [tool_id]}
     expires_at = utcnow() + timedelta(seconds=30)
-    if not context.actor_id:
-        if authorization.subjects is None:
-            raise ServiceError("SUBJECT_REVIEW_REQUIRED", "缺少当前主体复核", 403)
-        subject = await authorization.subjects.read_current(context)
-        if (
-            subject.scope != context.scope
-            or not (set(request.definition.required_scopes) | {"run:create"})
-            <= subject.actions & subject.agent_actions
-            or not {tool_id, "*"} & subject.resources.get("tool", frozenset())
-        ):
-            raise ServiceError("TOOL_FORBIDDEN", "工具当前主体权限已撤销", 403)
-        resources = {k: sorted(v) for k, v in subject.resources.items()}
-        resources["tool"] = [tool_id]
-        expires_at = min(expires_at, subject.expires_at)
     return McpIdentity(
         **context.scope.model_dump(),
         principal_id=context.principal_id,

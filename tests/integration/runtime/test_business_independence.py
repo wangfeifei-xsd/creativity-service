@@ -1,7 +1,6 @@
 """23：固定平台制品下，由真实管理页面接入两类工具及第三渠道。"""
 
 import asyncio
-import base64
 import copy
 import json
 import os
@@ -45,15 +44,12 @@ pytestmark = [
 
 class Principals:
     def __init__(self, scenario):
-        self.value = Principal(
-            "member",
-            "shared-user-001",
-            ["run:create", "run:read", "run:content", "data:read_sensitive"],
-            {
-                kind: ["*"]
-                for kind in ("agent", "model", "model_route", "prompt", "skill", "tool", "run")
-            },
-        )
+        self.value = Principal("member", "shared-user-001")
+        self.actions = ["run:create", "run:read", "run:content", "data:read_sensitive"]
+        self.resources = {
+            kind: ["*"]
+            for kind in ("agent", "model", "model_route", "prompt", "skill", "tool", "run")
+        }
 
     async def current(self):
         return self.value
@@ -326,23 +322,21 @@ async def test_fixed_build_two_businesses_and_third_channel_via_management_pages
                 ).model_dump()
                 source.permissions = {
                     principal.value.subject_id: {
-                        "actions": principal.value.actions,
-                        "resources": principal.value.resources,
+                        "actions": principal.actions,
+                        "resources": principal.resources,
                     }
                 }
                 backend = await clients.enter_async_context(
                     BusinessBackendClient(
                         env.api_url,
+                        account["key"]["key"]["key_id"],
                         account["key"]["api_key"],
-                        account["delegation"]["key"]["kid"],
-                        base64.b64decode(account["delegation"]["signing_secret"]),
-                        "controlled-source",
-                        "creativity-api",
                         principal,
                     )
                 )
                 item = SimpleNamespace(
                     scenario=scenario,
+                    manager=manager,
                     context=context,
                     source=source,
                     backend=backend,
@@ -353,9 +347,8 @@ async def test_fixed_build_two_businesses_and_third_channel_via_management_pages
                     http=[],
                     config={
                         "channel": account["channel"],
-                        "client": account["client"],
+                        "client_id": account["key"]["key"]["client_id"],
                         "key_id": account["key"]["key"]["key_id"],
-                        "delegation_kid": account["delegation"]["key"]["kid"],
                         "mcp": resources["connection"],
                         "discovery": resources["discovery"],
                         "tool": tool,
@@ -517,7 +510,7 @@ async def test_fixed_build_two_businesses_and_third_channel_via_management_pages
                 queued["run_id"], wait_seconds=120, poll_interval=2
             )
             assert failed["state"] == "FAILED", failed
-            assert failed["error"]["code"] in {"MCP_TOOL_CHANGED", "SUBJECT_REVIEW_CHANGED"}
+            assert failed["error"]["code"] in {"MCP_TOOL_CHANGED"}
             assert (
                 sum(c["name"] == items[1].source.tool_name for c in items[1].source.calls)
                 == before_schema_calls
@@ -531,7 +524,10 @@ async def test_fixed_build_two_businesses_and_third_channel_via_management_pages
             before_calls = len(
                 [c for c in items[0].source.calls if c["name"] == items[0].source.tool_name]
             )
-            items[0].source.permissions = {}
+            key = items[0].config["key_id"]
+            await env.services.keys.revoke(
+                items[0].manager, items[0].context.scope.channel_id, key, 1
+            )
             env.worker_enabled = True
 
             async with asyncio.timeout(30):

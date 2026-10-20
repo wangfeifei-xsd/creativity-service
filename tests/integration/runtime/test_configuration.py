@@ -1,7 +1,6 @@
 """21 的配置交付：可移植包、显式依赖、真实执行轨迹和测试环境发布。"""
 
 import asyncio
-import base64
 import json
 import os
 from pathlib import Path
@@ -11,7 +10,6 @@ import pytest
 from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.primitives import RunInput, ServiceError, digest
 from creativity_service.core.services import build_core_services
-from creativity_service.integrations.business.delegation import bind_request, sign
 from creativity_service.modules.agents.schemas import (
     AgentConfigurationEdit,
     AgentValidateInput,
@@ -370,12 +368,6 @@ async def test_mcp_configuration_explicit_binding_contract_and_runtime(business_
     request = json.dumps(
         {"agent_code": body.agent_code, "input": case(name)["input"], "delivery": "async"}
     ).encode()
-    claims = env.claims.model_copy(
-        update={
-            "nonce": "configuration-mcp-run",
-            "request": bind_request("POST", "/api/v1/runs", request, "configuration-mcp"),
-        }
-    )
     response = await env.client.post(
         "/api/v1/runs",
         content=request,
@@ -383,9 +375,8 @@ async def test_mcp_configuration_explicit_binding_contract_and_runtime(business_
             "Authorization": "Bearer " + env.identity.token.access_token,
             "Content-Type": "application/json",
             "Idempotency-Key": "configuration-mcp",
-            "X-Business-Delegation": sign(
-                claims, env.key.key.kid, base64.b64decode(env.key.signing_secret)
-            ),
+            "X-Subject-Type": env.claims.subject_type,
+            "X-Subject-ID": env.claims.subject_id,
         },
     )
     assert response.status_code == 202, response.text

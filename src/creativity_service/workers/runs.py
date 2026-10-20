@@ -12,7 +12,6 @@ from creativity_service.core.context import TaskEnvelope
 from creativity_service.core.database import assert_external_io_allowed
 from creativity_service.core.infrastructure import Infrastructure
 from creativity_service.modules.channels.assembly import build_channel_services
-from creativity_service.modules.integrations.delegation import CurrentSubjectReader
 from creativity_service.modules.runs.ports import Executor
 from creativity_service.modules.runs.services import RunService
 from creativity_service.modules.runtime.bootstrap import worker_services
@@ -23,7 +22,6 @@ from creativity_service.workers.recovery import Recovery
 
 executor: Executor | None = None
 step_registry = StepRegistry()
-current_subject_reader: CurrentSubjectReader | None = None
 
 
 class CeleryPublisher:
@@ -48,9 +46,7 @@ async def runtime() -> AsyncIterator[tuple[RunService, list[str]]]:
             infrastructure.redis_clients["redis_auth"],
             settings.redis_key_prefix,
         )
-        runs = worker_services(
-            infrastructure, iam, registry=step_registry, current_subjects=current_subject_reader
-        )
+        runs = worker_services(infrastructure, iam, registry=step_registry)
         async with infrastructure.engine.connect() as connection:
             channel_ids = await channels.channels.repository.directory(connection)
         yield runs, channel_ids

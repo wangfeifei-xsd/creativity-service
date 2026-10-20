@@ -196,18 +196,11 @@ class ReadAuthorization:
                 resource_type,
                 resource_id,
             )
-        elif self.service is not None and self.subject is not None:
-            if self.service.expires_at <= utcnow() or self.subject.expires_at <= utcnow():
-                raise ServiceError("UNAUTHENTICATED", "主体委托已失效", 401)
-            resources = self.subject.resources.get(resource_type, frozenset())
-            actions = (
-                self.service.client_actions
-                & self.service.key_actions
-                & self.subject.actions
-                & self.subject.agent_actions
-                if resource_id in resources or "*" in resources
-                else frozenset()
-            )
+        elif self.service is not None:
+            if self.service.expires_at <= utcnow():
+                raise ServiceError("UNAUTHENTICATED", "渠道凭据已失效", 401)
+            # 业务后端凭渠道凭据访问本渠道；内部资源由平台配置和归属校验约束。
+            actions = self.service.client_actions & self.service.key_actions
         else:
             raise unavailable("当前身份授权数据")
         allowed = frozenset(value for value in actions if action_allowed(actions, value))
@@ -240,7 +233,7 @@ class IamAuthorization:
     async def read_policy(self, context: AuthContext) -> ReadAuthorization:
         """一次复核并返回可复用的数据；每次调用都读取当前状态，不做跨请求缓存。"""
         read_scope = getattr(self.authentication.identities, "read_scope", None)
-        # 管理身份在 Redis 核对后只访问本地数据库；带远端主体复核的业务身份不持此连接。
+        # 身份与权限仅查询平台自己的当前状态，不调用业务 MCP。
         if context.actor_id and read_scope:
             async with read_scope():
                 return await self.load_policy(context)
@@ -251,17 +244,9 @@ class IamAuthorization:
         if identity.member is not None:
             grants = await self.authentication.identities.grants(context.scope.channel_id)
             return ReadAuthorization(context, member=identity.member, grants=tuple(grants))
-        if identity.service is None or self.subjects is None:
-            raise unavailable("主体委托授权服务")
-        subject = await self.subjects.read_current(context)
-        if (
-            subject.scope != context.scope
-            or subject.expires_at <= utcnow()
-            or not context.scope.subject_type
-            or not context.scope.subject_id
-        ):
-            raise ServiceError("UNAUTHENTICATED", "主体委托已失效", 401)
-        return ReadAuthorization(context, service=identity.service, subject=subject)
+        if identity.service is None:
+            raise unavailable("渠道接入身份服务")
+        return ReadAuthorization(context, service=identity.service)
 
     async def allowed_actions(
         self, context: AuthContext, resource_type: str, resource_id: str

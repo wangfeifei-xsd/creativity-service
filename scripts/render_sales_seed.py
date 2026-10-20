@@ -28,11 +28,14 @@ from scripts.render_order_guidance_seed import validate_mcp_configuration
 from scripts.render_sales_access import ACCESS_TABLES, validate_sales_access
 
 SALES_SEED = Path(__file__).resolve().parents[1] / "sql/sales_recommendation_data.json"
-SALES_TABLES = frozenset(
-    "agent_environment_states "
-    "agents prompts skills tools skill_files resource_versions resource_references "
-    "release_mappings source_links mcp_imports".split()
-) | ACCESS_TABLES
+SALES_TABLES = (
+    frozenset(
+        "agent_environment_states "
+        "agents prompts skills tools skill_files resource_versions resource_references "
+        "release_mappings source_links mcp_imports".split()
+    )
+    | ACCESS_TABLES
+)
 RESOURCE_TABLES = {"agent": "agents", "prompt": "prompts", "skill": "skills", "tool": "tools"}
 
 

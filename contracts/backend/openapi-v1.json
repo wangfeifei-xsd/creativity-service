@@ -2573,17 +2573,51 @@
         "additionalProperties": false,
         "properties": {
           "api_key": {
-            "format": "password",
-            "maxLength": 512,
-            "minLength": 1,
-            "title": "Api Key",
-            "type": "string",
-            "writeOnly": true
+            "anyOf": [
+              {
+                "format": "password",
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "deprecated": true,
+            "title": "Api Key"
+          },
+          "key_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Id"
+          },
+          "secret": {
+            "anyOf": [
+              {
+                "format": "password",
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secret"
           }
         },
-        "required": [
-          "api_key"
-        ],
         "title": "TokenExchange",
         "type": "object"
       },
@@ -2803,12 +2837,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -3366,12 +3410,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -3665,12 +3719,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -3964,12 +4028,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -4253,12 +4327,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -4669,12 +4753,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -4947,12 +5041,22 @@
         "operationId": "create_api_v1_conversations_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -5246,12 +5350,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -5533,12 +5647,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -5820,12 +5944,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -6119,12 +6253,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -6420,12 +6564,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -6730,12 +6884,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -7020,12 +7184,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -7319,12 +7493,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -7608,12 +7792,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -7935,12 +8129,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -8222,12 +8426,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -8521,12 +8735,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -8819,12 +9043,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -9117,12 +9351,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -9397,12 +9641,22 @@
         "operationId": "preview_api_v1_data_lifecycle_deletion_preview_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -9687,12 +9941,22 @@
         "operationId": "request_deletion_api_v1_data_lifecycle_deletions_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -9986,12 +10250,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -10275,12 +10549,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -10564,12 +10848,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -10844,12 +11138,22 @@
         "operationId": "upload_file_api_v1_files_upload_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -11145,12 +11449,22 @@
         "operationId": "oauth_callback_api_v1_mcp_connections_oauth_callback_post",
         "parameters": [
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -11444,12 +11758,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -11740,12 +12064,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -12043,12 +12377,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -12429,12 +12773,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -12723,12 +13077,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -13029,12 +13393,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -13318,12 +13692,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -13605,12 +13989,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -13892,12 +14286,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -14191,12 +14595,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -14497,12 +14911,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -14790,12 +15214,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -15087,12 +15521,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -15383,12 +15827,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -15677,12 +16131,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -15979,12 +16443,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -16296,12 +16770,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -16585,12 +17069,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -16903,12 +17397,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -17188,12 +17692,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }
@@ -17485,12 +17999,22 @@
             }
           },
           {
-            "description": "业务后端签发并绑定实际请求的 business-delegation-v2 委托",
+            "description": "业务用户类型，与用户编号成对提供",
             "in": "header",
-            "name": "X-Business-Delegation",
-            "required": true,
+            "name": "X-Subject-Type",
+            "required": false,
             "schema": {
-              "maxLength": 16384,
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "业务用户编号，仅用于本渠道内的会话和内容归属",
+            "in": "header",
+            "name": "X-Subject-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
               "type": "string"
             }
           }

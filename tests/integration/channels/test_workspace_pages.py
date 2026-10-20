@@ -17,6 +17,7 @@ async def test_chn_page_options_and_platform_return(channel_env, channel):
     page = await env.client.get(path + "/page", headers=auth)
     assert page.status_code == 200
     assert "key:create" in {a["action_key"] for a in page.json()["actions"]}
+    assert "key:delete" in {a["action_key"] for a in page.json()["actions"]}
     assert "members" in {t["navigation_key"] for t in page.json()["tabs"]}
     other = await provision(env, "second")
     hidden = await env.client.get(
@@ -36,6 +37,7 @@ async def test_chn_page_options_and_platform_return(channel_env, channel):
     governance = await env.client.get(path + "/page", headers=platform)
     assert "key:create" not in {a["action_key"] for a in governance.json()["actions"]}
     assert "key:revoke" in {a["action_key"] for a in governance.json()["actions"]}
+    assert "key:delete" in {a["action_key"] for a in governance.json()["actions"]}
     assert "data_scope_types" not in governance.json()
 
 

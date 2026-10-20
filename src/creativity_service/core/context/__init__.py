@@ -148,10 +148,10 @@ async def require_http_context(
     if context.principal_type != purpose:
         raise ServiceError("TOKEN_PURPOSE_INVALID", "凭据用途不符", 401)
     if purpose == "service":
-        delegation = getattr(request.app.state, "delegation", None)
-        if delegation is None:
-            raise unavailable("业务主体委托验证服务")
-        context = await delegation.verify_request(context, request)
+        business_context = getattr(request.app.state, "business_context", None)
+        if business_context is None:
+            raise unavailable("渠道业务上下文服务")
+        context = await business_context.resolve(context, request)
     from creativity_service.core.deletion.ledger import DeletionLedger
 
     manifest = await DeletionLedger().operate(context.scope.channel_id, required=True)

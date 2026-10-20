@@ -77,6 +77,7 @@ SERVICE_ACTIONS = frozenset(
         "report:read",
         "conversation:read",
         "conversation:write",
+        "content:delete",
         "memory:read",
         "memory:write",
         "memory:delete",
